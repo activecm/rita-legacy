@@ -36,9 +36,9 @@ data.
 ###Installation
 
 1. What you'll need:
-* Bro [https://www.bro.org](https://www.bro.org)
-* MongoDB [https://www.mongodb.com](https://www.mongodb.com)
-* Golang [https://www.golang.org](https://www.golang.org)
+ * Bro [https://www.bro.org](https://www.bro.org)
+ * MongoDB [https://www.mongodb.com](https://www.mongodb.com)
+ * Golang [https://www.golang.org](https://www.golang.org)
 
 1. Clone the repo.
 1. run ```go get```
@@ -46,7 +46,7 @@ data.
 1. run ```sudo ./install.sh```
 1. edit /etc/rita/config.yaml to contain the address and port of your mongodb
 server, a name for a database you'd like to build, where to find the bro logs etc.
-1. run rita --help to view available commands
+1. run ```rita --help``` to view available commands
 
 ###Getting help
 Head over to OFTC and join #ocmdev for any questions you may have. Please 
