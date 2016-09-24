@@ -1,0 +1,76 @@
+DatabaseHost: 10.10.150.200
+Database: RITA_TEST
+BaseInstallDirectory: /usr/local/rita
+HostIntelDB: TEST_HostIntelligence
+ExternalHostsCollection: ext_host
+LogFilePath: /dev/null 
+LogLevel: 2
+BatchSize: 300
+Prefetch: 0.33
+WhiteList:
+    - google.com
+    - blackhillsinfosec.com
+
+# NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
+Bro:
+    LogPath: /path/to/top/level/directory/
+    DBPrefix: TEST
+    DirectoryMap:
+        UniqueDir: SeperateDatabaseName
+        UniqueDir2: SeperateDatabaseName2
+    MetaDB: TEST_METADB
+    BufferSize: 1000
+    WriteThreads: 10
+    UseDates: true  # Weather or not to split logs into dates
+
+Server:
+    AdminsTable: TEST_admins
+    UsersTable: TEST_users
+    DnsQueryTypeTable: TEST_dns_query_type
+
+Structure:
+    ConnectionTable: conn
+    HttpTable: http
+    UniqueConnectionTable: uconn
+    HostTable: host
+
+BlackListed:
+    ThreadCount: 2
+    ChannelSize: 1000
+    BlackListTable: blacklisted
+
+Crossref:
+    CrossrefTable: crossref
+
+Dns:
+    DnsTable: dns
+
+Duration:
+    DurationTimeScale: seconds
+
+Scanning:
+    ScanThreshold: 50
+    ScanTable: scan
+
+TBD:
+    DefaultBucketSize: 60.0
+    DefaultConnectionThresh: 3
+    TBDTable: tbd
+
+Urls:
+    UrlsTable: urls
+
+UserAgent:
+    UserAgentTable: useragent
+
+Reporting:
+    IansFlag: false
+    Company: Test
+    Contact: Cthulhu
+    CompanyLogo: \imagedir/generic-logo.png
+    LogTypes: Proxy logs, Firewall logs, and Windows Event Logs
+    MaxTableSize: 200
+    OutputDirectory: ./test
+    ImageDirectory: ../../images
+    ReportSubmitDate: \today  # Keep as is to have date set on doc set to today
+    Hackers: Lawrence Hoffman, Lisa Woody, Joe Lillo

@@ -1,0 +1,57 @@
+DatabaseHost: localhost:27017
+BaseInstallDirectory: /usr/local/rita
+Database: NameOfDatabaseToUse 
+HostIntelDB: HostIntelligence
+ExternalHostsCollection: ext_host
+LogLevel: 2
+BatchSize: 300
+Prefetch: 0.33
+WhiteList:
+    - google.com
+    - blackhillsinfosec.com
+
+# NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
+Bro:
+    LogPath: /path/to/top/level/directory/
+    DBPrefix: PrefixForDatabase
+    DirectoryMap:
+        UniqueDir: SeperateDatabaseName
+        UniqueDir2: SeperateDatabaseName2
+    MetaDB: MetaDataBase
+    BufferSize: 1000
+    WriteThreads: 10
+    UseDates: true  # Whether or not to split logs into dates
+
+Structure:
+    ConnectionTable: conn
+    HttpTable: http
+    UniqueConnectionTable: uconn
+    HostTable: host
+
+BlackListed:
+    ThreadCount: 2
+    ChannelSize: 1000
+    BlackListTable: blacklisted
+
+Dns:
+    DnsTable: dns
+
+Duration:
+    DurationTimeScale: seconds
+
+Scanning:
+    ScanThreshold: 50
+    ScanTable: scan
+
+TBD:
+    DefaultBucketSize: 60.0
+    DefaultConnectionThresh: 3
+    TBDTable: tbd
+
+Urls:
+    UrlsTable: urls
+    HostnamesTable: hostnames
+
+UserAgent:
+    UserAgentTable: useragent
+

@@ -1,0 +1,40 @@
+{{ define "base" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <!-- Primary CSS: Do not override without good reason -->
+
+  <style>
+    body {
+      background-color: #010101;
+      color: #FF7500;
+    }
+
+    .button {
+      background-color: #010101;
+      color: #FF7500;
+      border: 2px solid #FF7500;
+      border-radius: 8px;
+    }
+
+    ul {
+      display: block;
+      list-style-type: none;
+      margin-top: 1.5em;
+      margin-bottom: 1.5em;
+    }
+
+  </style>
+
+  <!-- End style -->
+
+  {{ template "head" . }} 
+
+</head>
+<body>
+  {{ template "body" . }}
+</body>
+</html>
+{{ end }}
