@@ -36,17 +36,17 @@ data.
 ###Installation
 
 1. What you'll need:
-* Bro [https://www.bro.org](https://www.bro.org)
-* MongoDB [https://www.mongodb.com](https://www.mongodb.com)
-* Golang [https://www.golang.org](https://www.golang.org)
+ * Bro [https://www.bro.org](https://www.bro.org)
+ * MongoDB [https://www.mongodb.com](https://www.mongodb.com)
+ * Golang [https://www.golang.org](https://www.golang.org)
 
 1. Clone the repo.
-1. run '''go get'''
-1. run '''go install'''
-1. run sudo ./install.sh
+1. run ```go get```
+1. run ```go install```
+1. run ```sudo ./install.sh```
 1. edit /etc/rita/config.yaml to contain the address and port of your mongodb
 server, a name for a database you'd like to build, where to find the bro logs etc.
-1. run rita --help to view available commands
+1. run ```rita --help``` to view available commands
 
 ###Getting help
 Head over to OFTC and join #ocmdev for any questions you may have. Please 
@@ -65,9 +65,9 @@ difficulty from easiest to hardest.
 
 1. Run the software and tell us when it breaks. We're happy to recieve bug 
 reports. Just be sure to do the following:
-* Give very specific descriptions of how to reproduce the bug
-* Let us know if you're running RITA on wierd hardware
-* Tell us about the size of the test, the physical resources available, and the
+  * Give very specific descriptions of how to reproduce the bug
+  * Let us know if you're running RITA on wierd hardware
+  * Tell us about the size of the test, the physical resources available, and the
 
 1. Add godoc comments to the code. This software was developed for internal use
 mostly on the fly and as needed. This means that the code was not built to the
@@ -79,10 +79,10 @@ code.
 1. Work on bug fixes. Grab from the issues list and submit fixes.
 
 1. Helping add features:
-* If you'd like to become involved in the development effort please hop on our
+  * If you'd like to become involved in the development effort please hop on our
 OFTC channel at #ocmdev and try and chat with booodead about what's currently 
 being worked on.
-* If you have a feature request or idea, also please hop on OFTC #ocmdev and 
+  * If you have a feature request or idea, also please hop on OFTC #ocmdev and 
 chat with booodead about your idea. There's a chance we're already working on it and
 would be happy to share that work with you.
 
