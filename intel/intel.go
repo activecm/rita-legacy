@@ -5,14 +5,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database/inteldb"
-	"github.com/ocmdev/rita/datatypes/intel"
-	"github.com/ocmdev/rita/util"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database/inteldb"
+	"github.com/ocmdev/rita/datatypes/intel"
+	"github.com/ocmdev/rita/util"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -47,8 +48,8 @@ type (
 		// log gives us a logger
 		log *log.Logger
 
-		// baseInstallDir is the directory where rita was installed
-		baseInstallDir string
+		// NetcatPath is the path to the netcat executable
+		NetcatPath string
 
 		// AgeThreshold is a settable that gives us the number of days that
 		// elapse before we recheck data
@@ -67,15 +68,15 @@ const expectedCymruFields = 7
 func NewIntelHandle(conf *config.Resources) *IntelHandle {
 	ssn := conf.CopySession()
 	return &IntelHandle{
-		intelDB:        conf.System.HostIntelDB,
-		session:        ssn,
-		log:            conf.Log,
-		baseInstallDir: conf.System.BaseInstallDirectory,
-		hostCol:        conf.System.StructureConfig.HostTable,
-		urlCol:         conf.System.UrlsConfig.UrlsTable,
-		db:             conf.System.DB,
-		intelDBHandle:  inteldb.NewIntelDBHandle(conf),
-		AgeThreshold:   float64(30.0) * float64(24.0),
+		intelDB:       conf.System.HostIntelDB,
+		session:       ssn,
+		log:           conf.Log,
+		NetcatPath:    conf.System.GNUNetcatPath,
+		hostCol:       conf.System.StructureConfig.HostTable,
+		urlCol:        conf.System.UrlsConfig.UrlsTable,
+		db:            conf.System.DB,
+		intelDBHandle: inteldb.NewIntelDBHandle(conf),
+		AgeThreshold:  float64(30.0) * float64(24.0),
 	}
 }
 
@@ -150,7 +151,7 @@ func (i *IntelHandle) Run() {
 func (i *IntelHandle) CymruWhoisLookup(addresses []string) []data.IntelData {
 
 	var result []data.IntelData
-	netcat := i.baseInstallDir + "/bin/deps/netcat"
+	netcat := i.NetcatPath
 	if len(addresses) == 0 {
 		i.log.WithFields(log.Fields{
 			"error": "Addresses field length 0",

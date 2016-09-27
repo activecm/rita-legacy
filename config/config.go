@@ -14,6 +14,7 @@ import (
 type (
 	SystemConfig struct {
 		LogType                 string         `yaml:"LogType"`
+		GNUNetcatPath           string         `yaml:"GNUNetcatPath"`
 		BaseInstallDirectory    string         `yaml:"BaseInstallDirectory"`
 		BatchSize               int            `yaml:"BatchSize"`
 		DB                      string         `yaml:"Database"`

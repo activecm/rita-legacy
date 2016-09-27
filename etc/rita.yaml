@@ -1,27 +1,80 @@
+# Mongo Database to connect to
 DatabaseHost: localhost:27017
-BaseInstallDirectory: /usr/local/rita
+
+# Intel makes use of GNU Netcat to make bulk requests from the team cymru WHOIS
+# server. It is important that it is *GNU* netcat at this path.
+GNUNetcatPath: /usr/local/rita
+
+# This is what to name the database for this particular test
 Database: NameOfDatabaseToUse 
+
+# Name of the host intelligence database. This can be the same across many tests.
+# Data like blacklist information, ASN, etc, will be gathered here in order to 
+# attempt to reduce the number of lookups necessary.
 HostIntelDB: HostIntelligence
+
+# This is the collection name for external hosts in the HostIntelligence database.
 ExternalHostsCollection: ext_host
+
+# LogLevel
+# 3 = debug 
+# 2 = info 
+# 1 = warn
+# 0 = error 
 LogLevel: 2
+
+# Adjusting batchsize and prefetch may help speed up certain database queries
 BatchSize: 300
 Prefetch: 0.33
+
+# Whitelisting has been removed, but will return. The option is being left here
+# until it comes back
 WhiteList:
     - google.com
     - blackhillsinfosec.com
 
-# NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
+# The section Bro configures the bro ingestor
 Bro:
+    # Path to a top level directory of log files
     LogPath: /path/to/top/level/directory/
+
+    # All databases in this test will get prefixed with the database prefix
     DBPrefix: PrefixForDatabase
+
+    # Subdirectories of LogPath may be seperated into different databases for the
+    # test. Map each directory to the database you wish that directory to wind up
+    # in. This is good for running tests against multiple subnets, just make sure 
+    # that the bro logs are under a folder in the directory structure named for 
+    # that subnet, put the directory name on the left side of the colon, and the
+    # database you wish the logs from that directory to go to on the right side.
     DirectoryMap:
         UniqueDir: SeperateDatabaseName
         UniqueDir2: SeperateDatabaseName2
+    
+    # There needs to be one metadatabase per test. This database holds information
+    # about the test and the files related to the test. If there are several 
+    # subnets mapped in DirectoryMap each will be handled seperately and that
+    # seperation is handled by the metadatabase.
     MetaDB: MetaDataBase
+
+    # If the ingestor is using up all of the available memory it may help to reduce
+    # the buffer size. On the other hand if hte ingestor is running slowly, and 
+    # there is plenty of resources remaining, it may be wise to increase the buffer
+    # and writethread size accorndingly. Note that writing to MongoDB is a part of
+    # this equation. If MongoDB is tipping over when ingest is run, then reduce 
+    # those WriteThreads.
     BufferSize: 1000
     WriteThreads: 10
-    UseDates: true  # Whether or not to split logs into dates
 
+    # If use dates is true the logs will be split into databases by date, this is
+    # best for if you have multiple days worth of log files in the logpath and wish
+    # to treat each day as a seperate test. 24hours worth of data is the ideal for 
+    # analysis, and using dates will ensure that tests are broken into 24hour periods
+    # around midnight of each day.
+    UseDates: true 
+
+
+# NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
 Structure:
     ConnectionTable: conn
     HttpTable: http
