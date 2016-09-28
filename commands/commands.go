@@ -4,13 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/parser"
 	"github.com/ocmdev/rita/parser/docwriter"
-	"github.com/ocmdev/rita/server"
 
 	"github.com/codegangsta/cli"
 )
@@ -27,35 +25,6 @@ func Commands() []cli.Command {
 			Action: func(c *cli.Context) error {
 				checkConfig(c.Args().First())
 				return nil
-			},
-		},
-		{
-			Name:  "server",
-			Usage: "launch the frontend server",
-			Flags: []cli.Flag{
-				cli.IntFlag{
-					Name:  "port, p",
-					Usage: "set the port of the server",
-					Value: 8080,
-				},
-				cli.StringFlag{
-					Name:  "address, a",
-					Usage: "set the address to serve at",
-					Value: "127.0.0.1",
-				},
-				cli.StringFlag{
-					Name:  "config, c",
-					Usage: "use `CONFIG` as the start config",
-					Value: "/usr/local/rita/etc/config.yaml",
-				},
-			},
-			Action: func(c *cli.Context) error {
-				conf := config.InitConfig(c.String("config"))
-				addr := c.String("address") + ":" + strconv.Itoa(c.Int("port"))
-				res := conf.System.BaseInstallDirectory + "/usr/web"
-				server.New(addr, res, conf.System.DatabaseHost).Start()
-				return nil
-
 			},
 		},
 		{
