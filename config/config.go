@@ -25,7 +25,6 @@ type (
 		Prefetch                float64        `yaml:"Prefetch"`
 		Whitelist               []string       `yaml:"WhiteList"`
 		BlacklistedConfig       BlacklistedCfg `yaml:"BlackListed"`
-		CrossrefConfig          CrossrefCfg    `yaml:"Crossref"`
 		DnsConfig               DnsCfg         `yaml:"Dns"`
 		DurationConfig          DurationCfg    `yaml:"Duration"`
 		ScanningConfig          ScanningCfg    `yaml:"Scanning"`
@@ -47,10 +46,6 @@ type (
 		ThreadCount    int    `yaml:"ThreadCount"`
 		ChannelSize    int    `yaml:"ChannelSize"`
 		BlacklistTable string `yaml:"BlackListTable"`
-	}
-
-	CrossrefCfg struct {
-		CrossrefTable string `yaml:"CrossrefTable"`
 	}
 
 	DnsCfg struct {
