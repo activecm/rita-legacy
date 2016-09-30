@@ -62,15 +62,6 @@ __install() {
 	cp -r usr $_RITADIR/usr
 	cp LICENSE $_RITADIR/LICENSE
 
-	# This just checks if we're doing a an install during dev (rita would be 
-	# the directory from which this is running in that case) or if it's 
-	# a part of an installer package with a binary prepacked in bin
-	if [ -e bin/rita ] && [ -x bin/rita ] && [ -w /usr/local/bin ]
-	then
-		printf "[+] Creating symlink to /usr/local/bin/rita\n"
-		ln -s $_RITADIR/bin/rita /usr/local/bin/rita
-	fi
-
 	# Install the base configuration file
 	if [ -w /etc/ ]
 	then
