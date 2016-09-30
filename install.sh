@@ -57,7 +57,7 @@ __install() {
 
 	printf "[+] Transferring files\n"
 	mkdir $_RITADIR
-	cp -r bin $_RITADIR/bin
+	
 	cp -r etc $_RITADIR/etc
 	cp -r usr $_RITADIR/usr
 	cp LICENSE $_RITADIR/LICENSE
