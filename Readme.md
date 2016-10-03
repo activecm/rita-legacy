@@ -39,14 +39,52 @@ data.
  * Bro [https://www.bro.org](https://www.bro.org)
  * MongoDB [https://www.mongodb.com](https://www.mongodb.com)
  * Golang [https://www.golang.org](https://www.golang.org)
+ * GNU netcat [http://netcat.sourceforge.net/](http://netcat.sourceforge.net/)
 
-1. Clone the repo.
-1. run ```go get```
-1. run ```go install```
-1. run ```sudo ./install.sh```
-1. edit /etc/rita/config.yaml to contain the address and port of your mongodb
-server, a name for a database you'd like to build, where to find the bro logs etc.
-1. run ```rita --help``` to view available commands
+1. Setting up your environment:
+  	1. Install bro using the directions at [https://www.bro.org/sphinx/install/install.html](https://www.bro.org/sphinx/install/install.html)
+  	1. Test that bro is working by firing up bro and ensuring that it's spitting out logs. If you're having some trouble 
+  with bro configuration or use here are some helpful links:
+    	* Bro quick start [https://www.bro.org/sphinx-git/quickstart/index.html](https://www.bro.org/sphinx-git/quickstart/index.html)
+    	* broctl [https://www.bro.org/sphinx/components/broctl/README.html](https://www.bro.org/sphinx/components/broctl/README.html)
+  	1. Install MongoDB (You can use your package manager for this one)
+	1. Install GNU Netcat, make sure that it is GNU Netcat. NC will not work. [http://netcat.sourceforge.net/](http://netcat.sourceforge.net/)
+	1. Install GoLang using the instructions at [https://golang.org/doc/install](https://golang.org/doc/install)
+  	1. After the install we need to set a local GOPATH for our user. So lets set up a directory in our HomeDir
+    	* ```mkdir -p $HOME/go/{src,pkg,bin}```
+  	1. Now we must add the GoPath to our .bashrc file
+    	* ```echo "export GOPATH="$HOME/go" >> $HOME/.bashrc```
+ 	1. We will also want to add our bin folder to the path for this user.
+   		* ```echo "export PATH="$PATH:$GOPATH/bin" >> $HOME/.bashrc```
+ 	 1. Load your new configurations with source.
+    	* ```source $HOME/.bashrc```
+
+1. Getting the sources and building them
+  	1. First we want to use the go to grab sources and deps for rita.
+    	* ```go get github.com/ocmdev/rita```
+  	1. Now lets change to the rita directory.
+    	* ```cd $GOPATH/src/github.com/ocmdev/rita```
+  	1. Then build rita.
+    	* ```go build```
+  	1. Now we'll install the rita binary.
+  		* ```go install```
+  	1. Finally, let's install all of the supporting software.
+  		* ```sudo ./install.sh```
+
+1. Configuring the system
+	1. If you installed as sudo (root) then there will be a default config file at both /usr/local/rita/etc/rita.yaml
+  and /etc/rita/config.yaml.
+	1. You can also copy the global config from /etc to your homedir and call it .rita. If there's a .rita config that's
+  the one that will be used. Here's the order of precendence for configuration.
+    	* file given on the command line with the -c flag
+    	* $HOME/.rita
+    	* /etc/rita/config.yaml
+    	* If none of the above files successfully configure the system then the system fails.
+  	1. You can test a configuration file with ```rita testconfig PATH/TO/FILE``` if the file is syntactically correct rita
+  will print the resultant configuration. If it fails an error will be given.
+  	1. The most important parts of the configuration file are the database path, the path for your netcat binary, a name 
+  for the database you'd like to create with this dataset, and of course the Bro section of the yaml file which configures
+  your parser. There are comments in the yaml file that should help with configuration.
 
 ###Getting help
 Head over to OFTC and join #ocmdev for any questions you may have. Please 
@@ -65,9 +103,9 @@ difficulty from easiest to hardest.
 
 1. Run the software and tell us when it breaks. We're happy to recieve bug 
 reports. Just be sure to do the following:
-  * Give very specific descriptions of how to reproduce the bug
-  * Let us know if you're running RITA on wierd hardware
-  * Tell us about the size of the test, the physical resources available, and the
+  	* Give very specific descriptions of how to reproduce the bug
+  	* Let us know if you're running RITA on wierd hardware
+  	* Tell us about the size of the test, the physical resources available, and the
 
 1. Add godoc comments to the code. This software was developed for internal use
 mostly on the fly and as needed. This means that the code was not built to the
@@ -79,10 +117,10 @@ code.
 1. Work on bug fixes. Grab from the issues list and submit fixes.
 
 1. Helping add features:
-  * If you'd like to become involved in the development effort please hop on our
+  	* If you'd like to become involved in the development effort please hop on our
 OFTC channel at #ocmdev and try and chat with booodead about what's currently 
 being worked on.
-  * If you have a feature request or idea, also please hop on OFTC #ocmdev and 
+  	* If you have a feature request or idea, also please hop on OFTC #ocmdev and 
 chat with booodead about your idea. There's a chance we're already working on it and
 would be happy to share that work with you.
 
