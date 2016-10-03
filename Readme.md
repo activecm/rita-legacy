@@ -53,9 +53,9 @@ data.
   1. After the install we need to set a local GOPATH for our user. So lets set up a directory in our HomeDir
     * ```mkdir -p $HOME/go/{src,pkg,bin}```
   1. Now we must add the GoPath to our .bashrc file
-    * ```echo "export GOPATH="$HOME/go" >> $HOME/.bashrc```
+    * ```echo 'export GOPATH="$HOME/go"' >> $HOME/.bashrc```
   1. We will also want to add our bin folder to the path for this user.
-    * ```echo "export PATH="$PATH:$GOPATH/bin" >> $HOME/.bashrc```
+    * ```echo 'export PATH="$PATH:$GOPATH/bin"' >> $HOME/.bashrc```
   1. Load your new configurations with source.
     * ```source $HOME/.bashrc```
 
