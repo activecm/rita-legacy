@@ -59,7 +59,6 @@ __install() {
 	mkdir $_RITADIR
 	
 	cp -r etc $_RITADIR/etc
-	cp -r usr $_RITADIR/usr
 	cp LICENSE $_RITADIR/LICENSE
 
 	# Install the base configuration file
