@@ -1,4 +1,4 @@
-DatabaseHost: 10.10.150.200
+DatabaseHost: localhost
 Database: RITA_TEST
 BaseInstallDirectory: /usr/local/rita
 HostIntelDB: TEST_HostIntelligence
@@ -39,9 +39,6 @@ BlackListed:
     ChannelSize: 1000
     BlackListTable: blacklisted
 
-Crossref:
-    CrossrefTable: crossref
-
 Dns:
     DnsTable: dns
 
@@ -63,14 +60,3 @@ Urls:
 UserAgent:
     UserAgentTable: useragent
 
-Reporting:
-    IansFlag: false
-    Company: Test
-    Contact: Cthulhu
-    CompanyLogo: \imagedir/generic-logo.png
-    LogTypes: Proxy logs, Firewall logs, and Windows Event Logs
-    MaxTableSize: 200
-    OutputDirectory: ./test
-    ImageDirectory: ../../images
-    ReportSubmitDate: \today  # Keep as is to have date set on doc set to today
-    Hackers: Lawrence Hoffman, Lisa Woody, Joe Lillo
