@@ -10,23 +10,17 @@ import (
 	"github.com/ocmdev/rita/parser"
 	"github.com/ocmdev/rita/parser/docwriter"
 
-	"github.com/codegangsta/cli"
+	"github.com/urfave/cli"
 )
 
 // verboseFlag is present for commands that support verbose mode
 var verboseFlag bool
 
+var allCommands []cli.Command
+
 // Commands provides all of the defined commands to the front end
 func Commands() []cli.Command {
-	return []cli.Command{
-		{
-			Name:  "testconfig",
-			Usage: "Checks a configuration file for validity",
-			Action: func(c *cli.Context) error {
-				checkConfig(c.Args().First())
-				return nil
-			},
-		},
+	newCommands := []cli.Command{
 		{
 			Name:  "import",
 			Usage: "uses the configured bro importer to import files",
@@ -172,4 +166,9 @@ func Commands() []cli.Command {
 			},
 		},
 	}
+
+	for _, command := range allCommands {
+		newCommands = append(newCommands, command)
+	}
+	return newCommands
 }

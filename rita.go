@@ -5,7 +5,7 @@ import (
 
 	"github.com/ocmdev/rita/commands"
 
-	"github.com/codegangsta/cli"
+	"github.com/urfave/cli"
 )
 
 // Entry point of ai-hunt

@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"text/template"
 	"time"
@@ -18,7 +17,6 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"gopkg.in/yaml.v2"
 )
 
 func analyze(inDb string, verboseFlag bool) {
@@ -160,30 +158,6 @@ func analyze(inDb string, verboseFlag bool) {
 		"time_elapsed": time.Since(start).Seconds(),
 	}).Info("completed analysis")
 
-}
-
-// checkConfig checks to see if the config file provided unmarshals cleanly
-func checkConfig(path string) {
-	var cfg config.SystemConfig
-	cfFile, err := ioutil.ReadFile(path)
-	if err != nil {
-		fmt.Printf("testconfig: Error reading config file: %s\n", err)
-		return
-	}
-	err = yaml.Unmarshal(cfFile, &cfg)
-	if err != nil {
-		fmt.Printf("testconfig: Error unmarshalling file: \n%s\n", err)
-		return
-	}
-
-	ymlConf, err := yaml.Marshal(cfg)
-	if err != nil {
-		fmt.Println("There was an error unmarshalling the yaml file,", err)
-		return
-	}
-	fmt.Printf("\n%s\n", string(ymlConf))
-	fmt.Printf("No errors found.\n")
-	return
 }
 
 // cleanAnalysis cleans out all of the analysis data, leaving behind only the
