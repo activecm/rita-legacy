@@ -98,7 +98,7 @@ GNU GPL V3
 
 ###Contributing
 
-Want to get help? We'd love that! Here are some ways to get involved ranging in
+Want to help? We'd love that! Here are some ways to get involved ranging in
 difficulty from easiest to hardest.
 
 1. Run the software and tell us when it breaks. We're happy to recieve bug 
