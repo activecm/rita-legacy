@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/ocmdev/rita/config"
@@ -38,28 +37,4 @@ func testConfiguration(c *cli.Context) error {
 
 	fmt.Fprintf(os.Stdout, "\n%s\n", string(yml))
 	return nil
-}
-
-// checkConfig checks to see if the config file provided unmarshals cleanly
-func checkConfig(path string) {
-	var cfg config.SystemConfig
-	cfFile, err := ioutil.ReadFile(path)
-	if err != nil {
-		fmt.Printf("testconfig: Error reading config file: %s\n", err)
-		return
-	}
-	err = yaml.Unmarshal(cfFile, &cfg)
-	if err != nil {
-		fmt.Printf("testconfig: Error unmarshalling file: \n%s\n", err)
-		return
-	}
-
-	ymlConf, err := yaml.Marshal(cfg)
-	if err != nil {
-		fmt.Println("There was an error unmarshalling the yaml file,", err)
-		return
-	}
-	fmt.Printf("\n%s\n", string(ymlConf))
-	fmt.Printf("No errors found.\n")
-	return
 }
