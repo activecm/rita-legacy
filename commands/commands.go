@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/urfave/cli"
 )
@@ -15,6 +16,12 @@ var (
 	globalVerboseFlag bool
 
 	// below are some prebuilt flags that get used often in various commands
+
+	verboseFlag = cli.BoolFlag{
+		Name:        "verbose, v",
+		Usage:       "generate output with timings as command executes",
+		Destination: &globalVerboseFlag,
+	}
 
 	// databaseFlag allows users to specify which database they'd like to use
 	databaseFlag = cli.StringFlag{
@@ -45,29 +52,17 @@ func bootstrapCommands(commands ...cli.Command) {
 	}
 }
 
+// runVerbose runs a given function with with a message and time info
+func runVerbose(message string, f func()) {
+	startTime := time.Now()
+	fmt.Fprintf(os.Stdout, "%s\n", message)
+	f()
+	fmt.Fprintf(os.Stdout, "completed in %v\n", time.Since(startTime))
+}
+
 // Commands provides all of the defined commands to the front end
 func Commands() []cli.Command {
 	newCommands := []cli.Command{
-		{
-			Name:  "analyze",
-			Usage: "Analyze imported databases, if no [database,d] flag is specified will attempt all",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "database, d",
-					Usage: "run against `DATABASE`",
-					Value: "",
-				},
-				cli.BoolFlag{
-					Name:        "verbose, v",
-					Usage:       "print status to stdout",
-					Destination: &globalVerboseFlag,
-				},
-			},
-			Action: func(c *cli.Context) error {
-				analyze(c.String("database"), globalVerboseFlag)
-				return nil
-			},
-		},
 		{
 			Name:  "show-beacons",
 			Usage: "print beacon information to standard out",
