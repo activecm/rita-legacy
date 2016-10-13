@@ -5,49 +5,49 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/parser"
-	"github.com/ocmdev/rita/parser/docwriter"
-
 	"github.com/urfave/cli"
 )
 
-// verboseFlag is present for commands that support verbose mode
-var verboseFlag bool
+var (
+	allCommands []cli.Command
 
-var allCommands []cli.Command
+	// The destination of the verbose switch
+	globalVerboseFlag bool
+
+	// below are some prebuilt flags that get used often in various commands
+
+	// databaseFlag allows users to specify which database they'd like to use
+	databaseFlag = cli.StringFlag{
+		Name:  "dataset, d",
+		Usage: "execute this command against `DATASET`",
+		Value: "",
+	}
+
+	// threadFlag allows users to specify how many threads should be used
+	threadFlag = cli.IntFlag{
+		Name:  "threads, t",
+		Usage: "use `N` threads when executing this command",
+		Value: 8,
+	}
+
+	// configFlag allows users to specify an alternate config file to use
+	configFlag = cli.StringFlag{
+		Name:  "config, c",
+		Usage: "use `CONFIGFILE` when as configuration when running this command",
+		Value: "",
+	}
+)
+
+// bootstrapCommands simply adds a given command to the allCommands array
+func bootstrapCommands(commands ...cli.Command) {
+	for _, command := range commands {
+		allCommands = append(allCommands, command)
+	}
+}
 
 // Commands provides all of the defined commands to the front end
 func Commands() []cli.Command {
 	newCommands := []cli.Command{
-		{
-			Name:  "import",
-			Usage: "uses the configured bro importer to import files",
-			Flags: []cli.Flag{
-				cli.IntFlag{
-					Name:  "threads, t",
-					Usage: "number of write threads to use",
-					Value: 18,
-				},
-				cli.StringFlag{
-					Name:  "config, c",
-					Usage: "specify a config file to be used",
-					Value: "",
-				},
-			},
-
-			Action: func(c *cli.Context) error {
-				conf := config.InitConfig(c.String("config"))
-				metadb := database.NewMetaDBHandle(conf)
-
-				dw := docwriter.New(conf, metadb)
-				dw.Start(c.Int("threads"))
-				parser.NewWatcher(conf, metadb).Run(dw)
-
-				return nil
-			},
-		},
 		{
 			Name:  "analyze",
 			Usage: "Analyze imported databases, if no [database,d] flag is specified will attempt all",
@@ -60,11 +60,11 @@ func Commands() []cli.Command {
 				cli.BoolFlag{
 					Name:        "verbose, v",
 					Usage:       "print status to stdout",
-					Destination: &verboseFlag,
+					Destination: &globalVerboseFlag,
 				},
 			},
 			Action: func(c *cli.Context) error {
-				analyze(c.String("database"), verboseFlag)
+				analyze(c.String("database"), globalVerboseFlag)
 				return nil
 			},
 		},
