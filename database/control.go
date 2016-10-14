@@ -124,7 +124,17 @@ func aggregateCollection(d *DB, source_collection_name string, pipeline []bson.D
 		d.l.Info("Failed aggregation: (Source collection: ", source_collection_name, " doesn't exist)")
 		return //results
 	}
+
 	source_collection := session.DB(d.r.System.DB).C(source_collection_name)
+
+	/**************************************************************************************************/
+	// BenL Fixing aggregation error
+	// Needs to be a way to abort if our collection size is zero
+	if source_collection.Count() == 0 {
+		d.l.Ifno("Aggregation failed, nothing in the collection ", source_collection_name)
+		return // results
+	}
+	// God help me if this works
 
 	// Create the pipe
 	pipe := source_collection.Pipe(pipeline).AllowDiskUse()
@@ -140,6 +150,8 @@ func aggregateCollection(d *DB, source_collection_name string, pipeline []bson.D
 
 		// Ben: Because I don't have a relationship to question, just
 		// gonna have to settle with debugging the damn thing
+
+		// Ben L: 14.10.16 Has something to do with a database being empty, will continue to follow
 
 		/************************************************************************************************************************
 		******************************************************BUG HUNT STARTS HERE **********************************************
