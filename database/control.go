@@ -139,8 +139,7 @@ func aggregateCollection(d *DB, source_collection_name string, pipeline []bson.D
 			"error": err.Error(),
 		}).Panic("Failed aggregate operation")
 
-		// Ben: Because I don't have a relationship to question, just
-		// gonna have to settle with debugging the damn thing
+		// Ben L: just gonna have to settle with debugging the damn thing
 
 		// Ben L: 14.10.16 Nope, database was empty because nothing was improted
 
