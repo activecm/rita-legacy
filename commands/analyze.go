@@ -3,14 +3,11 @@ package commands
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/intel"
 	"github.com/urfave/cli"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 func init() {
@@ -31,7 +28,7 @@ func init() {
 }
 
 func analyze(inDb string, verboseFlag bool) {
-	start := time.Now()
+
 	conf := config.InitConfig("")
 	var torun []string
 
@@ -163,8 +160,4 @@ func analyze(inDb string, verboseFlag bool) {
 		}
 
 	}
-	conf.Log.WithFields(log.Fields{
-		"time_elapsed": time.Since(start).Seconds(),
-	}).Info("completed analysis")
-
 }

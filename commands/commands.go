@@ -63,24 +63,7 @@ func runVerbose(message string, f func()) {
 // Commands provides all of the defined commands to the front end
 func Commands() []cli.Command {
 	newCommands := []cli.Command{
-		{
-			Name:  "show-beacons",
-			Usage: "print beacon information to standard out",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "database, d",
-					Usage: "print beacons for `DATABASE`",
-					Value: "",
-				},
-			},
-			Action: func(c *cli.Context) error {
-				if c.String("database") == "" {
-					return errors.New("No database specified")
-				}
-				showBeacons(c.String("database"))
-				return nil
-			},
-		},
+
 		{
 			Name:  "show-scans",
 			Usage: "print scanning information to standard out",

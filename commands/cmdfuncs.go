@@ -9,8 +9,6 @@ import (
 
 	"github.com/ocmdev/rita/config"
 
-	"github.com/ocmdev/rita/datatypes/TBD"
-
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -72,36 +70,6 @@ func cleanAnalysisAll(dataset string) {
 			if dbinfo.Analyzed {
 				fmt.Fprintf(os.Stderr, "Warning %s may not have updated in meta.\n", dbinfo.Name)
 			}
-		}
-	}
-}
-
-// showBeacons shows all beacons for a given database
-func showBeacons(dataset string) {
-
-	cols := "score\tsource\tdest\trange\tsize\trange-vals\tfill\tspread\tsum\ttop-interval\t"
-	cols += "top-interval-cnt\n"
-	tmpl := "{{.Score}}\t{{.Src}}\t{{.Dst}}\t{{.Range}}\t{{.Size}}\t{{.RangeVals}}\t{{.Fill}}"
-	tmpl += "\t{{.Spread}}\t{{.Sum}}\t{{.TopInterval}}\t{{.TopIntervalCt}}\n"
-
-	out, err := template.New("tbd").Parse(tmpl)
-	if err != nil {
-		panic(err)
-	}
-
-	conf := config.InitConfig("")
-	conf.System.DB = dataset
-
-	coll := conf.Session.DB(dataset).C(conf.System.TBDConfig.TBDTable)
-	iter := coll.Find(nil).Iter()
-
-	var res TBD.TBD
-
-	fmt.Printf(cols)
-	for iter.Next(&res) {
-		err := out.Execute(os.Stdout, res)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
 		}
 	}
 }
