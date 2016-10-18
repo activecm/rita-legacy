@@ -124,7 +124,6 @@ func aggregateCollection(d *DB, source_collection_name string, pipeline []bson.D
 		d.l.Info("Failed aggregation: (Source collection: ", source_collection_name, " doesn't exist)")
 		return //results
 	}
-
 	source_collection := session.DB(d.r.System.DB).C(source_collection_name)
 
 	// Create the pipe
@@ -139,13 +138,6 @@ func aggregateCollection(d *DB, source_collection_name string, pipeline []bson.D
 			"error": err.Error(),
 		}).Panic("Failed aggregate operation")
 
-		// Ben L: just gonna have to settle with debugging the damn thing
-
-		// Ben L: 14.10.16 Nope, database was empty because nothing was improted
-
-		/************************************************************************************************************************
-		******************************************************BUG HUNT STARTS HERE **********************************************
-		****************************************************DAMN IS SHE A CLEVER GIRL********************************************/
 		Println(results, "\n", d)
 
 		return

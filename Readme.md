@@ -74,7 +74,7 @@ data.
   		* ```sudo ./install.sh```
 
 1. Configuring MongoDB
-  1. If your package manager automatically installs and configures the lastest MongoDB 3.x, you can skip this section
+  1. If your package manager automatically installs and configures the latest MongoDB 3.x, you can skip this section
   1. Unzip the file you downloaded earlier
     * ```tar -zxvf mongodb-linux-x86_64-[your OS version].tgz```
   1. Copy the directory to it's own folder, this is where the MongoDB process will run

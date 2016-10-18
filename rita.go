@@ -2,10 +2,8 @@ package main
 
 import (
 	"os"
-//	Removing this because fails when building fork
-//	Remember to replace before pull request
-//	"github.com/ocmdev/rita/commands"
-	"github.com/bglebrun/rita/commands"
+
+	"github.com/ocmdev/rita/commands"
 
 	"github.com/codegangsta/cli"
 )
