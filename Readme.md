@@ -76,11 +76,11 @@ data.
 1. Configuring MongoDB
   1. If your package manager automatically installs and configures the lastest MongoDB 3.x, you can skip this section
   1. Unzip the file you downloaded earlier
-    * ```tar -zxvf mongodb-linux-x86_64-[your OS version.tgz]```
+    * ```tar -zxvf mongodb-linux-x86_64-[your OS version].tgz```
   1. Copy the directory to it's own folder, this is where the MongoDB process will run
-    * ```mkdir -p <path_to_desired_folder>/mongodb && cp -R -n <path_to_desired_folder>/mongodb/mongodb-linux-x86_64-3.2.10/ mongodb```
+    * ```mkdir -p <path_to_desired_folder>/mongodb && cp -R -n mongodb-linux-x86_64-3.2.10/ <path_to_desired_folder>/mongodb```
   1. Ensure this location is set in your path variable, this can be done quickly with
-    * ```echo 'export PATH=<your_mongodb_install_directory>/bin:$PATH' >> ~/.bashrc```
+    * ```echo 'export PATH=<your_mongodb_install_directory>/mongodb-linux-x86_64-3.2.10/bin:$PATH' >> ~/.bashrc```
   1. Load your new bsh config
     * ```source $HOME/.bashrc```
 
