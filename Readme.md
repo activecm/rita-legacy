@@ -81,7 +81,7 @@ data.
     * ```mkdir -p <path_to_desired_folder>/mongodb && cp -R -n mongodb-linux-x86_64-3.2.10/ <path_to_desired_folder>/mongodb```
   1. Ensure this location is set in your path variable, this can be done quickly with
     * ```echo 'export PATH=<your_mongodb_install_directory>/mongodb-linux-x86_64-3.2.10/bin:$PATH' >> ~/.bashrc```
-  1. Load your new bsh config
+  1. Load your new bash config
     * ```source $HOME/.bashrc```
 
 1. Launching MongoDB
