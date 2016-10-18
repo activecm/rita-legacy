@@ -72,29 +72,32 @@ data.
   		* ```go install```
   	1. Finally, let's install all of the supporting software.
   		* ```sudo ./install.sh```
+
 1. Configuring MongoDB
   1. If your package manager automatically installs and configures the lastest MongoDB 3.x, you can skip this section
   1. Unzip the file you downloaded earlier
-    * '''tar -zxvf mongodb-linux-x86_64-[your OS version.tgz]
+    * ```tar -zxvf mongodb-linux-x86_64-[your OS version.tgz]```
   1. Copy the directory to it's own folder, this is where the MongoDB process will run
-    * '''mkdir -p <path_to_desired_folder>/mongodb && cp -R -n <path_to_desired_folder>/mongodb/mongodb-linux-x86_64-3.2.10/ mongodb'''
+    * ```mkdir -p <path_to_desired_folder>/mongodb && cp -R -n <path_to_desired_folder>/mongodb/mongodb-linux-x86_64-3.2.10/ mongodb```
   1. Ensure this location is set in your path variable, this can be done quickly with
-    * '''echo 'export PATH=<your_mongodb_install_directory>/bin:$PATH' >> ~/.bashrc'''
+    * ```echo 'export PATH=<your_mongodb_install_directory>/bin:$PATH' >> ~/.bashrc```
   1. Load your new bsh config
-    * '''source $HOME/.bashrc'''
+    * ```source $HOME/.bashrc```
+
 1. Launching MongoDB
   1. Again if your package manager automatically installs and configures MongoDB 3.x, you can skip this section
   1. Make your MongoDB directory, usually /data/db
-    * '''sudo mkdir -p /data/db'''
+    * ```sudo mkdir -p /data/db```
   1. Then give the user permissions to read/write to our database directory
-    * '''sudo chown -R <username> /data'''
+    * ```sudo chown -R <username> /data```
   1. Now at this point you can watch MongoDB do it's magic before your very eyes with
-    * '''mongod'''
+    * ```mongod```
   1. Otherwise if you're a very busy person like us, you can fork the process as a daemon. Make the log file and grant appropriate permissions
-    * '''sudo touch /data/mongod.log && sudo chown <username> mongod.log && sudo chmod u+w'''
+    * ```sudo touch /data/mongod.log && sudo chown <username> mongod.log && sudo chmod u+w```
   1. Then start mongod daemon with
-    * '''mongod --fork --logpath /data/mongod.log'''
-  1. If mongo is not running, you can check out the documentation at https://docs.mongodb.com/
+    * ```mongod --fork --logpath /data/mongod.log```
+  1. If mongo is still not running, you can check out the documentation at https://docs.mongodb.com/
+
 1. Configuring the system
   1. If you installed as sudo (root) then there will be a default config file at both /usr/local/rita/etc/rita.yaml
   and /etc/rita/config.yaml.
