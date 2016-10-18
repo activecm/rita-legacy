@@ -47,7 +47,7 @@ data.
   with bro configuration or use here are some helpful links:
     * Bro quick start [https://www.bro.org/sphinx-git/quickstart/index.html](https://www.bro.org/sphinx-git/quickstart/index.html)
     * broctl [https://www.bro.org/sphinx/components/broctl/README.html](https://www.bro.org/sphinx/components/broctl/README.html)
-  1. Install MongoDB (You will need MongoDB 3.2.0 which is not inlcuded in the Ubuntu 16.04 package manager if you use your package manager, make sure it is at least MongoDB version 3.x)
+  1. Install MongoDB (You will need MongoDB 3.2.0 which is not included in the Ubuntu 16.04 package manager if you use your package manager, make sure it is at least MongoDB version 3.x)
     * Download 3.2.0 at https://www.mongodb.com/download-center?jmp=nav#community
     * Select your version of linux and download the package
   1. Install GNU Netcat, make sure that it is GNU Netcat. NC will not work. [http://netcat.sourceforge.net/](http://netcat.sourceforge.net/)
@@ -96,7 +96,7 @@ data.
     * ```sudo touch /data/mongod.log && sudo chown <username> mongod.log && sudo chmod u+w```
   1. Then start mongod daemon with
     * ```mongod --fork --logpath /data/mongod.log```
-  1. If mongo is still not running, you can check out the documentation at https://docs.mongodb.com/
+  1. If mongo is still not running, you can check out further documentation at https://docs.mongodb.com/
 
 1. Configuring the system
   1. If you installed as sudo (root) then there will be a default config file at both /usr/local/rita/etc/rita.yaml
