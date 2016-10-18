@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -137,6 +138,14 @@ func (d *docParser) parseLine() {
 		dbTs := d.db
 		dat := d.creator()
 		data := reflect.ValueOf(dat).Elem()
+
+		if len(line) < len(d.Header.Names) {
+			d.log.WithFields(log.Fields{
+			"line": ln,
+			}).Error("Mismatched column count in parsed line.")
+			continue
+		}
+
 		for idx, val := range d.Header.Names {
 			if line[idx] == d.Header.Empty ||
 				line[idx] == d.Header.Unset {
