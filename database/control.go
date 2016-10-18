@@ -137,9 +137,6 @@ func aggregateCollection(d *DB, source_collection_name string, pipeline []bson.D
 		d.l.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Panic("Failed aggregate operation")
-
-		Println(results, "\n", d)
-
 		return
 	}
 
