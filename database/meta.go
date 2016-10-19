@@ -259,7 +259,7 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 	errchk(err)
 
 	idx := mgo.Index{
-		Key:        []string{"hash"},
+		Key:        []string{"hash", "database"},
 		Unique:     true,
 		DropDups:   true,
 		Background: true,
@@ -313,7 +313,7 @@ func (m *MetaDBHandle) MarkCompleted(f *PFile) error {
 
 	pfile := PFile{}
 	err := ssn.DB(m.DB).C("files").
-		Find(bson.M{"hash": f.Hash}).One(&pfile)
+		Find(bson.M{"hash": f.Hash, "database": f.DataBase}).One(&pfile)
 
 	if err != nil {
 		m.log.WithFields(log.Fields{
