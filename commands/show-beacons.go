@@ -14,6 +14,7 @@ import (
 )
 
 var beaconHeader = false
+var humanreadable = false
 
 func init() {
 	command := cli.Command{
@@ -25,6 +26,11 @@ func init() {
 				Usage:       "turn off the header row",
 				Destination: &beaconHeader,
 			},
+			cli.BoolFlag{
+				Name:        "human-readable, H",
+				Usage:       "print a report instead of csv",
+				Destination: &humanreadable,
+			},
 			databaseFlag,
 		},
 		Action: showBeacons,
@@ -33,7 +39,7 @@ func init() {
 	bootstrapCommands(command)
 }
 
-type result struct {
+type bcnresult struct {
 	Src           string        `bson:"src"`
 	Dst           string        `bson:"dst"`
 	UconnID       bson.ObjectId `bson:"uconn_id"`
@@ -51,22 +57,81 @@ type result struct {
 }
 
 // The following is so that we can sort each of the beacons on thier score
-type resultset []result
+type bcnresultset []bcnresult
 
-func (slice resultset) Len() int {
+func (slice bcnresultset) Len() int {
 	return len(slice)
 }
 
-func (slice resultset) Less(i, j int) bool {
+func (slice bcnresultset) Less(i, j int) bool {
 	return slice[i].Score < slice[j].Score
 }
 
-func (slice resultset) Swap(i, j int) {
+func (slice bcnresultset) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
 // showBeacons shows all beacons for a given database
 func showBeacons(c *cli.Context) error {
+
+	if c.String("dataset") == "" {
+		return cli.NewExitError("No dataset was not specified", -1)
+	}
+
+	if humanreadable {
+		return showBeaconsReport(c)
+	}
+
+	return showBeaconCsv(c)
+
+}
+
+func showBeaconCsv(c *cli.Context) error {
+	tmpl := "{{.Score}},{{.Src}},{{.Dst}},{{.Range}},{{.Size}},{{.RangeMin}},{{.RangeMax}},"
+	tmpl += "{{.Fill}},{{.Spread}},{{.Sum}},{{.TopInterval}},{{.TopIntervalCt}}\n"
+
+	out, err := template.New("tbd").Parse(tmpl)
+	if err != nil {
+		panic(err)
+	}
+
+	conf := config.InitConfig("")
+	if c.String("dataset") != "" {
+		conf.System.DB = c.String("dataset")
+	}
+
+	coll := conf.Session.DB(conf.System.DB).C(conf.System.TBDConfig.TBDTable)
+	iter := coll.Find(nil).Iter()
+
+	var res bcnresult
+	var allres bcnresultset
+
+	for iter.Next(&res) {
+		ranges := strings.Split(res.RangeVals, "--")
+		if len(ranges) == 1 {
+			res.RangeMin = ranges[0]
+			res.RangeMax = ranges[0]
+		} else {
+			res.RangeMin = ranges[0]
+			res.RangeMax = ranges[1]
+		}
+		allres = append(allres, res)
+	}
+
+	sort.Sort(allres)
+
+	for _, cres := range allres {
+		err := out.Execute(os.Stdout, cres)
+		if err != nil {
+			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
+		}
+	}
+
+	return nil
+
+}
+
+func showBeaconsReport(c *cli.Context) error {
 
 	if !c.Bool("no-header") {
 		hdr := "score\t          source\t            dest\trange\tsize\trange-min\trange-max\t  fill\tspread\t   sum\ttop-interval\ttop-interval-cnt\n"
@@ -96,11 +161,11 @@ func showBeacons(c *cli.Context) error {
 	coll := conf.Session.DB(conf.System.DB).C(conf.System.TBDConfig.TBDTable)
 	iter := coll.Find(nil).Iter()
 
-	var res result
-	var allres resultset
+	var res bcnresult
+	var allres bcnresultset
 
 	for iter.Next(&res) {
-		res = processResult(res)
+		res = processBeaconbcnresult(res)
 		allres = append(allres, res)
 	}
 
@@ -116,31 +181,13 @@ func showBeacons(c *cli.Context) error {
 	return nil
 }
 
-func processResult(r result) result {
+func processBeaconbcnresult(r bcnresult) bcnresult {
 	r.Src = padAddr(r.Src)
 	r.Dst = padAddr(r.Dst)
 	mm := parseRangeVals(r.RangeVals)
 	r.RangeMin = mm[0]
 	r.RangeMax = mm[1]
 	return r
-}
-
-func padAddr(addr string) string {
-	for {
-		addr = " " + addr
-		if len(addr) > 15 {
-			return addr
-		}
-	}
-}
-
-func leftPad(s string, n int) string {
-	for {
-		s = " " + s
-		if len(s) > n {
-			return s
-		}
-	}
 }
 
 func parseRangeVals(rvals string) []string {

@@ -65,24 +65,6 @@ func Commands() []cli.Command {
 	newCommands := []cli.Command{
 
 		{
-			Name:  "show-scans",
-			Usage: "print scanning information to standard out",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "database, d",
-					Usage: "print scans for `DATABASE`",
-					Value: "",
-				},
-			},
-			Action: func(c *cli.Context) error {
-				if c.String("database") == "" {
-					return errors.New("No database specified")
-				}
-				showScans(c.String("database"))
-				return nil
-			},
-		},
-		{
 			Name:  "show-blacklisted",
 			Usage: "print blacklisted information to standard out",
 			Flags: []cli.Flag{
@@ -149,4 +131,25 @@ func Commands() []cli.Command {
 		newCommands = append(newCommands, command)
 	}
 	return newCommands
+}
+
+// padAddr specifically pads ip addresses so that they're a full 16 chars wide
+func padAddr(addr string) string {
+	for {
+
+		if len(addr) > 15 {
+			return addr
+		}
+		addr = " " + addr
+	}
+}
+
+// leftPad
+func leftPad(s string, n int) string {
+	for {
+		s = " " + s
+		if len(s) > n {
+			return s
+		}
+	}
 }

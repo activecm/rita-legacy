@@ -74,35 +74,6 @@ func cleanAnalysisAll(dataset string) {
 	}
 }
 
-// showScans prints all scans for a given database
-func showScans(dataset string) {
-
-	cols := "source\tdest\tport-count\tports\n"
-	tmpl := "{{.Src}}\t{{.Dst}}\t{{.PortSetCount}}\t"
-	tmpl += "{{range $idx, $port := .PortSet}} {{ $port }} {{end}}\n"
-	out, err := template.New("scn").Parse(tmpl)
-	if err != nil {
-		panic(err)
-	}
-
-	conf := config.InitConfig("")
-	conf.System.DB = dataset
-
-	var res scanning.Scan
-
-	coll := conf.Session.DB(dataset).C(conf.System.ScanningConfig.ScanTable)
-	iter := coll.Find(nil).Iter()
-
-	fmt.Printf(cols)
-	for iter.Next(&res) {
-		err := out.Execute(os.Stdout, res)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-		}
-	}
-
-}
-
 // showBlacklisted prints all blacklisted for a given database
 func showBlacklisted(dataset string) {
 
