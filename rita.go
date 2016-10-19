@@ -5,7 +5,7 @@ import (
 
 	"github.com/ocmdev/rita/commands"
 
-	"github.com/codegangsta/cli"
+	"github.com/urfave/cli"
 )
 
 // Entry point of ai-hunt
@@ -16,7 +16,7 @@ func main() {
 
 	// Change the version string with updates so that a quick help command will
 	// let the testers know what version of HT they're on
-	app.Version = "0.9 Open Beta"
+	app.Version = "0.9.1 Beta"
 
 	// Define commands used with this application
 	app.Commands = commands.Commands()
