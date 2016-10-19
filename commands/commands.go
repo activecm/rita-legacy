@@ -15,6 +15,9 @@ var (
 	// The destination of the verbose switch
 	globalVerboseFlag bool
 
+	// For the human readable flags
+	humanreadable = false
+
 	// below are some prebuilt flags that get used often in various commands
 
 	verboseFlag = cli.BoolFlag{
@@ -42,6 +45,12 @@ var (
 		Name:  "config, c",
 		Usage: "use `CONFIGFILE` when as configuration when running this command",
 		Value: "",
+	}
+
+	humanFlag = cli.BoolFlag{
+		Name:        "human-readable, H",
+		Usage:       "print a report instead of csv",
+		Destination: &humanreadable,
 	}
 )
 

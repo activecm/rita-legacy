@@ -14,7 +14,6 @@ import (
 )
 
 var beaconHeader = false
-var humanreadable = false
 
 func init() {
 	command := cli.Command{
@@ -26,11 +25,7 @@ func init() {
 				Usage:       "turn off the header row",
 				Destination: &beaconHeader,
 			},
-			cli.BoolFlag{
-				Name:        "human-readable, H",
-				Usage:       "print a report instead of csv",
-				Destination: &humanreadable,
-			},
+			humanFlag,
 			databaseFlag,
 		},
 		Action: showBeacons,
