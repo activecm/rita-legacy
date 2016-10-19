@@ -2,6 +2,11 @@
 
 ###Hacking
 
+####Some things to remember
+Commands should behave like typical Unix systems commands. For example, the human readable output from
+show-beacons or show-scans is MUCH easier to read... but the default is just an unformatted comma
+delimited list which looks like garbage. The latter option is much easier to parse with sed, awk, cut, etc...
+
 We've tried to make adding commands to rita easier. Here's a quick rundown of how a command might be added
 to the system.
 
@@ -36,5 +41,3 @@ func nameOfCmdFunc(c *cli.Context) error {
 	return nil
 }
 ```
-
-

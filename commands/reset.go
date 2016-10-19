@@ -16,14 +16,10 @@ func init() {
 		Name:  "reset-database",
 		Usage: "reset analysis of a particular database",
 		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  "database, d",
-				Usage: "Remove analysis collections from `DATABASE`",
-				Value: "",
-			},
+			databaseFlag,
 		},
 		Action: func(c *cli.Context) error {
-			if c.String("database") == "" {
+			if c.String("dataset") == "" {
 				fmt.Fprintf(os.Stderr, "please specify a database\n")
 				os.Exit(-1)
 			}
