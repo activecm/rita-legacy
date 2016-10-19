@@ -16,6 +16,7 @@ to the system.
 1. Profit.
 ```go
 func init() {
+	// command to do something
 	command := cli.Command{
 		Flags: []cli.Flags{
 			cli.IntFlag{
@@ -31,12 +32,34 @@ func init() {
 		Action: nameOfCmdFunc,
 	}
 
+	// command to do some related thing
+	othercommand := cli.Command{
+		Flags: []cli.Flags{
+			cli.IntFlag{
+				Name: "test, t",
+				Usage: "set test flag",
+				Value: 29,
+			},
+			// There are also a few pre-defined flags for you to use
+			configFlag,
+		},
+		Name: "nameofothercommand",
+		Usage: "how to use the other command",
+		Action: nameOfOtherCmdFunc,
+	}
+
 	// Add the command to the allCommands data structure (IMPORTANT)
-	allCommands = append(allCommands, command)
+	bootstrapCommands(command, othercommand)
 }
 
 // It is very important that we use a function of this type (for compatibility with cli)
 func nameOfCmdFunc(c *cli.Context) error {
+	// do stuff
+	return nil
+}
+
+// another command function
+func nameOfOtherCmdFunc(c *cli.Context) error {
 	// do stuff
 	return nil
 }
