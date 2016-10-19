@@ -4,11 +4,59 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ocmdev/rita/config"
-
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+
+	"github.com/ocmdev/rita/config"
+	"github.com/urfave/cli"
 )
+
+func init() {
+	resetdb := cli.Command{
+		Name:  "reset-database",
+		Usage: "reset analysis of a particular database",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "database, d",
+				Usage: "Remove analysis collections from `DATABASE`",
+				Value: "",
+			},
+		},
+		Action: func(c *cli.Context) error {
+			if c.String("database") == "" {
+				fmt.Fprintf(os.Stderr, "please specify a database\n")
+				os.Exit(-1)
+			}
+			fmt.Println("Warning: this will not reset the analyzed flag in metadb")
+
+			cleanAnalysis(c.String("database"))
+			return nil
+		},
+	}
+
+	resettest := cli.Command{
+		Name:  "reset-test",
+		Usage: "reset analysis of a particular test",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "test, t",
+				Usage: "Remove analysis collections for `TEST`",
+				Value: "",
+			},
+		},
+		Action: func(c *cli.Context) error {
+			if c.String("test") == "" {
+				fmt.Fprintf(os.Stderr, "please specify a test\n")
+				os.Exit(-1)
+			}
+			fmt.Println("Resetting test:", c.String("test"))
+			cleanAnalysisAll(c.String("test"))
+			return nil
+		},
+	}
+
+	bootstrapCommands(resetdb, resettest)
+}
 
 // cleanAnalysis cleans out all of the analysis data, leaving behind only the
 // raw data from parsing the logs

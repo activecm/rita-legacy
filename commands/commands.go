@@ -72,56 +72,7 @@ func runVerbose(message string, f func()) {
 
 // Commands provides all of the defined commands to the front end
 func Commands() []cli.Command {
-	newCommands := []cli.Command{
-
-		{
-			Name:  "reset-database",
-			Usage: "reset analysis of a particular database",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "database, d",
-					Usage: "Remove analysis collections from `DATABASE`",
-					Value: "",
-				},
-			},
-			Action: func(c *cli.Context) error {
-				if c.String("database") == "" {
-					fmt.Fprintf(os.Stderr, "please specify a database\n")
-					os.Exit(-1)
-				}
-				fmt.Println("Warning: this will not reset the analyzed flag in metadb")
-
-				cleanAnalysis(c.String("database"))
-				return nil
-			},
-		},
-
-		{
-			Name:  "reset-test",
-			Usage: "reset analysis of a particular test",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "test, t",
-					Usage: "Remove analysis collections for `TEST`",
-					Value: "",
-				},
-			},
-			Action: func(c *cli.Context) error {
-				if c.String("test") == "" {
-					fmt.Fprintf(os.Stderr, "please specify a test\n")
-					os.Exit(-1)
-				}
-				fmt.Println("Resetting test:", c.String("test"))
-				cleanAnalysisAll(c.String("test"))
-				return nil
-			},
-		},
-	}
-
-	for _, command := range allCommands {
-		newCommands = append(newCommands, command)
-	}
-	return newCommands
+	return allCommands
 }
 
 // padAddr specifically pads ip addresses so that they're a full 16 chars wide
