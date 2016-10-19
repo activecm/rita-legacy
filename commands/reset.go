@@ -25,7 +25,7 @@ func init() {
 			}
 			fmt.Println("Warning: this will not reset the analyzed flag in metadb")
 
-			cleanAnalysis(c.String("database"))
+			cleanAnalysis(c.String("dataset"))
 			return nil
 		},
 	}
