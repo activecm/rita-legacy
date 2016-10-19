@@ -3,9 +3,6 @@ package commands
 import (
 	"fmt"
 	"os"
-	"text/template"
-
-	"github.com/ocmdev/rita/datatypes/scanning"
 
 	"github.com/ocmdev/rita/config"
 
@@ -72,32 +69,4 @@ func cleanAnalysisAll(dataset string) {
 			}
 		}
 	}
-}
-
-// showBlacklisted prints all blacklisted for a given database
-func showBlacklisted(dataset string) {
-
-	cols := "host\tscore\n"
-	tmpl := "{{.Host}}\t{{.Score}}\n"
-	out, err := template.New("bl").Parse(tmpl)
-	if err != nil {
-		panic(err)
-	}
-
-	conf := config.InitConfig("")
-	conf.System.DB = dataset
-
-	var res scanning.Scan
-
-	coll := conf.Session.DB(dataset).C(conf.System.BlacklistedConfig.BlacklistTable)
-	iter := coll.Find(nil).Iter()
-
-	fmt.Printf(cols)
-	for iter.Next(&res) {
-		err := out.Execute(os.Stdout, res)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-		}
-	}
-
 }

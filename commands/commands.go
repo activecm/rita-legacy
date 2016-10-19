@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -47,6 +46,8 @@ var (
 		Value: "",
 	}
 
+	// for output we often want a human readable option which produces a nice
+	// report instead of the simple csv style output
 	humanFlag = cli.BoolFlag{
 		Name:        "human-readable, H",
 		Usage:       "print a report instead of csv",
@@ -72,25 +73,6 @@ func runVerbose(message string, f func()) {
 // Commands provides all of the defined commands to the front end
 func Commands() []cli.Command {
 	newCommands := []cli.Command{
-
-		{
-			Name:  "show-blacklisted",
-			Usage: "print blacklisted information to standard out",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "database, d",
-					Usage: "print scans for `DATABASE`",
-					Value: "",
-				},
-			},
-			Action: func(c *cli.Context) error {
-				if c.String("database") == "" {
-					return errors.New("No database specified")
-				}
-				showBlacklisted(c.String("database"))
-				return nil
-			},
-		},
 
 		{
 			Name:  "reset-database",
