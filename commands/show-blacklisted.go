@@ -35,6 +35,7 @@ func init() {
 		Usage: "print blacklisted information to standard out",
 		Flags: []cli.Flag{
 			databaseFlag,
+			humanFlag,
 		},
 		Action: showBlacklisted,
 	}
@@ -42,8 +43,44 @@ func init() {
 	bootstrapCommands(command)
 }
 
-// showBlacklisted prints all blacklisted for a given database
 func showBlacklisted(c *cli.Context) error {
+
+	if humanreadable {
+		return showBlacklistedHuman(c)
+	}
+
+	tmpl := "{{.Host}}," + `{{.Score}}` + "\n"
+	out, err := template.New("bl").Parse(tmpl)
+	if err != nil {
+		panic(err)
+	}
+
+	conf := config.InitConfig("")
+	conf.System.DB = c.String("dataset")
+
+	var res blresult
+	var allres blresults
+
+	coll := conf.Session.DB(c.String("dataset")).C(conf.System.BlacklistedConfig.BlacklistTable)
+	iter := coll.Find(nil).Iter()
+
+	for iter.Next(&res) {
+		allres = append(allres, res)
+	}
+
+	sort.Sort(allres)
+
+	for _, res := range allres {
+		err := out.Execute(os.Stdout, res)
+		if err != nil {
+			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
+		}
+	}
+	return nil
+}
+
+// showBlacklisted prints all blacklisted for a given database
+func showBlacklistedHuman(c *cli.Context) error {
 
 	cols := "            host\tscore\n"
 	cols += "----------------\t-----\n"
