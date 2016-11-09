@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database/inteldb"
-	"github.com/ocmdev/rita/datatypes/intel"
-	"github.com/ocmdev/rita/util"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database/inteldb"
+	"github.com/bglebrun/rita/datatypes/intel"
+	"github.com/bglebrun/rita/util"
 
 	log "github.com/Sirupsen/logrus"
 

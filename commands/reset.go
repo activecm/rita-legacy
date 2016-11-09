@@ -7,7 +7,7 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/ocmdev/rita/config"
+	"github.com/bglebrun/rita/config"
 	"github.com/urfave/cli"
 )
 

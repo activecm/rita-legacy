@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/intel"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database"
+	"github.com/bglebrun/rita/intel"
 	"github.com/urfave/cli"
 )
 

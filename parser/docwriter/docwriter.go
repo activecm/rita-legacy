@@ -1,8 +1,8 @@
 package docwriter
 
 import (
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database"
 	"strings"
 	"sync"
 	"time"
