@@ -144,8 +144,8 @@ func GetConfig(cfgPath string) (SystemConfig, bool) {
 	return LoadSystemConfig("/etc/rita/config.yaml")
 }
 
-// InitCofnig grabs the configuration file and intitializes the configuration data
-// returnign a *Resources object which has all of the necessary configuration information
+// InitConfig grabs the configuration file and intitializes the configuration data
+// returning a *Resources object which has all of the necessary configuration information
 func InitConfig(cfgPath string) *Resources {
 
 	config, ok := GetConfig(cfgPath)

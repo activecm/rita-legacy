@@ -11,8 +11,7 @@ WhiteList:
     - google.com
     - blackhillsinfosec.com
 
-ImportWhitelist
-    - true
+ImportWhitelist: false
 
 # NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
 Bro:

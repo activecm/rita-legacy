@@ -36,8 +36,7 @@ WhiteList:
 # Import White List, if true, will import the whitelisted domains/ip addresses,
 # however will not analyze them. If set to false, RITA will not import anything
 # from the whitelisted domains
-ImportWhitelist:
-    - true
+ImportWhitelist: false
 
 # The section Bro configures the bro ingestor
 Bro:
