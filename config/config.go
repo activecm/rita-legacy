@@ -24,6 +24,7 @@ type (
 		LogLevel                int            `yaml:"LogLevel"`
 		Prefetch                float64        `yaml:"Prefetch"`
 		Whitelist               []string       `yaml:"WhiteList"`
+		ImportWhitelist         bool           `yaml:"ImportWhitelist"`
 		BlacklistedConfig       BlacklistedCfg `yaml:"BlackListed"`
 		DnsConfig               DnsCfg         `yaml:"Dns"`
 		DurationConfig          DurationCfg    `yaml:"Duration"`
