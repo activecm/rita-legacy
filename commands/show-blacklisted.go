@@ -5,15 +5,20 @@ import (
 	"os"
 	"sort"
 
+	"gopkg.in/mgo.v2/bson"
+
 	"github.com/alecthomas/template"
 	"github.com/ocmdev/rita/config"
 	"github.com/urfave/cli"
 )
 
 type blresult struct {
-	Host  string `bson:"host"`
-	Score int    `bson:"count"`
+	Host    string `bson:"host"`
+	Score   int    `bson:"count"`
+	Sources string
 }
+
+var globalSourcesFlag bool
 
 type blresults []blresult
 
@@ -36,6 +41,11 @@ func init() {
 		Flags: []cli.Flag{
 			databaseFlag,
 			humanFlag,
+			cli.BoolFlag{
+				Name:        "sources, s",
+				Usage:       "Show sources with results",
+				Destination: &globalSourcesFlag,
+			},
 		},
 		Action: showBlacklisted,
 	}
@@ -49,7 +59,12 @@ func showBlacklisted(c *cli.Context) error {
 		return showBlacklistedHuman(c)
 	}
 
-	tmpl := "{{.Host}}," + `{{.Score}}` + "\n"
+	tmpl := "{{.Host}}," + `{{.Score}}`
+	if globalSourcesFlag {
+		tmpl += ", {{.Sources}}\n"
+	} else {
+		tmpl += "\n"
+	}
 	out, err := template.New("bl").Parse(tmpl)
 	if err != nil {
 		panic(err)
@@ -65,6 +80,19 @@ func showBlacklisted(c *cli.Context) error {
 	iter := coll.Find(nil).Iter()
 
 	for iter.Next(&res) {
+		if globalSourcesFlag {
+			res.Sources = ""
+			cons := conf.Session.DB(c.String("dataset")).C(conf.System.StructureConfig.ConnTable)
+			siter := cons.Find(bson.M{"id_resp_h": res.Host}).Iter()
+
+			var srcStruct struct {
+				Src string `bson:"id_origin_h"`
+			}
+
+			for siter.Next(&srcStruct) {
+				res.Sources += srcStruct.Src + "; "
+			}
+		}
 		allres = append(allres, res)
 	}
 
