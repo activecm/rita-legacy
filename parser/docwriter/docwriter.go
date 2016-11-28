@@ -1,11 +1,12 @@
 package docwriter
 
 import (
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/database"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/davecgh/go-spew/spew"
@@ -24,6 +25,8 @@ type (
 	DocWriter struct {
 		Ssn       *mgo.Session           // Session to db instance
 		pre       string                 // Prefix to the database
+		ImportWl  bool                   // Flag to import whitelist
+		Whitelist []string               // Pointer to our whitelist array
 		wchan     chan Document          // Document channel
 		log       *log.Logger            // Logging
 		wg        *sync.WaitGroup        // Used to block until complete
@@ -42,6 +45,8 @@ func New(cfg *config.Resources, mdb *database.MetaDBHandle) *DocWriter {
 		Ssn:       cfg.Session.Copy(),
 		log:       cfg.Log,
 		pre:       cfg.System.BroConfig.DBPrefix,
+		ImportWl:  cfg.System.ImportWhitelist,
+		Whitelist: cfg.System.Whitelist,
 		wchan:     make(chan Document, 5000),
 		wg:        new(sync.WaitGroup),
 		Meta:      mdb,
@@ -97,8 +102,29 @@ func (d *DocWriter) Flush() {
 	return
 }
 
+/*
+ * Ben L.
+ * Checks if our document is present in the whitelist
+ * and returns true if the string is whitelisted, false
+ * otherwise
+ */
+func isWhitelisted(whitelist []string, url string) bool {
+	// count := 0
+	if whitelist == nil {
+		return false
+	}
+	for count := range whitelist {
+		if strings.Contains(url, whitelist[count]) {
+			return true
+		}
+	}
+	return false
+}
+
 // writeLoop loops over the input channel spawning threads to write
+// TODO: implement whitelist code here, pass config somehow
 func (d *DocWriter) writeLoop() {
+	var err error
 	d.wg.Add(1)
 	for {
 		d.log.WithFields(log.Fields{
@@ -110,10 +136,18 @@ func (d *DocWriter) writeLoop() {
 			d.log.Info("WriteLoop got closed channel, exiting")
 			break
 		}
-
+		// Right here is where we check for our "import whitelist"
+		// option before proceeding for anything
 		ssn := d.Ssn.Copy()
+		// This is where we check for our whitelist!!!!
 		towrite := doc.Doc
-		err := ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
+		if isWhitelisted(d.Whitelist, doc.Doc.(struct{ Host string }).Host) {
+			if d.ImportWl {
+				err = ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
+			}
+		} else {
+			err = ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
+		}
 		if err != nil {
 			if strings.Contains(err.Error(), "ObjectIDs") {
 				spew.Dump(towrite)
