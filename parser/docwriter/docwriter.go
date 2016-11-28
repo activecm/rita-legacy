@@ -109,7 +109,6 @@ func (d *DocWriter) Flush() {
  * otherwise
  */
 func isWhitelisted(whitelist []string, url string) bool {
-	// count := 0
 	if whitelist == nil {
 		return false
 	}
@@ -141,7 +140,8 @@ func (d *DocWriter) writeLoop() {
 		ssn := d.Ssn.Copy()
 		// This is where we check for our whitelist!!!!
 		towrite := doc.Doc
-		if isWhitelisted(d.Whitelist, doc.Doc.(struct{ Host string }).Host) {
+		// Find a way to grab our host name, original implementation sucked
+		if isWhitelisted(d.Whitelist, "This is a cool wholesome string") {
 			if d.ImportWl {
 				err = ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
 			}
