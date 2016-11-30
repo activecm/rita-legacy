@@ -113,6 +113,10 @@ func isWhitelisted(whitelist []string, url string) bool {
 	if whitelist == nil {
 		return false
 	}
+	if url == "" {
+		return false
+	}
+
 	for count := range whitelist {
 		if strings.Contains(url, whitelist[count]) {
 			return true
