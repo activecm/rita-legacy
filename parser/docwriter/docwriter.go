@@ -140,16 +140,14 @@ func (d *DocWriter) writeLoop() {
 			d.log.Info("WriteLoop got closed channel, exiting")
 			break
 		}
-		// Right here is where we check for our "import whitelist"
-		// option before proceeding for anything
+
 		ssn := d.Ssn.Copy()
-		// This is where we check for our whitelist
+
 		towrite := doc.Doc
 		if towrite != nil {
 			hostname = towrite.(parser.HTTP).Host
 		}
-		// hostname := "things"
-		// Find a way to grab our host name, original implementation sucked
+
 		if isWhitelisted(d.Whitelist, hostname) {
 			if d.ImportWl {
 				err = ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
