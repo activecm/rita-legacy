@@ -7,6 +7,7 @@ import (
 
 	"github.com/bglebrun/rita/config"
 	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/parser"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/davecgh/go-spew/spew"
@@ -121,9 +122,9 @@ func isWhitelisted(whitelist []string, url string) bool {
 }
 
 // writeLoop loops over the input channel spawning threads to write
-// TODO: implement whitelist code here, pass config somehow
 func (d *DocWriter) writeLoop() {
 	var err error
+	var hostname string
 	d.wg.Add(1)
 	for {
 		d.log.WithFields(log.Fields{
@@ -138,10 +139,14 @@ func (d *DocWriter) writeLoop() {
 		// Right here is where we check for our "import whitelist"
 		// option before proceeding for anything
 		ssn := d.Ssn.Copy()
-		// This is where we check for our whitelist!!!!
+		// This is where we check for our whitelist
 		towrite := doc.Doc
+		if towrite != nil {
+			hostname = towrite.(parser.HTTP).Host
+		}
+		// hostname := "things"
 		// Find a way to grab our host name, original implementation sucked
-		if isWhitelisted(d.Whitelist, "This is a cool wholesome string") {
+		if isWhitelisted(d.Whitelist, hostname) {
 			if d.ImportWl {
 				err = ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
 			}
