@@ -51,3 +51,9 @@ type (
 		TunnelParents string `bson:"tunnel_parents" bro:"tunnel_parents" brotype:"set[string]"`
 	}
 )
+
+// GetHostName is our method for collecting host name
+// Temporary function
+func (in Conn) GetHostName() string {
+	return ""
+}

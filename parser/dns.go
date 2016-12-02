@@ -56,3 +56,9 @@ type DNS struct {
 	// Rejected indicates if this query was rejected or not
 	Rejected bool `bson:"rejected" bro:"rejected" brotype:"bool"`
 }
+
+// GetHostName is our method for collecting host name
+// This is temporary for the time being
+func (in DNS) GetHostName() string {
+	return ""
+}

@@ -7,7 +7,6 @@ import (
 
 	"github.com/bglebrun/rita/config"
 	"github.com/bglebrun/rita/database"
-	"github.com/ocmdev/rita/parser"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/davecgh/go-spew/spew"
@@ -17,9 +16,11 @@ import (
 type (
 	// Document holds one item to be written to a database
 	Document struct {
-		Doc  interface{} // Thing to write
-		DB   string      // DB to write to
-		Coll string      // Collection to write to
+		Doc interface {
+			GetHostName() string
+		} // Thing to write
+		DB   string // DB to write to
+		Coll string // Collection to write to
 	}
 
 	// DocWriter writes documents to a database
@@ -103,22 +104,28 @@ func (d *DocWriter) Flush() {
 	return
 }
 
+func retrieve(document Document) string {
+	return document.Doc.GetHostName()
+}
+
 /*
  * Ben L.
  * Checks if our document is present in the whitelist
  * and returns true if the string is whitelisted, false
  * otherwise
  */
-func isWhitelisted(whitelist []string, url string) bool {
-	if whitelist == nil {
+func isWhitelisted(writer *DocWriter, in Document) bool {
+	url := retrieve(in)
+
+	if writer.Whitelist == nil {
 		return false
 	}
 	if url == "" {
 		return false
 	}
 
-	for count := range whitelist {
-		if strings.Contains(url, whitelist[count]) {
+	for count := range writer.Whitelist {
+		if strings.Contains(url, writer.Whitelist[count]) {
 			return true
 		}
 	}
@@ -128,7 +135,6 @@ func isWhitelisted(whitelist []string, url string) bool {
 // writeLoop loops over the input channel spawning threads to write
 func (d *DocWriter) writeLoop() {
 	var err error
-	var hostname string
 	d.wg.Add(1)
 	for {
 		d.log.WithFields(log.Fields{
@@ -144,11 +150,8 @@ func (d *DocWriter) writeLoop() {
 		ssn := d.Ssn.Copy()
 
 		towrite := doc.Doc
-		if towrite != nil {
-			hostname = towrite.(parser.HTTP).Host
-		}
 
-		if isWhitelisted(d.Whitelist, hostname) {
+		if isWhitelisted(d, doc) {
 			if d.ImportWl {
 				err = ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
 			}

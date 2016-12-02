@@ -5,8 +5,6 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/parser/docwriter"
 	"os"
 	"reflect"
 	"strconv"
@@ -14,14 +12,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/parser/docwriter"
 
 	log "github.com/Sirupsen/logrus"
 )
 
 type (
-	creatorFunc   func() interface{} // A function that creates arbitrary objects
-	processorFunc func(interface{})  // A function that processes arbitrary objects
-	docParser     struct {           // The document parsing structure
+	creatorFunc func() interface {
+		GetHostName() string
+	} // A function that creates arbitrary objects
+	processorFunc func(interface{}) // A function that processes arbitrary objects
+	docParser     struct {          // The document parsing structure
 		path      string               // fully qualified path
 		db        string               // database to write output to
 		writer    *docwriter.DocWriter // writer to write out the records
@@ -141,7 +143,7 @@ func (d *docParser) parseLine() {
 
 		if len(line) < len(d.Header.Names) {
 			d.log.WithFields(log.Fields{
-			"line": ln,
+				"line": ln,
 			}).Error("Mismatched column count in parsed line.")
 			continue
 		}
@@ -269,7 +271,6 @@ func (d *docParser) parseLine() {
 		d.writer.Write(docwriter.Document{Doc: dat,
 			DB:   dbTs,
 			Coll: d.Header.ObjType})
-
 	}
 }
 
@@ -480,13 +481,25 @@ func (d *docParser) setStructType() error {
 	switch d.Header.ObjType {
 
 	case "conn":
-		d.creator = func() interface{} { return &Conn{} }
+		d.creator = func() interface {
+			GetHostName() string
+		} {
+			return &Conn{}
+		}
 		break
 	case "dns":
-		d.creator = func() interface{} { return &DNS{} }
+		d.creator = func() interface {
+			GetHostName() string
+		} {
+			return &DNS{}
+		}
 		break
 	case "http":
-		d.creator = func() interface{} { return &HTTP{} }
+		d.creator = func() interface {
+			GetHostName() string
+		} {
+			return &HTTP{}
+		}
 		d.processor = processHTTP // fixes absolute vs relative uris
 		break
 	default:

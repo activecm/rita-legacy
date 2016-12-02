@@ -94,3 +94,8 @@ func processHTTP(in interface{}) {
 		line.URI = parsedURL.RequestURI()
 	}
 }
+
+// GetHostName is our method for collecting host name
+func (in HTTP) GetHostName() string {
+	return in.Host
+}
