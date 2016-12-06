@@ -3,7 +3,7 @@ package database
 import (
 	"time"
 
-	"github.com/bglebrun/rita/config"
+	"github.com/ocmdev/rita/config"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"

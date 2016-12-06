@@ -2,7 +2,7 @@ package useragent
 
 import (
 	// "gopkg.in/mgo.v2/bson"
-	datatype_Data "github.com/bglebrun/rita/datatypes/data"
+	datatype_Data "github.com/ocmdev/rita/datatypes/data"
 )
 
 type (
