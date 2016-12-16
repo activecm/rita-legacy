@@ -1,8 +1,8 @@
 package inteldb
 
 import (
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/datatypes/intel"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/datatypes/intel"
 	"testing"
 	"time"
 

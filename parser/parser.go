@@ -12,15 +12,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/parser/docwriter"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/parser/docwriter"
 
 	log "github.com/Sirupsen/logrus"
 )
 
 type (
 	creatorFunc func() interface {
-		GetHostName() string
+		IsWhiteListed(whitelist []string) bool
 	} // A function that creates arbitrary objects
 	processorFunc func(interface{}) // A function that processes arbitrary objects
 	docParser     struct {          // The document parsing structure
@@ -482,21 +482,21 @@ func (d *docParser) setStructType() error {
 
 	case "conn":
 		d.creator = func() interface {
-			GetHostName() string
+			IsWhiteListed(whitelist []string) bool
 		} {
 			return &Conn{}
 		}
 		break
 	case "dns":
 		d.creator = func() interface {
-			GetHostName() string
+			IsWhiteListed(whitelist []string) bool
 		} {
 			return &DNS{}
 		}
 		break
 	case "http":
 		d.creator = func() interface {
-			GetHostName() string
+			IsWhiteListed(whitelist []string) bool
 		} {
 			return &HTTP{}
 		}

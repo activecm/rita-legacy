@@ -1,7 +1,7 @@
 package database
 
 import (
-	"github.com/ocmdev/rita/config"
+	"github.com/bglebrun/rita/config"
 	"os"
 	"sync"
 	"time"

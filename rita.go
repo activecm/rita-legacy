@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/ocmdev/rita/commands"
+	"github.com/bglebrun/rita/commands"
 
 	"github.com/urfave/cli"
 )

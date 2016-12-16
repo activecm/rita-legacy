@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/intel"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database"
+	"github.com/bglebrun/rita/intel"
 	"github.com/urfave/cli"
 )
 
@@ -95,7 +95,6 @@ func analyze(inDb string, verboseFlag bool) {
 			fmt.Fprintf(os.Stdout,
 				"\t[-] Building the Hosts Collection\n")
 		}
-		// Ben: Whitelist thing goes here
 		d.BuildHostsCollection()
 
 		// The intel module leans on the hostnames collection

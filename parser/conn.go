@@ -1,6 +1,10 @@
 package parser
 
-import "gopkg.in/mgo.v2/bson"
+import (
+	"strings"
+
+	"gopkg.in/mgo.v2/bson"
+)
 
 type (
 	// Conn provides a data structure for bro's connection data
@@ -54,6 +58,19 @@ type (
 
 // GetHostName is our method for collecting host name
 // Temporary function
-func (in Conn) GetHostName() string {
-	return ""
+func (in *Conn) IsWhiteListed(whitelist []string) bool {
+	if whitelist == nil {
+		return false
+	}
+
+	if in.Destination == "" {
+		return false
+	}
+
+	for count := range whitelist {
+		if strings.Contains(in.Destination, whitelist[count]) {
+			return true
+		}
+	}
+	return false
 }

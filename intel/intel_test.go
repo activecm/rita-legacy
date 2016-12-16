@@ -1,7 +1,7 @@
 package intel
 
 import (
-	"github.com/ocmdev/rita/config"
+	"github.com/bglebrun/rita/config"
 	"testing"
 	"time"
 

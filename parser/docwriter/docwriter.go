@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/davecgh/go-spew/spew"
@@ -17,7 +17,7 @@ type (
 	// Document holds one item to be written to a database
 	Document struct {
 		Doc interface {
-			GetHostName() string
+			IsWhiteListed(whitelist []string) bool
 		} // Thing to write
 		DB   string // DB to write to
 		Coll string // Collection to write to
@@ -104,32 +104,8 @@ func (d *DocWriter) Flush() {
 	return
 }
 
-func retrieve(document Document) string {
-	return document.Doc.GetHostName()
-}
-
-/*
- * Ben L.
- * Checks if our document is present in the whitelist
- * and returns true if the string is whitelisted, false
- * otherwise
- */
-func isWhitelisted(writer *DocWriter, in Document) bool {
-	url := retrieve(in)
-
-	if writer.Whitelist == nil {
-		return false
-	}
-	if url == "" {
-		return false
-	}
-
-	for count := range writer.Whitelist {
-		if strings.Contains(url, writer.Whitelist[count]) {
-			return true
-		}
-	}
-	return false
+func (doc *Document) isWhitelisted(whitelist []string) bool {
+	return doc.Doc.IsWhiteListed(whitelist)
 }
 
 // writeLoop loops over the input channel spawning threads to write
@@ -151,13 +127,10 @@ func (d *DocWriter) writeLoop() {
 
 		towrite := doc.Doc
 
-		if isWhitelisted(d, doc) {
-			if d.ImportWl {
-				err = ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
-			}
-		} else {
+		if !(d.ImportWl && doc.Doc.IsWhiteListed(d.Whitelist)) {
 			err = ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
 		}
+
 		if err != nil {
 			if strings.Contains(err.Error(), "ObjectIDs") {
 				spew.Dump(towrite)

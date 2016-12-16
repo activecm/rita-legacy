@@ -96,6 +96,18 @@ func processHTTP(in interface{}) {
 }
 
 // GetHostName is our method for collecting host name
-func (in HTTP) GetHostName() string {
-	return in.Host
+func (in *HTTP) IsWhiteListed(whitelist []string) bool {
+	if whitelist == nil {
+		return false
+	}
+	if in.Host == "" {
+		return false
+	}
+
+	for count := range whitelist {
+		if strings.Contains(in.Host, whitelist[count]) {
+			return true
+		}
+	}
+	return false
 }
