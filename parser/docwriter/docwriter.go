@@ -126,9 +126,9 @@ func (d *DocWriter) writeLoop() {
 		}
 		ssn.Close()
 	}
-
-	d.Ssn.Close()
 	d.wg.Done()
+	d.wg.Wait()
+	d.Ssn.Close()
 	return
 }
 
