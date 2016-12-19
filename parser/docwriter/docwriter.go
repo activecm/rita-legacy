@@ -104,10 +104,6 @@ func (d *DocWriter) Flush() {
 	return
 }
 
-func (doc *Document) isWhitelisted(whitelist []string) bool {
-	return doc.Doc.IsWhiteListed(whitelist)
-}
-
 // writeLoop loops over the input channel spawning threads to write
 func (d *DocWriter) writeLoop() {
 	var err error
@@ -127,7 +123,7 @@ func (d *DocWriter) writeLoop() {
 
 		towrite := doc.Doc
 
-		if !(d.ImportWl && doc.Doc.IsWhiteListed(d.Whitelist)) {
+		if !(d.ImportWl && towrite.IsWhiteListed(d.Whitelist)) {
 			err = ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
 		}
 
