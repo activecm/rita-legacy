@@ -3,7 +3,7 @@ package database
 import (
 	// "fmt"
 
-	"github.com/bglebrun/rita/analysis/structure"
+	"github.com/ocmdev/rita/analysis/structure"
 
 	// log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"

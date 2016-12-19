@@ -2,7 +2,7 @@ package structure
 
 import (
 	"gopkg.in/mgo.v2/bson"
-	"github.com/bglebrun/rita/config"
+	"github.com/ocmdev/rita/config"
 )
 
 func GetHosts(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {

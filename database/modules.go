@@ -3,11 +3,11 @@ package database
 import (
 	// "fmt"
 
-	"github.com/bglebrun/rita/analysis/TBD"
-	"github.com/bglebrun/rita/analysis/blacklisted"
-	"github.com/bglebrun/rita/analysis/scanning"
-	"github.com/bglebrun/rita/analysis/urls"
-	"github.com/bglebrun/rita/analysis/useragent"
+	"github.com/ocmdev/rita/analysis/TBD"
+	"github.com/ocmdev/rita/analysis/blacklisted"
+	"github.com/ocmdev/rita/analysis/scanning"
+	"github.com/ocmdev/rita/analysis/urls"
+	"github.com/ocmdev/rita/analysis/useragent"
 
 	"gopkg.in/mgo.v2/bson"
 )

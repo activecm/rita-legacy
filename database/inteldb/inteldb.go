@@ -2,8 +2,8 @@ package inteldb
 
 import (
 	"errors"
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/datatypes/intel"
+	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/datatypes/intel"
 	"sync"
 	"time"
 

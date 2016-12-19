@@ -1,7 +1,7 @@
 package urls
 
 import (
-	datatype_Data "github.com/bglebrun/rita/datatypes/data"
+	datatype_Data "github.com/ocmdev/rita/datatypes/data"
 
 	"gopkg.in/mgo.v2/bson"
 )

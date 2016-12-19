@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"text/template"
 
-	"github.com/bglebrun/rita/config"
+	"github.com/ocmdev/rita/config"
 	"github.com/urfave/cli"
 )
 
