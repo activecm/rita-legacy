@@ -34,11 +34,8 @@ WhiteList:
     - blackhillsinfosec.com
 
 # Import White List, if true, will import the whitelisted domains/ip addresses,
-# however will not analyze them. If set to false, RITA will not import anything
-# from the whitelisted domains.
-
-# If set to false, whitelisted domains won't be imported, otherwise will
-# import domains but not analyze them
+# however will not attempt to analyze. If set to false, whitelisted
+# domains won't be imported.
 ImportWhitelist: true
 
 # The section Bro configures the bro ingestor
