@@ -16,7 +16,7 @@ func GetUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []stri
 
 	// Desired indeces
 	keys := []string{"$hashed:url", "-length"}
-
+	// mgo passed MapReduce javascript function code
 	job := mgo.MapReduce{
 		Map: `function(){
 					var result = {

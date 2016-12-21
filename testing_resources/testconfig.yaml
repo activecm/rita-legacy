@@ -3,13 +3,15 @@ Database: RITA_TEST
 BaseInstallDirectory: /usr/local/rita
 HostIntelDB: TEST_HostIntelligence
 ExternalHostsCollection: ext_host
-LogFilePath: /dev/null 
+LogFilePath: /dev/null
 LogLevel: 2
 BatchSize: 300
 Prefetch: 0.33
 WhiteList:
     - google.com
     - blackhillsinfosec.com
+
+ImportWhitelist: false
 
 # NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
 Bro:
@@ -59,4 +61,3 @@ Urls:
 
 UserAgent:
     UserAgentTable: useragent
-

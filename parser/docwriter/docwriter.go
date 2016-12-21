@@ -16,15 +16,19 @@ import (
 type (
 	// Document holds one item to be written to a database
 	Document struct {
-		Doc  interface{} // Thing to write
-		DB   string      // DB to write to
-		Coll string      // Collection to write to
+		Doc interface {
+			IsWhiteListed(whitelist []string) bool
+		} // Thing to write
+		DB   string // DB to write to
+		Coll string // Collection to write to
 	}
 
 	// DocWriter writes documents to a database
 	DocWriter struct {
 		Ssn       *mgo.Session           // Session to db instance
 		pre       string                 // Prefix to the database
+		ImportWl  bool                   // Flag to import whitelist
+		Whitelist []string               // Pointer to our whitelist array
 		wchan     chan Document          // Document channel
 		log       *log.Logger            // Logging
 		wg        *sync.WaitGroup        // Used to block until complete
@@ -43,6 +47,8 @@ func New(cfg *config.Resources, mdb *database.MetaDBHandle) *DocWriter {
 		Ssn:       cfg.Session.Copy(),
 		log:       cfg.Log,
 		pre:       cfg.System.BroConfig.DBPrefix,
+		ImportWl:  cfg.System.ImportWhitelist,
+		Whitelist: cfg.System.Whitelist,
 		wchan:     make(chan Document, 5000),
 		wg:        new(sync.WaitGroup),
 		Meta:      mdb,
@@ -101,6 +107,7 @@ func (d *DocWriter) Flush() {
 
 // writeLoop loops over the input channel spawning threads to write
 func (d *DocWriter) writeLoop() {
+	var err error
 	d.wg.Add(1)
 	for {
 		d.log.WithFields(log.Fields{
@@ -114,8 +121,13 @@ func (d *DocWriter) writeLoop() {
 		}
 
 		ssn := d.Ssn.Copy()
+
 		towrite := doc.Doc
-		err := ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
+
+		if !(d.ImportWl && towrite.IsWhiteListed(d.Whitelist)) {
+			err = ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
+		}
+
 		if err != nil {
 			if strings.Contains(err.Error(), "ObjectIDs") {
 				spew.Dump(towrite)

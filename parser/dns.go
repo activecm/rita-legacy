@@ -1,6 +1,10 @@
 package parser
 
-import "gopkg.in/mgo.v2/bson"
+import (
+	"strings"
+
+	"gopkg.in/mgo.v2/bson"
+)
 
 // DNS provides a data structure for entries in the bro DNS log
 type DNS struct {
@@ -55,4 +59,23 @@ type DNS struct {
 	TTLs string `bson:"TTLs" bro:"TTLs" brotype:"vector[interval]"`
 	// Rejected indicates if this query was rejected or not
 	Rejected bool `bson:"rejected" bro:"rejected" brotype:"bool"`
+}
+
+// GetHostName is our method for collecting host name
+// This is temporary for the time being
+func (in *DNS) IsWhiteListed(whitelist []string) bool {
+	if whitelist == nil {
+		return false
+	}
+
+	if in.Destination == "" {
+		return false
+	}
+
+	for count := range whitelist {
+		if strings.Contains(in.Destination, whitelist[count]) {
+			return true
+		}
+	}
+	return false
 }
