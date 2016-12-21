@@ -1,11 +1,12 @@
 package docwriter
 
 import (
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/davecgh/go-spew/spew"
@@ -93,6 +94,7 @@ func (d *DocWriter) Flush() {
 	close(d.wchan)
 	d.log.Debug("waiting for writes to finish")
 	d.wg.Wait()
+	d.Ssn.Close()
 	d.log.Debug("writes completed, exiting write loop")
 	return
 }
@@ -127,8 +129,6 @@ func (d *DocWriter) writeLoop() {
 		ssn.Close()
 	}
 	d.wg.Done()
-	d.wg.Wait()
-	d.Ssn.Close()
 	return
 }
 
