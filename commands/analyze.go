@@ -130,6 +130,10 @@ func analyze(inDb string, verboseFlag bool) {
 
 		d.BuildTBDCollection()
 
+		/////TESTING CODE
+		d.BuildTBDv2Collection()
+		/////END TESTING CODE
+
 		if verboseFlag {
 			fmt.Fprintf(os.Stdout,
 				"\t[-] Running blacklisted analysis\n")

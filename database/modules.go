@@ -53,6 +53,18 @@ func (d *DB) BuildTBDCollection() {
 	u.Run()
 }
 
+func (d *DB) BuildTBDv2Collection() {
+	collection_name := "tbdv2"
+	collection_keys := []string{"uconn_id"}
+	error_check := createCollection(d, collection_name, collection_keys)
+	if error_check != "" {
+		d.l.Error("Failed: ", collection_name, error_check)
+		return
+	}
+	u := TBD.NewV2(d.r)
+	u.Run()
+}
+
 /*
  * Name:       BuildScanningCollection
  * Purpose:    Builds the scanning collection
