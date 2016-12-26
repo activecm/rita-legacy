@@ -87,11 +87,6 @@ type (
 	}
 )
 
-// CopySession allows systems to copy the resources session. Necessary for threading.
-func (r *Resources) CopySession() *mgo.Session {
-	return r.Session.Copy()
-}
-
 // LoadSystemConfig attempts to parse a config file
 func LoadSystemConfig(cfgPath string) (SystemConfig, bool) {
 
@@ -155,7 +150,7 @@ func InitConfig(cfgPath string) *Resources {
 	// Jump into the requested database
 	session, err := mgo.Dial(config.DatabaseHost)
 	if err != nil {
-		fmt.Printf("Failed to connect to database: %s", err.Error(), config.DatabaseHost)
+		fmt.Printf("Failed to connect to database: %s", err.Error())
 		os.Exit(-1)
 	}
 

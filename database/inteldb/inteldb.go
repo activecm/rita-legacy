@@ -81,7 +81,7 @@ type (
 
 // NewIntelDBHandle provides a new handle to the intelligence database
 func NewIntelDBHandle(conf *config.Resources) *IntelDBHandle {
-	ssn := conf.CopySession()
+	ssn := conf.Session.Copy()
 	defer ssn.Close()
 
 	// Note that errors in bringing up the database will cause panic
@@ -128,7 +128,7 @@ func NewIntelDBHandle(conf *config.Resources) *IntelDBHandle {
 		conf:      conf,
 		log:       conf.Log,
 		db:        conf.System.HostIntelDB,
-		ssn:       conf.CopySession(),
+		ssn:       conf.Session.Copy(),
 		wchan:     make(chan IntelDBDocument),
 		waitGroup: new(sync.WaitGroup),
 		lock:      new(sync.Mutex),

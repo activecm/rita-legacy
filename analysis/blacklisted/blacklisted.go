@@ -53,7 +53,7 @@ type (
 
 // New will create a new blacklisted module
 func New(c *config.Resources) *Blacklisted {
-	ssn := c.CopySession()
+	ssn := c.Session.Copy()
 	return &Blacklisted{
 		db:              c.System.DB,
 		session:         ssn,

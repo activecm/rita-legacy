@@ -11,6 +11,7 @@ import (
 	"github.com/ocmdev/rita/config"
 	datatype_TBD "github.com/ocmdev/rita/datatypes/TBD"
 	"github.com/ocmdev/rita/datatypes/data"
+	"github.com/ocmdev/rita/datatypes/structure"
 	"github.com/ocmdev/rita/util"
 
 	log "github.com/Sirupsen/logrus"
@@ -29,26 +30,6 @@ type (
 		maxtime             int64   // maximum time
 		default_bucket_size float64 // default size of buckets
 		default_conn_thresh int     // default connections threshold
-	}
-
-	// hostType holds hosts for partial lookup
-	hostType struct {
-		ID    bson.ObjectId `bson:"_id"`
-		IP    string        `bson:"ip"`
-		Local bool          `bson:"local"`
-	}
-
-	// uniqueConn holds a unique connection element
-	uniqueConn struct {
-		ID            bson.ObjectId `bson:"_id"`
-		Src           string        `bson:"src"`
-		Dst           string        `bson:"dst"`
-		ConnCount     int64         `bson:"connection_count"`
-		LocalSrc      bool          `bson:"local_src"`
-		LocalDst      bool          `bson:"local_dst"`
-		TotalBytes    int64         `bson:"total_bytes"`
-		AvgBytes      float64       `bson:"avg_bytes"`
-		TotalDuration int64         `bson:"total_duration"`
 	}
 
 	// Key provides a structure for keying the lookups
@@ -423,14 +404,14 @@ func (t *TBD) Run() {
 
 	// Create list of all local addresses
 	var localAddresses []string
-	var current hostType
+	var current structure.Host
 
 	localIter := session.DB(t.db).C(t.resources.System.StructureConfig.HostTable).
 		Find(bson.M{"local": true}).
 		Iter()
 
 	for localIter.Next(&current) {
-		localAddresses = append(localAddresses, current.IP)
+		localAddresses = append(localAddresses, current.Ip)
 	}
 
 	t.log.WithFields(log.Fields{
@@ -440,13 +421,13 @@ func (t *TBD) Run() {
 	var keyList []Key
 
 	for _, ipAddress := range localAddresses {
-		var uc uniqueConn
+		var uc structure.UniqueConnection
 		destIter := session.DB(t.db).
 			C(t.resources.System.StructureConfig.UniqueConnTable).
 			Find(bson.M{"src": ipAddress}).Iter()
 
 		for destIter.Next(&uc) {
-			if uc.ConnCount < int64(t.default_conn_thresh) {
+			if uc.ConnectionCount < t.default_conn_thresh {
 				continue
 			}
 
