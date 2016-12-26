@@ -193,12 +193,12 @@ func (t *TBDv2) analyze() {
 		}
 
 		//perfect beacons should have symmetric delta time distributions
-		//Kelly's measure of skew is used to check symmetry
+		//Bowley's measure of skew is used to check symmetry
 		sort.Sort(util.SortableInt64(diff))
 		k_skew := float64(0)
-		low := diff[toInt64(.1*float64(length-1))]
+		low := diff[toInt64(.25*float64(length-1))]
 		mid := diff[toInt64(.5*float64(length-1))]
-		high := diff[toInt64(.9*float64(length-1))]
+		high := diff[toInt64(.75*float64(length-1))]
 		k_num := low + high - 2*mid
 		k_den := high - low
 		if k_den != 0 {
