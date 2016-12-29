@@ -22,21 +22,4 @@ type (
 		AverageBytes    float32       `bson:"average_bytes"`
 		TotalDuration   float32       `bson:"total_duration"`
 	}
-
-	// A complete admin object mirroring database record for all Connections
-	Connection struct {
-		ID    bson.ObjectId `bson:"_id,omitempty" json:"_id,omitempty"`
-		Con   string        `bson:"con" json:"con"`
-		Host  string        `bson:"host" json:"host"`
-		Dst   string        `bson:"dst" json:"dst"`
-		Mods  string        `bson:"mods" json:"mods"`
-		MHits int           `bson:"mHits" json:"mHits"`
-		HitCt int           `bson:"hitCt" json:"hitCt"`
-		ModCt int           `bson:"modCt" json:"modCt"`
-		// Times []time.Time   `bson:"tss" json:"tss"`
-	}
-
-	Http struct {
-		Src string `bson:"id_origin_h"`
-	}
 )

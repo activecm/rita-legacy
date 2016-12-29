@@ -37,20 +37,10 @@ type (
 		log               *log.Logger            // logger
 		channel_size      int                    // channel size
 		thread_count      int                    // Thread count
-		unique_conn_table string                 // Connection table
 		blacklist_table   string                 // Name of blacklist table
 		intelDBHandle     *inteldb.IntelDBHandle // Handle of the inteld db
 		intelHandle       *intel.IntelHandle     // For cymru lookups
 
-	}
-
-	// BlacklistedData is a datatype designed to reduce reliance on
-	// ipvoid and urlvoid. It contains some information about addresses
-	// and urls which have already been checked agains those services
-	BlacklistedData struct {
-		ID    bson.ObjectId `bson:"_id,omitempty"` // Ident
-		Host  string        `bson:"remote_host"`   // can be a url or ip
-		Score int           `bson:"score"`         // Number of blacklists
 	}
 
 	// UrlShort is a shortened version of the URL datatype that only accounts
@@ -157,7 +147,7 @@ func (b *Blacklisted) Run() {
 	rwg := new(sync.WaitGroup)
 	rwg.Add(2)
 
-	go func(iter *mgo.Iter, waitgroup *sync.WaitGroup, ipchan chan string) {
+	go func(iter *mgo.Iter, ipchan chan string) {
 		defer rwg.Done()
 		var r datatype_structure.Host
 		for iter.Next(&r) {
@@ -166,10 +156,9 @@ func (b *Blacklisted) Run() {
 			}
 			ipchan <- r.Ip
 		}
-	}(ipit, rwg, ipaddrs)
+	}(ipit, ipaddrs)
 
-	go func(iter *mgo.Iter, waitgroup *sync.WaitGroup,
-		urlchan chan UrlShort, ipchan chan string) {
+	go func(iter *mgo.Iter, urlchan chan UrlShort, ipchan chan string) {
 		defer rwg.Done()
 
 		var u UrlShort
@@ -182,7 +171,7 @@ func (b *Blacklisted) Run() {
 			}
 			urlchan <- u
 		}
-	}(urlit, rwg, urls, ipaddrs)
+	}(urlit, urls, ipaddrs)
 
 	rwg.Wait()
 	close(ipaddrs)

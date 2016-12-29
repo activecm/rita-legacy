@@ -13,9 +13,6 @@ Database: NameOfDatabaseToUse
 # attempt to reduce the number of lookups necessary.
 HostIntelDB: HostIntelligence
 
-# This is the collection name for external hosts in the HostIntelligence database.
-ExternalHostsCollection: ext_host
-
 # LogLevel
 # 3 = debug
 # 2 = info
@@ -62,13 +59,11 @@ Bro:
     # seperation is handled by the metadatabase.
     MetaDB: MetaDataBase
 
-    # If the ingestor is using up all of the available memory it may help to reduce
-    # the buffer size. On the other hand if hte ingestor is running slowly, and
-    # there is plenty of resources remaining, it may be wise to increase the buffer
-    # and writethread size accorndingly. Note that writing to MongoDB is a part of
-    # this equation. If MongoDB is tipping over when ingest is run, then reduce
-    # those WriteThreads.
-    BufferSize: 1000
+    # If the ingestor is running slowly and there is plenty of resources 
+    # remaining, it may be wise to increase the number of write threads 
+    # accordingly. Note that writing to MongoDB is a part of this equation.
+    # If MongoDB is tipping over when import is run, then reduce the number of 
+    # write threads.
     WriteThreads: 10
 
     # If use dates is true the logs will be split into databases by date, this is
@@ -93,9 +88,6 @@ BlackListed:
 
 Dns:
     DnsTable: dns
-
-Duration:
-    DurationTimeScale: seconds
 
 Scanning:
     ScanThreshold: 50

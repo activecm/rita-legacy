@@ -69,11 +69,6 @@ func (d *DocWriter) Start(count int) {
 	return
 }
 
-// IsStarted checks to see if the writer is already going
-func (d *DocWriter) IsStarted() bool {
-	return d.started
-}
-
 // Write allows a user to add to the channel
 func (d *DocWriter) Write(doc Document) {
 	doc.DB = d.pre + doc.DB

@@ -77,6 +77,7 @@ func (m *MetaDBHandle) isBuilt() bool {
 	}
 
 	for _, name := range coll {
+	//TODO: Make this read the database from the config file
 		if name == "files" {
 			return true
 		}
@@ -165,6 +166,7 @@ func (m *MetaDBHandle) MarkDBCompleted(name string) error {
 
 }
 
+//UNUSED
 // GetUnAnalyzedDatabases builds a list of database names which have yet to be analyzed and returns
 func (m *MetaDBHandle) GetUnAnalysedDatabases() []string {
 
@@ -220,6 +222,7 @@ func (m *MetaDBHandle) GetFiles() []*PFile {
 	defer ssn.Close()
 
 	var f PFile
+	//TODO: Make this read the database from the config file
 	iter := ssn.DB(m.DB).C("files").Find(nil).Iter()
 
 	for iter.Next(&f) {
@@ -255,6 +258,7 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 		Capped:         false,
 	}
 
+	//TODO: Make this read the database from the config file
 	err := ssn.DB(m.DB).C("files").Create(&myCol)
 	errchk(err)
 
@@ -266,6 +270,7 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 		Name:       "hashindex",
 	}
 
+	//TODO: Make this read the database from the config file
 	err = ssn.DB(m.DB).C("files").EnsureIndex(idx)
 	errchk(err)
 
@@ -312,6 +317,7 @@ func (m *MetaDBHandle) MarkCompleted(f *PFile) error {
 	defer ssn.Close()
 
 	pfile := PFile{}
+	//TODO: Make this read the database from the config file
 	err := ssn.DB(m.DB).C("files").
 		Find(bson.M{"hash": f.Hash, "database": f.DataBase}).One(&pfile)
 
@@ -323,6 +329,7 @@ func (m *MetaDBHandle) MarkCompleted(f *PFile) error {
 		return err
 	}
 
+	//TODO: Make this read the database from the config file
 	err = ssn.DB(m.DB).C("files").
 		Update(bson.M{"_id": pfile.ID}, bson.M{"$set": bson.M{"time_complete": time.Now().Unix()}})
 
@@ -372,6 +379,7 @@ func (m *MetaDBHandle) UpdateFiles(files []*PFile) []*PFile {
 		}
 	}
 
+	//TODO: Make this read the database from the config file
 	cur := ssn.DB(m.DB).C("files")
 
 	for _, f := range work {

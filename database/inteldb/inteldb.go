@@ -101,7 +101,8 @@ func NewIntelDBHandle(conf *config.Resources) *IntelDBHandle {
 		collinfo := mgo.CollectionInfo{
 			Capped: false,
 		}
-
+		
+		//TODO: Use config file for collection name
 		err := ssn.DB(conf.System.HostIntelDB).C("external").Create(&collinfo)
 
 		if err != nil {
@@ -115,6 +116,7 @@ func NewIntelDBHandle(conf *config.Resources) *IntelDBHandle {
 			Background: true,
 		}
 
+		//TODO: Use config file for collection name
 		err = ssn.DB(conf.System.HostIntelDB).C("external").EnsureIndex(idx)
 
 		if err != nil {
@@ -164,6 +166,7 @@ func (i IntelDBHandle) Find(host string) *Query {
 
 	i.lock.Lock()
 
+	//TODO: Use config file for collection name
 	// lookup our host
 	err := ssn.DB(i.db).C("external").
 		Find(bson.M{"host": host}).
@@ -219,9 +222,10 @@ func (q *Query) SetBlacklistedScore(score int) error {
 	defer ssn.Close()
 
 	q.dbLock()
-        defer q.dbUnlock()
+	defer q.dbUnlock()
 
 	var res IntelDBDocument
+	//TODO: Use config file for collection name
 	info, err := ssn.DB(q.db).C("external").Find(bson.M{"_id": q.doc.ID}).Apply(change, &res)
 
 	// series of sanity checks with the database
@@ -277,6 +281,7 @@ func (i IntelDBHandle) startWriteLoop() {
 			return
 		}
 		i.lock.Lock()
+		//TODO: Use config file for collection name
 		err := ssn.DB(i.db).C("external").Insert(dat)
 		if err != nil {
 			i.log.WithFields(log.Fields{

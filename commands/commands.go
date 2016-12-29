@@ -1,10 +1,6 @@
 package commands
 
 import (
-	"fmt"
-	"os"
-	"time"
-
 	"github.com/urfave/cli"
 )
 
@@ -60,14 +56,6 @@ func bootstrapCommands(commands ...cli.Command) {
 	for _, command := range commands {
 		allCommands = append(allCommands, command)
 	}
-}
-
-// runVerbose runs a given function with with a message and time info
-func runVerbose(message string, f func()) {
-	startTime := time.Now()
-	fmt.Fprintf(os.Stdout, "%s\n", message)
-	f()
-	fmt.Fprintf(os.Stdout, "completed in %v\n", time.Since(startTime))
 }
 
 // Commands provides all of the defined commands to the front end

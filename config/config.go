@@ -15,11 +15,9 @@ type (
 	SystemConfig struct {
 		LogType                 string         `yaml:"LogType"`
 		GNUNetcatPath           string         `yaml:"GNUNetcatPath"`
-		BaseInstallDirectory    string         `yaml:"BaseInstallDirectory"`
 		BatchSize               int            `yaml:"BatchSize"`
 		DB                      string         `yaml:"Database"`
 		HostIntelDB             string         `yaml:"HostIntelDB"`
-		ExternalHostsCollection string         `yaml:"ExternalHostsCollection"`
 		DatabaseHost            string         `yaml:"DatabaseHost"`
 		LogLevel                int            `yaml:"LogLevel"`
 		Prefetch                float64        `yaml:"Prefetch"`
@@ -27,7 +25,6 @@ type (
 		ImportWhitelist         bool           `yaml:"ImportWhitelist"`
 		BlacklistedConfig       BlacklistedCfg `yaml:"BlackListed"`
 		DnsConfig               DnsCfg         `yaml:"Dns"`
-		DurationConfig          DurationCfg    `yaml:"Duration"`
 		ScanningConfig          ScanningCfg    `yaml:"Scanning"`
 		StructureConfig         StructureCfg   `yaml:"Structure"`
 		TBDConfig               TBDCfg         `yaml:"TBD"`
@@ -51,10 +48,6 @@ type (
 
 	DnsCfg struct {
 		DnsTable string `yaml:"DnsTable"`
-	}
-
-	DurationCfg struct {
-		DurationTimeScale string `yaml:"DurationTimeScale"`
 	}
 
 	ScanningCfg struct {
@@ -81,10 +74,8 @@ type (
 		LogPath      string            `yaml:"LogPath"`
 		DBPrefix     string            `yaml:"DBPrefix"`
 		MetaDB       string            `yaml:"MetaDB"`
-		BufferSize   int               `yaml:"BufferSize"`
 		WriteThreads int               `yaml:"WriteThreads"`
 		DirectoryMap map[string]string `yaml:"DirectoryMap"`
-		FilesTable   string            `yaml:"FilesTable"`
 		UseDates     bool              `yaml:"UseDates"`
 	}
 

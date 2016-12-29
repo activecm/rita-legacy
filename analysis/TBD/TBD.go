@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/ocmdev/rita/config"
@@ -30,21 +29,6 @@ type (
 		maxtime             int64   // maximum time
 		default_bucket_size float64 // default size of buckets
 		default_conn_thresh int     // default connections threshold
-	}
-
-	TBDInput struct {
-		ID       bson.ObjectId `bson:"_id,omitempty"`
-		Ts       []int64       `bson:"tss"`
-		Src      string        `bson:"src"`
-		Dst      string        `bson:"dst"`
-		LocalSrc bool          `bson:"local_src"`
-		LocalDst bool          `bson:"local_dst"`
-		Dpts     []int         `bson:"dst_ports"`
-		Dur      []float64     `bson:"duration"`
-		Count    int           `bson:"connection_count"`
-		Bytes    int64         `bson:"total_bytes"`
-		BytesAvg float64       `bson:"avg_bytes"`
-		Uid      []string      `bson:"uid"`
 	}
 
 	// hostType holds hosts for partial lookup
@@ -87,9 +71,6 @@ func New(c *config.Resources) *TBD {
 		default_conn_thresh: c.System.TBDConfig.DefaultConnectionThresh,
 	}
 }
-
-// Name gives the name of this module
-func (t *TBD) Name() string { return "tbd" }
 
 // Write data out to mongodb
 func (t *TBD) writeData(
@@ -387,25 +368,6 @@ func (t *TBD) TBDanalysis(timestampMap map[Key][]int64) {
 
 		}
 
-	}
-
-}
-
-// buildSet builds the data set to analyze
-func (t *TBD) buildSet(hits *mgo.Iter, timestampMap map[Key][]int64) {
-	t.log.Debug("Walking unique connections")
-	var dat TBDInput
-	// var dat map[string]interface{}
-
-	for hits.Next(&dat) {
-		thisKey := Key{
-			ID:  dat.ID,
-			Src: dat.Src,
-			Dst: dat.Dst,
-		}
-		if len(dat.Ts) > t.default_conn_thresh {
-			timestampMap[thisKey] = dat.Ts
-		}
 	}
 
 }
