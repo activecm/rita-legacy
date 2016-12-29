@@ -65,8 +65,6 @@ func NewV2(c *config.Resources) *TBDv2 {
 	}
 }
 
-func (t *TBDv2) Name() string { return "tbd" }
-
 //Start the TBD process
 func (t *TBDv2) Run() {
 	t.log.Info("Starting beacon hunt")
