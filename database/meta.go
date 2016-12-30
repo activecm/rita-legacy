@@ -77,7 +77,7 @@ func (m *MetaDBHandle) isBuilt() bool {
 	}
 
 	for _, name := range coll {
-	//TODO: Make this read the database from the config file
+		//TODO: Make this read the database from the config file
 		if name == "files" {
 			return true
 		}

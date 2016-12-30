@@ -21,21 +21,21 @@ type (
 	empty struct{}
 
 	TBDv2 struct {
-		db                  string // database
-		resources           *config.Resources
-		default_conn_thresh int // default connections threshold
-		collectChannel      chan string
-		analysisChannel     chan *tbdAnalysisInput
-		writeChannel        chan *datatype_TBD.TBDAnalysisOutput
-		collectWg           sync.WaitGroup
-		analysisWg          sync.WaitGroup
-		writeWg             sync.WaitGroup
-		collectThreads      int
-		analysisThreads     int
-		writeThreads        int
-		log                 *log.Logger // system Logger
-		minTime             int64       // minimum time
-		maxTime             int64       // maximum time
+		db                string // database
+		resources         *config.Resources
+		defaultConnThresh int // default connections threshold
+		collectChannel    chan string
+		analysisChannel   chan *tbdAnalysisInput
+		writeChannel      chan *datatype_TBD.TBDAnalysisOutput
+		collectWg         sync.WaitGroup
+		analysisWg        sync.WaitGroup
+		writeWg           sync.WaitGroup
+		collectThreads    int
+		analysisThreads   int
+		writeThreads      int
+		log               *log.Logger // system Logger
+		minTime           int64       // minimum time
+		maxTime           int64       // maximum time
 	}
 
 	tbdAnalysisInput struct {
@@ -52,16 +52,16 @@ type (
 // Name gives the name of this module
 func NewV2(c *config.Resources) *TBDv2 {
 	return &TBDv2{
-		db:                  c.System.DB,
-		resources:           c,
-		default_conn_thresh: c.System.TBDConfig.DefaultConnectionThresh,
-		log:                 c.Log,
-		collectChannel:      make(chan string),
-		analysisChannel:     make(chan *tbdAnalysisInput),
-		writeChannel:        make(chan *datatype_TBD.TBDAnalysisOutput),
-		collectThreads:      2,
-		analysisThreads:     2,
-		writeThreads:        2,
+		db:                c.System.DB,
+		resources:         c,
+		defaultConnThresh: c.System.TBDConfig.DefaultConnectionThresh,
+		log:               c.Log,
+		collectChannel:    make(chan string),
+		analysisChannel:   make(chan *tbdAnalysisInput),
+		writeChannel:      make(chan *datatype_TBD.TBDAnalysisOutput),
+		collectThreads:    2,
+		analysisThreads:   2,
+		writeThreads:      2,
 	}
 }
 
@@ -143,7 +143,7 @@ func (t *TBDv2) collect() {
 
 		for destIter.Next(&uconn) {
 			//skip the connection pair if they are under the threshold
-			if uconn.ConnectionCount < t.default_conn_thresh {
+			if uconn.ConnectionCount < t.defaultConnThresh {
 				continue
 			}
 
@@ -185,7 +185,7 @@ func (t *TBDv2) analyze() {
 			float64(t.maxTime-t.minTime)
 
 		//find the delta times between the timestamps
-		diff := make([]int64, length)
+		var diff []int64 = make([]int64, length)
 		for i := 0; i < length; i++ {
 			diff[i] = data.ts[i+1] - data.ts[i]
 		}
@@ -193,17 +193,15 @@ func (t *TBDv2) analyze() {
 		//perfect beacons should have symmetric delta time distributions
 		//Bowley's measure of skew is used to check symmetry
 		sort.Sort(util.SortableInt64(diff))
-		k_skew := float64(0)
+		bSkew := float64(0)
 		low := diff[toInt64(.25*float64(length-1))]
 		mid := diff[toInt64(.5*float64(length-1))]
 		high := diff[toInt64(.75*float64(length-1))]
-		k_num := low + high - 2*mid
-		k_den := high - low
-		if k_den != 0 {
-			k_skew = float64(k_num) / float64(k_den)
+		bNum := low + high - 2*mid
+		bDen := high - low
+		if bDen != 0 {
+			bSkew = float64(bNum) / float64(bDen)
 		}
-
-		dRange := diff[length-1] - diff[0]
 
 		//perfect beacons should have very low dispersion around the
 		//median of their delta times
@@ -217,17 +215,29 @@ func (t *TBDv2) analyze() {
 		sort.Sort(util.SortableInt64(devs))
 		madm := devs[toInt64(.5*float64(length-1))]
 
+		//Store the range for human analysis
+		iRange := diff[length-1] - diff[0]
+
+		//get a list of the intervals found in the data,
+		//the number of times the interval was found,
+		//and the most occurring interval
+		intervals, intervalCounts, mode, modeCount := createCountMap(diff)
+
 		newOutput := &datatype_TBD.TBDAnalysisOutput{
-			UconnID:       data.uconnID,
-			TS_skew:       k_skew,
-			TS_dispersion: madm,
-			TS_duration:   duration,
-			TS_dRange:     dRange,
+			UconnID:           data.uconnID,
+			TS_iSkew:          bSkew,
+			TS_iDispersion:    madm,
+			TS_duration:       duration,
+			TS_iRange:         iRange,
+			TS_iMode:          mode,
+			TS_iModeCount:     modeCount,
+			TS_intervals:      intervals,
+			TS_intervalCounts: intervalCounts,
 		}
 
 		//more skewed distributions recieve a lower score
 		//skew is mainly used as a tie breaker
-		alpha := 1.0 - math.Abs(k_skew)
+		alpha := 1.0 - math.Abs(bSkew)
 
 		//lower dispersion is better, cutoff dispersion scores at 30 seconds
 		beta := 1.0 - float64(madm)/30.0
@@ -237,7 +247,7 @@ func (t *TBDv2) analyze() {
 		gamma := duration
 
 		//in order of ascending importance: skew, duration, dispersion
-		newOutput.Score = (.25*alpha + 1.5*beta + 1.25*gamma) / 3.0
+		newOutput.TS_score = (alpha + beta + gamma) / 3.0
 
 		t.writeChannel <- newOutput
 		data, more = <-t.analysisChannel
@@ -257,6 +267,79 @@ func (t *TBDv2) write() {
 	t.writeWg.Done()
 }
 
+//returns a distinct data array, data count array, the mode,
+//and the number of times the mode occured
+func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
+	//create interval counts for human analysis
+	dataMap := make(map[int64]int64)
+	for _, d := range data {
+		dataMap[d]++
+	}
+
+	distinct := make([]int64, len(dataMap))
+	counts := make([]int64, len(dataMap))
+
+	i := 0
+	for k, v := range dataMap {
+		distinct[i] = k
+		counts[i] = v
+		i++
+	}
+
+	mode := distinct[0]
+	max := counts[0]
+	for idx, count := range counts {
+		if count > max {
+			max = count
+			mode = distinct[idx]
+		}
+	}
+	return distinct, counts, mode, max
+}
+
+func GetViewPipeline(r *config.Resources, cuttoff float64) []bson.D {
+	return []bson.D{
+		{
+			{"$match", bson.D{
+				{"ts_score", bson.D{
+					{"$gt", cuttoff},
+				}},
+			}},
+		},
+		{
+			{"$lookup", bson.D{
+				{"from", r.System.StructureConfig.UniqueConnTable},
+				{"localField", "uconn_id"},
+				{"foreignField", "_id"},
+				{"as", "uconn"},
+			}},
+		},
+		{
+			{"$unwind", "$uconn"},
+		},
+		{
+			{"$sort", bson.D{
+				{"ts_score", -1},
+			}},
+		},
+		{
+			{"$project", bson.D{
+				{"ts_score", 1},
+				{"src", "$uconn.src"},
+				{"dst", "$uconn.dst"},
+				{"connection_count", "$uconn.connection_count"},
+				{"avg_bytes", "$uconn.avg_bytes"},
+				{"ts_iRange", 1},
+				{"ts_iMode", 1},
+				{"ts_iMode_count", 1},
+				{"ts_iSkew", 1},
+				{"ts_duration", 1},
+			}},
+		},
+	}
+}
+
+//TODO: Move these to util
 func abs(a int64) int64 {
 	if a >= 0 {
 		return a

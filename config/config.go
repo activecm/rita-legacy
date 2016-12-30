@@ -13,24 +13,24 @@ import (
 
 type (
 	SystemConfig struct {
-		LogType                 string         `yaml:"LogType"`
-		GNUNetcatPath           string         `yaml:"GNUNetcatPath"`
-		BatchSize               int            `yaml:"BatchSize"`
-		DB                      string         `yaml:"Database"`
-		HostIntelDB             string         `yaml:"HostIntelDB"`
-		DatabaseHost            string         `yaml:"DatabaseHost"`
-		LogLevel                int            `yaml:"LogLevel"`
-		Prefetch                float64        `yaml:"Prefetch"`
-		Whitelist               []string       `yaml:"WhiteList"`
-		ImportWhitelist         bool           `yaml:"ImportWhitelist"`
-		BlacklistedConfig       BlacklistedCfg `yaml:"BlackListed"`
-		DnsConfig               DnsCfg         `yaml:"Dns"`
-		ScanningConfig          ScanningCfg    `yaml:"Scanning"`
-		StructureConfig         StructureCfg   `yaml:"Structure"`
-		TBDConfig               TBDCfg         `yaml:"TBD"`
-		UrlsConfig              UrlsCfg        `yaml:"Urls"`
-		UserAgentConfig         UserAgentCfg   `yaml:"UserAgent"`
-		BroConfig               BroCfg         `yaml:"Bro"`
+		LogType           string         `yaml:"LogType"`
+		GNUNetcatPath     string         `yaml:"GNUNetcatPath"`
+		BatchSize         int            `yaml:"BatchSize"`
+		DB                string         `yaml:"Database"`
+		HostIntelDB       string         `yaml:"HostIntelDB"`
+		DatabaseHost      string         `yaml:"DatabaseHost"`
+		LogLevel          int            `yaml:"LogLevel"`
+		Prefetch          float64        `yaml:"Prefetch"`
+		Whitelist         []string       `yaml:"WhiteList"`
+		ImportWhitelist   bool           `yaml:"ImportWhitelist"`
+		BlacklistedConfig BlacklistedCfg `yaml:"BlackListed"`
+		DnsConfig         DnsCfg         `yaml:"Dns"`
+		ScanningConfig    ScanningCfg    `yaml:"Scanning"`
+		StructureConfig   StructureCfg   `yaml:"Structure"`
+		TBDConfig         TBDCfg         `yaml:"TBD"`
+		UrlsConfig        UrlsCfg        `yaml:"Urls"`
+		UserAgentConfig   UserAgentCfg   `yaml:"UserAgent"`
+		BroConfig         BroCfg         `yaml:"Bro"`
 	}
 
 	StructureCfg struct {

@@ -8,6 +8,7 @@ import (
 	"github.com/ocmdev/rita/analysis/scanning"
 	"github.com/ocmdev/rita/analysis/urls"
 	"github.com/ocmdev/rita/analysis/useragent"
+	dataTBD "github.com/ocmdev/rita/datatypes/TBD"
 
 	"gopkg.in/mgo.v2/bson"
 )
@@ -25,7 +26,7 @@ import (
 func (d *DB) BuildBlacklistedCollection() {
 	collection_name := d.r.System.BlacklistedConfig.BlacklistTable
 	collection_keys := []string{"bl_hash", "host"}
-	error_check := createCollection(d, collection_name, collection_keys)
+	error_check := d.createCollection(collection_name, collection_keys)
 	if error_check != "" {
 		d.l.Error("Failed: ", collection_name, error_check)
 		return
@@ -44,7 +45,7 @@ func (d *DB) BuildBlacklistedCollection() {
 func (d *DB) BuildTBDCollection() {
 	collection_name := d.r.System.TBDConfig.TBDTable
 	collection_keys := []string{"src", "dst"}
-	error_check := createCollection(d, collection_name, collection_keys)
+	error_check := d.createCollection(collection_name, collection_keys)
 	if error_check != "" {
 		d.l.Error("Failed: ", collection_name, error_check)
 		return
@@ -55,14 +56,21 @@ func (d *DB) BuildTBDCollection() {
 
 func (d *DB) BuildTBDv2Collection() {
 	collection_name := "tbdv2"
-	collection_keys := []string{"uconn_id"}
-	error_check := createCollection(d, collection_name, collection_keys)
+	collection_keys := []string{"uconn_id", "ts_score"}
+	error_check := d.createCollection(collection_name, collection_keys)
 	if error_check != "" {
 		d.l.Error("Failed: ", collection_name, error_check)
 		return
 	}
 	u := TBD.NewV2(d.r)
 	u.Run()
+}
+
+func (d *DB) GetTBDv2ResultsView(cutoffScore float64) []dataTBD.TBDAnalysisView {
+	pipeline := TBD.GetViewPipeline(d.r, cutoffScore)
+	var results []dataTBD.TBDAnalysisView
+	d.aggregateCollection("tbdv2", pipeline, &results)
+	return results
 }
 
 /*
@@ -80,7 +88,7 @@ func (d *DB) BuildScanningCollection() {
 		pipeline := scanning.GetScanningCollectionScript(&d.r.System)
 
 	// Create it
-	error_check := createCollection(d, new_collection_name, new_collection_keys)
+	error_check := d.createCollection(new_collection_name, new_collection_keys)
 	if error_check != "" {
 		d.l.Error("Failed: ", new_collection_name, error_check)
 		return
@@ -88,7 +96,7 @@ func (d *DB) BuildScanningCollection() {
 
 	// Aggregate it!
 	results := []bson.M{}
-	aggregateCollection(d, source_collection_name, pipeline, &results)
+	d.aggregateCollection(source_collection_name, pipeline, &results)
 }
 
 /*
@@ -107,20 +115,20 @@ func (d *DB) BuildUrlsCollection() {
 		pipeline := urls.GetUrlCollectionScript(&d.r.System)
 
 	// Create it
-	error_check := createCollection(d, new_collection_name, new_collection_keys)
+	error_check := d.createCollection(new_collection_name, new_collection_keys)
 	if error_check != "" {
 		d.l.Error("Failed: ", new_collection_name, error_check)
 		return
 	}
 
 	// Map reduce it!
-	if !mapReduceCollection(d, source_collection_name, job) {
+	if !d.mapReduceCollection(source_collection_name, job) {
 		return
 	}
 
 	// Aggregate it
 	results := []bson.M{}
-	aggregateCollection(d, new_collection_name, pipeline, &results)
+	d.aggregateCollection(new_collection_name, pipeline, &results)
 }
 
 /*
@@ -140,14 +148,14 @@ func (d *DB) BuildHostnamesCollection() {
 		d.l.Error("The urls collection must be built before the hostnames table")
 	}
 
-	err := createCollection(d, new_collection_name, new_collection_keys)
+	err := d.createCollection(new_collection_name, new_collection_keys)
 	if err != "" {
 		d.l.Error("Failed: ", new_collection_name, err)
 		return
 	}
 
 	results := []bson.M{}
-	aggregateCollection(d, source_collection_name, pipeline, &results)
+	d.aggregateCollection(source_collection_name, pipeline, &results)
 }
 
 /*
@@ -165,7 +173,7 @@ func (d *DB) BuildUserAgentCollection() {
 		pipeline := useragent.GetUserAgentCollectionScript(&d.r.System)
 
 	// Create it
-	error_check := createCollection(d, new_collection_name, new_collection_keys)
+	error_check := d.createCollection(new_collection_name, new_collection_keys)
 	if error_check != "" {
 		d.l.Error("Failed: ", new_collection_name, error_check)
 		return
@@ -173,5 +181,5 @@ func (d *DB) BuildUserAgentCollection() {
 
 	// Aggregate it!
 	results := []bson.M{}
-	aggregateCollection(d, source_collection_name, pipeline, &results)
+	d.aggregateCollection(source_collection_name, pipeline, &results)
 }

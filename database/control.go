@@ -61,7 +61,7 @@ func (d *DB) collectionExists(table string) bool {
  * Purpose:  Creates a new collection with required indeces
  * comments:
  */
-func createCollection(d *DB, name string, indeces []string) string {
+func (d *DB) createCollection(name string, indeces []string) string {
 	// Make a copy of the current session
 	session := d.r.Session.Copy()
 	defer session.Close()
@@ -109,7 +109,7 @@ func createCollection(d *DB, name string, indeces []string) string {
  * Purpose:  Builds collections that are built via aggregation
  * comments:
  */
-func aggregateCollection(d *DB, source_collection_name string, pipeline []bson.D, results interface{}) {
+func (d *DB) aggregateCollection(source_collection_name string, pipeline []bson.D, results interface{}) {
 	// Make a copy of the current session
 	session := d.r.Session.Copy()
 	defer session.Close()
@@ -147,7 +147,7 @@ func aggregateCollection(d *DB, source_collection_name string, pipeline []bson.D
  * Purpose:  Builds collections that are built via map reduce
  * comments:
  */
-func mapReduceCollection(d *DB, source_collection_name string, job mgo.MapReduce) bool {
+func (d *DB) mapReduceCollection(source_collection_name string, job mgo.MapReduce) bool {
 	// Make a copy of the current session
 	session := d.r.Session.Copy()
 	defer session.Close()

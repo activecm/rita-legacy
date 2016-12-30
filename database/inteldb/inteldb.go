@@ -101,7 +101,7 @@ func NewIntelDBHandle(conf *config.Resources) *IntelDBHandle {
 		collinfo := mgo.CollectionInfo{
 			Capped: false,
 		}
-		
+
 		//TODO: Use config file for collection name
 		err := ssn.DB(conf.System.HostIntelDB).C("external").Create(&collinfo)
 

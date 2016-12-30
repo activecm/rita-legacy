@@ -29,17 +29,17 @@ import (
 type (
 	// Blacklisted provides a handle for the blacklist module
 	Blacklisted struct {
-		db                string                 // database name (customer)
-		session           *mgo.Session           // default session
-		batch_size        int                    // BatchSize
-		prefetch          float64                // Prefetch
-		resources         *config.Resources      // resources
-		log               *log.Logger            // logger
-		channel_size      int                    // channel size
-		thread_count      int                    // Thread count
-		blacklist_table   string                 // Name of blacklist table
-		intelDBHandle     *inteldb.IntelDBHandle // Handle of the inteld db
-		intelHandle       *intel.IntelHandle     // For cymru lookups
+		db              string                 // database name (customer)
+		session         *mgo.Session           // default session
+		batch_size      int                    // BatchSize
+		prefetch        float64                // Prefetch
+		resources       *config.Resources      // resources
+		log             *log.Logger            // logger
+		channel_size    int                    // channel size
+		thread_count    int                    // Thread count
+		blacklist_table string                 // Name of blacklist table
+		intelDBHandle   *inteldb.IntelDBHandle // Handle of the inteld db
+		intelHandle     *intel.IntelHandle     // For cymru lookups
 
 	}
 
