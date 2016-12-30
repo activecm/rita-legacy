@@ -2,6 +2,7 @@ package TBD
 
 import (
 	"math"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -59,9 +60,9 @@ func New(c *config.Resources) *TBD {
 		collectChannel:    make(chan string),
 		analysisChannel:   make(chan *tbdAnalysisInput),
 		writeChannel:      make(chan *datatype_TBD.TBDAnalysisOutput),
-		collectThreads:    2,
-		analysisThreads:   2,
-		writeThreads:      2,
+		collectThreads:    runtime.NumCPU() / 2,
+		analysisThreads:   runtime.NumCPU() / 2,
+		writeThreads:      runtime.NumCPU() / 2,
 	}
 }
 
