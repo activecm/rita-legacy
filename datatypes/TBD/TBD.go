@@ -5,24 +5,34 @@ import (
 )
 
 type (
+	//straight output from the tbd analysis
+	TBDAnalysisOutput struct {
+		ID                bson.ObjectId `bson:"_id,omitempty"`
+		UconnID           bson.ObjectId `bson:"uconn_id"`
+		TS_iRange         int64         `bson:"ts_iRange"`
+		TS_iMode          int64         `bson:"ts_iMode"`
+		TS_iModeCount     int64         `bson:"ts_iMode_count"`
+		TS_iSkew          float64       `bson:"ts_iSkew"`
+		TS_iDispersion    int64         `bson:"ts_iDispersion"`
+		TS_duration       float64       `bson:"ts_duration"`
+		TS_score          float64       `bson:"ts_score"`
+		TS_intervals      []int64       `bson:"ts_intervals"`
+		TS_intervalCounts []int64       `bson:"ts_interval_counts"`
+	}
 
-	/*** Layer 1 Collection Structures ***/
-	TBD struct {
-		ID            bson.ObjectId `bson:"_id,omitempty"`
-		Src           string        `bson:"src"` // Going to remove these soon...
-		Dst           string        `bson:"dst"` // Going to remove these soon...
-		UconnID       bson.ObjectId `bson:"uconn_id"`
-		Range         int64         `bson:"range"`
-		Size          int64         `bson:"size"`
-		RangeVals     string        `bson:"range_vals"`
-		Fill          float64       `bson:"fill"`
-		Spread        float64       `bson:"spread"`
-		Sum           int64         `bson:"range_size"`
-		Score         float64       `bson:"score"`
-		Intervals     []int64       `bson:"intervals"`
-		InvervalCount []int64       `bson:"interval_counts"`
-		Tss           []int64       `bson:"tss"`
-		TopInterval   int64         `bson:"most_frequent_interval"`
-		TopIntervalCt int64         `bson:"most_frequent_interval_count"`
+	//Used in order to join the uconn and tbd tables
+	TBDAnalysisView struct {
+		ID             bson.ObjectId `bson:"_id,omitempty"`
+		Src            string        `bson:"src"`
+		Dst            string        `bson:"dst"`
+		Connections    int64         `bson:"connection_count"`
+		AvgBytes       float64       `bson:"avg_bytes"`
+		TS_iRange      int64         `bson:"ts_iRange"`
+		TS_iMode       int64         `bson:"ts_iMode"`
+		TS_iModeCount  int64         `bson:"ts_iMode_count"`
+		TS_iSkew       float64       `bson:"ts_iSkew"`
+		TS_iDispersion int64         `bson:"ts_iDispersion"`
+		TS_duration    float64       `bson:"ts_duration"`
+		TS_score       float64       `bson:"ts_score"`
 	}
 )

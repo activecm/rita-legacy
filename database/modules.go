@@ -35,16 +35,9 @@ func (d *DB) BuildBlacklistedCollection() {
 	b.Run()
 }
 
-/*
- * Name:       BuildTBDCollection
- * Purpose:    Builds the TBD collection
- * Build Type:
- * Source:
- * comments:
- */
 func (d *DB) BuildTBDCollection() {
 	collection_name := d.r.System.TBDConfig.TBDTable
-	collection_keys := []string{"src", "dst"}
+	collection_keys := []string{"uconn_id", "ts_score"}
 	error_check := d.createCollection(collection_name, collection_keys)
 	if error_check != "" {
 		d.l.Error("Failed: ", collection_name, error_check)
@@ -54,22 +47,10 @@ func (d *DB) BuildTBDCollection() {
 	u.Run()
 }
 
-func (d *DB) BuildTBDv2Collection() {
-	collection_name := "tbdv2"
-	collection_keys := []string{"uconn_id", "ts_score"}
-	error_check := d.createCollection(collection_name, collection_keys)
-	if error_check != "" {
-		d.l.Error("Failed: ", collection_name, error_check)
-		return
-	}
-	u := TBD.NewV2(d.r)
-	u.Run()
-}
-
-func (d *DB) GetTBDv2ResultsView(cutoffScore float64) []dataTBD.TBDAnalysisView {
+func (d *DB) GetTBDResultsView(cutoffScore float64) []dataTBD.TBDAnalysisView {
 	pipeline := TBD.GetViewPipeline(d.r, cutoffScore)
 	var results []dataTBD.TBDAnalysisView
-	d.aggregateCollection("tbdv2", pipeline, &results)
+	d.aggregateCollection(d.r.System.TBDConfig.TBDTable, pipeline, &results)
 	return results
 }
 

@@ -94,8 +94,7 @@ Scanning:
     ScanTable: scan
 
 TBD:
-    DefaultBucketSize: 60.0
-    DefaultConnectionThresh: 3
+    DefaultConnectionThresh: 24
     TBDTable: tbd
 
 Urls:

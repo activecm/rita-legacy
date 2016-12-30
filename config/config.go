@@ -56,9 +56,8 @@ type (
 	}
 
 	TBDCfg struct {
-		DefaultBucketSize       float64 `yaml:"DefaultBucketSize"`
-		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh"`
-		TBDTable                string  `yaml:"TBDTable"`
+		DefaultConnectionThresh int    `yaml:"DefaultConnectionThresh"`
+		TBDTable                string `yaml:"TBDTable"`
 	}
 
 	UrlsCfg struct {
