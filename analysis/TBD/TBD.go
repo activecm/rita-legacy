@@ -177,6 +177,9 @@ func (t *TBD) analyze() {
 	for more {
 		sort.Sort(util.SortableInt64(data.ts))
 
+		//remove subsecond communications
+		data.ts = removeDuplicates(data.ts)
+
 		//store the diff slice length since we use it a lot
 		length := len(data.ts) - 1
 
@@ -341,6 +344,21 @@ func GetViewPipeline(r *config.Resources, cuttoff float64) []bson.D {
 }
 
 //TODO: Move these to util
+func removeDuplicates(sortedIn []int64) []int64 {
+	//Avoid some reallocations
+	result := make([]int64, 0, len(sortedIn)/2)
+	last := sortedIn[0]
+	result = append(result, last)
+
+	for idx := 1; idx < len(sortedIn); idx++ {
+		if last != sortedIn[idx] {
+			result = append(result, sortedIn[idx])
+		}
+		last = sortedIn[idx]
+	}
+	return result
+}
+
 func abs(a int64) int64 {
 	if a >= 0 {
 		return a
