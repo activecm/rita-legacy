@@ -321,16 +321,30 @@ func (s SortableInt64) Len() int           { return len(s) }
 func (s SortableInt64) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s SortableInt64) Less(i, j int) bool { return s[i] < s[j] }
 
-// Stuff for the old duration module, aka just in case sort graveyard
-// type ByTime []Info
+//given a sorted slice, remove the duplicates
+func RemoveSortedDuplicates(sortedIn []int64) []int64 {
+	//Avoid some reallocations
+	result := make([]int64, 0, len(sortedIn)/2)
+	last := sortedIn[0]
+	result = append(result, last)
 
-// func (t ByTime) Len() int           { return len(t) }
-// func (t ByTime) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
-// func (t ByTime) Less(i, j int) bool { return t[i].Duration > t[j].Duration }
+	for idx := 1; idx < len(sortedIn); idx++ {
+		if last != sortedIn[idx] {
+			result = append(result, sortedIn[idx])
+		}
+		last = sortedIn[idx]
+	}
+	return result
+}
 
-// Stuff for old concurrent module
-// type ByTime []Info
+//two's complement 64 bit abs value
+func Abs(a int64) int64 {
+	mask := a >> 63
+	a = a ^ mask
+	return a - mask
+}
 
-// func (t ByTime) Len() int           { return len(t) }
-// func (t ByTime) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
-// func (t ByTime) Less(i, j int) bool { return t[i].Timestamp < t[j].Timestamp }
+//rounding function since go doesn't have it
+func Round(f float64) int64 {
+	return int64(math.Floor(f + .5))
+}

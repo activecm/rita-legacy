@@ -19,8 +19,6 @@ import (
 )
 
 type (
-	empty struct{}
-
 	TBD struct {
 		db                string // database
 		resources         *config.Resources
@@ -178,9 +176,11 @@ func (t *TBD) analyze() {
 		sort.Sort(util.SortableInt64(data.ts))
 
 		//remove subsecond communications
-		data.ts = removeDuplicates(data.ts)
+		data.ts = util.RemoveSortedDuplicates(data.ts)
 
 		//store the diff slice length since we use it a lot
+		//this is one less then the data slice length
+		//since we are calculating the times in between readings
 		length := len(data.ts) - 1
 
 		//find the duration of this connection
@@ -189,7 +189,7 @@ func (t *TBD) analyze() {
 			float64(t.maxTime-t.minTime)
 
 		//find the delta times between the timestamps
-		var diff []int64 = make([]int64, length)
+		diff := make([]int64, length)
 		for i := 0; i < length; i++ {
 			diff[i] = data.ts[i+1] - data.ts[i]
 		}
@@ -198,11 +198,15 @@ func (t *TBD) analyze() {
 		//Bowley's measure of skew is used to check symmetry
 		sort.Sort(util.SortableInt64(diff))
 		bSkew := float64(0)
-		low := diff[toInt64(.25*float64(length-1))]
-		mid := diff[toInt64(.5*float64(length-1))]
-		high := diff[toInt64(.75*float64(length-1))]
+
+		//length -1 is used since diff is a zero based slice
+		low := diff[util.Round(.25*float64(length-1))]
+		mid := diff[util.Round(.5*float64(length-1))]
+		high := diff[util.Round(.75*float64(length-1))]
 		bNum := low + high - 2*mid
 		bDen := high - low
+
+		//bSkew should equal zero if hte denominator equals zero
 		if bDen != 0 {
 			bSkew = float64(bNum) / float64(bDen)
 		}
@@ -213,11 +217,11 @@ func (t *TBD) analyze() {
 		//is used to check dispersion
 		devs := make([]int64, length)
 		for i := 0; i < length; i++ {
-			devs[i] = abs(diff[i] - mid)
+			devs[i] = util.Abs(diff[i] - mid)
 		}
 
 		sort.Sort(util.SortableInt64(devs))
-		madm := devs[toInt64(.5*float64(length-1))]
+		madm := devs[util.Round(.5*float64(length-1))]
 
 		//Store the range for human analysis
 		iRange := diff[length-1] - diff[0]
@@ -301,6 +305,8 @@ func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
 	return distinct, counts, mode, max
 }
 
+//Since the tbd table stores uconn uid's rather than src, dest pairs
+//we create an aggregation for user views
 func GetViewPipeline(r *config.Resources, cuttoff float64) []bson.D {
 	return []bson.D{
 		{
@@ -341,35 +347,4 @@ func GetViewPipeline(r *config.Resources, cuttoff float64) []bson.D {
 			}},
 		},
 	}
-}
-
-//TODO: Move these to util
-func removeDuplicates(sortedIn []int64) []int64 {
-	//Avoid some reallocations
-	result := make([]int64, 0, len(sortedIn)/2)
-	last := sortedIn[0]
-	result = append(result, last)
-
-	for idx := 1; idx < len(sortedIn); idx++ {
-		if last != sortedIn[idx] {
-			result = append(result, sortedIn[idx])
-		}
-		last = sortedIn[idx]
-	}
-	return result
-}
-
-func abs(a int64) int64 {
-	if a >= 0 {
-		return a
-	}
-	return -a
-}
-
-func toInt64(f float64) int64 {
-	_, float := math.Modf(f)
-	if float > .5 {
-		return int64(math.Ceil(f))
-	}
-	return int64(f)
 }
