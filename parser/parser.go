@@ -19,6 +19,7 @@ import (
 )
 
 type (
+	//TODO: make interface a named interface
 	creatorFunc func() interface {
 		IsWhiteListed(whitelist []string) bool
 	} // A function that creates arbitrary objects
@@ -27,8 +28,6 @@ type (
 		path      string               // fully qualified path
 		db        string               // database to write output to
 		writer    *docwriter.DocWriter // writer to write out the records
-		queue     chan []string        // lines to be read
-		dtValid   bool                 // Validation check of datatype
 		Errors    []error              // All errors for this file
 		log       *log.Logger          // log output
 		curFile   *os.File             // currently open file
@@ -372,21 +371,6 @@ func (d *docParser) getScanner() (*bufio.Scanner, error) {
 	return bufio.NewScanner(f), nil
 }
 
-// headerCompleted checks that we've filled in everything we need
-func (d *docParser) headerCompleted() bool {
-
-	if len(d.Header.Names) == 0 ||
-		len(d.Header.Types) == 0 ||
-		len(d.Header.Separator) == 0 ||
-		len(d.Header.SetSep) == 0 ||
-		len(d.Header.Empty) == 0 ||
-		len(d.Header.Unset) == 0 {
-		return false
-	}
-	return true
-
-}
-
 // validateStruct checks that the fields are correctly typed for the struct we're
 // trying to sync this data with. There are several requirements for the bro struct
 // that is being passed in.
@@ -480,6 +464,7 @@ func (d *docParser) validateStruct(s interface{}) error {
 func (d *docParser) setStructType() error {
 	switch d.Header.ObjType {
 
+	//TODO: make interface a named interface
 	case "conn":
 		d.creator = func() interface {
 			IsWhiteListed(whitelist []string) bool
