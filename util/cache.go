@@ -38,6 +38,7 @@ func (c Cache) Lookup(hash string) bool {
 	return ok
 }
 
+//UNUSED
 func (c Cache) Keys() []string {
 	c.lock.Lock()
 	defer c.lock.Unlock()

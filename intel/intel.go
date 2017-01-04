@@ -66,7 +66,7 @@ const expectedCymruFields = 7
 
 // NewIntelHandle uses a config.Resources to generate a new intel handle
 func NewIntelHandle(conf *config.Resources) *IntelHandle {
-	ssn := conf.CopySession()
+	ssn := conf.Session.Copy()
 	return &IntelHandle{
 		intelDB:       conf.System.HostIntelDB,
 		session:       ssn,

@@ -39,6 +39,7 @@ type (
 		ASNName     string        `bson:"asn_name"`
 	}
 
+	//UNUSED
 	// Conn provides structure for a subset of the fields in the
 	// various module .PartObj structures. Fields were needed that are
 	// not in the Conn structure, but the use of parser.Conn created

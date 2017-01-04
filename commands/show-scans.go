@@ -41,6 +41,7 @@ type scanres struct {
 	Range string
 }
 
+//TODO: implement sorting
 type scanresset []scanres
 
 // implement the sort.Interface

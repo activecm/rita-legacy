@@ -13,27 +13,24 @@ import (
 
 type (
 	SystemConfig struct {
-		LogType                 string         `yaml:"LogType"`
-		GNUNetcatPath           string         `yaml:"GNUNetcatPath"`
-		BaseInstallDirectory    string         `yaml:"BaseInstallDirectory"`
-		BatchSize               int            `yaml:"BatchSize"`
-		DB                      string         `yaml:"Database"`
-		HostIntelDB             string         `yaml:"HostIntelDB"`
-		ExternalHostsCollection string         `yaml:"ExternalHostsCollection"`
-		DatabaseHost            string         `yaml:"DatabaseHost"`
-		LogLevel                int            `yaml:"LogLevel"`
-		Prefetch                float64        `yaml:"Prefetch"`
-		Whitelist               []string       `yaml:"WhiteList"`
-		ImportWhitelist         bool           `yaml:"ImportWhitelist"`
-		BlacklistedConfig       BlacklistedCfg `yaml:"BlackListed"`
-		DnsConfig               DnsCfg         `yaml:"Dns"`
-		DurationConfig          DurationCfg    `yaml:"Duration"`
-		ScanningConfig          ScanningCfg    `yaml:"Scanning"`
-		StructureConfig         StructureCfg   `yaml:"Structure"`
-		TBDConfig               TBDCfg         `yaml:"TBD"`
-		UrlsConfig              UrlsCfg        `yaml:"Urls"`
-		UserAgentConfig         UserAgentCfg   `yaml:"UserAgent"`
-		BroConfig               BroCfg         `yaml:"Bro"`
+		LogType           string         `yaml:"LogType"`
+		GNUNetcatPath     string         `yaml:"GNUNetcatPath"`
+		BatchSize         int            `yaml:"BatchSize"`
+		DB                string         `yaml:"Database"`
+		HostIntelDB       string         `yaml:"HostIntelDB"`
+		DatabaseHost      string         `yaml:"DatabaseHost"`
+		LogLevel          int            `yaml:"LogLevel"`
+		Prefetch          float64        `yaml:"Prefetch"`
+		Whitelist         []string       `yaml:"WhiteList"`
+		ImportWhitelist   bool           `yaml:"ImportWhitelist"`
+		BlacklistedConfig BlacklistedCfg `yaml:"BlackListed"`
+		DnsConfig         DnsCfg         `yaml:"Dns"`
+		ScanningConfig    ScanningCfg    `yaml:"Scanning"`
+		StructureConfig   StructureCfg   `yaml:"Structure"`
+		TBDConfig         TBDCfg         `yaml:"TBD"`
+		UrlsConfig        UrlsCfg        `yaml:"Urls"`
+		UserAgentConfig   UserAgentCfg   `yaml:"UserAgent"`
+		BroConfig         BroCfg         `yaml:"Bro"`
 	}
 
 	StructureCfg struct {
@@ -53,19 +50,14 @@ type (
 		DnsTable string `yaml:"DnsTable"`
 	}
 
-	DurationCfg struct {
-		DurationTimeScale string `yaml:"DurationTimeScale"`
-	}
-
 	ScanningCfg struct {
 		ScanThreshold int    `yaml:"ScanThreshold"`
 		ScanTable     string `yaml:"ScanTable"`
 	}
 
 	TBDCfg struct {
-		DefaultBucketSize       float64 `yaml:"DefaultBucketSize"`
-		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh"`
-		TBDTable                string  `yaml:"TBDTable"`
+		DefaultConnectionThresh int    `yaml:"DefaultConnectionThresh"`
+		TBDTable                string `yaml:"TBDTable"`
 	}
 
 	UrlsCfg struct {
@@ -81,10 +73,8 @@ type (
 		LogPath      string            `yaml:"LogPath"`
 		DBPrefix     string            `yaml:"DBPrefix"`
 		MetaDB       string            `yaml:"MetaDB"`
-		BufferSize   int               `yaml:"BufferSize"`
 		WriteThreads int               `yaml:"WriteThreads"`
 		DirectoryMap map[string]string `yaml:"DirectoryMap"`
-		FilesTable   string            `yaml:"FilesTable"`
 		UseDates     bool              `yaml:"UseDates"`
 	}
 
@@ -95,11 +85,6 @@ type (
 		Log     *log.Logger
 	}
 )
-
-// CopySession allows systems to copy the resources session. Necessary for threading.
-func (r *Resources) CopySession() *mgo.Session {
-	return r.Session.Copy()
-}
 
 // LoadSystemConfig attempts to parse a config file
 func LoadSystemConfig(cfgPath string) (SystemConfig, bool) {
@@ -164,7 +149,7 @@ func InitConfig(cfgPath string) *Resources {
 	// Jump into the requested database
 	session, err := mgo.Dial(config.DatabaseHost)
 	if err != nil {
-		fmt.Printf("Failed to connect to database: %s", err.Error(), config.DatabaseHost)
+		fmt.Printf("Failed to connect to database: %s", err.Error())
 		os.Exit(-1)
 	}
 

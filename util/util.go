@@ -18,6 +18,7 @@ var rxURL = regexp.MustCompile(URL)
 var GOOD = 0
 var BAD = -1
 
+//UNUSED
 /*
  * Name:     IsURL
  * Purpose:  Returns true if string is a URL, false otherwise
@@ -50,6 +51,7 @@ func IsURL(str string) bool {
 	return rxURL.MatchString(str)
 }
 
+//UNUSED
 /*
  * Name:     IsIP
  * Purpose:  Returns true if string is a valid IP address, false otherwise
@@ -62,6 +64,7 @@ func IsIP(ip string) bool {
 	return false
 }
 
+//UNUSED
 /*
  * Name:     IsLoopback
  * Purpose:  Returns true if string is a valid IP address, false otherwise
@@ -77,6 +80,7 @@ func IsLoopback(ip string) bool {
 	return ip_parsed.IsLoopback()
 }
 
+//UNUSED
 // ValidIP validates an ip
 func ValidIP(ip string) bool {
 	if net.ParseIP(ip) != nil {
@@ -141,6 +145,7 @@ func RFC1918(ip string) bool {
 	return res
 }
 
+//UNUSED
 // IsSpecialIP attempts to filter some IPs that we don't care about
 func IsSpecialIP(ip string) bool {
 	v := net.ParseIP(ip)
@@ -158,6 +163,7 @@ func IsSpecialIP(ip string) bool {
 	return false
 }
 
+//UNUSED
 /*
  * Name:     Exists
  * Purpose:  Returns true if file or directory exists, false otherwise
@@ -174,6 +180,7 @@ func Exists(path string) (bool, error) {
 	return true, err
 }
 
+//UNUSED
 // Mean calculating the mean (average) of a data set
 func Mean(numList []float64) float64 {
 	total := 0.0
@@ -183,6 +190,7 @@ func Mean(numList []float64) float64 {
 	return total / float64(len(numList))
 }
 
+//UNUSED
 // Variance calculating the variance of a data set
 func Variance(numList []float64) float64 {
 	mean := Mean(numList)
@@ -193,6 +201,7 @@ func Variance(numList []float64) float64 {
 	return Mean(varList)
 }
 
+//UNUSED
 // StdDev  calculating the standard deviation (quantified amount of variation
 // or dispersion) of a data set
 func StdDev(numList []float64) float64 {
@@ -200,6 +209,7 @@ func StdDev(numList []float64) float64 {
 	return math.Sqrt(Variance(numList))
 }
 
+//UNUSED
 // AvgMaxPos calculating mean (average), maximum value, and position of
 // max value in a data set
 func AvgMaxPos(vals []float64) (avg float64, max float64, maxPos float64) {
@@ -221,6 +231,7 @@ func AvgMaxPos(vals []float64) (avg float64, max float64, maxPos float64) {
 	return
 }
 
+//UNUSED
 /*
  * Name:     TypeConvert
  * Purpose:  Dynamic type converter
@@ -310,16 +321,30 @@ func (s SortableInt64) Len() int           { return len(s) }
 func (s SortableInt64) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s SortableInt64) Less(i, j int) bool { return s[i] < s[j] }
 
-// Stuff for the old duration module, aka just in case sort graveyard
-// type ByTime []Info
+//given a sorted slice, remove the duplicates
+func RemoveSortedDuplicates(sortedIn []int64) []int64 {
+	//Avoid some reallocations
+	result := make([]int64, 0, len(sortedIn)/2)
+	last := sortedIn[0]
+	result = append(result, last)
 
-// func (t ByTime) Len() int           { return len(t) }
-// func (t ByTime) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
-// func (t ByTime) Less(i, j int) bool { return t[i].Duration > t[j].Duration }
+	for idx := 1; idx < len(sortedIn); idx++ {
+		if last != sortedIn[idx] {
+			result = append(result, sortedIn[idx])
+		}
+		last = sortedIn[idx]
+	}
+	return result
+}
 
-// Stuff for old concurrent module
-// type ByTime []Info
+//two's complement 64 bit abs value
+func Abs(a int64) int64 {
+	mask := a >> 63
+	a = a ^ mask
+	return a - mask
+}
 
-// func (t ByTime) Len() int           { return len(t) }
-// func (t ByTime) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
-// func (t ByTime) Less(i, j int) bool { return t[i].Timestamp < t[j].Timestamp }
+//rounding function since go doesn't have it
+func Round(f float64) int64 {
+	return int64(math.Floor(f + .5))
+}
