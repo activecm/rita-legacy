@@ -95,7 +95,6 @@ func analyze(inDb string, verboseFlag bool) {
 			fmt.Fprintf(os.Stdout,
 				"\t[-] Building the Hosts Collection\n")
 		}
-
 		d.BuildHostsCollection()
 
 		// The intel module leans on the hostnames collection
