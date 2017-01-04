@@ -19,36 +19,38 @@ import (
 )
 
 type (
+	//TBD contains methods for conducting a beacon hunt
 	TBD struct {
-		db                string // database
-		resources         *config.Resources
-		defaultConnThresh int // default connections threshold
-		collectChannel    chan string
-		analysisChannel   chan *tbdAnalysisInput
-		writeChannel      chan *datatype_TBD.TBDAnalysisOutput
-		collectWg         sync.WaitGroup
-		analysisWg        sync.WaitGroup
-		writeWg           sync.WaitGroup
-		collectThreads    int
-		analysisThreads   int
-		writeThreads      int
-		log               *log.Logger // system Logger
-		minTime           int64       // minimum time
-		maxTime           int64       // maximum time
+		db                string                               // current database
+		resources         *config.Resources                    // holds the global config
+		defaultConnThresh int                                  // default connections threshold
+		collectChannel    chan string                          // holds ip addresses
+		analysisChannel   chan *tbdAnalysisInput               // holds unanalyzed data
+		writeChannel      chan *datatype_TBD.TBDAnalysisOutput // holds analyzed data
+		collectWg         sync.WaitGroup                       // wait for collection to finish
+		analysisWg        sync.WaitGroup                       // wait for analysis to finish
+		writeWg           sync.WaitGroup                       // wait for writing to finish
+		collectThreads    int                                  // the number of read / collection threads
+		analysisThreads   int                                  // the number of analysis threads
+		writeThreads      int                                  // the number of write threads
+		log               *log.Logger                          // system Logger
+		minTime           int64                                // minimum time
+		maxTime           int64                                // maximum time
 	}
 
+	//tbdAnalysisInput binds a src, dst pair with their analysis data
 	tbdAnalysisInput struct {
-		src     string
-		dst     string
-		uconnID bson.ObjectId
-		ts      []int64
+		src     string        // Source IP
+		dst     string        // Destination IP
+		uconnID bson.ObjectId // Unique Connection ID
+		ts      []int64       // Connection timestamps for this src, dst pair
 		//dur []int64
 		//orig_bytes []int64
 		//resp_bytes []int64
 	}
 )
 
-// Create a new TBD module
+// TBD.New creates a new TBD module
 func New(c *config.Resources) *TBD {
 	return &TBD{
 		db:                c.System.DB,
@@ -64,7 +66,7 @@ func New(c *config.Resources) *TBD {
 	}
 }
 
-//Start the TBD process
+//TBD.Run Starts the beacon hunt process
 func (t *TBD) Run() {
 	t.log.Info("Running beacon hunt")
 	session := t.resources.Session.Copy()
@@ -74,6 +76,9 @@ func (t *TBD) Run() {
 	t.log.Debug("Looking for first connection timestamp")
 	start := time.Now()
 
+	//In practice having mongo do two lookups is
+	//faster than pulling the whole collection
+	//This could be optimized with an aggregation
 	var conn data.Conn
 	session.DB(t.db).
 		C(t.resources.System.StructureConfig.ConnTable).
@@ -94,12 +99,13 @@ func (t *TBD) Run() {
 		"last":         t.maxTime,
 	}).Debug("First and last timestamps found")
 
-	// add local addresses to channel
+	// add local addresses to collect channel
 	var host structure.Host
 	localIter := session.DB(t.db).
 		C(t.resources.System.StructureConfig.HostTable).
 		Find(bson.M{"local": true}).Iter()
 
+	//kick off the threaded goroutines
 	for i := 0; i < t.collectThreads; i++ {
 		t.collectWg.Add(1)
 		go t.collect()
@@ -129,7 +135,7 @@ func (t *TBD) Run() {
 	t.writeWg.Wait()
 }
 
-//grab all src, dst pairs and their connection data
+//collect grabs all src, dst pairs and their connection data
 func (t *TBD) collect() {
 	session := t.resources.Session.Copy()
 	defer session.Close()
@@ -175,9 +181,12 @@ func (t *TBD) collect() {
 func (t *TBD) analyze() {
 	data, more := <-t.analysisChannel
 	for more {
+		//sort the timestamps since they may have arrived out of order
 		sort.Sort(util.SortableInt64(data.ts))
 
 		//remove subsecond communications
+		//these will appear as beacons if we do not remove them
+		//subsecond beacon finding *may* be implemented later on...
 		data.ts = util.RemoveSortedDuplicates(data.ts)
 
 		//store the diff slice length since we use it a lot
@@ -246,7 +255,7 @@ func (t *TBD) analyze() {
 		}
 
 		//more skewed distributions recieve a lower score
-		//skew is mainly used as a tie breaker
+		//less skewed distributions recieve a higher score
 		alpha := 1.0 - math.Abs(bSkew)
 
 		//lower dispersion is better, cutoff dispersion scores at 30 seconds
@@ -265,6 +274,7 @@ func (t *TBD) analyze() {
 	t.analysisWg.Done()
 }
 
+//write writes the tbd analysis results to the database
 func (t *TBD) write() {
 	session := t.resources.Session.Copy()
 	defer session.Close()
@@ -277,8 +287,8 @@ func (t *TBD) write() {
 	t.writeWg.Done()
 }
 
-//returns a distinct data array, data count array, the mode,
-//and the number of times the mode occured
+//createCountMap returns a distinct data array, data count array, the mode,
+// and the number of times the mode occured
 func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
 	//create interval counts for human analysis
 	dataMap := make(map[int64]int64)
