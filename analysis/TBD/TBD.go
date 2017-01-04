@@ -48,7 +48,7 @@ type (
 	}
 )
 
-// Name gives the name of this module
+// Create a new TBD module
 func New(c *config.Resources) *TBD {
 	return &TBD{
 		db:                c.System.DB,
@@ -129,6 +129,7 @@ func (t *TBD) Run() {
 	t.writeWg.Wait()
 }
 
+//grab all src, dst pairs and their connection data
 func (t *TBD) collect() {
 	session := t.resources.Session.Copy()
 	defer session.Close()
@@ -170,6 +171,7 @@ func (t *TBD) collect() {
 	t.collectWg.Done()
 }
 
+//analyze src, dst pairs with their connection data
 func (t *TBD) analyze() {
 	data, more := <-t.analysisChannel
 	for more {
