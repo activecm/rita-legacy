@@ -4,19 +4,16 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/parser/docwriter"
+	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"sync"
 	"time"
-
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -32,17 +29,6 @@ type (
 		Meta         *database.MetaDBHandle // Handle to the metadata
 
 	}
-
-	// PFile retains everything we need to know about a given file
-	PFile struct {
-		ID       bson.ObjectId `bson:"_id,omitempty"`
-		Path     string        `bson:"filepath"`
-		Hash     string        `bson:"hash"`
-		Length   int64         `bson:"length"`
-		Parsed   int64         `bson:"time_complete"`
-		Mod      time.Time     `bson:"modified"`
-		DataBase string        `bson:"database"`
-	}
 )
 
 // newPFiles generates the pfileObjects
@@ -56,7 +42,7 @@ func (w *Watcher) newPFiles() {
 			}).Error("Couldn't stat file")
 			continue
 		}
-		fhash, err := w.getFileHash(file)
+		fhash, err := getFileHash(file)
 		if err != nil {
 			w.log.WithFields(log.Fields{
 				"error": err.Error(),
@@ -140,7 +126,6 @@ func (w *Watcher) Run(dw *docwriter.DocWriter) {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup,
 			f *database.PFile,
-			mySsn *mgo.Session,
 			dw *docwriter.DocWriter) {
 
 			// makesure waitgroup.Done() gets called when we exit this function
@@ -175,7 +160,7 @@ func (w *Watcher) Run(dw *docwriter.DocWriter) {
 				"file":    f.Path,
 			}).Info("completed file")
 
-		}(wg, file, ssn, dw)
+		}(wg, file, dw)
 	}
 
 	// wait for all of the files to finish parsing
@@ -226,7 +211,7 @@ func (w *Watcher) readDir(cpath string) {
 }
 
 // getFileHash computes an md5 hash of the file at filepath
-func (w *Watcher) getFileHash(filepath string) (string, error) {
+func getFileHash(filepath string) (string, error) {
 
 	var result string
 	file, err := os.Open(filepath)

@@ -69,11 +69,6 @@ func (d *DocWriter) Start(count int) {
 	return
 }
 
-// IsStarted checks to see if the writer is already going
-func (d *DocWriter) IsStarted() bool {
-	return d.started
-}
-
 // Write allows a user to add to the channel
 func (d *DocWriter) Write(doc Document) {
 	doc.DB = d.pre + doc.DB
@@ -100,6 +95,7 @@ func (d *DocWriter) Flush() {
 	close(d.wchan)
 	d.log.Debug("waiting for writes to finish")
 	d.wg.Wait()
+	d.Ssn.Close()
 	d.log.Debug("writes completed, exiting write loop")
 	return
 }
@@ -139,8 +135,6 @@ func (d *DocWriter) writeLoop() {
 		}
 		ssn.Close()
 	}
-
-	d.Ssn.Close()
 	d.wg.Done()
 	return
 }

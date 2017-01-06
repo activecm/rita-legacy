@@ -18,7 +18,7 @@ import (
 func (d *DB) BuildConnectionsCollection() {
 	collection_name := d.r.System.StructureConfig.ConnTable
 	collection_keys := []string{"$hashed:id_origin_h", "$hashed:id_resp_h", "$hashed:uid", "-duration"}
-	error_check := createCollection(d, collection_name, collection_keys)
+	error_check := d.createCollection(collection_name, collection_keys)
 	if error_check != "" {
 		d.l.Error("Failed: ", collection_name, error_check)
 		return
@@ -29,7 +29,7 @@ func (d *DB) BuildConnectionsCollection() {
 func (d *DB) BuildHttpCollection() {
 	collection_name := d.r.System.StructureConfig.HttpTable
 	collection_keys := []string{"$hashed:uid"}
-	error_check := createCollection(d, collection_name, collection_keys)
+	error_check := d.createCollection(collection_name, collection_keys)
 	if error_check != "" {
 		d.l.Error("Failed: ", collection_name, error_check)
 		return
@@ -46,7 +46,7 @@ func (d *DB) BuildUniqueConnectionsCollection() {
 		pipeline := structure.GetUniqueConnectionsScript(&d.r.System)
 
 	// Aggregate it!
-	error_check := createCollection(d, new_collection_name, new_collection_keys)
+	error_check := d.createCollection(new_collection_name, new_collection_keys)
 	if error_check != "" {
 		d.l.Error("Failed: ", new_collection_name, error_check)
 		return
@@ -54,7 +54,7 @@ func (d *DB) BuildUniqueConnectionsCollection() {
 
 	// In case we need results
 	results := []bson.M{}
-	aggregateCollection(d, source_collection_name, pipeline, &results)
+	d.aggregateCollection(source_collection_name, pipeline, &results)
 }
 
 // BuildHostsCollection builds the 'host' collection for this timeframe. Note
@@ -73,7 +73,7 @@ func (d *DB) BuildHostsCollection() {
 		pipeline := structure.GetHosts(&d.r.System)
 
 	// Aggregate it!
-	error_check := createCollection(d, new_collection_name, new_collection_keys)
+	error_check := d.createCollection(new_collection_name, new_collection_keys)
 	if error_check != "" {
 		d.l.Error("Failed: ", new_collection_name, error_check)
 		return
@@ -81,5 +81,5 @@ func (d *DB) BuildHostsCollection() {
 
 	// In case we need results
 	results := []bson.M{}
-	aggregateCollection(d, source_collection_name, pipeline, &results)
+	d.aggregateCollection(source_collection_name, pipeline, &results)
 }
