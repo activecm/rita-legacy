@@ -19,7 +19,7 @@ func init() {
 			verboseFlag,
 		},
 		Action: func(c *cli.Context) error {
-			analyze(c.String("database"), globalVerboseFlag)
+			analyze(c.String("dataset"), globalVerboseFlag)
 			return nil
 		},
 	}
