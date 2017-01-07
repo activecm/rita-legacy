@@ -52,10 +52,19 @@ type (
 
 // TBD.New creates a new TBD module
 func New(c *config.Resources) *TBD {
+
+	// If the threshold is incorrectly specified, fix it up.
+	// We require at least four delta times to analyze
+	// (Q1, Q2, Q3, Q4). So we need at least 5 connections
+	thresh := c.System.TBDConfig.DefaultConnectionThresh
+	if thresh < 5 {
+		thresh = 5
+	}
+
 	return &TBD{
 		db:                c.System.DB,
 		resources:         c,
-		defaultConnThresh: c.System.TBDConfig.DefaultConnectionThresh,
+		defaultConnThresh: thresh,
 		log:               c.Log,
 		collectChannel:    make(chan string),
 		analysisChannel:   make(chan *tbdAnalysisInput),
@@ -188,6 +197,13 @@ func (t *TBD) analyze() {
 		//these will appear as beacons if we do not remove them
 		//subsecond beacon finding *may* be implemented later on...
 		data.ts = util.RemoveSortedDuplicates(data.ts)
+
+		//If removing duplicates lowered the conn count under the threshold,
+		//remove this data from the analysis
+		if len(data.ts) < t.defaultConnThresh {
+			data, more = <-t.analysisChannel
+			continue
+		}
 
 		//store the diff slice length since we use it a lot
 		//this is one less then the data slice length
