@@ -31,8 +31,6 @@ type (
 	}
 )
 
-const ALL_DBNAME_KEY = "__ALL"
-
 // newPFiles generates the pfileObjects
 func (w *Watcher) newPFiles() {
 	for _, file := range w.filesToParse {
@@ -183,16 +181,17 @@ func (w *Watcher) Run(dw *docwriter.DocWriter) {
 
 // getDBName attempts to use the map from the yaml file to parse out a db name
 func (w *Watcher) getDBName(file string) (string, error) {
-	//If __ALL is specified use it
-	if defaultDBName, ok := w.cfg.System.BroConfig.DirectoryMap[ALL_DBNAME_KEY]; ok {
-		return defaultDBName, nil
-	}
-
+	// check the directory map
 	for key, val := range w.cfg.System.BroConfig.DirectoryMap {
 		if strings.Contains(file, key) {
 			return val, nil
 		}
 	}
+	//If a default database is specified put it in there
+	if w.cfg.System.BroConfig.DefaultDatabase != "" {
+		return w.cfg.System.BroConfig.DefaultDatabase, nil
+	}
+
 	return "", errors.New("Did not find a match in directory map")
 }
 

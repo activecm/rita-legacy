@@ -48,13 +48,13 @@ Bro:
     # in. This is good for running tests against multiple subnets and network
     # segments. Put the directory name on the left side of the colon, and the
     # database you wish the logs from that directory to go in on the right side.
-    # If __ALL is specified as a key (on the left), it will match any directory
-    # found i.e. if you would like all your logs to be put in the same database,
-    # use __ALL: MyAwesomeDatabaseName. NOTE: __ALL will override any other
-    # entries in the map.
     DirectoryMap:
         UniqueDir: SeperateDatabaseName
         UniqueDir2: SeperateDatabaseName2
+
+    # If set, files which don't match the directory map will be placed
+    # in this default database.
+    #DefaultDatabase: DefaultDatabaseName
 
     # There needs to be one metadatabase per test. This database holds information
     # about the test and the files related to the test. If there are several

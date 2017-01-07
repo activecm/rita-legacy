@@ -53,8 +53,9 @@ func doImport(c *cli.Context) error {
 	if importDir != "" && databaseName != "" {
 		conf.System.BroConfig.LogPath = importDir
 		conf.System.BroConfig.DBPrefix = ""
-		//Take advantage of __ALL override in parse map
-		conf.System.BroConfig.DirectoryMap[parser.ALL_DBNAME_KEY] = databaseName
+		//Clear out the directory map and set the default database
+		conf.System.BroConfig.DirectoryMap = make(map[string]string)
+		conf.System.BroConfig.DefaultDatabase = databaseName
 	}
 
 	fmt.Printf("Importing %s\n", conf.System.BroConfig.LogPath)

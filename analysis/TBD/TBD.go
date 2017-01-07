@@ -50,7 +50,7 @@ type (
 	}
 )
 
-// TBD.New creates a new TBD module
+// New creates a new TBD module
 func New(c *config.Resources) *TBD {
 
 	// If the threshold is incorrectly specified, fix it up.
@@ -75,7 +75,7 @@ func New(c *config.Resources) *TBD {
 	}
 }
 
-//TBD.Run Starts the beacon hunt process
+// Run Starts the beacon hunt process
 func (t *TBD) Run() {
 	t.log.Info("Running beacon hunt")
 	session := t.resources.Session.Copy()
@@ -144,7 +144,7 @@ func (t *TBD) Run() {
 	t.writeWg.Wait()
 }
 
-//collect grabs all src, dst pairs and their connection data
+// collect grabs all src, dst pairs and their connection data
 func (t *TBD) collect() {
 	session := t.resources.Session.Copy()
 	defer session.Close()
@@ -186,7 +186,7 @@ func (t *TBD) collect() {
 	t.collectWg.Done()
 }
 
-//analyze src, dst pairs with their connection data
+// analyze src, dst pairs with their connection data
 func (t *TBD) analyze() {
 	data, more := <-t.analysisChannel
 	for more {
@@ -290,7 +290,7 @@ func (t *TBD) analyze() {
 	t.analysisWg.Done()
 }
 
-//write writes the tbd analysis results to the database
+// write writes the tbd analysis results to the database
 func (t *TBD) write() {
 	session := t.resources.Session.Copy()
 	defer session.Close()
@@ -303,7 +303,7 @@ func (t *TBD) write() {
 	t.writeWg.Done()
 }
 
-//createCountMap returns a distinct data array, data count array, the mode,
+// createCountMap returns a distinct data array, data count array, the mode,
 // and the number of times the mode occured
 func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
 	//create interval counts for human analysis
@@ -333,8 +333,8 @@ func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
 	return distinct, counts, mode, max
 }
 
-//Since the tbd table stores uconn uid's rather than src, dest pairs
-//we create an aggregation for user views
+// GetViewPipeline creates an aggregation for user views since the tbd table
+// stores uconn uid's rather than src, dest pairs
 func GetViewPipeline(r *config.Resources, cuttoff float64) []bson.D {
 	return []bson.D{
 		{
