@@ -37,7 +37,7 @@ func (slice blresults) Swap(i, j int) {
 func init() {
 	command := cli.Command{
 		Name:  "show-blacklisted",
-		Usage: "print blacklisted information to standard out",
+		Usage: "Print blacklisted information to standard out",
 		Flags: []cli.Flag{
 			databaseFlag,
 			humanFlag,

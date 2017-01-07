@@ -13,7 +13,7 @@ import (
 func init() {
 	importCommand := cli.Command{
 		Name:  "import",
-		Usage: "import bro logs into the database",
+		Usage: "Import bro logs into the database",
 		Flags: []cli.Flag{
 			threadFlag,
 			configFlag,

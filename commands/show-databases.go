@@ -12,7 +12,7 @@ func init() {
 
 	databases := cli.Command{
 		Name:  "show-databases",
-		Usage: "List the databases currently stored",
+		Usage: "Print the databases currently stored",
 		Action: func(c *cli.Context) error {
 			conf := config.InitConfig("")
 			dbm := database.NewMetaDBHandle(conf)

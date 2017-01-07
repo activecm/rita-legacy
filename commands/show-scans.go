@@ -15,7 +15,7 @@ func init() {
 	command := cli.Command{
 
 		Name:  "show-scans",
-		Usage: "print scanning information to standard out",
+		Usage: "Print scanning information",
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,

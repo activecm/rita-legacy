@@ -18,7 +18,7 @@ var cutoffScore float64
 func init() {
 	command := cli.Command{
 		Name:  "show-beacons",
-		Usage: "print beacon information to standard out",
+		Usage: "Print beacon information to standard out",
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
