@@ -1,10 +1,11 @@
 package database
 
 import (
-	"github.com/ocmdev/rita/config"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/ocmdev/rita/config"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"
@@ -37,7 +38,7 @@ type (
 	DBMetaInfo struct {
 		ID       bson.ObjectId `bson:"_id,omitempty"` // Ident
 		Name     string        `bson:"name"`          // Top level name of the database
-		Analysed bool          `bson:"analyzed"`      // Has this database been analyzed
+		Analyzed bool          `bson:"analyzed"`      // Has this database been analyzed
 	}
 )
 
@@ -105,7 +106,7 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 	ssn := m.Session.Copy()
 	defer ssn.Close()
 
-	err := ssn.DB(m.DB).C("databases").Insert(DBMetaInfo{Name: name, Analysed: false})
+	err := ssn.DB(m.DB).C("databases").Insert(DBMetaInfo{Name: name, Analyzed: false})
 	if err != nil {
 		m.log.WithFields(log.Fields{
 			"error": err.Error(),
@@ -129,7 +130,7 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 }
 
 // MarkDBCompleted marks a database as having been analyzed
-func (m *MetaDBHandle) MarkDBCompleted(name string) error {
+func (m *MetaDBHandle) MarkDBCompleted(name string, complete bool) error {
 	m.logDebug("MarkDBCompleted", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -150,7 +151,7 @@ func (m *MetaDBHandle) MarkDBCompleted(name string) error {
 	}
 
 	err = ssn.DB(m.DB).C("databases").
-		Update(bson.M{"_id": dbr.ID}, bson.M{"$set": bson.M{"analyzed": true}})
+		Update(bson.M{"_id": dbr.ID}, bson.M{"$set": bson.M{"analyzed": complete}})
 
 	if err != nil {
 		m.log.WithFields(log.Fields{
@@ -163,30 +164,32 @@ func (m *MetaDBHandle) MarkDBCompleted(name string) error {
 	}
 	m.logDebug("MarkDBCompleted", "exiting")
 	return nil
-
 }
 
-//UNUSED
-// GetUnAnalyzedDatabases builds a list of database names which have yet to be analyzed and returns
-func (m *MetaDBHandle) GetUnAnalysedDatabases() []string {
+// GetDBMetaInfo returns a meta db entry
+func (m *MetaDBHandle) GetDBMetaInfo(name string) (DBMetaInfo, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	ssn := m.Session.Copy()
+	defer ssn.Close()
+	var result DBMetaInfo
+	err := ssn.DB(m.DB).C("databases").Find(bson.M{"name": name}).One(&result)
+	return result, err
+}
 
-	m.logDebug("GetUnAnalysedDatabases", "entering")
+// UNUSED
+// GetDBMetaInfos returns the meta db as an array
+func (m *MetaDBHandle) GetDBMetaInfos() ([]DBMetaInfo, error) {
+	m.logDebug("GetDBMetaInfo", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	ssn := m.Session.Copy()
 	defer ssn.Close()
 
-	var res []string
-	var cur DBMetaInfo
-	iter := ssn.DB(m.DB).C("databases").Find(nil).Iter()
-	for iter.Next(&cur) {
-		if !cur.Analysed {
-			res = append(res, cur.Name)
-		}
-	}
-	m.logDebug("GetUnAnalysedDatabases", "exiting")
-	return res
-
+	var info []DBMetaInfo
+	err := ssn.DB(m.DB).C("databases").Find(nil).All(&info)
+	m.logDebug("GetDBMetaInfo", "exiting")
+	return info, err
 }
 
 // GetDatabases returns a list of databases being tracked in metadb or an empty array on failure
@@ -206,6 +209,42 @@ func (m *MetaDBHandle) GetDatabases() []string {
 		res = append(res, db.Name)
 	}
 	m.logDebug("GetDatabases", "exiting")
+	return res
+}
+
+// GetUnAnalyzedDatabases builds a list of database names which have yet to be analyzed and returns
+func (m *MetaDBHandle) GetUnAnalyzedDatabases() []string {
+	m.logDebug("GetUnAnalyzedDatabases", "entering")
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	ssn := m.Session.Copy()
+	defer ssn.Close()
+
+	var res []string
+	var cur DBMetaInfo
+	iter := ssn.DB(m.DB).C("databases").Find(bson.M{"analyzed": false}).Iter()
+	for iter.Next(&cur) {
+		res = append(res, cur.Name)
+	}
+	m.logDebug("GetUnAnalyzedDatabases", "exiting")
+	return res
+}
+
+// GetAnalyzedDatabases builds a list of database names which have been analyzed
+func (m *MetaDBHandle) GetAnalyzedDatabases() []string {
+	m.logDebug("GetUnAnalyzedDatabases", "entering")
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	ssn := m.Session.Copy()
+	defer ssn.Close()
+
+	var res []string
+	var cur DBMetaInfo
+	iter := ssn.DB(m.DB).C("databases").Find(bson.M{"analyzed": true}).Iter()
+	for iter.Next(&cur) {
+		res = append(res, cur.Name)
+	}
+	m.logDebug("GetUnAnalyzedDatabases", "exiting")
 	return res
 }
 

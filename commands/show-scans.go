@@ -21,8 +21,8 @@ func init() {
 			databaseFlag,
 		},
 		Action: func(c *cli.Context) error {
-			if c.String("dataset") == "" {
-				return errors.New("No dataset specified")
+			if c.String("database") == "" {
+				return errors.New("No database specified")
 			}
 			if humanreadable {
 				return showScansHuman(c)
@@ -68,7 +68,7 @@ func showScans(c *cli.Context) error {
 	conf := config.InitConfig("")
 
 	var res scanres
-	coll := conf.Session.DB(c.String("dataset")).C(conf.System.ScanningConfig.ScanTable)
+	coll := conf.Session.DB(c.String("database")).C(conf.System.ScanningConfig.ScanTable)
 	iter := coll.Find(nil).Iter()
 
 	for iter.Next(&res) {
@@ -80,6 +80,7 @@ func showScans(c *cli.Context) error {
 	return nil
 }
 
+// TODO: Convert this over to tablewriter
 // showScans prints all scans for a given database
 func showScansHuman(c *cli.Context) error {
 
@@ -94,7 +95,7 @@ func showScansHuman(c *cli.Context) error {
 	conf := config.InitConfig("")
 
 	var res scanres
-	coll := conf.Session.DB(c.String("dataset")).C(conf.System.ScanningConfig.ScanTable)
+	coll := conf.Session.DB(c.String("database")).C(conf.System.ScanningConfig.ScanTable)
 	iter := coll.Find(nil).Iter()
 
 	fmt.Printf(cols)

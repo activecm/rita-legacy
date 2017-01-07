@@ -4,9 +4,6 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/parser/docwriter"
 	"io"
 	"io/ioutil"
 	"os"
@@ -14,6 +11,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
+	"github.com/ocmdev/rita/parser/docwriter"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -27,9 +28,10 @@ type (
 		files        []*database.PFile      // files with full stat info
 		cfg          *config.Resources      // configuration and resources
 		Meta         *database.MetaDBHandle // Handle to the metadata
-
 	}
 )
+
+const ALL_DBNAME_KEY = "__ALL"
 
 // newPFiles generates the pfileObjects
 func (w *Watcher) newPFiles() {
@@ -181,13 +183,17 @@ func (w *Watcher) Run(dw *docwriter.DocWriter) {
 
 // getDBName attempts to use the map from the yaml file to parse out a db name
 func (w *Watcher) getDBName(file string) (string, error) {
-	var res string
+	//If __ALL is specified use it
+	if defaultDBName, ok := w.cfg.System.BroConfig.DirectoryMap[ALL_DBNAME_KEY]; ok {
+		return defaultDBName, nil
+	}
+
 	for key, val := range w.cfg.System.BroConfig.DirectoryMap {
 		if strings.Contains(file, key) {
 			return val, nil
 		}
 	}
-	return res, errors.New("Did not find a match in directory map")
+	return "", errors.New("Did not find a match in directory map")
 }
 
 // readDir recursively reads the directory looking for log and .gz files

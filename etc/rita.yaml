@@ -45,10 +45,13 @@ Bro:
 
     # Subdirectories of LogPath may be seperated into different databases for the
     # test. Map each directory to the database you wish that directory to wind up
-    # in. This is good for running tests against multiple subnets, just make sure
-    # that the bro logs are under a folder in the directory structure named for
-    # that subnet, put the directory name on the left side of the colon, and the
-    # database you wish the logs from that directory to go to on the right side.
+    # in. This is good for running tests against multiple subnets and network
+    # segments. Put the directory name on the left side of the colon, and the
+    # database you wish the logs from that directory to go in on the right side.
+    # If __ALL is specified as a key (on the left), it will match any directory
+    # found i.e. if you would like all your logs to be put in the same database,
+    # use __ALL: MyAwesomeDatabaseName. NOTE: __ALL will override any other
+    # entries in the map.
     DirectoryMap:
         UniqueDir: SeperateDatabaseName
         UniqueDir2: SeperateDatabaseName2
@@ -59,10 +62,10 @@ Bro:
     # seperation is handled by the metadatabase.
     MetaDB: MetaDataBase
 
-    # If the ingestor is running slowly and there is plenty of resources 
-    # remaining, it may be wise to increase the number of write threads 
+    # If the ingestor is running slowly and there is plenty of resources
+    # remaining, it may be wise to increase the number of write threads
     # accordingly. Note that writing to MongoDB is a part of this equation.
-    # If MongoDB is tipping over when import is run, then reduce the number of 
+    # If MongoDB is tipping over when import is run, then reduce the number of
     # write threads.
     WriteThreads: 10
 
