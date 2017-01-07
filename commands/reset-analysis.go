@@ -10,7 +10,6 @@ import (
 )
 
 func init() {
-
 	reset := cli.Command{
 		Name:  "reset-analysis",
 		Usage: "Reset analysis of one or more databases",

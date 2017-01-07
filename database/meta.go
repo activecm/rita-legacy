@@ -126,7 +126,24 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 	d.BuildHttpCollection()
 	m.logDebug("AddNewDB", "exiting")
 	return nil
+}
 
+// DeleteDB removes a database managed by RITA
+func (m *MetaDBHandle) DeleteDB(name string) error {
+	m.logDebug("DeleteDB", "entering")
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	ssn := m.Session.Copy()
+	defer ssn.Close()
+
+	err := ssn.DB(m.DB).C("databases").Remove(bson.M{"name": name})
+	if err != nil {
+		return err
+	}
+
+	ssn.DB(name).DropDatabase()
+	m.logDebug("DeleteDB", "exiting")
+	return nil
 }
 
 // MarkDBCompleted marks a database as having been analyzed
