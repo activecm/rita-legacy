@@ -19,8 +19,7 @@ func init() {
 			conf := config.InitConfig("")
 			dbm := database.NewMetaDBHandle(conf)
 			if c.String("database") == "" {
-				fmt.Println("Specify a database with -d")
-				return nil
+				return cli.NewExitError("Specify a database with -d", -1)
 			}
 			fmt.Println("Deleting database:", c.String("database"))
 			return dbm.DeleteDB(c.String("database"))

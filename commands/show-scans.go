@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -22,7 +21,7 @@ func init() {
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
-				return errors.New("No database specified")
+				return cli.NewExitError("Specify a database with -d", -1)
 			}
 			if humanreadable {
 				return showScansHuman(c)

@@ -54,6 +54,9 @@ func init() {
 }
 
 func showBlacklisted(c *cli.Context) error {
+	if c.String("database") == "" {
+		return cli.NewExitError("Specify a database with -d", -1)
+	}
 
 	if humanreadable {
 		return showBlacklistedHuman(c)

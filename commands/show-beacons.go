@@ -37,7 +37,7 @@ func init() {
 
 func showBeacons(c *cli.Context) error {
 	if c.String("database") == "" {
-		return cli.NewExitError("No database was not specified", -1)
+		return cli.NewExitError("Specify a database with -d", -1)
 	}
 	conf := config.InitConfig("")
 	conf.System.DB = c.String("database")
@@ -46,13 +46,13 @@ func showBeacons(c *cli.Context) error {
 	data := db.GetTBDResultsView(cutoffScore)
 
 	if humanreadable {
-		return showBeacon2Report(data)
+		return showBeaconReport(data)
 	}
 
-	return showBeacon2Csv(data)
+	return showBeaconCsv(data)
 }
 
-func showBeacon2Report(data []TBD.TBDAnalysisView) error {
+func showBeaconReport(data []TBD.TBDAnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
 		"Connections", "Avg. Bytes", "Intvl Range", "Top Intvl",
@@ -74,7 +74,7 @@ func showBeacon2Report(data []TBD.TBDAnalysisView) error {
 	return nil
 }
 
-func showBeacon2Csv(data []TBD.TBDAnalysisView) error {
+func showBeaconCsv(data []TBD.TBDAnalysisView) error {
 	tmpl := "{{.TS_score}},{{.Src}},{{.Dst}},{{.Connections}},{{.AvgBytes}},"
 	tmpl += "{{.TS_iRange}},{{.TS_iMode}},{{.TS_iModeCount}},"
 	tmpl += "{{.TS_iSkew}},{{.TS_iDispersion}},{{.TS_duration}}\n"
