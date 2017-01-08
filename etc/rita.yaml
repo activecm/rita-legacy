@@ -5,9 +5,6 @@ DatabaseHost: localhost:27017
 # server. It is important that it is *GNU* netcat at this path.
 GNUNetcatPath: /usr/local/rita
 
-# This is what to name the database for this particular test
-Database: NameOfDatabaseToUse
-
 # Name of the host intelligence database. This can be the same across many tests.
 # Data like blacklist information, ASN, etc, will be gathered here in order to
 # attempt to reduce the number of lookups necessary.
