@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# 
+#
 # RITA is brought to you by Offensive CounterMeasures.
-# offensivecountermeasures.com 
+# offensivecountermeasures.com
 
 set -o errexit
 set -o pipefail
@@ -15,23 +15,23 @@ __help() {
 
 Welcome to the RITA installer.
 
-Usage: 
+Usage:
 	${_NAME} [<arguments>]
 	${_NAME} -h | --help
 
 Options:
 	-h --help 		Show this help message.
 	-i --install-dir	Directory to install to.
-	
+
 HEREDOC
 }
 
 __title() {
 	cat <<HEREDOC
 
- _ \ _ _| __ __|  \   
-   /   |     |   _ \  
-_|_\ ___|   _| _/  _\ 
+ _ \ _ _| __ __|  \
+   /   |     |   _ \
+_|_\ ___|   _| _/  _\
 
 Brought to you by the Offensive CounterMeasures
 
@@ -57,9 +57,17 @@ __install() {
 
 	printf "[+] Transferring files\n"
 	mkdir $_RITADIR
-	
+
 	cp -r etc $_RITADIR/etc
 	cp LICENSE $_RITADIR/LICENSE
+
+  printf "Running 'go get github.com/ocmdev/rita'"
+  go get github.com/ocmdev/rita
+  cd $GOPATH/src/github.com/ocmdev/rita
+
+  printf "Done! Now we just have to build and install RITA."
+  go build
+  go install
 
 	# Install the base configuration file
 	if [ -w /etc/ ]
@@ -97,9 +105,9 @@ __entry() {
 	fi
 
 	# Check to see if the user has permission to install to this directory
-	if [ -w $_INSDIR ] 
+	if [ -w $_INSDIR ]
 	then
-		__install	
+		__install
 	else
 		printf "You do NOT have permission to write to $_INSDIR\n\n"
 		__help
