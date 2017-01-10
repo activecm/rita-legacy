@@ -7,23 +7,14 @@ import (
 var (
 	allCommands []cli.Command
 
-	// The destination of the verbose switch
-	globalVerboseFlag bool
-
 	// For the human readable flags
 	humanreadable = false
 
 	// below are some prebuilt flags that get used often in various commands
 
-	verboseFlag = cli.BoolFlag{
-		Name:        "verbose, v",
-		Usage:       "generate output with timings as command executes",
-		Destination: &globalVerboseFlag,
-	}
-
 	// databaseFlag allows users to specify which database they'd like to use
 	databaseFlag = cli.StringFlag{
-		Name:  "dataset, d",
+		Name:  "database, d",
 		Usage: "execute this command against `DATASET`",
 		Value: "",
 	}
