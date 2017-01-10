@@ -97,14 +97,15 @@ __install() {
   sudo chown -R $USER /data
 
 
-  echo -e "
+  echo -e "\e[34mMake sure to start the mongoDB service with 'sudo service mongod start'.
+
   \e[34mIf you need to stop Mongo at any time, run 'sudo service mongod stop'
 
-  \e[34mIn order to continue the installation, reload bash config with 'source ~/.bashrc' and then run './install.sh'
-
-  \e[34mMake sure to also start the mongoDB service with 'sudo service mongod start.
-
   \e[34mYou can access the mongo shell with 'sudo mongo'
+
+  \e[34Bro must also be configured with 'broctl deploy'
+
+  \e[34mIn order to continue the installation, reload bash config with 'source ~/.bashrc' and then run './install.sh'
 
   \e[0m"
 }
