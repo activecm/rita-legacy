@@ -41,6 +41,16 @@ HEREDOC
 __install() {
 	__title
 
+    printf "Running 'go get github.com/ocmdev/rita'\n"
+
+    go get github.com/ocmdev/rita
+    cd $GOPATH/src/github.com/ocmdev/rita
+
+    printf "Done! Now we just have to build and install RITA.\n"
+    go build
+    go install
+
+
 	_RITADIR="$_INSDIR/rita"
 	if [ -e $_RITADIR ]
 	then
@@ -60,14 +70,6 @@ __install() {
 
 	cp -r etc $_RITADIR/etc
 	cp LICENSE $_RITADIR/LICENSE
-
-  printf "Running 'go get github.com/ocmdev/rita'"
-  go get github.com/ocmdev/rita
-  cd $GOPATH/src/github.com/ocmdev/rita
-
-  printf "Done! Now we just have to build and install RITA."
-  go build
-  go install
 
 	# Install the base configuration file
 	if [ -w /etc/ ]
