@@ -95,7 +95,7 @@ data.
   1. Otherwise if you're a very busy person like us, you can fork the process as a daemon. Make the log file and grant appropriate permissions
     * ```sudo touch /data/mongod.log && sudo chown <username> mongod.log && sudo chmod u+w /data/mongod.log```
   1. Then start mongod daemon with
-    * ```mongod --fork --logpath /data/mongod.log```
+    * ```mongod --fork --logpath /data/mongod.log -f /etc/mongod.conf```
   1. If mongo is still not running, you can check out further documentation at https://docs.mongodb.com/
 
 1. Configuring the system
