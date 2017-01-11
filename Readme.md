@@ -6,7 +6,7 @@ Brought to you by Offensive CounterMeasures
 
 RITA is not production ready! This software is being released open source as it
 is being worked on. The team at OCM (Offensive CounterMeasures) has been
-diligently working on the process of seperating the analysis logic from the
+diligently working on the process of separating the analysis logic from the
 front end which is destined to be product for sale by Offensive CounterMeasures.
 
 ###Current state
