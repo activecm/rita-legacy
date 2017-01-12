@@ -41,9 +41,9 @@ HEREDOC
 __install() {
 	__title
 
-    printf "Running 'go get github.com/ocmdev/rita'\n"
+    printf "Running 'go get github.com/ocmdev/rita'\n\n"
 
-    go get github.com/ocmdev/rita
+    /usr/local/go/bin/go get github.com/ocmdev/rita
     cd $GOPATH/src/github.com/ocmdev/rita
 
     printf "Done! Now we just have to build and install RITA.\n"
