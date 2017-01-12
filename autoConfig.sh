@@ -105,7 +105,7 @@ __install() {
 
   \e[34Bro must also be configured with 'broctl deploy'
 
-  \e[34mIn order to continue the installation, reload bash config with 'source ~/.bashrc' and then run './install.sh'
+  \e[34mIn order to continue the installation, reload bash config with 'source ~/.bashrc' and then run 'sudo -E ./install.sh'
 
   \e[0m"
 }
