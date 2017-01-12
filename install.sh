@@ -47,8 +47,8 @@ __install() {
     cd $GOPATH/src/github.com/ocmdev/rita
 
     printf "Done! Now we just have to build and install RITA.\n"
-    go build
-    go install
+    /usr/local/go/bin/go build
+    /usr/local/go/bin/go install
 
 
 	_RITADIR="$_INSDIR/rita"
