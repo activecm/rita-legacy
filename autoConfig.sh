@@ -103,7 +103,7 @@ __install() {
 
   \e[34mYou can access the mongo shell with 'sudo mongo'
 
-  \e[34mBro must also be configured with 'broctl deploy'
+  \e[34mBro must also be configured, check the name of your interface with 'ifconfig', then change it to the parameter 'interface' in /etc/bro/node.cfg
 
   \e[34mIn order to continue the installation, reload bash config with 'source ~/.bashrc' and then run 'sudo -E ./install.sh'
 
