@@ -97,7 +97,8 @@ __install() {
   sudo chown -R $USER /data
 
 
-  echo -e "\e[34mMake sure to start the mongoDB service with 'sudo service mongod start'.
+  echo -e "
+  \e[34mMake sure to start the mongoDB service with 'sudo service mongod start'.
 
   \e[34mIf you need to stop Mongo at any time, run 'sudo service mongod stop'
 

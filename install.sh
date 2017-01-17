@@ -26,6 +26,21 @@ Options:
 HEREDOC
 }
 
+__prep() {
+	cat <<HEREDOC
+So here's what this script will need to do to prepare for RITA:
+
+1) Download and install GNU Netcat, Bro, Golang, and the latest version of MongoDB.
+
+The MongoDB, netcat and golang versions we'd like aren't a part of the regular Ubuntu apt packages, but this script will add the key to the latest MongoDB repo to your package manager and install/auto config it and everything else.
+
+2) Set up a Golang development enviornment in order to 'go get' and 'build' RITA.
+
+This requires us to create directory "go" in your home folder and add a new PATH and GOPATH entry to your .bashrc
+
+HEREDOC
+}
+
 __title() {
 	cat <<HEREDOC
 
@@ -40,6 +55,67 @@ HEREDOC
 
 __install() {
 	__title
+    sudo apt update
+
+    sudo apt install -y bro
+    sudo apt install -y broctl
+    sudo apt install -y build-essential
+
+    # golang most recent update
+    wget https://storage.googleapis.com/golang/go1.7.1.linux-amd64.tar.gz
+    sudo tar -zxvf  go1.7.1.linux-amd64.tar.gz -C /usr/local/
+    sudo rm go1.7.1.linux-amd64.tar.gz
+
+    # gnu-netcat
+    wget https://sourceforge.net/projects/netcat/files/netcat/0.7.1/netcat-0.7.1.tar.gz
+    tar -zxf netcat-0.7.1.tar.gz
+    rm netcat-0.7.1.tar.gz
+    cd netcat-0.7.1
+    ./configure
+    sudo make
+    sudo make install
+    cd ..
+    rm -rf netcat-0.7.1
+
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+
+    echo -e "
+
+    \e[34mDone! Now just need to configure Go dev environment...
+
+    \e[0m"
+
+    sleep 3s
+
+    if [[ -z "${GOPATH}" ]];
+    then
+      mkdir -p $HOME/go/{src,pkg,bin}
+      echo 'export GOPATH=$HOME/go' >> $HOME/.bashrc
+      export GOPATH=$HOME/go
+      echo 'export PATH=$PATH:$GOPATH/bin' >> $HOME/.bashrc
+      export PATH=$PATH:$GOPATH/bin
+    else
+      echo -e "\e[34mGOPATH seems to be set, we'll skip this part then for now
+      "
+    fi
+
+    echo -e "
+
+    \e[34mNow we need to get package key and MongoDB package...
+
+    \e[0m"
+
+    sleep 3s
+
+    sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14518585931BC711F9BA15703C6
+
+    echo "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.4.list
+
+    sudo apt update
+    sudo apt install -y mongodb-org
+
+    sudo mkdir -p /data/db
+    sudo chown -R $USER /data
 
     printf "Running 'go get github.com/ocmdev/rita'\n\n"
 
@@ -49,6 +125,31 @@ __install() {
     printf "Done! Now we just have to build and install RITA.\n"
     /usr/local/go/bin/go build
     /usr/local/go/bin/go install
+
+    echo -e "
+    \e[34mDone! Now we just have to build and install RITA.\e[0m"
+    /usr/local/go/bin/go build
+    /usr/local/go/bin/go install
+
+    echo "Dependencies should be all installed! Make sure to run 'sudo ./install.sh' in ~/go/src/github.com/ocmdev/rita
+    to complete the RITA installation!
+
+    Make sure you also configure Bro and run with 'sudo broctl deploy' and make sure MongoDB is running with the command 'mongo' or 'sudo mongo'.
+
+    Happy Hunting!"
+
+
+
+    echo -e "
+    \e[34mIf you need to stop Mongo at any time, run 'sudo service mongod stop'
+
+    \e[34mIn order to finish the installation, reload bash config with 'source ~/.bashrc'.
+
+    \e[34mAlso make sure to start the mongoDB service with 'sudo service mongod start before running RITA.
+
+    \e[34mYou can access the mongo shell with 'sudo mongo'
+
+    \e[0m"
 
 
 	_RITADIR="$_INSDIR/rita"
