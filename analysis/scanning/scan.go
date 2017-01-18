@@ -77,7 +77,6 @@ func GetScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, [
 				{"total_bytes", 1},
 				{"avg_bytes", 1},
 				{"total_duration", 1},
-				{"uid", 1},
 				{"port_set", 1},
 				{"port_count", bson.D{
 					{"$size", "$port_set"},
@@ -89,6 +88,11 @@ func GetScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, [
 				{"port_count", bson.D{
 					{"$gt", scan_thresh},
 				}},
+			}},
+		},
+		{
+			{"$sort", bson.D{
+				{"port_count", -1},
 			}},
 		},
 		{
