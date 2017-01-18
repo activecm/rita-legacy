@@ -137,10 +137,6 @@ __install() {
   /usr/local/go/bin/go build
   /usr/local/go/bin/go install
 
-  echo -e "[+] Done! Now we just have to build and install RITA.\e[0m"
-  /usr/local/go/bin/go build
-  /usr/local/go/bin/go install
-
   echo "[+] Make sure you also configure Bro and run with 'sudo broctl deploy' and make sure MongoDB is running with the command 'mongo' or 'sudo mongo'.
 "
 
