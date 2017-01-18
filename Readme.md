@@ -132,7 +132,7 @@ difficulty from easiest to hardest.
 reports. Just be sure to do the following:
   	* Give very specific descriptions of how to reproduce the bug
   	* Let us know if you're running RITA on weird hardware
-  	* Tell us about the size of the test, the physical resources available, and the
+  	* Tell us about the size of the test, and the physical resources available
 
 1. Add godoc comments to the code. This software was developed for internal use
 mostly on the fly and as needed. This means that the code was not built to the
