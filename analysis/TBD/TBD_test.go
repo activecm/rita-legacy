@@ -2,27 +2,45 @@ package TBD
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	datatype_TBD "github.com/ocmdev/rita/datatypes/TBD"
 )
 
-func generateBeacon() tbdAnalysisInput {
+func printAnalysis(res datatype_TBD.TBDAnalysisOutput) string {
+	v := reflect.ValueOf(res)
 
-}
+	var ret string
+	ret += "\n"
 
-func printAnalysis(res *datatype_TBD.TBDAnalysisOutput) string {
-	return fmt.Sprintf("%+v\n", res)
+	for i := 0; i < v.NumField(); i++ {
+		ret += fmt.Sprintf("\t%s:\t%v\n", v.Type().Field(i).Name, v.Field(i).Interface())
+	}
+
+	return ret
 }
 
 func TestAnalysis(t *testing.T) {
-	var data tbdAnalysisInput
-	data.src = "1.1.1.1"
-	data.dst = "2.2.2.2"
-	data.ts = []int64{0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60}
-	res, _ := (analysis(&data, 2, 60, 0))
-	t.Log(printAnalysis(&res))
-}
+	fail := false
+	for i, val := range testDataList {
+		var data tbdAnalysisInput
+		data.src = "0.0.0.0"
+		data.dst = "0.0.0.0"
+		data.ts = val.ts
+		res, _ := (analysis(&data, 2, val.maxTime, val.minTime))
 
-func BenchmarkAnalysis(b *testing.B) {
+		status := "PASS"
+		if res.TS_score < val.scoreThresh {
+			fail = true
+			status = "FAIL"
+		}
+
+		t.Logf("%d - %s:\n\tExpected Score: >%f\n\tDescription: %s\n%s\n", i, status, val.scoreThresh, val.description, printAnalysis(res))
+
+	}
+
+	if fail {
+		t.Fail()
+	}
 }
