@@ -59,6 +59,14 @@ var testDataList = []testData{
 		description: "Perfect Beacon every 60 minutes... Connects twice every time",
 	},
 
+	{ts: []int64{0, 1, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 4, 5, 6, 7, 9, 10, 10, 10, 11, 13},
+		minTime:     0,
+		maxTime:     13,
+		minScore:    0.0,
+		maxScore:    0.7,
+		description: "Connection happens a lot... but not a beacon",
+	},
+
 	{ts: []int64{10, 15, 23, 70, 50400, 50470, 50472},
 		minTime:     0,
 		maxTime:     86400,
