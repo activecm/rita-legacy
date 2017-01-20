@@ -31,12 +31,12 @@ func TestAnalysis(t *testing.T) {
 		res, _ := (analysis(&data, 2, val.maxTime, val.minTime))
 
 		status := "PASS"
-		if res.TS_score < val.scoreThresh {
+		if res.TS_score < val.minScore || res.TS_score > val.maxScore {
 			fail = true
 			status = "FAIL"
 		}
 
-		t.Logf("%d - %s:\n\tExpected Score: >%f\n\tDescription: %s\n%s\n", i, status, val.scoreThresh, val.description, printAnalysis(res))
+		t.Logf("%d - %s:\n\tExpected Score: %f < x < %f\n\tDescription: %s\n%s\n", i, status, val.minScore, val.maxScore, val.description, printAnalysis(res))
 
 	}
 
