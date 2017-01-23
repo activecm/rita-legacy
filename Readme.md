@@ -63,9 +63,9 @@ data.
 
 1. Getting the sources and building them
   	1. First we want to use the go to grab sources and deps for rita.
-    	* ```go get github.com/ocmdev/rita```
+    	* ```go get github.com/bglebrun/rita```
   	1. Now lets change to the rita directory.
-    	* ```cd $GOPATH/src/github.com/ocmdev/rita```
+    	* ```cd $GOPATH/src/github.com/bglebrun/rita```
   	1. Then build rita.
     	* ```go build```
   	1. Now we'll install the rita binary.

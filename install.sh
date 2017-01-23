@@ -128,10 +128,10 @@ __install() {
   sudo mkdir -p /data/db
   sudo chown -R $USER /data
 
-  printf "[+] Running 'go get github.com/ocmdev/rita'\n\n"
+  printf "[+] Running 'go get github.com/bglebrun/rita'\n\n"
 
-  /usr/local/go/bin/go get github.com/ocmdev/rita
-  cd $GOPATH/src/github.com/ocmdev/rita
+  /usr/local/go/bin/go get github.com/bglebrun/rita
+  cd $GOPATH/src/github.com/bglebrun/rita
 
   printf "[+] Done! Now we just have to build and install RITA.\n"
   /usr/local/go/bin/go build

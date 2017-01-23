@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/davecgh/go-spew/spew"

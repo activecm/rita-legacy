@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/parser/docwriter"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database"
+	"github.com/bglebrun/rita/parser/docwriter"
 
 	log "github.com/Sirupsen/logrus"
 )

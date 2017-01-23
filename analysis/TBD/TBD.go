@@ -9,11 +9,11 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/ocmdev/rita/config"
-	datatype_TBD "github.com/ocmdev/rita/datatypes/TBD"
-	"github.com/ocmdev/rita/datatypes/data"
-	"github.com/ocmdev/rita/datatypes/structure"
-	"github.com/ocmdev/rita/util"
+	"github.com/bglebrun/rita/config"
+	datatype_TBD "github.com/bglebrun/rita/datatypes/TBD"
+	"github.com/bglebrun/rita/datatypes/data"
+	"github.com/bglebrun/rita/datatypes/structure"
+	"github.com/bglebrun/rita/util"
 
 	log "github.com/Sirupsen/logrus"
 )

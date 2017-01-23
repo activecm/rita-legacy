@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
+	"github.com/bglebrun/rita/config"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"
