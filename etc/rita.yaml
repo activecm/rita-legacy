@@ -73,6 +73,9 @@ Bro:
     # around midnight of each day.
     UseDates: true
 
+SafeBrowsing:
+    APIKey: ""
+    Database: /data/safebrowsing/database
 
 # NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
 Structure:
