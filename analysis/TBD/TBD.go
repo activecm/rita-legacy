@@ -69,9 +69,9 @@ func New(c *config.Resources) *TBD {
 		collectChannel:    make(chan string),
 		analysisChannel:   make(chan *tbdAnalysisInput),
 		writeChannel:      make(chan *datatype_TBD.TBDAnalysisOutput),
-		collectThreads:    runtime.NumCPU() / 2,
-		analysisThreads:   runtime.NumCPU() / 2,
-		writeThreads:      runtime.NumCPU() / 2,
+		collectThreads:    util.Max(1, runtime.NumCPU()/2),
+		analysisThreads:   util.Max(1, runtime.NumCPU()/2),
+		writeThreads:      util.Max(1, runtime.NumCPU()/2),
 	}
 }
 
