@@ -3,11 +3,13 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"text/template"
 
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/datatypes/TBD"
+	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
 
@@ -16,7 +18,7 @@ var cutoffScore float64
 func init() {
 	command := cli.Command{
 		Name:  "show-beacons",
-		Usage: "print beacon information to standard out",
+		Usage: "Print beacon information to standard out",
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
@@ -34,53 +36,45 @@ func init() {
 }
 
 func showBeacons(c *cli.Context) error {
-	if c.String("dataset") == "" {
-		return cli.NewExitError("No dataset was not specified", -1)
+	if c.String("database") == "" {
+		return cli.NewExitError("Specify a database with -d", -1)
 	}
 	conf := config.InitConfig("")
-	conf.System.DB = c.String("dataset")
+	conf.System.DB = c.String("database")
 
 	db := database.NewDB(conf)
 	data := db.GetTBDResultsView(cutoffScore)
 
 	if humanreadable {
-		return showBeacon2Report(data)
+		return showBeaconReport(data)
 	}
 
-	return showBeacon2Csv(data)
+	return showBeaconCsv(data)
 }
 
-func showBeacon2Report(data []TBD.TBDAnalysisView) error {
-	hdr := " Score |   Source IP    | Destination IP | Connections |"
-	hdr += " Avg. Bytes | Intvl Range | Top Intvl | Top Intvl Count |"
-	hdr += " Intvl Skew | Intvl Dispersion | Intvl Duration \n"
-	tmpl := `{{.TS_score | printf "%7.3f"}}` + " "
-	tmpl += `{{.Src | printf "%16s"}}` + " "
-	tmpl += `{{.Dst | printf "%16s"}}` + " "
-	tmpl += `{{.Connections | printf "%13d"}}` + " "
-	tmpl += `{{.AvgBytes | printf "%12.3f"}}` + " "
-	tmpl += `{{.TS_iRange | printf "%13d"}}` + " "
-	tmpl += `{{.TS_iMode | printf "%11d"}}` + " "
-	tmpl += `{{.TS_iModeCount | printf "%17d"}}` + " "
-	tmpl += `{{.TS_iSkew | printf "%12.3f"}}` + " "
-	tmpl += `{{.TS_iDispersion | printf "%18d"}}` + " "
-	tmpl += `{{.TS_duration | printf "%16.3f"}}` + "\n"
-
-	out, err := template.New("tbd").Parse(tmpl)
-	if err != nil {
-		return err
+func showBeaconReport(data []TBD.TBDAnalysisView) error {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
+		"Connections", "Avg. Bytes", "Intvl Range", "Top Intvl",
+		"Top Intvl Count", "Intvl Skew", "Intvl Dispersion", "Intvl Duration"})
+	f := func(f float64) string {
+		return strconv.FormatFloat(f, 'g', 6, 64)
 	}
-	fmt.Print(hdr)
+	i := func(i int64) string {
+		return strconv.FormatInt(i, 10)
+	}
 	for _, d := range data {
-		err := out.Execute(os.Stdout, d)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-		}
+		table.Append(
+			[]string{
+				f(d.TS_score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				i(d.TS_iRange), i(d.TS_iMode), i(d.TS_iModeCount), f(d.TS_iSkew),
+				i(d.TS_iDispersion), f(d.TS_duration)})
 	}
+	table.Render()
 	return nil
 }
 
-func showBeacon2Csv(data []TBD.TBDAnalysisView) error {
+func showBeaconCsv(data []TBD.TBDAnalysisView) error {
 	tmpl := "{{.TS_score}},{{.Src}},{{.Dst}},{{.Connections}},{{.AvgBytes}},"
 	tmpl += "{{.TS_iRange}},{{.TS_iMode}},{{.TS_iModeCount}},"
 	tmpl += "{{.TS_iSkew}},{{.TS_iDispersion}},{{.TS_duration}}\n"

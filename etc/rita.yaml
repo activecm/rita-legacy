@@ -5,9 +5,6 @@ DatabaseHost: localhost:27017
 # server. It is important that it is *GNU* netcat at this path.
 GNUNetcatPath: /usr/local/rita
 
-# This is what to name the database for this particular test
-Database: NameOfDatabaseToUse
-
 # Name of the host intelligence database. This can be the same across many tests.
 # Data like blacklist information, ASN, etc, will be gathered here in order to
 # attempt to reduce the number of lookups necessary.
@@ -43,32 +40,35 @@ Bro:
     # All databases in this test will get prefixed with the database prefix
     DBPrefix: PrefixForDatabase
 
-    # Subdirectories of LogPath may be seperated into different databases for the
+    # Subdirectories of LogPath may be separated into different databases for the
     # test. Map each directory to the database you wish that directory to wind up
-    # in. This is good for running tests against multiple subnets, just make sure
-    # that the bro logs are under a folder in the directory structure named for
-    # that subnet, put the directory name on the left side of the colon, and the
-    # database you wish the logs from that directory to go to on the right side.
+    # in. This is good for running tests against multiple subnets and network
+    # segments. Put the directory name on the left side of the colon, and the
+    # database you wish the logs from that directory to go in on the right side.
     DirectoryMap:
-        UniqueDir: SeperateDatabaseName
-        UniqueDir2: SeperateDatabaseName2
+        UniqueDir: SeparateDatabaseName
+        UniqueDir2: SeparateDatabaseName2
+
+    # If set, files which don't match the directory map will be placed
+    # in this default database.
+    #DefaultDatabase: DefaultDatabaseName
 
     # There needs to be one metadatabase per test. This database holds information
     # about the test and the files related to the test. If there are several
-    # subnets mapped in DirectoryMap each will be handled seperately and that
-    # seperation is handled by the metadatabase.
+    # subnets mapped in DirectoryMap each will be handled separately and that
+    # separation is handled by the metadatabase.
     MetaDB: MetaDataBase
 
-    # If the ingestor is running slowly and there is plenty of resources 
-    # remaining, it may be wise to increase the number of write threads 
+    # If the ingestor is running slowly and there is plenty of resources
+    # remaining, it may be wise to increase the number of write threads
     # accordingly. Note that writing to MongoDB is a part of this equation.
-    # If MongoDB is tipping over when import is run, then reduce the number of 
+    # If MongoDB is tipping over when import is run, then reduce the number of
     # write threads.
     WriteThreads: 10
 
     # If use dates is true the logs will be split into databases by date, this is
     # best for if you have multiple days worth of log files in the logpath and wish
-    # to treat each day as a seperate test. 24hours worth of data is the ideal for
+    # to treat each day as a separate test. 24hours worth of data is the ideal for
     # analysis, and using dates will ensure that tests are broken into 24hour periods
     # around midnight of each day.
     UseDates: true

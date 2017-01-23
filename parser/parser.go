@@ -83,11 +83,13 @@ func ParseFile(path string, wr *docwriter.DocWriter, rs *config.Resources, datab
 		return
 	}
 
+	//This error is reported as info since it simply means we don't
+	//have logic for this log type yet
 	err = d.setStructType()
 	if err != nil {
 		d.log.WithFields(log.Fields{
 			"error": err.Error(),
-		}).Error("parser exiting early (setStructType)")
+		}).Info("parser exiting early (setStructType)")
 		return
 	}
 

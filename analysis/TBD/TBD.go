@@ -50,12 +50,21 @@ type (
 	}
 )
 
-// TBD.New creates a new TBD module
+// New creates a new TBD module
 func New(c *config.Resources) *TBD {
+
+	// If the threshold is incorrectly specified, fix it up.
+	// We require at least four delta times to analyze
+	// (Q1, Q2, Q3, Q4). So we need at least 5 connections
+	thresh := c.System.TBDConfig.DefaultConnectionThresh
+	if thresh < 5 {
+		thresh = 5
+	}
+
 	return &TBD{
 		db:                c.System.DB,
 		resources:         c,
-		defaultConnThresh: c.System.TBDConfig.DefaultConnectionThresh,
+		defaultConnThresh: thresh,
 		log:               c.Log,
 		collectChannel:    make(chan string),
 		analysisChannel:   make(chan *tbdAnalysisInput),
@@ -66,7 +75,7 @@ func New(c *config.Resources) *TBD {
 	}
 }
 
-//TBD.Run Starts the beacon hunt process
+// Run Starts the beacon hunt process
 func (t *TBD) Run() {
 	t.log.Info("Running beacon hunt")
 	session := t.resources.Session.Copy()
@@ -135,7 +144,7 @@ func (t *TBD) Run() {
 	t.writeWg.Wait()
 }
 
-//collect grabs all src, dst pairs and their connection data
+// collect grabs all src, dst pairs and their connection data
 func (t *TBD) collect() {
 	session := t.resources.Session.Copy()
 	defer session.Close()
@@ -177,7 +186,7 @@ func (t *TBD) collect() {
 	t.collectWg.Done()
 }
 
-//analyze src, dst pairs with their connection data
+// analyze src, dst pairs with their connection data
 func (t *TBD) analyze() {
 	data, more := <-t.analysisChannel
 	for more {
@@ -188,6 +197,13 @@ func (t *TBD) analyze() {
 		//these will appear as beacons if we do not remove them
 		//subsecond beacon finding *may* be implemented later on...
 		data.ts = util.RemoveSortedDuplicates(data.ts)
+
+		//If removing duplicates lowered the conn count under the threshold,
+		//remove this data from the analysis
+		if len(data.ts) < t.defaultConnThresh {
+			data, more = <-t.analysisChannel
+			continue
+		}
 
 		//store the diff slice length since we use it a lot
 		//this is one less then the data slice length
@@ -274,7 +290,7 @@ func (t *TBD) analyze() {
 	t.analysisWg.Done()
 }
 
-//write writes the tbd analysis results to the database
+// write writes the tbd analysis results to the database
 func (t *TBD) write() {
 	session := t.resources.Session.Copy()
 	defer session.Close()
@@ -287,7 +303,7 @@ func (t *TBD) write() {
 	t.writeWg.Done()
 }
 
-//createCountMap returns a distinct data array, data count array, the mode,
+// createCountMap returns a distinct data array, data count array, the mode,
 // and the number of times the mode occured
 func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
 	//create interval counts for human analysis
@@ -317,8 +333,8 @@ func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
 	return distinct, counts, mode, max
 }
 
-//Since the tbd table stores uconn uid's rather than src, dest pairs
-//we create an aggregation for user views
+// GetViewPipeline creates an aggregation for user views since the tbd table
+// stores uconn uid's rather than src, dest pairs
 func GetViewPipeline(r *config.Resources, cuttoff float64) []bson.D {
 	return []bson.D{
 		{

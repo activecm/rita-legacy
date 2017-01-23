@@ -37,7 +37,7 @@ func (slice blresults) Swap(i, j int) {
 func init() {
 	command := cli.Command{
 		Name:  "show-blacklisted",
-		Usage: "print blacklisted information to standard out",
+		Usage: "Print blacklisted information to standard out",
 		Flags: []cli.Flag{
 			databaseFlag,
 			humanFlag,
@@ -54,6 +54,9 @@ func init() {
 }
 
 func showBlacklisted(c *cli.Context) error {
+	if c.String("database") == "" {
+		return cli.NewExitError("Specify a database with -d", -1)
+	}
 
 	if humanreadable {
 		return showBlacklistedHuman(c)
@@ -71,18 +74,18 @@ func showBlacklisted(c *cli.Context) error {
 	}
 
 	conf := config.InitConfig("")
-	conf.System.DB = c.String("dataset")
+	conf.System.DB = c.String("database")
 
 	var res blresult
 	var allres blresults
 
-	coll := conf.Session.DB(c.String("dataset")).C(conf.System.BlacklistedConfig.BlacklistTable)
+	coll := conf.Session.DB(c.String("database")).C(conf.System.BlacklistedConfig.BlacklistTable)
 	iter := coll.Find(nil).Iter()
 
 	for iter.Next(&res) {
 		if globalSourcesFlag {
 			res.Sources = ""
-			cons := conf.Session.DB(c.String("dataset")).C(conf.System.StructureConfig.ConnTable)
+			cons := conf.Session.DB(c.String("database")).C(conf.System.StructureConfig.ConnTable)
 			siter := cons.Find(bson.M{"id_resp_h": res.Host}).Iter()
 
 			var srcStruct struct {
@@ -107,6 +110,7 @@ func showBlacklisted(c *cli.Context) error {
 	return nil
 }
 
+// TODO: Convert this over to tablewriter
 // showBlacklisted prints all blacklisted for a given database
 func showBlacklistedHuman(c *cli.Context) error {
 
@@ -119,12 +123,12 @@ func showBlacklistedHuman(c *cli.Context) error {
 	}
 
 	conf := config.InitConfig("")
-	conf.System.DB = c.String("dataset")
+	conf.System.DB = c.String("database")
 
 	var res blresult
 	var allres blresults
 
-	coll := conf.Session.DB(c.String("dataset")).C(conf.System.BlacklistedConfig.BlacklistTable)
+	coll := conf.Session.DB(c.String("database")).C(conf.System.BlacklistedConfig.BlacklistTable)
 	iter := coll.Find(nil).Iter()
 
 	fmt.Printf(cols)

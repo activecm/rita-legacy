@@ -70,12 +70,13 @@ type (
 	}
 
 	BroCfg struct {
-		LogPath      string            `yaml:"LogPath"`
-		DBPrefix     string            `yaml:"DBPrefix"`
-		MetaDB       string            `yaml:"MetaDB"`
-		WriteThreads int               `yaml:"WriteThreads"`
-		DirectoryMap map[string]string `yaml:"DirectoryMap"`
-		UseDates     bool              `yaml:"UseDates"`
+		LogPath         string            `yaml:"LogPath"`
+		DBPrefix        string            `yaml:"DBPrefix"`
+		MetaDB          string            `yaml:"MetaDB"`
+		WriteThreads    int               `yaml:"WriteThreads"`
+		DirectoryMap    map[string]string `yaml:"DirectoryMap"`
+		DefaultDatabase string            `yaml:"DefaultDatabase"`
+		UseDates        bool              `yaml:"UseDates"`
 	}
 
 	// Resources provides a data structure for passing system Resources
@@ -88,7 +89,6 @@ type (
 
 // LoadSystemConfig attempts to parse a config file
 func LoadSystemConfig(cfgPath string) (SystemConfig, bool) {
-
 	var config SystemConfig
 
 	if _, err := os.Stat(cfgPath); !os.IsNotExist(err) {
@@ -108,7 +108,6 @@ func LoadSystemConfig(cfgPath string) (SystemConfig, bool) {
 
 // GetConfig retrieves a configuration in order of precedence
 func GetConfig(cfgPath string) (SystemConfig, bool) {
-
 	if cfgPath != "" {
 		return LoadSystemConfig(cfgPath)
 	}
@@ -132,7 +131,6 @@ func GetConfig(cfgPath string) (SystemConfig, bool) {
 // InitConfig grabs the configuration file and intitializes the configuration data
 // returning a *Resources object which has all of the necessary configuration information
 func InitConfig(cfgPath string) *Resources {
-
 	config, ok := GetConfig(cfgPath)
 	if !ok {
 		fmt.Fprintf(os.Stdout, "Failed to config, exiting")
