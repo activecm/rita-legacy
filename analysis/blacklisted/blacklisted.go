@@ -13,17 +13,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/safebrowsing"
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database/inteldb"
 	"github.com/ocmdev/rita/intel"
 	"github.com/ocmdev/rita/util"
 
 	"github.com/ocmdev/rita/datatypes/blacklisted"
-	datatype_structure "github.com/ocmdev/rita/datatypes/structure"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 )
 
 type (
@@ -40,20 +39,31 @@ type (
 		blacklist_table string                 // Name of blacklist table
 		intelDBHandle   *inteldb.IntelDBHandle // Handle of the inteld db
 		intelHandle     *intel.IntelHandle     // For cymru lookups
-
+		safeBrowser     *safebrowsing.SafeBrowser
 	}
 
 	// UrlShort is a shortened version of the URL datatype that only accounts
 	// for the IP and url (hostname)
 	UrlShort struct {
-		Url string   `bson:"url"`
-		IPs []string `bson:"ip"`
+		Url string   `bson:"host"`
+		IPs []string `bson:"ips"`
 	}
 )
 
 // New will create a new blacklisted module
 func New(c *config.Resources) *Blacklisted {
 	ssn := c.Session.Copy()
+
+	sbConfig := safebrowsing.Config{
+		APIKey: c.System.SafeBrowsing.APIKey,
+		DBPath: c.System.SafeBrowsing.Database,
+		Logger: c.Log.Writer(),
+	}
+	sb, err := safebrowsing.NewSafeBrowser(sbConfig)
+	if err != nil {
+		c.Log.WithField("Error", err).Error("Error opening safe browser API")
+	}
+
 	return &Blacklisted{
 		db:              c.System.DB,
 		session:         ssn,
@@ -66,6 +76,7 @@ func New(c *config.Resources) *Blacklisted {
 		blacklist_table: c.System.BlacklistedConfig.BlacklistTable,
 		intelDBHandle:   inteldb.NewIntelDBHandle(c),
 		intelHandle:     intel.NewIntelHandle(c),
+		safeBrowser:     sb,
 	}
 }
 
@@ -120,7 +131,7 @@ func (b *Blacklisted) Run() {
 	defer urlssn.Close()
 
 	// build up cursors
-	ipcur := ipssn.DB(b.db).C(b.resources.System.StructureConfig.HostTable)
+	// ipcur := ipssn.DB(b.db).C(b.resources.System.StructureConfig.HostTable)
 	urlcur := urlssn.DB(b.db).C(b.resources.System.UrlsConfig.HostnamesTable)
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -134,10 +145,10 @@ func (b *Blacklisted) Run() {
 		go b.processURLs(urls, waitgroup, cash)
 	}
 
-	ipit := ipcur.Find(bson.M{"local": false}).
-		Batch(b.resources.System.BatchSize).
-		Prefetch(b.resources.System.Prefetch).
-		Iter()
+	// ipit := ipcur.Find(bson.M{"local": false}).
+	// 	Batch(b.resources.System.BatchSize).
+	// 	Prefetch(b.resources.System.Prefetch).
+	// 	Iter()
 
 	urlit := urlcur.Find(nil).
 		Batch(b.resources.System.BatchSize).
@@ -147,16 +158,16 @@ func (b *Blacklisted) Run() {
 	rwg := new(sync.WaitGroup)
 	rwg.Add(2)
 
-	go func(iter *mgo.Iter, ipchan chan string) {
-		defer rwg.Done()
-		var r datatype_structure.Host
-		for iter.Next(&r) {
-			if util.RFC1918(r.Ip) {
-				continue
-			}
-			ipchan <- r.Ip
-		}
-	}(ipit, ipaddrs)
+	// go func(iter *mgo.Iter, ipchan chan string) {
+	// 	defer rwg.Done()
+	// 	var r datatype_structure.Host
+	// 	for iter.Next(&r) {
+	// 		if util.RFC1918(r.Ip) {
+	// 			continue
+	// 		}
+	// 		ipchan <- r.Ip
+	// 	}
+	// }(ipit, ipaddrs)
 
 	go func(iter *mgo.Iter, urlchan chan UrlShort, ipchan chan string) {
 		defer rwg.Done()
@@ -256,11 +267,14 @@ func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup,
 			}
 		}
 		if check < 0 {
-			score, _ = UrlVoid(b.log, actualURL)
-			for _, ip := range url.IPs {
-				b.AddToBlacklist(ip, score)
+			urlList := []string{actualURL}
+			result, _ := b.safeBrowser.LookupURLs(urlList)
+			if len(result) > 0 && len(result[0]) > 0 {
+				for _, ip := range url.IPs {
+					b.AddToBlacklist(ip, score)
+					score = 1
+				}
 			}
-
 		} else {
 			score = check
 		}
