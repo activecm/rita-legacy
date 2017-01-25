@@ -348,3 +348,18 @@ func Abs(a int64) int64 {
 func Round(f float64) int64 {
 	return int64(math.Floor(f + .5))
 }
+
+//retun the smaller of two integers
+func Min(a int, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func Max(a int, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
