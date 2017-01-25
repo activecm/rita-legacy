@@ -2,12 +2,38 @@ package urls
 
 import (
 	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
-func GetUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, mgo.MapReduce, []bson.D) {
+func BuildUrlsCollection(res *database.Resources) {
+	// Create the aggregate command
+	source_collection_name,
+		new_collection_name,
+		new_collection_keys,
+		job,
+		pipeline := getUrlCollectionScript(res.System)
+
+	// Create it
+	error_check := res.DB.CreateCollection(new_collection_name, new_collection_keys)
+	if error_check != "" {
+		res.Log.Error("Failed: ", new_collection_name, error_check)
+		return
+	}
+
+	// Map reduce it!
+	if !res.DB.MapReduceCollection(source_collection_name, job) {
+		return
+	}
+
+	// Aggregate it
+	results := []bson.M{}
+	res.DB.AggregateCollection(new_collection_name, pipeline, &results)
+}
+
+func getUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, mgo.MapReduce, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
 	source_collection_name := sysCfg.StructureConfig.HttpTable
 
@@ -51,7 +77,23 @@ func GetUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []stri
 	return source_collection_name, new_collection_name, keys, job, pipeline
 }
 
-func GetHostnamesAggregationScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
+func BuildHostnamesCollection(res *database.Resources) {
+	source_collection_name,
+		new_collection_name,
+		new_collection_keys,
+		pipeline := getHostnamesAggregationScript(res.System)
+
+	err := res.DB.CreateCollection(new_collection_name, new_collection_keys)
+	if err != "" {
+		res.Log.Error("Failed: ", new_collection_name, err)
+		return
+	}
+
+	results := []bson.M{}
+	res.DB.AggregateCollection(source_collection_name, pipeline, &results)
+}
+
+func getHostnamesAggregationScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
 	source_collection_name := sysCfg.UrlsConfig.UrlsTable
 
 	new_collection_name := sysCfg.UrlsConfig.HostnamesTable

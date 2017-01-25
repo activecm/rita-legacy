@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/database/inteldb"
 	"github.com/ocmdev/rita/datatypes/intel"
 	"github.com/ocmdev/rita/util"
@@ -65,17 +65,16 @@ var CLBadIPAddress = errors.New("CymruLookupRecieved an invalid IP address")
 const expectedCymruFields = 7
 
 // NewIntelHandle uses a config.Resources to generate a new intel handle
-func NewIntelHandle(conf *config.Resources) *IntelHandle {
-	ssn := conf.Session.Copy()
+func NewIntelHandle(res *database.Resources) *IntelHandle {
 	return &IntelHandle{
-		intelDB:       conf.System.HostIntelDB,
-		session:       ssn,
-		log:           conf.Log,
-		NetcatPath:    conf.System.GNUNetcatPath,
-		hostCol:       conf.System.StructureConfig.HostTable,
-		urlCol:        conf.System.UrlsConfig.UrlsTable,
-		db:            conf.System.DB,
-		intelDBHandle: inteldb.NewIntelDBHandle(conf),
+		intelDB:       res.System.HostIntelDB,
+		session:       res.DB.Session,
+		log:           res.Log,
+		NetcatPath:    res.System.GNUNetcatPath,
+		hostCol:       res.System.StructureConfig.HostTable,
+		urlCol:        res.System.UrlsConfig.UrlsTable,
+		db:            res.DB.GetSelectedDB(),
+		intelDBHandle: inteldb.NewIntelDBHandle(res),
 		AgeThreshold:  float64(30.0) * float64(24.0),
 	}
 }

@@ -12,9 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/parser/docwriter"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -26,8 +24,8 @@ type (
 		filesToParse []string               // files that have not been parsed
 		log          *log.Logger            // logger for this module
 		files        []*database.PFile      // files with full stat info
-		cfg          *config.Resources      // configuration and resources
-		Meta         *database.MetaDBHandle // Handle to the metadata
+		res          *database.Resources    // configuration and resources
+		meta         *database.MetaDBHandle // Handle to the metadata
 	}
 )
 
@@ -70,17 +68,17 @@ func (w *Watcher) newPFiles() {
 }
 
 // NewWatcher takes a top level directory to watch and returns a watcher
-func NewWatcher(cfg *config.Resources, dbm *database.MetaDBHandle) *Watcher {
+func NewWatcher(res *database.Resources) *Watcher {
 	return &Watcher{
-		path: cfg.System.BroConfig.LogPath,
-		log:  cfg.Log,
-		cfg:  cfg,
-		Meta: dbm,
+		path: res.System.BroConfig.LogPath,
+		log:  res.Log,
+		res:  res,
+		meta: res.MetaDB,
 	}
 }
 
 // Run simply runs the subcomponents in order building out the database
-func (w *Watcher) Run(dw *docwriter.DocWriter) {
+func (w *Watcher) Run(dw *DocWriter) {
 	// track time spent parsing
 	start := time.Now()
 	w.log.WithFields(log.Fields{
@@ -88,14 +86,14 @@ func (w *Watcher) Run(dw *docwriter.DocWriter) {
 	}).Info("Starting run")
 
 	// read in the directory given and build the files
-	w.readDir(w.path)
-	w.newPFiles()
+	w.readDir(w.path) // stores the files to parse
+	w.newPFiles()     //create pfile objects
 
 	// add our files to the metadata table as unparsed
-	_ = w.Meta.UpdateFiles(w.files)
+	_ = w.meta.UpdateFiles(w.files)
 
-	// grab a ssn key
-	ssn := w.cfg.Session.Copy()
+	// grab a ssn
+	ssn := w.res.DB.Session.Copy()
 	defer ssn.Close()
 
 	// build a channel of files that need parsing
@@ -126,7 +124,7 @@ func (w *Watcher) Run(dw *docwriter.DocWriter) {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup,
 			f *database.PFile,
-			dw *docwriter.DocWriter) {
+			dw *DocWriter) {
 
 			// makesure waitgroup.Done() gets called when we exit this function
 			defer wg.Done()
@@ -138,21 +136,12 @@ func (w *Watcher) Run(dw *docwriter.DocWriter) {
 				"start_time": myStart.Format("2006-01-02 15:04:05"),
 			}).Info("processing")
 
-			// get a database name possibly based on the name of the path and date
-			dben, err := w.getDBName(f.Path)
-			if err != nil {
-				w.log.WithFields(log.Fields{
-					"error": err.Error(),
-					"file":  f.Path,
-				}).Error("aborting")
-				return
-			}
-
 			// Actually launch the parser
-			ParseFile(f.Path, dw, w.cfg, dben)
+			// TODO: watch for errors here
+			parseFile(f.Path, dw, w.res, f.DataBase)
 
 			// TODO track this error and do something meaningful with it
-			_ = w.Meta.MarkCompleted(f)
+			_ = w.meta.MarkFileImported(f)
 
 			// finish thracking time for this file
 			w.log.WithFields(log.Fields{
@@ -182,14 +171,14 @@ func (w *Watcher) Run(dw *docwriter.DocWriter) {
 // getDBName attempts to use the map from the yaml file to parse out a db name
 func (w *Watcher) getDBName(file string) (string, error) {
 	// check the directory map
-	for key, val := range w.cfg.System.BroConfig.DirectoryMap {
+	for key, val := range w.res.System.BroConfig.DirectoryMap {
 		if strings.Contains(file, key) {
 			return val, nil
 		}
 	}
 	//If a default database is specified put it in there
-	if w.cfg.System.BroConfig.DefaultDatabase != "" {
-		return w.cfg.System.BroConfig.DefaultDatabase, nil
+	if w.res.System.BroConfig.DefaultDatabase != "" {
+		return w.res.System.BroConfig.DefaultDatabase, nil
 	}
 
 	return "", errors.New("Did not find a match in directory map")

@@ -72,7 +72,7 @@ type HTTP struct {
 }
 
 // processHTTP fixes up absolute uri's as read by bro to be relative
-func processHTTP(in interface{}) {
+func processHTTP(in ParsedDoc) {
 	line, found := in.(*HTTP)
 	if !found {
 		//this is the equivalent to a compile error

@@ -6,8 +6,6 @@ import (
 	"os"
 	"os/user"
 
-	log "github.com/Sirupsen/logrus"
-	"gopkg.in/mgo.v2"
 	"gopkg.in/yaml.v2"
 )
 
@@ -16,7 +14,6 @@ type (
 		LogType           string          `yaml:"LogType"`
 		GNUNetcatPath     string          `yaml:"GNUNetcatPath"`
 		BatchSize         int             `yaml:"BatchSize"`
-		DB                string          `yaml:"Database"`
 		HostIntelDB       string          `yaml:"HostIntelDB"`
 		DatabaseHost      string          `yaml:"DatabaseHost"`
 		LogLevel          int             `yaml:"LogLevel"`
@@ -24,7 +21,6 @@ type (
 		Whitelist         []string        `yaml:"WhiteList"`
 		ImportWhitelist   bool            `yaml:"ImportWhitelist"`
 		BlacklistedConfig BlacklistedCfg  `yaml:"BlackListed"`
-		DnsConfig         DnsCfg          `yaml:"Dns"`
 		ScanningConfig    ScanningCfg     `yaml:"Scanning"`
 		StructureConfig   StructureCfg    `yaml:"Structure"`
 		TBDConfig         TBDCfg          `yaml:"TBD"`
@@ -37,23 +33,21 @@ type (
 	StructureCfg struct {
 		ConnTable       string `yaml:"ConnectionTable"`
 		HttpTable       string `yaml:"HttpTable"`
+		DnsTable        string `yaml:"DnsTable"`
 		UniqueConnTable string `yaml:"UniqueConnectionTable"`
 		HostTable       string `yaml:"HostTable"`
 	}
 
 	BlacklistedCfg struct {
-		ThreadCount    int    `yaml:"ThreadCount"`
-		ChannelSize    int    `yaml:"ChannelSize"`
-		BlacklistTable string `yaml:"BlackListTable"`
+		ThreadCount       int    `yaml:"ThreadCount"`
+		ChannelSize       int    `yaml:"ChannelSize"`
+		BlacklistTable    string `yaml:"BlackListTable"`
+		BlacklistDatabase string `yaml:"Database"`
 	}
 
 	SafeBrowsingCfg struct {
 		APIKey   string `yaml:"APIKey"`
 		Database string `yaml:"Database"`
-	}
-
-	DnsCfg struct {
-		DnsTable string `yaml:"DnsTable"`
 	}
 
 	ScanningCfg struct {
@@ -84,25 +78,18 @@ type (
 		DefaultDatabase string            `yaml:"DefaultDatabase"`
 		UseDates        bool              `yaml:"UseDates"`
 	}
-
-	// Resources provides a data structure for passing system Resources
-	Resources struct {
-		System  SystemConfig
-		Session *mgo.Session
-		Log     *log.Logger
-	}
 )
 
 // LoadSystemConfig attempts to parse a config file
-func LoadSystemConfig(cfgPath string) (SystemConfig, bool) {
-	var config SystemConfig
+func LoadSystemConfig(cfgPath string) (*SystemConfig, bool) {
+	var config = new(SystemConfig)
 
 	if _, err := os.Stat(cfgPath); !os.IsNotExist(err) {
 		cfgFile, err := ioutil.ReadFile(cfgPath)
 		if err != nil {
 			return config, false
 		}
-		err = yaml.Unmarshal(cfgFile, &config)
+		err = yaml.Unmarshal(cfgFile, config)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to read config: %s\n", err.Error())
 			return config, false
@@ -113,7 +100,7 @@ func LoadSystemConfig(cfgPath string) (SystemConfig, bool) {
 }
 
 // GetConfig retrieves a configuration in order of precedence
-func GetConfig(cfgPath string) (SystemConfig, bool) {
+func GetConfig(cfgPath string) (*SystemConfig, bool) {
 	if cfgPath != "" {
 		return LoadSystemConfig(cfgPath)
 	}
@@ -132,63 +119,4 @@ func GetConfig(cfgPath string) (SystemConfig, bool) {
 
 	// If none of the other configs have worked, go for the homedir config
 	return LoadSystemConfig("/etc/rita/config.yaml")
-}
-
-// InitConfig grabs the configuration file and intitializes the configuration data
-// returning a *Resources object which has all of the necessary configuration information
-func InitConfig(cfgPath string) *Resources {
-	config, ok := GetConfig(cfgPath)
-	if !ok {
-		fmt.Fprintf(os.Stdout, "Failed to config, exiting")
-		os.Exit(-1)
-	}
-
-	// Fire up the logging system
-	log, err := InitLog(config.LogLevel, config.LogType)
-	if err != nil {
-		fmt.Printf("Failed to prep logger: %s", err.Error())
-		os.Exit(-1)
-	}
-
-	// Jump into the requested database
-	session, err := mgo.Dial(config.DatabaseHost)
-	if err != nil {
-		fmt.Printf("Failed to connect to database: %s", err.Error())
-		os.Exit(-1)
-	}
-
-	return &Resources{Log: log, Session: session, System: config}
-}
-
-/*
- * Name:     InitLog
- * Purpose:  Initializes logging utilities
- * comments:
- */
-func InitLog(level int, logtype string) (*log.Logger, error) {
-	var logs = &log.Logger{}
-
-	if logtype == "production" {
-		logs.Formatter = new(log.JSONFormatter)
-	} else {
-		logs.Formatter = new(log.TextFormatter)
-	}
-
-	logs.Out = os.Stderr
-
-	switch level {
-	case 3:
-		logs.Level = log.DebugLevel
-		break
-	case 2:
-		logs.Level = log.InfoLevel
-		break
-	case 1:
-		logs.Level = log.WarnLevel
-		break
-	case 0:
-		logs.Level = log.ErrorLevel
-	}
-
-	return logs, nil
 }

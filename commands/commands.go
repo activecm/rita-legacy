@@ -15,7 +15,7 @@ var (
 	// databaseFlag allows users to specify which database they'd like to use
 	databaseFlag = cli.StringFlag{
 		Name:  "database, d",
-		Usage: "execute this command against `DATASET`",
+		Usage: "execute this command against the database named `NAME`",
 		Value: "",
 	}
 
