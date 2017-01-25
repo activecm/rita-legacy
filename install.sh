@@ -81,18 +81,6 @@ __install() {
   sudo tar -zxvf  go1.7.1.linux-amd64.tar.gz -C /usr/local/
   sudo rm go1.7.1.linux-amd64.tar.gz
 
-  # gnu-netcat
-  wget https://sourceforge.net/projects/netcat/files/netcat/0.7.1/netcat-0.7.1.tar.gz
-  tar -zxf netcat-0.7.1.tar.gz
-  rm netcat-0.7.1.tar.gz
-  cd netcat-0.7.1
-  mkdir -p ~/go/src/github.com/ocmdev/rita/nc
-  ./configure --prefix=$HOME/go/src/github.com/ocmdev/rita/nc
-  sudo make
-  sudo make install
-  cd ..
-  rm -rf netcat-0.7.1
-
   echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 
   echo -e "
@@ -137,6 +125,18 @@ __install() {
   printf "[+] Done! Now we just have to build and install RITA.\n"
   /usr/local/go/bin/go build
   /usr/local/go/bin/go install
+
+  # gnu-netcat
+  wget https://sourceforge.net/projects/netcat/files/netcat/0.7.1/netcat-0.7.1.tar.gz
+  tar -zxf netcat-0.7.1.tar.gz
+  rm netcat-0.7.1.tar.gz
+  cd netcat-0.7.1
+  mkdir -p ~/go/src/github.com/ocmdev/rita/nc
+  ./configure --prefix=$HOME/go/src/github.com/ocmdev/rita/nc
+  sudo make
+  sudo make install
+  cd ..
+  rm -rf netcat-0.7.1
 
   echo "[+] Make sure you also configure Bro and run with 'sudo broctl deploy' and make sure MongoDB is running with the command 'mongo' or 'sudo mongo'.
 "
