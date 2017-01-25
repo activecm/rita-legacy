@@ -88,6 +88,7 @@ BlackListed:
     ThreadCount: 2
     ChannelSize: 1000
     BlackListTable: blacklisted
+    Database: rita-blacklist
 
 Dns:
     DnsTable: dns
