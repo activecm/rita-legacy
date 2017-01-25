@@ -42,9 +42,10 @@ type (
 	}
 
 	BlacklistedCfg struct {
-		ThreadCount    int    `yaml:"ThreadCount"`
-		ChannelSize    int    `yaml:"ChannelSize"`
-		BlacklistTable string `yaml:"BlackListTable"`
+		ThreadCount       int    `yaml:"ThreadCount"`
+		ChannelSize       int    `yaml:"ChannelSize"`
+		BlacklistTable    string `yaml:"BlackListTable"`
+		BlacklistDatabase string `yaml:"Database"`
 	}
 
 	SafeBrowsingCfg struct {
