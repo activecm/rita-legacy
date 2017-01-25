@@ -131,8 +131,8 @@ __install() {
   tar -zxf netcat-0.7.1.tar.gz
   rm netcat-0.7.1.tar.gz
   cd netcat-0.7.1
-  mkdir -p ~/go/src/github.com/ocmdev/rita/nc
-  ./configure --prefix=$HOME/go/src/github.com/ocmdev/rita/nc
+  mkdir -p /usr/local/rita
+  ./configure --prefix=/usr/local/rita
   sudo make
   sudo make install
   cd ..
