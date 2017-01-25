@@ -19,6 +19,7 @@ import (
 	"github.com/ocmdev/rita/intel"
 	"github.com/ocmdev/rita/util"
 
+	"github.com/ocmdev/rita-blacklist"
 	"github.com/ocmdev/rita/datatypes/blacklisted"
 
 	log "github.com/Sirupsen/logrus"
@@ -28,18 +29,19 @@ import (
 type (
 	// Blacklisted provides a handle for the blacklist module
 	Blacklisted struct {
-		db              string                 // database name (customer)
-		session         *mgo.Session           // default session
-		batch_size      int                    // BatchSize
-		prefetch        float64                // Prefetch
-		resources       *config.Resources      // resources
-		log             *log.Logger            // logger
-		channel_size    int                    // channel size
-		thread_count    int                    // Thread count
-		blacklist_table string                 // Name of blacklist table
-		intelDBHandle   *inteldb.IntelDBHandle // Handle of the inteld db
-		intelHandle     *intel.IntelHandle     // For cymru lookups
-		safeBrowser     *safebrowsing.SafeBrowser
+		db              string                    // database name (customer)
+		session         *mgo.Session              // default session
+		batch_size      int                       // BatchSize
+		prefetch        float64                   // Prefetch
+		resources       *config.Resources         // resources
+		log             *log.Logger               // logger
+		channel_size    int                       // channel size
+		thread_count    int                       // Thread count
+		blacklist_table string                    // Name of blacklist table
+		intelDBHandle   *inteldb.IntelDBHandle    // Handle of the inteld db
+		intelHandle     *intel.IntelHandle        // For cymru lookups
+		safeBrowser     *safebrowsing.SafeBrowser // Google safebrowsing api
+		ritaBL          *blacklist.BlackList      // Blacklisted host database
 	}
 
 	// UrlShort is a shortened version of the URL datatype that only accounts
@@ -60,6 +62,7 @@ func New(c *config.Resources) *Blacklisted {
 		Logger: c.Log.Writer(),
 	}
 	sb, err := safebrowsing.NewSafeBrowser(sbConfig)
+
 	if err != nil {
 		c.Log.WithField("Error", err).Error("Error opening safe browser API")
 	}
@@ -77,6 +80,7 @@ func New(c *config.Resources) *Blacklisted {
 		intelDBHandle:   inteldb.NewIntelDBHandle(c),
 		intelHandle:     intel.NewIntelHandle(c),
 		safeBrowser:     sb,
+		ritaBL:          blacklist.NewBlackList(),
 	}
 }
 
@@ -129,6 +133,14 @@ func (b *Blacklisted) Run() {
 	defer ipssn.Close()
 	urlssn := b.session.Copy()
 	defer urlssn.Close()
+
+	hostport := strings.Split(b.resources.System.DatabaseHost, ":")
+	if len(hostport) > 1 {
+		port, err := strconv.Atoi(hostport[1])
+		if err == nil {
+			b.ritaBL.Init(hostport[0], port, b.resources.System.BlacklistedConfig.BlacklistDatabase)
+		}
+	}
 
 	// build up cursors
 	// ipcur := ipssn.DB(b.db).C(b.resources.System.StructureConfig.HostTable)
@@ -212,7 +224,10 @@ func (b *Blacklisted) processIPs(ip chan string, waitgroup *sync.WaitGroup) {
 		score := 0
 		check := b.CheckBlacklisted(ip)
 		if check < 0 {
-			score, _ = IpVoid(b.log, ip)
+			result := b.ritaBL.CheckHosts([]string{ip}, b.resources.System.BlacklistedConfig.BlacklistDatabase)
+			if len(result) > 0 {
+				score = len(result[0].Results)
+			}
 			b.AddToBlacklist(ip, score)
 		} else {
 			score = check
