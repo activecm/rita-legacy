@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 	"github.com/urfave/cli"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -28,9 +28,9 @@ func init() {
 
 // testConfiguration prints out the result of parsing the config file
 func testConfiguration(c *cli.Context) error {
-	cfg := config.InitConfig(c.String("config"))
+	res := database.InitResources(c.String("config"))
 
-	yml, err := yaml.Marshal(cfg)
+	yml, err := yaml.Marshal(res.System)
 	if err != nil {
 		panic(err)
 	}

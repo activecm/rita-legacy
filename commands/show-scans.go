@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"text/template"
 
-	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/datatypes/scanning"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
@@ -26,10 +26,10 @@ func init() {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 
-			conf := config.InitConfig("")
+			res := database.InitResources("")
 
 			var scans []scanning.Scan
-			coll := conf.Session.DB(c.String("database")).C(conf.System.ScanningConfig.ScanTable)
+			coll := res.DB.Session.DB(c.String("database")).C(res.System.ScanningConfig.ScanTable)
 			coll.Find(nil).All(&scans)
 
 			if humanreadable {

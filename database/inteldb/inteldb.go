@@ -2,10 +2,11 @@ package inteldb
 
 import (
 	"errors"
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/datatypes/intel"
 	"sync"
 	"time"
+
+	"github.com/ocmdev/rita/database"
+	"github.com/ocmdev/rita/datatypes/intel"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"
@@ -35,7 +36,7 @@ type (
 	// IntelDBHandle provides the application abstractions for IntelDB
 	IntelDBHandle struct {
 		// Current configuration
-		conf *config.Resources
+		res *database.Resources
 
 		// Logger
 		log *log.Logger
@@ -80,8 +81,8 @@ type (
 )
 
 // NewIntelDBHandle provides a new handle to the intelligence database
-func NewIntelDBHandle(conf *config.Resources) *IntelDBHandle {
-	ssn := conf.Session.Copy()
+func NewIntelDBHandle(res *database.Resources) *IntelDBHandle {
+	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
 	// Note that errors in bringing up the database will cause panic
@@ -92,7 +93,7 @@ func NewIntelDBHandle(conf *config.Resources) *IntelDBHandle {
 
 	found := false
 	for _, name := range names {
-		if name == conf.System.HostIntelDB {
+		if name == res.System.HostIntelDB {
 			found = true
 		}
 	}
@@ -103,7 +104,7 @@ func NewIntelDBHandle(conf *config.Resources) *IntelDBHandle {
 		}
 
 		//TODO: Use config file for collection name
-		err := ssn.DB(conf.System.HostIntelDB).C("external").Create(&collinfo)
+		err := ssn.DB(res.System.HostIntelDB).C("external").Create(&collinfo)
 
 		if err != nil {
 			panic(err)
@@ -117,7 +118,7 @@ func NewIntelDBHandle(conf *config.Resources) *IntelDBHandle {
 		}
 
 		//TODO: Use config file for collection name
-		err = ssn.DB(conf.System.HostIntelDB).C("external").EnsureIndex(idx)
+		err = ssn.DB(res.System.HostIntelDB).C("external").EnsureIndex(idx)
 
 		if err != nil {
 			panic(err)
@@ -125,10 +126,10 @@ func NewIntelDBHandle(conf *config.Resources) *IntelDBHandle {
 	}
 
 	handle := &IntelDBHandle{
-		conf:      conf,
-		log:       conf.Log,
-		db:        conf.System.HostIntelDB,
-		ssn:       conf.Session.Copy(),
+		res:       res,
+		log:       res.Log,
+		db:        res.System.HostIntelDB,
+		ssn:       res.DB.Session.Copy(),
 		wchan:     make(chan IntelDBDocument),
 		waitGroup: new(sync.WaitGroup),
 		lock:      new(sync.Mutex),
@@ -258,7 +259,6 @@ func (q *Query) GetBlacklistedScore() (int, error) {
 	}
 
 	return q.doc.BlacklistScore, nil
-
 }
 
 // Close shuts down the write loop and blocks until the final writes are complete

@@ -8,7 +8,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/alecthomas/template"
-	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 	"github.com/urfave/cli"
 )
 
@@ -73,36 +73,36 @@ func showBlacklisted(c *cli.Context) error {
 		panic(err)
 	}
 
-	conf := config.InitConfig("")
-	conf.System.DB = c.String("database")
+	res := database.InitResources("")
+	res.DB.SelectDB(c.String("database"))
 
-	var res blresult
-	var allres blresults
+	var result blresult
+	var allResults blresults
 
-	coll := conf.Session.DB(c.String("database")).C(conf.System.BlacklistedConfig.BlacklistTable)
+	coll := res.DB.Session.DB(c.String("database")).C(res.System.BlacklistedConfig.BlacklistTable)
 	iter := coll.Find(nil).Iter()
 
-	for iter.Next(&res) {
+	for iter.Next(&result) {
 		if globalSourcesFlag {
-			res.Sources = ""
-			cons := conf.Session.DB(c.String("database")).C(conf.System.StructureConfig.ConnTable)
-			siter := cons.Find(bson.M{"id_resp_h": res.Host}).Iter()
+			result.Sources = ""
+			cons := res.DB.Session.DB(c.String("database")).C(res.System.StructureConfig.ConnTable)
+			siter := cons.Find(bson.M{"id_resp_h": result.Host}).Iter()
 
 			var srcStruct struct {
 				Src string `bson:"id_origin_h"`
 			}
 
 			for siter.Next(&srcStruct) {
-				res.Sources += srcStruct.Src + "; "
+				result.Sources += srcStruct.Src + "; "
 			}
 		}
-		allres = append(allres, res)
+		allResults = append(allResults, result)
 	}
 
-	sort.Sort(allres)
+	sort.Sort(allResults)
 
-	for _, res := range allres {
-		err := out.Execute(os.Stdout, res)
+	for _, result := range allResults {
+		err := out.Execute(os.Stdout, result)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
 		}
@@ -122,25 +122,25 @@ func showBlacklistedHuman(c *cli.Context) error {
 		panic(err)
 	}
 
-	conf := config.InitConfig("")
-	conf.System.DB = c.String("database")
+	res := database.InitResources("")
+	res.DB.SelectDB(c.String("database"))
 
-	var res blresult
-	var allres blresults
+	var result blresult
+	var allResults blresults
 
-	coll := conf.Session.DB(c.String("database")).C(conf.System.BlacklistedConfig.BlacklistTable)
+	coll := res.DB.Session.DB(c.String("database")).C(res.System.BlacklistedConfig.BlacklistTable)
 	iter := coll.Find(nil).Iter()
 
 	fmt.Printf(cols)
-	for iter.Next(&res) {
-		res.Host = padAddr(res.Host)
-		allres = append(allres, res)
+	for iter.Next(&result) {
+		result.Host = padAddr(result.Host)
+		allResults = append(allResults, result)
 	}
 
-	sort.Sort(allres)
+	sort.Sort(allResults)
 
-	for _, res := range allres {
-		err := out.Execute(os.Stdout, res)
+	for _, result := range allResults {
+		err := out.Execute(os.Stdout, result)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
 		}

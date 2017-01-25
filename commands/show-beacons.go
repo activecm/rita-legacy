@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"text/template"
 
-	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/analysis/TBD"
 	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/TBD"
+	tbdData "github.com/ocmdev/rita/datatypes/TBD"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -39,11 +39,10 @@ func showBeacons(c *cli.Context) error {
 	if c.String("database") == "" {
 		return cli.NewExitError("Specify a database with -d", -1)
 	}
-	conf := config.InitConfig("")
-	conf.System.DB = c.String("database")
+	res := database.InitResources("")
+	res.DB.SelectDB(c.String("database"))
 
-	db := database.NewDB(conf)
-	data := db.GetTBDResultsView(cutoffScore)
+	data := TBD.GetTBDResultsView(res, cutoffScore)
 
 	if humanreadable {
 		return showBeaconReport(data)
@@ -52,7 +51,7 @@ func showBeacons(c *cli.Context) error {
 	return showBeaconCsv(data)
 }
 
-func showBeaconReport(data []TBD.TBDAnalysisView) error {
+func showBeaconReport(data []tbdData.TBDAnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
 		"Connections", "Avg. Bytes", "Intvl Range", "Top Intvl",
@@ -74,7 +73,7 @@ func showBeaconReport(data []TBD.TBDAnalysisView) error {
 	return nil
 }
 
-func showBeaconCsv(data []TBD.TBDAnalysisView) error {
+func showBeaconCsv(data []tbdData.TBDAnalysisView) error {
 	tmpl := "{{.TS_score}},{{.Src}},{{.Dst}},{{.Connections}},{{.AvgBytes}},"
 	tmpl += "{{.TS_iRange}},{{.TS_iMode}},{{.TS_iModeCount}},"
 	tmpl += "{{.TS_iSkew}},{{.TS_iDispersion}},{{.TS_duration}}\n"

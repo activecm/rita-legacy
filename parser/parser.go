@@ -12,31 +12,30 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/parser/docwriter"
-
 	log "github.com/Sirupsen/logrus"
+	"github.com/ocmdev/rita/database"
 )
 
 type (
-	//TODO: make interface a named interface
-	creatorFunc func() interface {
+	ParsedDoc interface {
 		IsWhiteListed(whitelist []string) bool
-	} // A function that creates arbitrary objects
-	processorFunc func(interface{}) // A function that processes arbitrary objects
-	docParser     struct {          // The document parsing structure
-		path      string               // fully qualified path
-		db        string               // database to write output to
-		writer    *docwriter.DocWriter // writer to write out the records
-		Errors    []error              // All errors for this file
-		log       *log.Logger          // log output
-		curFile   *os.File             // currently open file
-		creator   creatorFunc          // For creating the objects
-		processor processorFunc        // For processing the objects (may be nil)
-		unParsed  chan string          // Records for parsing
-		SFields   map[string]int       // A field lookup for types
-		useDates  bool                 // Check if we want dates used in db names
-		Header    struct {             // Header maintains the header of the bro log
+	}
+	creatorFunc   func() ParsedDoc // A function that creates arbitrary objects
+	processorFunc func(ParsedDoc)  // A function that processes arbitrary objects
+
+	docParser struct { // The document parsing structure
+		path      string         // fully qualified path
+		db        string         // database to write output to
+		writer    *DocWriter     // writer to write out the records
+		Errors    []error        // All errors for this file
+		log       *log.Logger    // log output
+		curFile   *os.File       // currently open file
+		creator   creatorFunc    // For creating the objects
+		processor processorFunc  // For processing the objects (may be nil)
+		unParsed  chan string    // Records for parsing
+		SFields   map[string]int // A field lookup for types
+		useDates  bool           // Check if we want dates used in db names
+		Header    struct {       // Header maintains the header of the bro log
 			Names     []string // Names of fields
 			Types     []string // Types of fields
 			Separator string   // Field separator
@@ -51,11 +50,11 @@ type (
 // ParseFile generates a document parser and parses the file to the writer
 // Pass this a started writer. Otherwise the writers will be started several times and may lock
 // out unexpectedly.
-func ParseFile(path string, wr *docwriter.DocWriter, rs *config.Resources, database string) {
+func parseFile(path string, wr *DocWriter, res *database.Resources, database string) {
 
 	d := &docParser{path: path, writer: wr, db: database}
-	d.log = rs.Log
-	d.useDates = rs.System.BroConfig.UseDates
+	d.log = res.Log
+	d.useDates = res.System.BroConfig.UseDates
 	d.unParsed = make(chan string, 100)
 	d.SFields = make(map[string]int)
 	scn, err := d.getScanner()
@@ -102,7 +101,7 @@ func ParseFile(path string, wr *docwriter.DocWriter, rs *config.Resources, datab
 	}
 
 	wg := new(sync.WaitGroup)
-	for i := 0; i < rs.System.BroConfig.WriteThreads; i++ {
+	for i := 0; i < res.System.BroConfig.WriteThreads; i++ {
 		go func() {
 			wg.Add(1)
 			d.parseLine()
@@ -269,7 +268,8 @@ func (d *docParser) parseLine() {
 			d.processor(dat)
 		}
 
-		d.writer.Write(docwriter.Document{Doc: dat,
+		//TODO: get Coll from the config
+		d.writer.Write(Document{Doc: dat,
 			DB:   dbTs,
 			Coll: d.Header.ObjType})
 	}
@@ -457,7 +457,6 @@ func (d *docParser) validateStruct(s interface{}) error {
 
 	// Having completed both loops with no errors we're safe to move on
 	return nil
-
 }
 
 // setStructType sets the structure type that we want for a line parser
@@ -465,34 +464,24 @@ func (d *docParser) validateStruct(s interface{}) error {
 // as a lookup for mapping a creatorFunc to the object
 func (d *docParser) setStructType() error {
 	switch d.Header.ObjType {
-
-	//TODO: make interface a named interface
 	case "conn":
-		d.creator = func() interface {
-			IsWhiteListed(whitelist []string) bool
-		} {
+		d.creator = func() ParsedDoc {
 			return &Conn{}
 		}
 		break
 	case "dns":
-		d.creator = func() interface {
-			IsWhiteListed(whitelist []string) bool
-		} {
+		d.creator = func() ParsedDoc {
 			return &DNS{}
 		}
 		break
 	case "http":
-		d.creator = func() interface {
-			IsWhiteListed(whitelist []string) bool
-		} {
+		d.creator = func() ParsedDoc {
 			return &HTTP{}
 		}
 		d.processor = processHTTP // fixes absolute vs relative uris
 		break
 	default:
-		return errors.New("Unkown log type")
-
+		return errors.New("Unknown log type")
 	}
-	// fmt.Println("end of getstruct")
 	return nil
 }

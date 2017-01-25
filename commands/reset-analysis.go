@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 	"github.com/urfave/cli"
 )
@@ -17,14 +16,13 @@ func init() {
 			databaseFlag,
 		},
 		Action: func(c *cli.Context) error {
-			conf := config.InitConfig("")
-			dbm := database.NewMetaDBHandle(conf)
+			res := database.InitResources("")
 			if c.String("database") == "" {
 				fmt.Println("Resetting all databases")
-				return cleanAnalysisAll(conf, dbm)
+				return cleanAnalysisAll(res)
 			}
 			fmt.Println("Resetting database:", c.String("database"))
-			return cleanAnalysis(c.String("database"), conf, dbm)
+			return cleanAnalysis(c.String("database"), res)
 		},
 	}
 
@@ -33,14 +31,14 @@ func init() {
 
 // cleanAnalysis cleans out all of the analysis data, leaving behind only the
 // raw data from parsing the logs
-func cleanAnalysis(database string, conf *config.Resources, dbm *database.MetaDBHandle) error {
+func cleanAnalysis(database string, res *database.Resources) error {
 	//clean database
 
-	conn := conf.System.StructureConfig.ConnTable
-	http := conf.System.StructureConfig.HttpTable
-	dns := conf.System.DnsConfig.DnsTable
+	conn := res.System.StructureConfig.ConnTable
+	http := res.System.StructureConfig.HttpTable
+	dns := res.System.StructureConfig.DnsTable
 
-	names, err := conf.Session.DB(database).CollectionNames()
+	names, err := res.DB.Session.DB(database).CollectionNames()
 	if err != nil || len(names) == 0 {
 		fmt.Fprintf(os.Stderr, "Failed to find analysis results\n")
 		return err
@@ -53,7 +51,7 @@ func cleanAnalysis(database string, conf *config.Resources, dbm *database.MetaDB
 		case conn, http, dns:
 			continue
 		default:
-			err2 := conf.Session.DB(database).C(name).DropCollection()
+			err2 := res.DB.Session.DB(database).C(name).DropCollection()
 			if err2 != nil {
 				fmt.Fprintf(os.Stderr, "Failed to drop collection: %s\n", err2.Error())
 				err2Flag = err2
@@ -62,7 +60,7 @@ func cleanAnalysis(database string, conf *config.Resources, dbm *database.MetaDB
 	}
 
 	//change metadb
-	err3 := dbm.MarkDBCompleted(database, false)
+	err3 := res.MetaDB.MarkDBAnalyzed(database, false)
 
 	if err3 != nil {
 		fmt.Fprintf(os.Stderr, "Failed to update metadb\n")
@@ -76,11 +74,11 @@ func cleanAnalysis(database string, conf *config.Resources, dbm *database.MetaDB
 }
 
 // cleanAnalysisAll uses the metadb to walk all databases and clean the analysis
-func cleanAnalysisAll(conf *config.Resources, dbm *database.MetaDBHandle) error {
+func cleanAnalysisAll(res *database.Resources) error {
 	var err error = nil
 
-	for _, name := range dbm.GetAnalyzedDatabases() {
-		e := cleanAnalysis(name, conf, dbm)
+	for _, name := range res.MetaDB.GetAnalyzedDatabases() {
+		e := cleanAnalysis(name, res)
 		//return last error
 		if e != nil {
 			err = e

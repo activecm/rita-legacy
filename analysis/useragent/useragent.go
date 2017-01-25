@@ -2,11 +2,31 @@ package useragent
 
 import (
 	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 
 	"gopkg.in/mgo.v2/bson"
 )
 
-func GetUserAgentCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
+func BuildUserAgentCollection(res *database.Resources) {
+	// Create the aggregate command
+	source_collection_name,
+		new_collection_name,
+		new_collection_keys,
+		pipeline := getUserAgentCollectionScript(res.System)
+
+	// Create it
+	error_check := res.DB.CreateCollection(new_collection_name, new_collection_keys)
+	if error_check != "" {
+		res.Log.Error("Failed: ", new_collection_name, error_check)
+		return
+	}
+
+	// Aggregate it!
+	results := []bson.M{}
+	res.DB.AggregateCollection(source_collection_name, pipeline, &results)
+}
+
+func getUserAgentCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
 	source_collection_name := sysCfg.StructureConfig.HttpTable
 

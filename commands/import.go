@@ -3,10 +3,8 @@ package commands
 import (
 	"fmt"
 
-	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/parser"
-	"github.com/ocmdev/rita/parser/docwriter"
 	"github.com/urfave/cli"
 )
 
@@ -36,8 +34,7 @@ func init() {
 
 // doImport runs the importer
 func doImport(c *cli.Context) error {
-	conf := config.InitConfig(c.String("config"))
-	metadb := database.NewMetaDBHandle(conf)
+	res := database.InitResources(c.String("config"))
 	importDir := c.String("import-dir")
 	databaseName := c.String("database")
 
@@ -51,17 +48,17 @@ func doImport(c *cli.Context) error {
 
 	//both flags were set
 	if importDir != "" && databaseName != "" {
-		conf.System.BroConfig.LogPath = importDir
-		conf.System.BroConfig.DBPrefix = ""
+		res.System.BroConfig.LogPath = importDir
+		res.System.BroConfig.DBPrefix = ""
 		//Clear out the directory map and set the default database
-		conf.System.BroConfig.DirectoryMap = make(map[string]string)
-		conf.System.BroConfig.DefaultDatabase = databaseName
+		res.System.BroConfig.DirectoryMap = make(map[string]string)
+		res.System.BroConfig.DefaultDatabase = databaseName
 	}
 
-	fmt.Printf("Importing %s\n", conf.System.BroConfig.LogPath)
-	dw := docwriter.New(conf, metadb)
+	fmt.Printf("Importing %s\n", res.System.BroConfig.LogPath)
+	dw := parser.NewDocWriter(res)
 	dw.Start(c.Int("threads"))
-	parser.NewWatcher(conf, metadb).Run(dw)
+	parser.NewWatcher(res).Run(dw)
 	fmt.Println("Finished importing!")
 	return nil
 }

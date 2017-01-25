@@ -3,8 +3,6 @@ package database
 import (
 	"time"
 
-	"github.com/ocmdev/rita/config"
-
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -12,37 +10,34 @@ import (
 
 // DB is the workhorse container for messing with the database
 type DB struct {
-	r *config.Resources
-	l *log.Logger
-	// s  *mgo.Session
-	db string
-}
-
-// NewDB builds up a new data session
-func NewDB(cfg *config.Resources) *DB {
-	d := new(DB)
-	d.db = cfg.System.DB
-	d.l = cfg.Log
-	// d.s = cfg.Session
-	d.r = cfg
-	return d
+	Session   *mgo.Session
+	resources *Resources
+	selected  string
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 ////////////////////////// SUPPORTING FUNCTIONS ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
+func (d *DB) SelectDB(db string) {
+	d.selected = db
+}
+
+func (d *DB) GetSelectedDB() string {
+	return d.selected
+}
+
 /*
- * Name:     collectionExists
+ * Name:     CollectionExists
  * Purpose:  Returns true if collection exists in database
  * comments:
  */
-func (d *DB) collectionExists(table string) bool {
-	ssn := d.r.Session.Copy()
+func (d *DB) CollectionExists(table string) bool {
+	ssn := d.Session.Copy()
 	defer ssn.Close()
-	coll, err := ssn.DB(d.db).CollectionNames()
+	coll, err := ssn.DB(d.selected).CollectionNames()
 	if err != nil {
-		d.l.WithFields(log.Fields{
+		d.resources.Log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Panic("Failed collection name lookup")
 		panic("Failed collection lookup")
@@ -61,30 +56,30 @@ func (d *DB) collectionExists(table string) bool {
  * Purpose:  Creates a new collection with required indeces
  * comments:
  */
-func (d *DB) createCollection(name string, indeces []string) string {
+func (d *DB) CreateCollection(name string, indeces []string) string {
 	// Make a copy of the current session
-	session := d.r.Session.Copy()
+	session := d.Session.Copy()
 	defer session.Close()
 
 	if len(name) < 1 {
-		d.l.Debug("Error, check the collection name in yaml file and systemConfig: ", name)
+		d.resources.Log.Debug("Error, check the collection name in yaml file and systemConfig: ", name)
 		return " (Name error: check collection name in yaml file and config) "
 	}
 
 	// Check if ollection already exists
-	if d.collectionExists(name) {
-		d.l.Debug("Collection already exists:", name)
+	if d.CollectionExists(name) {
+		d.resources.Log.Debug("Collection already exists:", name)
 		return " (Collection already exists!) "
 	}
 
-	d.l.Info("Building collection: ", name)
+	d.resources.Log.Info("Building collection: ", name)
 
 	// Create new collection by referencing to it, no need to call Create
-	collection := session.DB(d.r.System.DB).C(name)
+	collection := session.DB(d.selected).C(name)
 
 	// Make sure it actually got created
-	if d.collectionExists(name) {
-		d.l.Debug("Error, check the collection name in yaml file and systemConfig: ", name)
+	if d.CollectionExists(name) {
+		d.resources.Log.Debug("Error, check the collection name in yaml file and systemConfig: ", name)
 		return " (Name error: check the collection name in yaml file and config) "
 	}
 
@@ -94,7 +89,7 @@ func (d *DB) createCollection(name string, indeces []string) string {
 		}
 		err := collection.EnsureIndex(index)
 		if err != nil {
-			d.l.WithFields(log.Fields{
+			d.resources.Log.WithFields(log.Fields{
 				"error": err.Error(),
 			}).Panic("Failed to create indeces")
 			return " (Failed to create indeces!) "
@@ -105,13 +100,13 @@ func (d *DB) createCollection(name string, indeces []string) string {
 }
 
 /*
- * Name:     aggregateCollection
+ * Name:     AggregateCollection
  * Purpose:  Builds collections that are built via aggregation
  * comments:
  */
-func (d *DB) aggregateCollection(source_collection_name string, pipeline []bson.D, results interface{}) {
+func (d *DB) AggregateCollection(source_collection_name string, pipeline []bson.D, results interface{}) {
 	// Make a copy of the current session
-	session := d.r.Session.Copy()
+	session := d.Session.Copy()
 	defer session.Close()
 
 	session.SetSocketTimeout(2 * time.Hour)
@@ -120,11 +115,11 @@ func (d *DB) aggregateCollection(source_collection_name string, pipeline []bson.
 	// results := []bson.D{}
 
 	// Identify the source collection we will aggregate information from into the new collection
-	if !d.collectionExists(source_collection_name) {
-		d.l.Info("Failed aggregation: (Source collection: ", source_collection_name, " doesn't exist)")
+	if !d.CollectionExists(source_collection_name) {
+		d.resources.Log.Info("Failed aggregation: (Source collection: ", source_collection_name, " doesn't exist)")
 		return //results
 	}
-	source_collection := session.DB(d.r.System.DB).C(source_collection_name)
+	source_collection := session.DB(d.selected).C(source_collection_name)
 
 	// Create the pipe
 	pipe := source_collection.Pipe(pipeline).AllowDiskUse()
@@ -134,7 +129,7 @@ func (d *DB) aggregateCollection(source_collection_name string, pipeline []bson.
 	// If error, Throw computer against wall and drink 2 angry beers while
 	// questioning your life, purpose, and relationships.
 	if err != nil {
-		d.l.WithFields(log.Fields{
+		d.resources.Log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Panic("Failed aggregate operation")
 		return
@@ -147,19 +142,19 @@ func (d *DB) aggregateCollection(source_collection_name string, pipeline []bson.
  * Purpose:  Builds collections that are built via map reduce
  * comments:
  */
-func (d *DB) mapReduceCollection(source_collection_name string, job mgo.MapReduce) bool {
+func (d *DB) MapReduceCollection(source_collection_name string, job mgo.MapReduce) bool {
 	// Make a copy of the current session
-	session := d.r.Session.Copy()
+	session := d.Session.Copy()
 	defer session.Close()
 
 	session.SetSocketTimeout(2 * time.Hour)
 
 	// Identify the source collection we will aggregate information from into the new collection
-	if !d.collectionExists(source_collection_name) {
-		d.l.Info("Failed map reduce: (Source collection: ", source_collection_name, " doesn't exist)")
+	if !d.CollectionExists(source_collection_name) {
+		d.resources.Log.Info("Failed map reduce: (Source collection: ", source_collection_name, " doesn't exist)")
 		return false
 	}
-	source_collection := session.DB(d.r.System.DB).C(source_collection_name)
+	source_collection := session.DB(d.selected).C(source_collection_name)
 
 	// Map reduce that shit
 	_, err := source_collection.Find(nil).MapReduce(&job, nil)
@@ -167,7 +162,7 @@ func (d *DB) mapReduceCollection(source_collection_name string, job mgo.MapReduc
 	// If error, Throw computer against wall and drink 2 angry beers while
 	// questioning your life, purpose, and relationships.
 	if err != nil {
-		d.l.Error("Failed map reduce for: ", source_collection_name, err)
+		d.resources.Log.Error("Failed map reduce for: ", source_collection_name, err)
 		return false
 	}
 

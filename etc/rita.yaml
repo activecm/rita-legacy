@@ -78,6 +78,7 @@ Bro:
 Structure:
     ConnectionTable: conn
     HttpTable: http
+    DnsTable: dns
     UniqueConnectionTable: uconn
     HostTable: host
 
@@ -85,9 +86,6 @@ BlackListed:
     ThreadCount: 2
     ChannelSize: 1000
     BlackListTable: blacklisted
-
-Dns:
-    DnsTable: dns
 
 Scanning:
     ScanThreshold: 50

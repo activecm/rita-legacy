@@ -1,7 +1,5 @@
 package blacklisted
 
-//TODO: After move to bro only (pcaps) remove logic that looks for IPs vs urls
-
 import (
 	"crypto/md5"
 	"fmt"
@@ -13,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/database/inteldb"
 	"github.com/ocmdev/rita/intel"
 	"github.com/ocmdev/rita/util"
@@ -30,17 +28,15 @@ type (
 	// Blacklisted provides a handle for the blacklist module
 	Blacklisted struct {
 		db              string                 // database name (customer)
-		session         *mgo.Session           // default session
 		batch_size      int                    // BatchSize
 		prefetch        float64                // Prefetch
-		resources       *config.Resources      // resources
+		resources       *database.Resources    // resources
 		log             *log.Logger            // logger
 		channel_size    int                    // channel size
 		thread_count    int                    // Thread count
 		blacklist_table string                 // Name of blacklist table
 		intelDBHandle   *inteldb.IntelDBHandle // Handle of the inteld db
 		intelHandle     *intel.IntelHandle     // For cymru lookups
-
 	}
 
 	// UrlShort is a shortened version of the URL datatype that only accounts
@@ -51,72 +47,39 @@ type (
 	}
 )
 
-// New will create a new blacklisted module
-func New(c *config.Resources) *Blacklisted {
-	ssn := c.Session.Copy()
-	return &Blacklisted{
-		db:              c.System.DB,
-		session:         ssn,
-		batch_size:      c.System.BatchSize,
-		prefetch:        c.System.Prefetch,
-		resources:       c,
-		log:             c.Log,
-		channel_size:    c.System.BlacklistedConfig.ChannelSize,
-		thread_count:    c.System.BlacklistedConfig.ThreadCount,
-		blacklist_table: c.System.BlacklistedConfig.BlacklistTable,
-		intelDBHandle:   inteldb.NewIntelDBHandle(c),
-		intelHandle:     intel.NewIntelHandle(c),
-	}
-}
-
-// AddToBlacklist sets a score in the inteldb table for a specific host
-func (b *Blacklisted) AddToBlacklist(host string, score int) {
-
-	if util.RFC1918(host) || score < 0 {
+func BuildBlacklistedCollection(res *database.Resources) {
+	collection_name := res.System.BlacklistedConfig.BlacklistTable
+	collection_keys := []string{"bl_hash", "host"}
+	error_check := res.DB.CreateCollection(collection_name, collection_keys)
+	if error_check != "" {
+		res.Log.Error("Failed: ", collection_name, error_check)
 		return
 	}
-
-	err := b.intelDBHandle.Find(host).SetBlacklistedScore(score)
-
-	if err != nil {
-		if err.Error() == "not found" {
-			dat := b.intelHandle.CymruWhoisLookup([]string{host})
-			if len(dat) < 1 {
-				return
-			}
-			b.intelDBHandle.Write(dat[0])
-			err2 := b.intelDBHandle.Find(host).SetBlacklistedScore(score)
-			if err2 != nil {
-				b.log.WithFields(log.Fields{
-					"error": err2.Error(),
-					"host":  host,
-				}).Error("failed to update blacklisted")
-			}
-		}
-
-		b.log.WithFields(log.Fields{
-			"error": err.Error(),
-			"host":  host,
-		}).Warning("Attempting to set blacklist score returned error")
-	}
+	newBlacklisted(res).run()
 }
 
-// CheckBlacklisted checks in the database to see if we've already got this address checked
-// if it is then we return a positive (0 inclusive) score. If not then return non-positive.
-func (b *Blacklisted) CheckBlacklisted(host string) int {
-	res, err := b.intelDBHandle.Find(host).GetBlacklistedScore()
-	if err != nil {
-		return -1
+// New will create a new blacklisted module
+func newBlacklisted(res *database.Resources) *Blacklisted {
+	return &Blacklisted{
+		db:              res.DB.GetSelectedDB(),
+		batch_size:      res.System.BatchSize,
+		prefetch:        res.System.Prefetch,
+		resources:       res,
+		log:             res.Log,
+		channel_size:    res.System.BlacklistedConfig.ChannelSize,
+		thread_count:    res.System.BlacklistedConfig.ThreadCount,
+		blacklist_table: res.System.BlacklistedConfig.BlacklistTable,
+		intelDBHandle:   inteldb.NewIntelDBHandle(res),
+		intelHandle:     intel.NewIntelHandle(res),
 	}
-	return res
 }
 
 // Run runs the module
-func (b *Blacklisted) Run() {
+func (b *Blacklisted) run() {
 	start := time.Now()
-	ipssn := b.session.Copy()
+	ipssn := b.resources.DB.Session.Copy()
 	defer ipssn.Close()
-	urlssn := b.session.Copy()
+	urlssn := b.resources.DB.Session.Copy()
 	defer urlssn.Close()
 
 	// build up cursors
@@ -185,10 +148,52 @@ func (b *Blacklisted) Run() {
 	}).Info("Blacklist analysis completed")
 }
 
+// addToBlacklist sets a score in the inteldb table for a specific host
+func (b *Blacklisted) addToBlacklist(host string, score int) {
+
+	if util.RFC1918(host) || score < 0 {
+		return
+	}
+
+	err := b.intelDBHandle.Find(host).SetBlacklistedScore(score)
+
+	if err != nil {
+		if err.Error() == "not found" {
+			dat := b.intelHandle.CymruWhoisLookup([]string{host})
+			if len(dat) < 1 {
+				return
+			}
+			b.intelDBHandle.Write(dat[0])
+			err2 := b.intelDBHandle.Find(host).SetBlacklistedScore(score)
+			if err2 != nil {
+				b.log.WithFields(log.Fields{
+					"error": err2.Error(),
+					"host":  host,
+				}).Error("failed to update blacklisted")
+			}
+		}
+
+		b.log.WithFields(log.Fields{
+			"error": err.Error(),
+			"host":  host,
+		}).Warning("Attempting to set blacklist score returned error")
+	}
+}
+
+// checkBlacklisted checks in the database to see if we've already got this address checked
+// if it is then we return a positive (0 inclusive) score. If not then return non-positive.
+func (b *Blacklisted) checkBlacklisted(host string) int {
+	res, err := b.intelDBHandle.Find(host).GetBlacklistedScore()
+	if err != nil {
+		return -1
+	}
+	return res
+}
+
 // processIPs goes through all of the ips in the ip channel
 func (b *Blacklisted) processIPs(ip chan string, waitgroup *sync.WaitGroup) {
 	defer waitgroup.Done()
-	ipssn := b.session.Copy()
+	ipssn := b.resources.DB.Session.Copy()
 	defer ipssn.Close()
 	cur := ipssn.DB(b.db).C(b.resources.System.BlacklistedConfig.BlacklistTable)
 
@@ -199,10 +204,10 @@ func (b *Blacklisted) processIPs(ip chan string, waitgroup *sync.WaitGroup) {
 		}
 
 		score := 0
-		check := b.CheckBlacklisted(ip)
+		check := b.checkBlacklisted(ip)
 		if check < 0 {
-			score, _ = IpVoid(b.log, ip)
-			b.AddToBlacklist(ip, score)
+			score, _ = ipVoid(b.log, ip)
+			b.addToBlacklist(ip, score)
 		} else {
 			score = check
 		}
@@ -230,7 +235,7 @@ func (b *Blacklisted) processIPs(ip chan string, waitgroup *sync.WaitGroup) {
 // processURLs goes through all of the urls in the url channel
 func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup, cash util.Cache) {
 	defer waitgroup.Done()
-	urlssn := b.session.Copy()
+	urlssn := b.resources.DB.Session.Copy()
 	defer urlssn.Close()
 	cur := urlssn.DB(b.db).C(b.resources.System.BlacklistedConfig.BlacklistTable)
 
@@ -247,7 +252,7 @@ func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup,
 		// Check to see if the ips associated with this url are blacklisted
 		// if so, return the highest score
 		for _, ip := range url.IPs {
-			tcheck := b.CheckBlacklisted(ip)
+			tcheck := b.checkBlacklisted(ip)
 			if tcheck < 0 {
 				continue
 			}
@@ -256,9 +261,9 @@ func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup,
 			}
 		}
 		if check < 0 {
-			score, _ = UrlVoid(b.log, actualURL)
+			score, _ = urlVoid(b.log, actualURL)
 			for _, ip := range url.IPs {
-				b.AddToBlacklist(ip, score)
+				b.addToBlacklist(ip, score)
 			}
 
 		} else {
@@ -286,7 +291,7 @@ func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup,
 }
 
 // ipVoid queries ipVoid and returns a score and a count
-func IpVoid(log *log.Logger, ip string) (int, int) {
+func ipVoid(log *log.Logger, ip string) (int, int) {
 	query := "http://www.ipvoid.com/scan/" + ip
 	response, err := http.Get(query)
 
@@ -319,7 +324,7 @@ func IpVoid(log *log.Logger, ip string) (int, int) {
 	return 0, 0
 }
 
-func UrlVoid(log *log.Logger, url string) (int, int) {
+func urlVoid(log *log.Logger, url string) (int, int) {
 	log.Debug("urlvoid lookup")
 
 	query := "http://www.urlvoid.com/scan/" + url

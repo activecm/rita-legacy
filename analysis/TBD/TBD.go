@@ -9,8 +9,8 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/ocmdev/rita/config"
-	datatype_TBD "github.com/ocmdev/rita/datatypes/TBD"
+	"github.com/ocmdev/rita/database"
+	dataTBD "github.com/ocmdev/rita/datatypes/TBD"
 	"github.com/ocmdev/rita/datatypes/data"
 	"github.com/ocmdev/rita/datatypes/structure"
 	"github.com/ocmdev/rita/util"
@@ -21,21 +21,21 @@ import (
 type (
 	//TBD contains methods for conducting a beacon hunt
 	TBD struct {
-		db                string                               // current database
-		resources         *config.Resources                    // holds the global config
-		defaultConnThresh int                                  // default connections threshold
-		collectChannel    chan string                          // holds ip addresses
-		analysisChannel   chan *tbdAnalysisInput               // holds unanalyzed data
-		writeChannel      chan *datatype_TBD.TBDAnalysisOutput // holds analyzed data
-		collectWg         sync.WaitGroup                       // wait for collection to finish
-		analysisWg        sync.WaitGroup                       // wait for analysis to finish
-		writeWg           sync.WaitGroup                       // wait for writing to finish
-		collectThreads    int                                  // the number of read / collection threads
-		analysisThreads   int                                  // the number of analysis threads
-		writeThreads      int                                  // the number of write threads
-		log               *log.Logger                          // system Logger
-		minTime           int64                                // minimum time
-		maxTime           int64                                // maximum time
+		db                string                          // current database
+		resources         *database.Resources             // holds the global config and DB layer
+		defaultConnThresh int                             // default connections threshold
+		collectChannel    chan string                     // holds ip addresses
+		analysisChannel   chan *tbdAnalysisInput          // holds unanalyzed data
+		writeChannel      chan *dataTBD.TBDAnalysisOutput // holds analyzed data
+		collectWg         sync.WaitGroup                  // wait for collection to finish
+		analysisWg        sync.WaitGroup                  // wait for analysis to finish
+		writeWg           sync.WaitGroup                  // wait for writing to finish
+		collectThreads    int                             // the number of read / collection threads
+		analysisThreads   int                             // the number of analysis threads
+		writeThreads      int                             // the number of write threads
+		log               *log.Logger                     // system Logger
+		minTime           int64                           // minimum time
+		maxTime           int64                           // maximum time
 	}
 
 	//tbdAnalysisInput binds a src, dst pair with their analysis data
@@ -50,25 +50,43 @@ type (
 	}
 )
 
+func BuildTBDCollection(res *database.Resources) {
+	collection_name := res.System.TBDConfig.TBDTable
+	collection_keys := []string{"uconn_id", "ts_score"}
+	error_check := res.DB.CreateCollection(collection_name, collection_keys)
+	if error_check != "" {
+		res.Log.Error("Failed: ", collection_name, error_check)
+		return
+	}
+	newTBD(res).run()
+}
+
+func GetTBDResultsView(res *database.Resources, cutoffScore float64) []dataTBD.TBDAnalysisView {
+	pipeline := getViewPipeline(res, cutoffScore)
+	var results []dataTBD.TBDAnalysisView
+	res.DB.AggregateCollection(res.System.TBDConfig.TBDTable, pipeline, &results)
+	return results
+}
+
 // New creates a new TBD module
-func New(c *config.Resources) *TBD {
+func newTBD(res *database.Resources) *TBD {
 
 	// If the threshold is incorrectly specified, fix it up.
 	// We require at least four delta times to analyze
 	// (Q1, Q2, Q3, Q4). So we need at least 5 connections
-	thresh := c.System.TBDConfig.DefaultConnectionThresh
+	thresh := res.System.TBDConfig.DefaultConnectionThresh
 	if thresh < 5 {
 		thresh = 5
 	}
 
 	return &TBD{
-		db:                c.System.DB,
-		resources:         c,
+		db:                res.DB.GetSelectedDB(),
+		resources:         res,
 		defaultConnThresh: thresh,
-		log:               c.Log,
+		log:               res.Log,
 		collectChannel:    make(chan string),
 		analysisChannel:   make(chan *tbdAnalysisInput),
-		writeChannel:      make(chan *datatype_TBD.TBDAnalysisOutput),
+		writeChannel:      make(chan *dataTBD.TBDAnalysisOutput),
 		collectThreads:    util.Max(1, runtime.NumCPU()/2),
 		analysisThreads:   util.Max(1, runtime.NumCPU()/2),
 		writeThreads:      util.Max(1, runtime.NumCPU()/2),
@@ -76,9 +94,9 @@ func New(c *config.Resources) *TBD {
 }
 
 // Run Starts the beacon hunt process
-func (t *TBD) Run() {
+func (t *TBD) run() {
 	t.log.Info("Running beacon hunt")
-	session := t.resources.Session.Copy()
+	session := t.resources.DB.Session.Copy()
 	defer session.Close()
 
 	//Find first time
@@ -146,7 +164,7 @@ func (t *TBD) Run() {
 
 // collect grabs all src, dst pairs and their connection data
 func (t *TBD) collect() {
-	session := t.resources.Session.Copy()
+	session := t.resources.DB.Session.Copy()
 	defer session.Close()
 	host, more := <-t.collectChannel
 	for more {
@@ -258,7 +276,7 @@ func (t *TBD) analyze() {
 		//and the most occurring interval
 		intervals, intervalCounts, mode, modeCount := createCountMap(diff)
 
-		newOutput := &datatype_TBD.TBDAnalysisOutput{
+		newOutput := &dataTBD.TBDAnalysisOutput{
 			UconnID:           data.uconnID,
 			TS_iSkew:          bSkew,
 			TS_iDispersion:    madm,
@@ -292,7 +310,7 @@ func (t *TBD) analyze() {
 
 // write writes the tbd analysis results to the database
 func (t *TBD) write() {
-	session := t.resources.Session.Copy()
+	session := t.resources.DB.Session.Copy()
 	defer session.Close()
 
 	data, more := <-t.writeChannel
@@ -335,7 +353,7 @@ func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
 
 // GetViewPipeline creates an aggregation for user views since the tbd table
 // stores uconn uid's rather than src, dest pairs
-func GetViewPipeline(r *config.Resources, cuttoff float64) []bson.D {
+func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 	return []bson.D{
 		{
 			{"$match", bson.D{

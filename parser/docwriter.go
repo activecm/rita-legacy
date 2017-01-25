@@ -1,58 +1,51 @@
-package docwriter
+package parser
 
 import (
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/davecgh/go-spew/spew"
 	"gopkg.in/mgo.v2"
 )
 
 type (
 	// Document holds one item to be written to a database
 	Document struct {
-		Doc interface {
-			IsWhiteListed(whitelist []string) bool
-		} // Thing to write
-		DB   string // DB to write to
-		Coll string // Collection to write to
+		Doc  ParsedDoc // Thing to write
+		DB   string    // DB to write to
+		Coll string    // Collection to write to
 	}
 
 	// DocWriter writes documents to a database
 	DocWriter struct {
-		Ssn       *mgo.Session           // Session to db instance
-		pre       string                 // Prefix to the database
-		ImportWl  bool                   // Flag to import whitelist
-		Whitelist []string               // Pointer to our whitelist array
+		ssn       *mgo.Session           // Session to db instance
+		prefix    string                 // Prefix to the database
+		importWl  bool                   // Flag to import whitelist
+		whitelist []string               // Pointer to our whitelist array
 		wchan     chan Document          // Document channel
 		log       *log.Logger            // Logging
 		wg        *sync.WaitGroup        // Used to block until complete
-		Meta      *database.MetaDBHandle // Handle to metadata
-		Databases []string               // Track the db states
+		meta      *database.MetaDBHandle // Handle to metadata
+		databases []string               // Track the db states, cached
+		dblock    *sync.Mutex            // For the databases fields
 		started   bool                   // Track if we've started the writer
-		dblock    *sync.Mutex            // For the Databases fields
 	}
 )
 
 // New generates a new DocWriter
-func New(cfg *config.Resources, mdb *database.MetaDBHandle) *DocWriter {
-
-	dbs := mdb.GetDatabases()
+func NewDocWriter(res *database.Resources) *DocWriter {
 	return &DocWriter{
-		Ssn:       cfg.Session.Copy(),
-		log:       cfg.Log,
-		pre:       cfg.System.BroConfig.DBPrefix,
-		ImportWl:  cfg.System.ImportWhitelist,
-		Whitelist: cfg.System.Whitelist,
+		ssn:       res.DB.Session,
+		log:       res.Log,
+		prefix:    res.System.BroConfig.DBPrefix,
+		importWl:  res.System.ImportWhitelist,
+		whitelist: res.System.Whitelist,
 		wchan:     make(chan Document, 5000),
 		wg:        new(sync.WaitGroup),
-		Meta:      mdb,
-		Databases: dbs,
+		meta:      res.MetaDB,
+		databases: res.MetaDB.GetDatabases(),
 		started:   false,
 		dblock:    new(sync.Mutex)}
 }
@@ -71,18 +64,18 @@ func (d *DocWriter) Start(count int) {
 
 // Write allows a user to add to the channel
 func (d *DocWriter) Write(doc Document) {
-	doc.DB = d.pre + doc.DB
+	doc.DB = d.prefix + doc.DB
 	seen := false
 	d.dblock.Lock()
-	for _, aval := range d.Databases {
+	for _, aval := range d.databases {
 		if aval == doc.DB {
 			seen = true
 		}
 	}
 
 	if !seen {
-		d.Meta.AddNewDB(doc.DB)
-		d.Databases = append(d.Databases, doc.DB)
+		d.meta.AddNewDB(doc.DB)
+		d.databases = append(d.databases, doc.DB)
 	}
 	d.dblock.Unlock()
 	d.wchan <- doc
@@ -95,7 +88,7 @@ func (d *DocWriter) Flush() {
 	close(d.wchan)
 	d.log.Debug("waiting for writes to finish")
 	d.wg.Wait()
-	d.Ssn.Close()
+	d.ssn.Close()
 	d.log.Debug("writes completed, exiting write loop")
 	return
 }
@@ -104,6 +97,9 @@ func (d *DocWriter) Flush() {
 func (d *DocWriter) writeLoop() {
 	var err error
 	d.wg.Add(1)
+	ssn := d.ssn.Copy()
+	defer ssn.Close()
+
 	for {
 		d.log.WithFields(log.Fields{
 			"type":             "wldebug",
@@ -115,25 +111,19 @@ func (d *DocWriter) writeLoop() {
 			break
 		}
 
-		ssn := d.Ssn.Copy()
-
 		towrite := doc.Doc
 
-		if !(d.ImportWl && towrite.IsWhiteListed(d.Whitelist)) {
+		if !(d.importWl && towrite.IsWhiteListed(d.whitelist)) {
 			err = ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
 		}
 
 		if err != nil {
-			if strings.Contains(err.Error(), "ObjectIDs") {
-				spew.Dump(towrite)
-			}
 			d.log.WithFields(log.Fields{
 				"error": err.Error(),
 			}).Error("Database write failure")
 
 			d.expFalloff(&doc)
 		}
-		ssn.Close()
 	}
 	d.wg.Done()
 	return
@@ -143,19 +133,17 @@ func (d *DocWriter) writeLoop() {
 func (d *DocWriter) expFalloff(doc *Document) {
 	for i := 0; i < 5; i++ {
 		time.Sleep(time.Duration(i*i) * time.Second)
-		ssn := d.Ssn.Copy()
+		ssn := d.ssn.Copy()
+		defer ssn.Close()
 		towrite := doc.Doc
 		err := ssn.DB(doc.DB).C(doc.Coll).Insert(towrite)
 		if err == nil {
-			ssn.Close()
 			d.log.Info("Write succeeded")
 			return
 		}
-		ssn.Close()
 		d.log.WithFields(log.Fields{
 			"error":   err.Error(),
 			"falloff": i,
 		}).Error("Database write failure")
-
 	}
 }
