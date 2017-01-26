@@ -5,8 +5,6 @@ package blacklisted
 import (
 	"crypto/md5"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"runtime"
 	"strconv"
 	"strings"
@@ -21,9 +19,11 @@ import (
 
 	"github.com/ocmdev/rita-blacklist"
 	"github.com/ocmdev/rita/datatypes/blacklisted"
+	datatype_structure "github.com/ocmdev/rita/datatypes/structure"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type (
@@ -143,7 +143,7 @@ func (b *Blacklisted) Run() {
 	}
 
 	// build up cursors
-	// ipcur := ipssn.DB(b.db).C(b.resources.System.StructureConfig.HostTable)
+	ipcur := ipssn.DB(b.db).C(b.resources.System.StructureConfig.HostTable)
 	urlcur := urlssn.DB(b.db).C(b.resources.System.UrlsConfig.HostnamesTable)
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -157,10 +157,10 @@ func (b *Blacklisted) Run() {
 		go b.processURLs(urls, waitgroup, cash)
 	}
 
-	// ipit := ipcur.Find(bson.M{"local": false}).
-	// 	Batch(b.resources.System.BatchSize).
-	// 	Prefetch(b.resources.System.Prefetch).
-	// 	Iter()
+	ipit := ipcur.Find(bson.M{"local": false}).
+		Batch(b.resources.System.BatchSize).
+		Prefetch(b.resources.System.Prefetch).
+		Iter()
 
 	urlit := urlcur.Find(nil).
 		Batch(b.resources.System.BatchSize).
@@ -170,16 +170,16 @@ func (b *Blacklisted) Run() {
 	rwg := new(sync.WaitGroup)
 	rwg.Add(2)
 
-	// go func(iter *mgo.Iter, ipchan chan string) {
-	// 	defer rwg.Done()
-	// 	var r datatype_structure.Host
-	// 	for iter.Next(&r) {
-	// 		if util.RFC1918(r.Ip) {
-	// 			continue
-	// 		}
-	// 		ipchan <- r.Ip
-	// 	}
-	// }(ipit, ipaddrs)
+	go func(iter *mgo.Iter, ipchan chan string) {
+		defer rwg.Done()
+		var r datatype_structure.Host
+		for iter.Next(&r) {
+			if util.RFC1918(r.Ip) {
+				continue
+			}
+			ipchan <- r.Ip
+		}
+	}(ipit, ipaddrs)
 
 	go func(iter *mgo.Iter, urlchan chan UrlShort, ipchan chan string) {
 		defer rwg.Done()
@@ -312,75 +312,4 @@ func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup,
 			}
 		}
 	}
-}
-
-// ipVoid queries ipVoid and returns a score and a count
-func IpVoid(log *log.Logger, ip string) (int, int) {
-	query := "http://www.ipvoid.com/scan/" + ip
-	response, err := http.Get(query)
-
-	if err != nil {
-		log.Error("Error contacting ipvoid")
-		return -1, -1
-	}
-
-	defer response.Body.Close()
-	body, _ := ioutil.ReadAll(response.Body)
-	bodyString := string(body)
-
-	if strings.Contains(bodyString, "BLACKLISTED") {
-		lineSplit := strings.Split(bodyString, "BLACKLISTED ")[1]
-
-		total, err := strconv.Atoi(strings.Split(strings.Split(lineSplit, "/")[1], "<")[0])
-		if err != nil {
-			log.Error("conversion error, value: ", total)
-			return -1, -1
-		}
-
-		count, err := strconv.Atoi(strings.Split(lineSplit, "/")[0])
-		if err != nil {
-			log.Error("conversion error, value: ", count)
-			return -1, -1
-		}
-		return count, total
-	}
-
-	return 0, 0
-}
-
-func UrlVoid(log *log.Logger, url string) (int, int) {
-	log.Debug("urlvoid lookup")
-
-	query := "http://www.urlvoid.com/scan/" + url
-	response, err := http.Get(query)
-	if err != nil {
-		log.Error("Error contacting urlvoid")
-		return -1, -1
-	}
-
-	defer response.Body.Close()
-	body, _ := ioutil.ReadAll(response.Body)
-	bodyString := string(body)
-
-	if strings.Contains(bodyString, "Safety Reputation") {
-		lineSplit := strings.Split(strings.Split(strings.Split(
-			bodyString, "Safety Reputation")[1],
-			"</span>")[0],
-			"span")[1]
-
-		total, err := strconv.Atoi(strings.Split(strings.Split(lineSplit, "/")[1], "<")[0])
-		if err != nil {
-			log.Error("conversion error, value: ", total)
-			return -1, -1
-		}
-
-		count, err := strconv.Atoi(strings.Split(strings.Split(lineSplit, "/")[0], ">")[1])
-		if err != nil {
-			log.Error("conversion error, value: ", count)
-			return -1, -1
-		}
-
-		return count, total
-	}
-	return 0, 0
 }
