@@ -161,7 +161,7 @@ __install() {
 		fi
 	fi
 
-  printf"[+] Installing gnu-netcat to /usr/local/rita\n"
+  printf "[+] Installing gnu-netcat to /usr/local/rita\n"
   # gnu-netcat
   wget https://sourceforge.net/projects/netcat/files/netcat/0.7.1/netcat-0.7.1.tar.gz
   tar -zxf netcat-0.7.1.tar.gz
