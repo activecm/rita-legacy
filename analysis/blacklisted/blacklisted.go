@@ -99,48 +99,6 @@ func New(c *config.Resources) *Blacklisted {
 	}
 }
 
-// AddToBlacklist sets a score in the inteldb table for a specific host
-func (b *Blacklisted) AddToBlacklist(host string, score int) {
-
-	if util.RFC1918(host) || score < 0 {
-		return
-	}
-
-	err := b.intelDBHandle.Find(host).SetBlacklistedScore(score)
-
-	if err != nil {
-		if err.Error() == "not found" {
-			dat := b.intelHandle.CymruWhoisLookup([]string{host})
-			if len(dat) < 1 {
-				return
-			}
-			b.intelDBHandle.Write(dat[0])
-			err2 := b.intelDBHandle.Find(host).SetBlacklistedScore(score)
-			if err2 != nil {
-				b.log.WithFields(log.Fields{
-					"error": err2.Error(),
-					"host":  host,
-				}).Error("failed to update blacklisted")
-			}
-		}
-
-		b.log.WithFields(log.Fields{
-			"error": err.Error(),
-			"host":  host,
-		}).Warning("Attempting to set blacklist score returned error")
-	}
-}
-
-// CheckBlacklisted checks in the database to see if we've already got this address checked
-// if it is then we return a positive (0 inclusive) score. If not then return non-positive.
-func (b *Blacklisted) CheckBlacklisted(host string) int {
-	res, err := b.intelDBHandle.Find(host).GetBlacklistedScore()
-	if err != nil {
-		return -1
-	}
-	return res
-}
-
 // Run runs the module
 func (b *Blacklisted) Run() {
 	start := time.Now()
@@ -229,16 +187,11 @@ func (b *Blacklisted) processIPs(ip chan string, waitgroup *sync.WaitGroup) {
 		}
 
 		score := 0
-		check := b.CheckBlacklisted(ip)
-		if check < 0 {
-			result := b.ritaBL.CheckHosts([]string{ip}, b.resources.System.BlacklistedConfig.BlacklistDatabase)
-			if len(result) > 0 {
-				score = len(result[0].Results)
-			}
-			b.AddToBlacklist(ip, score)
-		} else {
-			score = check
+		result := b.ritaBL.CheckHosts([]string{ip}, b.resources.System.BlacklistedConfig.BlacklistDatabase)
+		if len(result) > 0 {
+			score = len(result[0].Results)
 		}
+
 		if score > 0 {
 			err := cur.Insert(&blacklisted.Blacklist{
 				BLHash:      fmt.Sprintf("%x", md5.Sum([]byte(ip))),
@@ -275,30 +228,13 @@ func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup,
 		}
 
 		score := 0
-		check := -1
 
-		// Check to see if the ips associated with this url are blacklisted
-		// if so, return the highest score
-		for _, ip := range url.IPs {
-			tcheck := b.CheckBlacklisted(ip)
-			if tcheck < 0 {
-				continue
+		urlList := []string{actualURL}
+		result, _ := b.safeBrowser.LookupURLs(urlList)
+		if len(result) > 0 && len(result[0]) > 0 {
+			for _ = range url.IPs {
+				score += 1
 			}
-			if tcheck > check {
-				check = tcheck
-			}
-		}
-		if check < 0 {
-			urlList := []string{actualURL}
-			result, _ := b.safeBrowser.LookupURLs(urlList)
-			if len(result) > 0 && len(result[0]) > 0 {
-				for _, ip := range url.IPs {
-					b.AddToBlacklist(ip, score)
-					score = 1
-				}
-			}
-		} else {
-			score = check
 		}
 
 		if score > 0 {
