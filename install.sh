@@ -131,6 +131,9 @@ __install() {
   tar -zxf netcat-0.7.1.tar.gz
   rm netcat-0.7.1.tar.gz
   cd netcat-0.7.1
+  if [ ! -d "/usr/local/rita" ]; then
+    sudo mkdir -p /usr/local/rita
+  fi
   ./configure --prefix=/usr/local/rita
   sudo make
   sudo make install
