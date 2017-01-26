@@ -56,17 +56,32 @@ type (
 func New(c *config.Resources) *Blacklisted {
 	ssn := c.Session.Copy()
 
+	// Initialize the hook to google's safebrowsing api.
 	sbConfig := safebrowsing.Config{
 		APIKey: c.System.SafeBrowsing.APIKey,
 		DBPath: c.System.SafeBrowsing.Database,
 		Logger: c.Log.Writer(),
 	}
 	sb, err := safebrowsing.NewSafeBrowser(sbConfig)
-
 	if err != nil {
 		c.Log.WithField("Error", err).Error("Error opening safe browser API")
 	}
 
+	// Initialize a rita-blacklist instance. Opens a database connection
+	// to the blacklist database. This will cause an update if the list is out
+	// of date.
+	ritabl := blacklist.NewBlackList()
+	hostport := strings.Split(c.System.DatabaseHost, ":")
+	if len(hostport) > 1 {
+		port, err := strconv.Atoi(hostport[1])
+		if err == nil {
+			ritabl.Init(hostport[0], port, c.System.BlacklistedConfig.BlacklistDatabase)
+		} else {
+			c.Log.WithField("Error", err).Error("Error opening rita-blacklist hook")
+		}
+	}
+
+	// Construct and return a new blacklisted instance
 	return &Blacklisted{
 		db:              c.System.DB,
 		session:         ssn,
@@ -80,7 +95,7 @@ func New(c *config.Resources) *Blacklisted {
 		intelDBHandle:   inteldb.NewIntelDBHandle(c),
 		intelHandle:     intel.NewIntelHandle(c),
 		safeBrowser:     sb,
-		ritaBL:          blacklist.NewBlackList(),
+		ritaBL:          ritabl,
 	}
 }
 
@@ -133,14 +148,6 @@ func (b *Blacklisted) Run() {
 	defer ipssn.Close()
 	urlssn := b.session.Copy()
 	defer urlssn.Close()
-
-	hostport := strings.Split(b.resources.System.DatabaseHost, ":")
-	if len(hostport) > 1 {
-		port, err := strconv.Atoi(hostport[1])
-		if err == nil {
-			b.ritaBL.Init(hostport[0], port, b.resources.System.BlacklistedConfig.BlacklistDatabase)
-		}
-	}
 
 	// build up cursors
 	ipcur := ipssn.DB(b.db).C(b.resources.System.StructureConfig.HostTable)
