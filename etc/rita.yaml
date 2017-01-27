@@ -75,7 +75,7 @@ Bro:
 
 SafeBrowsing:
     APIKey: ""
-    Database: /data/safebrowsing/database
+    Database: /usr/local/rita/safebrowsing/database
 
 # NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
 Structure:
