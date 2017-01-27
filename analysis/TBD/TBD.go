@@ -1,6 +1,7 @@
 package TBD
 
 import (
+	"errors"
 	"math"
 	"runtime"
 	"sort"
@@ -204,106 +205,112 @@ func (t *TBD) collect() {
 	t.collectWg.Done()
 }
 
+func analysis(data *tbdAnalysisInput, connThresh int, maxTime int64, minTime int64) (dataTBD.TBDAnalysisOutput, error) {
+	//sort the timestamps since they may have arrived out of order
+	sort.Sort(util.SortableInt64(data.ts))
+
+	//remove subsecond communications
+	//these will appear as beacons if we do not remove them
+	//subsecond beacon finding *may* be implemented later on...
+	data.ts = util.RemoveSortedDuplicates(data.ts)
+
+	//If removing duplicates lowered the conn count under the threshold,
+	//remove this data from the analysis
+	if len(data.ts) < connThresh {
+		var out dataTBD.TBDAnalysisOutput
+		return out, errors.New("Number of connections under threshold")
+	}
+
+	//store the diff slice length since we use it a lot
+	//this is one less then the data slice length
+	//since we are calculating the times in between readings
+	length := len(data.ts) - 1
+
+	//find the duration of this connection
+	//perfect beacons should fill the observation period
+	duration := float64(data.ts[length]-data.ts[0]) /
+		float64(maxTime-minTime)
+
+	//find the delta times between the timestamps
+	diff := make([]int64, length)
+	for i := 0; i < length; i++ {
+		diff[i] = data.ts[i+1] - data.ts[i]
+	}
+
+	//perfect beacons should have symmetric delta time distributions
+	//Bowley's measure of skew is used to check symmetry
+	sort.Sort(util.SortableInt64(diff))
+	bSkew := float64(0)
+
+	//length -1 is used since diff is a zero based slice
+	low := diff[util.Round(.25*float64(length-1))]
+	mid := diff[util.Round(.5*float64(length-1))]
+	high := diff[util.Round(.75*float64(length-1))]
+	bNum := low + high - 2*mid
+	bDen := high - low
+
+	//bSkew should equal zero if hte denominator equals zero
+	if bDen != 0 {
+		bSkew = float64(bNum) / float64(bDen)
+	}
+
+	//perfect beacons should have very low dispersion around the
+	//median of their delta times
+	//Median Absolute Deviation About the Median
+	//is used to check dispersion
+	devs := make([]int64, length)
+	for i := 0; i < length; i++ {
+		devs[i] = util.Abs(diff[i] - mid)
+	}
+
+	sort.Sort(util.SortableInt64(devs))
+	madm := devs[util.Round(.5*float64(length-1))]
+
+	//Store the range for human analysis
+	iRange := diff[length-1] - diff[0]
+
+	//get a list of the intervals found in the data,
+	//the number of times the interval was found,
+	//and the most occurring interval
+	intervals, intervalCounts, mode, modeCount := createCountMap(diff)
+
+	output := dataTBD.TBDAnalysisOutput{
+		UconnID:           data.uconnID,
+		TS_iSkew:          bSkew,
+		TS_iDispersion:    madm,
+		TS_duration:       duration,
+		TS_iRange:         iRange,
+		TS_iMode:          mode,
+		TS_iModeCount:     modeCount,
+		TS_intervals:      intervals,
+		TS_intervalCounts: intervalCounts,
+	}
+
+	//more skewed distributions recieve a lower score
+	//less skewed distributions recieve a higher score
+	alpha := 1.0 - math.Abs(bSkew)
+
+	//lower dispersion is better, cutoff dispersion scores at 30 seconds
+	beta := 1.0 - float64(madm)/30.0
+	if beta < 0 {
+		beta = 0
+	}
+	gamma := duration
+
+	//in order of ascending importance: skew, duration, dispersion
+	output.TS_score = (alpha + beta + gamma) / 3.0
+
+	return output, nil
+}
+
 // analyze src, dst pairs with their connection data
 func (t *TBD) analyze() {
-	data, more := <-t.analysisChannel
-	for more {
-		//sort the timestamps since they may have arrived out of order
-		sort.Sort(util.SortableInt64(data.ts))
 
-		//remove subsecond communications
-		//these will appear as beacons if we do not remove them
-		//subsecond beacon finding *may* be implemented later on...
-		data.ts = util.RemoveSortedDuplicates(data.ts)
-
-		//If removing duplicates lowered the conn count under the threshold,
-		//remove this data from the analysis
-		if len(data.ts) < t.defaultConnThresh {
-			data, more = <-t.analysisChannel
-			continue
+	for data := range t.analysisChannel {
+		newOutput, err := analysis(data, t.defaultConnThresh, t.maxTime, t.minTime)
+		if err == nil {
+			t.writeChannel <- &newOutput
 		}
-
-		//store the diff slice length since we use it a lot
-		//this is one less then the data slice length
-		//since we are calculating the times in between readings
-		length := len(data.ts) - 1
-
-		//find the duration of this connection
-		//perfect beacons should fill the observation period
-		duration := float64(data.ts[length]-data.ts[0]) /
-			float64(t.maxTime-t.minTime)
-
-		//find the delta times between the timestamps
-		diff := make([]int64, length)
-		for i := 0; i < length; i++ {
-			diff[i] = data.ts[i+1] - data.ts[i]
-		}
-
-		//perfect beacons should have symmetric delta time distributions
-		//Bowley's measure of skew is used to check symmetry
-		sort.Sort(util.SortableInt64(diff))
-		bSkew := float64(0)
-
-		//length -1 is used since diff is a zero based slice
-		low := diff[util.Round(.25*float64(length-1))]
-		mid := diff[util.Round(.5*float64(length-1))]
-		high := diff[util.Round(.75*float64(length-1))]
-		bNum := low + high - 2*mid
-		bDen := high - low
-
-		//bSkew should equal zero if hte denominator equals zero
-		if bDen != 0 {
-			bSkew = float64(bNum) / float64(bDen)
-		}
-
-		//perfect beacons should have very low dispersion around the
-		//median of their delta times
-		//Median Absolute Deviation About the Median
-		//is used to check dispersion
-		devs := make([]int64, length)
-		for i := 0; i < length; i++ {
-			devs[i] = util.Abs(diff[i] - mid)
-		}
-
-		sort.Sort(util.SortableInt64(devs))
-		madm := devs[util.Round(.5*float64(length-1))]
-
-		//Store the range for human analysis
-		iRange := diff[length-1] - diff[0]
-
-		//get a list of the intervals found in the data,
-		//the number of times the interval was found,
-		//and the most occurring interval
-		intervals, intervalCounts, mode, modeCount := createCountMap(diff)
-
-		newOutput := &dataTBD.TBDAnalysisOutput{
-			UconnID:           data.uconnID,
-			TS_iSkew:          bSkew,
-			TS_iDispersion:    madm,
-			TS_duration:       duration,
-			TS_iRange:         iRange,
-			TS_iMode:          mode,
-			TS_iModeCount:     modeCount,
-			TS_intervals:      intervals,
-			TS_intervalCounts: intervalCounts,
-		}
-
-		//more skewed distributions recieve a lower score
-		//less skewed distributions recieve a higher score
-		alpha := 1.0 - math.Abs(bSkew)
-
-		//lower dispersion is better, cutoff dispersion scores at 30 seconds
-		beta := 1.0 - float64(madm)/30.0
-		if beta < 0 {
-			beta = 0
-		}
-		gamma := duration
-
-		//in order of ascending importance: skew, duration, dispersion
-		newOutput.TS_score = (alpha + beta + gamma) / 3.0
-
-		t.writeChannel <- newOutput
-		data, more = <-t.analysisChannel
 	}
 	t.analysisWg.Done()
 }
