@@ -12,7 +12,6 @@ import (
 	"github.com/ocmdev/rita/database"
 
 	"github.com/google/safebrowsing"
-	"github.com/ocmdev/rita/config"
 
 	"github.com/ocmdev/rita/database/inteldb"
 	"github.com/ocmdev/rita/intel"
@@ -64,47 +63,44 @@ func BuildBlacklistedCollection(res *database.Resources) {
 }
 
 // New will create a new blacklisted module
-func New(c *config.Resources) *Blacklisted {
-	ssn := c.Session.Copy()
+func newBlacklisted(res *database.Resources) *Blacklisted {
 
 	// Initialize the hook to google's safebrowsing api.
 	sbConfig := safebrowsing.Config{
-		APIKey: c.System.SafeBrowsing.APIKey,
-		DBPath: c.System.SafeBrowsing.Database,
-		Logger: c.Log.Writer(),
+		APIKey: res.System.SafeBrowsing.APIKey,
+		DBPath: res.System.SafeBrowsing.Database,
+		Logger: res.Log.Writer(),
 	}
 	sb, err := safebrowsing.NewSafeBrowser(sbConfig)
 	if err != nil {
-		c.Log.WithField("Error", err).Error("Error opening safe browser API")
+		res.Log.WithField("Error", err).Error("Error opening safe browser API")
 	}
 
 	// Initialize a rita-blacklist instance. Opens a database connection
 	// to the blacklist database. This will cause an update if the list is out
 	// of date.
 	ritabl := blacklist.NewBlackList()
-	hostport := strings.Split(c.System.DatabaseHost, ":")
+	hostport := strings.Split(res.System.DatabaseHost, ":")
 	if len(hostport) > 1 {
 		port, err := strconv.Atoi(hostport[1])
 		if err == nil {
-			ritabl.Init(hostport[0], port, c.System.BlacklistedConfig.BlacklistDatabase)
+			ritabl.Init(hostport[0], port, res.System.BlacklistedConfig.BlacklistDatabase)
 		} else {
-			c.Log.WithField("Error", err).Error("Error opening rita-blacklist hook")
+			res.Log.WithField("Error", err).Error("Error opening rita-blacklist hook")
 		}
 	}
 
-	// Construct and return a new blacklisted instance
 	return &Blacklisted{
-		db:              c.System.DB,
-		session:         ssn,
-		batch_size:      c.System.BatchSize,
-		prefetch:        c.System.Prefetch,
-		resources:       c,
-		log:             c.Log,
-		channel_size:    c.System.BlacklistedConfig.ChannelSize,
-		thread_count:    c.System.BlacklistedConfig.ThreadCount,
-		blacklist_table: c.System.BlacklistedConfig.BlacklistTable,
-		intelDBHandle:   inteldb.NewIntelDBHandle(c),
-		intelHandle:     intel.NewIntelHandle(c),
+		db:              res.DB.GetSelectedDB(),
+		batch_size:      res.System.BatchSize,
+		prefetch:        res.System.Prefetch,
+		resources:       res,
+		log:             res.Log,
+		channel_size:    res.System.BlacklistedConfig.ChannelSize,
+		thread_count:    res.System.BlacklistedConfig.ThreadCount,
+		blacklist_table: res.System.BlacklistedConfig.BlacklistTable,
+		intelDBHandle:   inteldb.NewIntelDBHandle(res),
+		intelHandle:     intel.NewIntelHandle(res),
 		safeBrowser:     sb,
 		ritaBL:          ritabl,
 	}
@@ -182,48 +178,6 @@ func (b *Blacklisted) run() {
 	b.log.WithFields(log.Fields{
 		"time_elapsed": time.Since(start),
 	}).Info("Blacklist analysis completed")
-}
-
-// addToBlacklist sets a score in the inteldb table for a specific host
-func (b *Blacklisted) addToBlacklist(host string, score int) {
-
-	if util.RFC1918(host) || score < 0 {
-		return
-	}
-
-	err := b.intelDBHandle.Find(host).SetBlacklistedScore(score)
-
-	if err != nil {
-		if err.Error() == "not found" {
-			dat := b.intelHandle.CymruWhoisLookup([]string{host})
-			if len(dat) < 1 {
-				return
-			}
-			b.intelDBHandle.Write(dat[0])
-			err2 := b.intelDBHandle.Find(host).SetBlacklistedScore(score)
-			if err2 != nil {
-				b.log.WithFields(log.Fields{
-					"error": err2.Error(),
-					"host":  host,
-				}).Error("failed to update blacklisted")
-			}
-		}
-
-		b.log.WithFields(log.Fields{
-			"error": err.Error(),
-			"host":  host,
-		}).Warning("Attempting to set blacklist score returned error")
-	}
-}
-
-// checkBlacklisted checks in the database to see if we've already got this address checked
-// if it is then we return a positive (0 inclusive) score. If not then return non-positive.
-func (b *Blacklisted) checkBlacklisted(host string) int {
-	res, err := b.intelDBHandle.Find(host).GetBlacklistedScore()
-	if err != nil {
-		return -1
-	}
-	return res
 }
 
 // processIPs goes through all of the ips in the ip channel
