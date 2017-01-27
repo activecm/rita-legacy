@@ -11,22 +11,23 @@ import (
 
 type (
 	SystemConfig struct {
-		LogType           string         `yaml:"LogType"`
-		GNUNetcatPath     string         `yaml:"GNUNetcatPath"`
-		BatchSize         int            `yaml:"BatchSize"`
-		HostIntelDB       string         `yaml:"HostIntelDB"`
-		DatabaseHost      string         `yaml:"DatabaseHost"`
-		LogLevel          int            `yaml:"LogLevel"`
-		Prefetch          float64        `yaml:"Prefetch"`
-		Whitelist         []string       `yaml:"WhiteList"`
-		ImportWhitelist   bool           `yaml:"ImportWhitelist"`
-		BlacklistedConfig BlacklistedCfg `yaml:"BlackListed"`
-		ScanningConfig    ScanningCfg    `yaml:"Scanning"`
-		StructureConfig   StructureCfg   `yaml:"Structure"`
-		TBDConfig         TBDCfg         `yaml:"TBD"`
-		UrlsConfig        UrlsCfg        `yaml:"Urls"`
-		UserAgentConfig   UserAgentCfg   `yaml:"UserAgent"`
-		BroConfig         BroCfg         `yaml:"Bro"`
+		LogType           string          `yaml:"LogType"`
+		GNUNetcatPath     string          `yaml:"GNUNetcatPath"`
+		BatchSize         int             `yaml:"BatchSize"`
+		HostIntelDB       string          `yaml:"HostIntelDB"`
+		DatabaseHost      string          `yaml:"DatabaseHost"`
+		LogLevel          int             `yaml:"LogLevel"`
+		Prefetch          float64         `yaml:"Prefetch"`
+		Whitelist         []string        `yaml:"WhiteList"`
+		ImportWhitelist   bool            `yaml:"ImportWhitelist"`
+		BlacklistedConfig BlacklistedCfg  `yaml:"BlackListed"`
+		ScanningConfig    ScanningCfg     `yaml:"Scanning"`
+		StructureConfig   StructureCfg    `yaml:"Structure"`
+		TBDConfig         TBDCfg          `yaml:"TBD"`
+		UrlsConfig        UrlsCfg         `yaml:"Urls"`
+		UserAgentConfig   UserAgentCfg    `yaml:"UserAgent"`
+		BroConfig         BroCfg          `yaml:"Bro"`
+		SafeBrowsing      SafeBrowsingCfg `yaml:"SafeBrowsing"`
 	}
 
 	StructureCfg struct {
@@ -38,9 +39,15 @@ type (
 	}
 
 	BlacklistedCfg struct {
-		ThreadCount    int    `yaml:"ThreadCount"`
-		ChannelSize    int    `yaml:"ChannelSize"`
-		BlacklistTable string `yaml:"BlackListTable"`
+		ThreadCount       int    `yaml:"ThreadCount"`
+		ChannelSize       int    `yaml:"ChannelSize"`
+		BlacklistTable    string `yaml:"BlackListTable"`
+		BlacklistDatabase string `yaml:"Database"`
+	}
+
+	SafeBrowsingCfg struct {
+		APIKey   string `yaml:"APIKey"`
+		Database string `yaml:"Database"`
 	}
 
 	ScanningCfg struct {

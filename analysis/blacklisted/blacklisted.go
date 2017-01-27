@@ -3,8 +3,6 @@ package blacklisted
 import (
 	"crypto/md5"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"runtime"
 	"strconv"
 	"strings"
@@ -12,10 +10,15 @@ import (
 	"time"
 
 	"github.com/ocmdev/rita/database"
+
+	"github.com/google/safebrowsing"
+	"github.com/ocmdev/rita/config"
+
 	"github.com/ocmdev/rita/database/inteldb"
 	"github.com/ocmdev/rita/intel"
 	"github.com/ocmdev/rita/util"
 
+	"github.com/ocmdev/rita-blacklist"
 	"github.com/ocmdev/rita/datatypes/blacklisted"
 	datatype_structure "github.com/ocmdev/rita/datatypes/structure"
 
@@ -27,23 +30,25 @@ import (
 type (
 	// Blacklisted provides a handle for the blacklist module
 	Blacklisted struct {
-		db              string                 // database name (customer)
-		batch_size      int                    // BatchSize
-		prefetch        float64                // Prefetch
-		resources       *database.Resources    // resources
-		log             *log.Logger            // logger
-		channel_size    int                    // channel size
-		thread_count    int                    // Thread count
-		blacklist_table string                 // Name of blacklist table
-		intelDBHandle   *inteldb.IntelDBHandle // Handle of the inteld db
-		intelHandle     *intel.IntelHandle     // For cymru lookups
+		db              string                    // database name (customer)
+		batch_size      int                       // BatchSize
+		prefetch        float64                   // Prefetch
+		resources       *database.Resources       // resources
+		log             *log.Logger               // logger
+		channel_size    int                       // channel size
+		thread_count    int                       // Thread count
+		blacklist_table string                    // Name of blacklist table
+		intelDBHandle   *inteldb.IntelDBHandle    // Handle of the inteld db
+		intelHandle     *intel.IntelHandle        // For cymru lookups
+		safeBrowser     *safebrowsing.SafeBrowser // Google safebrowsing api
+		ritaBL          *blacklist.BlackList      // Blacklisted host database
 	}
 
 	// UrlShort is a shortened version of the URL datatype that only accounts
 	// for the IP and url (hostname)
 	UrlShort struct {
-		Url string   `bson:"url"`
-		IPs []string `bson:"ip"`
+		Url string   `bson:"host"`
+		IPs []string `bson:"ips"`
 	}
 )
 
@@ -59,18 +64,49 @@ func BuildBlacklistedCollection(res *database.Resources) {
 }
 
 // New will create a new blacklisted module
-func newBlacklisted(res *database.Resources) *Blacklisted {
+func New(c *config.Resources) *Blacklisted {
+	ssn := c.Session.Copy()
+
+	// Initialize the hook to google's safebrowsing api.
+	sbConfig := safebrowsing.Config{
+		APIKey: c.System.SafeBrowsing.APIKey,
+		DBPath: c.System.SafeBrowsing.Database,
+		Logger: c.Log.Writer(),
+	}
+	sb, err := safebrowsing.NewSafeBrowser(sbConfig)
+	if err != nil {
+		c.Log.WithField("Error", err).Error("Error opening safe browser API")
+	}
+
+	// Initialize a rita-blacklist instance. Opens a database connection
+	// to the blacklist database. This will cause an update if the list is out
+	// of date.
+	ritabl := blacklist.NewBlackList()
+	hostport := strings.Split(c.System.DatabaseHost, ":")
+	if len(hostport) > 1 {
+		port, err := strconv.Atoi(hostport[1])
+		if err == nil {
+			ritabl.Init(hostport[0], port, c.System.BlacklistedConfig.BlacklistDatabase)
+		} else {
+			c.Log.WithField("Error", err).Error("Error opening rita-blacklist hook")
+		}
+	}
+
+	// Construct and return a new blacklisted instance
 	return &Blacklisted{
-		db:              res.DB.GetSelectedDB(),
-		batch_size:      res.System.BatchSize,
-		prefetch:        res.System.Prefetch,
-		resources:       res,
-		log:             res.Log,
-		channel_size:    res.System.BlacklistedConfig.ChannelSize,
-		thread_count:    res.System.BlacklistedConfig.ThreadCount,
-		blacklist_table: res.System.BlacklistedConfig.BlacklistTable,
-		intelDBHandle:   inteldb.NewIntelDBHandle(res),
-		intelHandle:     intel.NewIntelHandle(res),
+		db:              c.System.DB,
+		session:         ssn,
+		batch_size:      c.System.BatchSize,
+		prefetch:        c.System.Prefetch,
+		resources:       c,
+		log:             c.Log,
+		channel_size:    c.System.BlacklistedConfig.ChannelSize,
+		thread_count:    c.System.BlacklistedConfig.ThreadCount,
+		blacklist_table: c.System.BlacklistedConfig.BlacklistTable,
+		intelDBHandle:   inteldb.NewIntelDBHandle(c),
+		intelHandle:     intel.NewIntelHandle(c),
+		safeBrowser:     sb,
+		ritaBL:          ritabl,
 	}
 }
 
@@ -204,13 +240,11 @@ func (b *Blacklisted) processIPs(ip chan string, waitgroup *sync.WaitGroup) {
 		}
 
 		score := 0
-		check := b.checkBlacklisted(ip)
-		if check < 0 {
-			score, _ = ipVoid(b.log, ip)
-			b.addToBlacklist(ip, score)
-		} else {
-			score = check
+		result := b.ritaBL.CheckHosts([]string{ip}, b.resources.System.BlacklistedConfig.BlacklistDatabase)
+		if len(result) > 0 {
+			score = len(result[0].Results)
 		}
+
 		if score > 0 {
 			err := cur.Insert(&blacklisted.Blacklist{
 				BLHash:      fmt.Sprintf("%x", md5.Sum([]byte(ip))),
@@ -247,27 +281,13 @@ func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup,
 		}
 
 		score := 0
-		check := -1
 
-		// Check to see if the ips associated with this url are blacklisted
-		// if so, return the highest score
-		for _, ip := range url.IPs {
-			tcheck := b.checkBlacklisted(ip)
-			if tcheck < 0 {
-				continue
+		urlList := []string{actualURL}
+		result, _ := b.safeBrowser.LookupURLs(urlList)
+		if len(result) > 0 && len(result[0]) > 0 {
+			for _ = range url.IPs {
+				score += 1
 			}
-			if tcheck > check {
-				check = tcheck
-			}
-		}
-		if check < 0 {
-			score, _ = urlVoid(b.log, actualURL)
-			for _, ip := range url.IPs {
-				b.addToBlacklist(ip, score)
-			}
-
-		} else {
-			score = check
 		}
 
 		if score > 0 {
@@ -288,75 +308,4 @@ func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup,
 			}
 		}
 	}
-}
-
-// ipVoid queries ipVoid and returns a score and a count
-func ipVoid(log *log.Logger, ip string) (int, int) {
-	query := "http://www.ipvoid.com/scan/" + ip
-	response, err := http.Get(query)
-
-	if err != nil {
-		log.Error("Error contacting ipvoid")
-		return -1, -1
-	}
-
-	defer response.Body.Close()
-	body, _ := ioutil.ReadAll(response.Body)
-	bodyString := string(body)
-
-	if strings.Contains(bodyString, "BLACKLISTED") {
-		lineSplit := strings.Split(bodyString, "BLACKLISTED ")[1]
-
-		total, err := strconv.Atoi(strings.Split(strings.Split(lineSplit, "/")[1], "<")[0])
-		if err != nil {
-			log.Error("conversion error, value: ", total)
-			return -1, -1
-		}
-
-		count, err := strconv.Atoi(strings.Split(lineSplit, "/")[0])
-		if err != nil {
-			log.Error("conversion error, value: ", count)
-			return -1, -1
-		}
-		return count, total
-	}
-
-	return 0, 0
-}
-
-func urlVoid(log *log.Logger, url string) (int, int) {
-	log.Debug("urlvoid lookup")
-
-	query := "http://www.urlvoid.com/scan/" + url
-	response, err := http.Get(query)
-	if err != nil {
-		log.Error("Error contacting urlvoid")
-		return -1, -1
-	}
-
-	defer response.Body.Close()
-	body, _ := ioutil.ReadAll(response.Body)
-	bodyString := string(body)
-
-	if strings.Contains(bodyString, "Safety Reputation") {
-		lineSplit := strings.Split(strings.Split(strings.Split(
-			bodyString, "Safety Reputation")[1],
-			"</span>")[0],
-			"span")[1]
-
-		total, err := strconv.Atoi(strings.Split(strings.Split(lineSplit, "/")[1], "<")[0])
-		if err != nil {
-			log.Error("conversion error, value: ", total)
-			return -1, -1
-		}
-
-		count, err := strconv.Atoi(strings.Split(strings.Split(lineSplit, "/")[0], ">")[1])
-		if err != nil {
-			log.Error("conversion error, value: ", count)
-			return -1, -1
-		}
-
-		return count, total
-	}
-	return 0, 0
 }

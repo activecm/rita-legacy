@@ -73,6 +73,9 @@ Bro:
     # around midnight of each day.
     UseDates: true
 
+SafeBrowsing:
+    APIKey: ""
+    Database: /usr/local/rita/safebrowsing/database
 
 # NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
 Structure:
@@ -86,6 +89,7 @@ BlackListed:
     ThreadCount: 2
     ChannelSize: 1000
     BlackListTable: blacklisted
+    Database: rita-blacklist
 
 Scanning:
     ScanThreshold: 50
