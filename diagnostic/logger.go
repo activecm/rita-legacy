@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bglebrun/rita/config"
+	"github.com/ocmdev/rita/config"
 
 	mgo "gopkg.in/mgo.v2"
 )

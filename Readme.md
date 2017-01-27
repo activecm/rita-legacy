@@ -63,9 +63,9 @@ data.
 
 1. Getting the sources and building them
   	1. First we want to use the go to grab sources and deps for rita.
-    	* ```go get github.com/bglebrun/rita```
+    	* ```go get github.com/ocmdev/rita```
   	1. Now lets change to the rita directory.
-    	* ```cd $GOPATH/src/github.com/bglebrun/rita```
+    	* ```cd $GOPATH/src/github.com/ocmdev/rita```
   	1. Then build rita.
     	* ```go build```
   	1. Now we'll install the rita binary.
@@ -95,7 +95,7 @@ data.
   1. Otherwise if you're a very busy person like us, you can fork the process as a daemon. Make the log file and grant appropriate permissions
     * ```sudo touch /data/mongod.log && sudo chown <username> mongod.log && sudo chmod u+w /data/mongod.log```
   1. Then start mongod daemon with
-    * ```mongod --fork --logpath /data/mongod.log```
+    * ```mongod --fork --logpath /data/mongod.log -f /etc/mongod.conf```
   1. If mongo is still not running, you can check out further documentation at https://docs.mongodb.com/
 
 1. Configuring the system
@@ -131,8 +131,8 @@ difficulty from easiest to hardest.
 1. Run the software and tell us when it breaks. We're happy to recieve bug
 reports. Just be sure to do the following:
   	* Give very specific descriptions of how to reproduce the bug
-  	* Let us know if you're running RITA on wierd hardware
-  	* Tell us about the size of the test, the physical resources available, and the
+  	* Let us know if you're running RITA on weird hardware
+  	* Tell us about the size of the test, and the physical resources available
 
 1. Add godoc comments to the code. This software was developed for internal use
 mostly on the fly and as needed. This means that the code was not built to the

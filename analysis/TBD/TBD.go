@@ -9,11 +9,11 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/bglebrun/rita/config"
-	datatype_TBD "github.com/bglebrun/rita/datatypes/TBD"
-	"github.com/bglebrun/rita/datatypes/data"
-	"github.com/bglebrun/rita/datatypes/structure"
-	"github.com/bglebrun/rita/util"
+	"github.com/ocmdev/rita/config"
+	datatype_TBD "github.com/ocmdev/rita/datatypes/TBD"
+	"github.com/ocmdev/rita/datatypes/data"
+	"github.com/ocmdev/rita/datatypes/structure"
+	"github.com/ocmdev/rita/util"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -69,9 +69,9 @@ func New(c *config.Resources) *TBD {
 		collectChannel:    make(chan string),
 		analysisChannel:   make(chan *tbdAnalysisInput),
 		writeChannel:      make(chan *datatype_TBD.TBDAnalysisOutput),
-		collectThreads:    runtime.NumCPU() / 2,
-		analysisThreads:   runtime.NumCPU() / 2,
-		writeThreads:      runtime.NumCPU() / 2,
+		collectThreads:    util.Max(1, runtime.NumCPU()/2),
+		analysisThreads:   util.Max(1, runtime.NumCPU()/2),
+		writeThreads:      util.Max(1, runtime.NumCPU()/2),
 	}
 }
 

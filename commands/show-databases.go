@@ -3,8 +3,8 @@ package commands
 import (
 	"fmt"
 
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 	"github.com/urfave/cli"
 )
 

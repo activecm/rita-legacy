@@ -3,10 +3,10 @@ package commands
 import (
 	"fmt"
 
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/database"
-	"github.com/bglebrun/rita/parser"
-	"github.com/bglebrun/rita/parser/docwriter"
+	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
+	"github.com/ocmdev/rita/parser"
+	"github.com/ocmdev/rita/parser/docwriter"
 	"github.com/urfave/cli"
 )
 
