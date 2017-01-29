@@ -378,6 +378,8 @@ func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 				{"ts_score", 1},
 				{"src", "$uconn.src"},
 				{"dst", "$uconn.dst"},
+				{"local_src", "$uconn.local_src"},
+				{"local_dst", "$uconn.local_dst"},
 				{"connection_count", "$uconn.connection_count"},
 				{"avg_bytes", "$uconn.avg_bytes"},
 				{"ts_iRange", 1},
