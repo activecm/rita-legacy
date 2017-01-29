@@ -21,7 +21,7 @@ type (
 	}
 )
 
-// InitConfig grabs the configuration file and intitializes the configuration data
+// InitResources grabs the configuration file and intitializes the configuration data
 // returning a *Resources object which has all of the necessary configuration information
 func InitResources(cfgPath string) *Resources {
 	conf, ok := config.GetConfig(cfgPath)

@@ -5,11 +5,13 @@ import (
 	"reflect"
 	"testing"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/ocmdev/rita/database"
 	datatype_TBD "github.com/ocmdev/rita/datatypes/TBD"
 )
 
-func printAnalysis(res datatype_TBD.TBDAnalysisOutput) string {
-	v := reflect.ValueOf(res)
+func printAnalysis(res *datatype_TBD.TBDAnalysisOutput) string {
+	v := reflect.ValueOf(*res)
 
 	var ret string
 	ret += "\n"
@@ -22,13 +24,28 @@ func printAnalysis(res datatype_TBD.TBDAnalysisOutput) string {
 }
 
 func TestAnalysis(t *testing.T) {
+	resources := database.InitMockResources("")
+	resources.Log.Level = log.DebugLevel
+	resources.System.TBDConfig.DefaultConnectionThresh = 2
+
 	fail := false
 	for i, val := range testDataList {
-		var data tbdAnalysisInput
-		data.src = "0.0.0.0"
-		data.dst = "0.0.0.0"
-		data.ts = val.ts
-		res, _ := (analysis(&data, 2, val.maxTime, val.minTime))
+		beaconing := newTBD(resources)
+		//set first and last connection times
+		beaconing.minTime = val.ts[0]
+		beaconing.maxTime = val.ts[len(val.ts)-1]
+		data := &tbdAnalysisInput{
+			src: "0.0.0.0",
+			dst: "0.0.0.0",
+			ts:  val.ts,
+		}
+
+		beaconing.analysisWg.Add(1)
+		go beaconing.analyze()
+		beaconing.analysisChannel <- data
+		close(beaconing.analysisChannel)
+		res := <-beaconing.writeChannel
+		beaconing.analysisWg.Wait()
 
 		status := "PASS"
 		if res.TS_score < val.minScore || res.TS_score > val.maxScore {
@@ -37,7 +54,6 @@ func TestAnalysis(t *testing.T) {
 		}
 
 		t.Logf("%d - %s:\n\tExpected Score: %f < x < %f\n\tDescription: %s\n%s\n", i, status, val.minScore, val.maxScore, val.description, printAnalysis(res))
-
 	}
 
 	if fail {
