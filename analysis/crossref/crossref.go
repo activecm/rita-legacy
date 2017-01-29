@@ -7,12 +7,16 @@ import (
 )
 
 type (
+	//XRefSelector selects internal and external hosts from analysis modules
 	XRefSelector interface {
-		GetName() string                                           // the name of the analyis module
-		Select(*database.Resources) (<-chan string, <-chan string) // returns the (internal, external) hosts
+		// GetName returns the name of the analyis module
+		GetName() string
+		// Select returns channels containgin the internal and external hosts
+		Select(*database.Resources) (<-chan string, <-chan string)
 	}
 )
 
+// getXRefSelectors is a place to add new selectors to the crossref module
 func getXRefSelectors() []XRefSelector {
 	beaconing := BeaconingSelector{}
 	scanning := ScanningSelector{}
@@ -20,6 +24,7 @@ func getXRefSelectors() []XRefSelector {
 	return []XRefSelector{beaconing, scanning}
 }
 
+// BuildCrossrefCollection runs threaded crossref analysis
 func BuildCrossrefCollection(res *database.Resources) {
 	//maps from analysis types to channels of hosts found
 	internal := make(map[string]<-chan string)
@@ -33,17 +38,24 @@ func BuildCrossrefCollection(res *database.Resources) {
 	}
 
 	//build internal and external at the same time
+	//we could build the two collections at the same time
+	//but, we have a thread for each analysis module reading,
+	//this thread, and a number of write threads already spun.
+	//TODO: config collection names
 	multiplexCrossref(res, "internXREF", internal)
 	multiplexCrossref(res, "externXREF", external)
 }
 
+//multiplexCrossref takes a target colllection, and a map from
+//analysis module names to a channel containging the hosts associated with it
+//and writes the incoming hosts to the target crossref collection
 func multiplexCrossref(res *database.Resources, collection string,
-	internalHosts map[string]<-chan string) {
+	analysisModules map[string]<-chan string) {
 
-	//each analysis type, while Mongo has awesome document level concurrency
-	//writing the results from two different tests will lead to lock contention
-	//however, we can spin up several threads per test type
-	for name, hosts := range internalHosts {
+	//While Mongo has awesome document level concurrency
+	//writing the results from two different analysis modules will lead
+	//to lock contention we can spin up several threads per test type
+	for name, hosts := range analysisModules {
 		internWG := new(sync.WaitGroup)
 
 		//create a number of threads to write
@@ -52,10 +64,11 @@ func multiplexCrossref(res *database.Resources, collection string,
 			internWG.Add(1)
 			go writeCrossref(res, collection, name, hosts, internWG)
 		}
-		internWG.Wait()
+		internWG.Wait() //waitfor all of the writes for this analysis module
 	}
 }
 
+// writeCrossref upserts a value into the target crossref collection
 func writeCrossref(res *database.Resources, collection string, name string,
 	hosts <-chan string, externWG *sync.WaitGroup) {
 
