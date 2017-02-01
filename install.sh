@@ -126,18 +126,6 @@ __install() {
   /usr/local/go/bin/go build
   /usr/local/go/bin/go install
 
-  echo "[+] Make sure you also configure Bro and run with 'sudo broctl deploy' and make sure MongoDB is running with the command 'mongo' or 'sudo mongo'.
-"
-
-
-
-  echo -e "
-[+] If you need to stop Mongo at any time, run 'sudo service mongod stop'
-[+] In order to finish the installation, reload bash config with 'source ~/.bashrc'.
-[+] Also make sure to start the mongoDB service with 'sudo service mongod start before running RITA.
-[+] You can access the mongo shell with 'sudo mongo'
-"
-
 	printf "[+] Transferring files\n"
 	mkdir $_RITADIR
 
@@ -172,6 +160,21 @@ __install() {
   sudo make install
   cd ..
   rm -rf netcat-0.7.1
+
+  # Give the means of ownership of ~/go to the user~
+  sudo chown -R $USER /home/$USER/go
+
+  echo "[+] Make sure you also configure Bro and run with 'sudo broctl deploy' and make sure MongoDB is running with the command 'mongo' or 'sudo mongo'.
+"
+
+
+
+  echo -e "
+[+] If you need to stop Mongo at any time, run 'sudo service mongod stop'
+[+] In order to finish the installation, reload bash config with 'source ~/.bashrc'.
+[+] Also make sure to start the mongoDB service with 'sudo service mongod start before running RITA.
+[+] You can access the mongo shell with 'sudo mongo'
+"
 
 	printf "Thank you for installing RITA!\n"
 	printf "OCMDev Group projects IRC #ocmdev on OFTC\n"
