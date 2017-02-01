@@ -161,7 +161,7 @@ __install() {
   cd ..
   rm -rf netcat-0.7.1
 
-  # Give the means of ownership of ~/go to the user~
+  # Give ownership of ~/go to the user
   sudo chown -R $USER /home/$USER/go
 
   echo "[+] Make sure you also configure Bro and run with 'sudo broctl deploy' and make sure MongoDB is running with the command 'mongo' or 'sudo mongo'.
