@@ -126,18 +126,6 @@ __install() {
   /usr/local/go/bin/go build
   /usr/local/go/bin/go install
 
-  # gnu-netcat
-  wget https://sourceforge.net/projects/netcat/files/netcat/0.7.1/netcat-0.7.1.tar.gz
-  tar -zxf netcat-0.7.1.tar.gz
-  rm netcat-0.7.1.tar.gz
-  cd netcat-0.7.1
-  mkdir -p ~/go/src/github.com/ocmdev/rita/nc
-  ./configure --prefix=$HOME/go/src/github.com/ocmdev/rita/nc
-  sudo make
-  sudo make install
-  cd ..
-  rm -rf netcat-0.7.1
-
   echo "[+] Make sure you also configure Bro and run with 'sudo broctl deploy' and make sure MongoDB is running with the command 'mongo' or 'sudo mongo'.
 "
 
@@ -172,6 +160,18 @@ __install() {
 			cp etc/rita.yaml $HOME/.rita
 		fi
 	fi
+
+  printf "[+] Installing gnu-netcat to /usr/local/rita\n"
+  # gnu-netcat
+  wget https://sourceforge.net/projects/netcat/files/netcat/0.7.1/netcat-0.7.1.tar.gz
+  tar -zxf netcat-0.7.1.tar.gz
+  rm netcat-0.7.1.tar.gz
+  cd netcat-0.7.1
+  ./configure --prefix=/usr/local/rita
+  sudo make
+  sudo make install
+  cd ..
+  rm -rf netcat-0.7.1
 
 	printf "Thank you for installing RITA!\n"
 	printf "OCMDev Group projects IRC #ocmdev on OFTC\n"
