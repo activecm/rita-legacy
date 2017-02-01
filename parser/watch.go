@@ -12,9 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/parser/docwriter"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database"
+	"github.com/bglebrun/rita/parser/docwriter"
+	"github.com/weekface/mgorus"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -30,6 +31,19 @@ type (
 		Meta         *database.MetaDBHandle // Handle to the metadata
 	}
 )
+
+// Hook our logger into MongoDB
+func init() {
+	hooker, err := mgorus.NewHooker("localhost:27017", "ritaErr", "runErr")
+
+	if err == nil {
+		log.AddHook(hooker)
+	} else {
+		log.WithFields(log.Fields{
+			"Database Hook": "Not connected!",
+		}).Warn("Log could not be hooked into MongoDB, errors will not be logged!")
+	}
+}
 
 // newPFiles generates the pfileObjects
 func (w *Watcher) newPFiles() {

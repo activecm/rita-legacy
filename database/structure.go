@@ -3,12 +3,26 @@ package database
 import (
 	// "fmt"
 
-	"github.com/ocmdev/rita/analysis/structure"
+	"github.com/bglebrun/rita/analysis/structure"
 
 	// log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 )
 
+/*
+// Hook our logger into MongoDB
+func init() {
+	hooker, err := mgorus.NewHooker("localhost:27017", "ritaErr", "runErr")
+
+	if err == nil {
+		log.AddHook(hooker)
+	} else {
+		log.WithFields(log.Fields{
+			"Database Hook": "Not connected!",
+		}).Warn("Log could not be hooked into MongoDB, errors will not be logged!")
+	}
+}
+*/
 ///////////////////////////////////////////////////////////////////////////////
 //////////////////// LAYER 1 COLLECTION BUILDING FUNCTIONS ////////////////////
 ///////////////////////////////////////////////////////////////////////////////

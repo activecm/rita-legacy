@@ -2,10 +2,12 @@ package inteldb
 
 import (
 	"errors"
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/datatypes/intel"
 	"sync"
 	"time"
+
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/datatypes/intel"
+	"github.com/weekface/mgorus"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"
@@ -78,6 +80,19 @@ type (
 		db string
 	}
 )
+
+// Hook our logger into MongoDB
+func init() {
+	hooker, err := mgorus.NewHooker("localhost:27017", "ritaErr", "runErr")
+
+	if err == nil {
+		log.AddHook(hooker)
+	} else {
+		log.WithFields(log.Fields{
+			"Database Hook": "Not connected!",
+		}).Warn("Log could not be hooked into MongoDB, errors will not be logged!")
+	}
+}
 
 // NewIntelDBHandle provides a new handle to the intelligence database
 func NewIntelDBHandle(conf *config.Resources) *IntelDBHandle {

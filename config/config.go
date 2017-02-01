@@ -7,9 +7,23 @@ import (
 	"os/user"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/weekface/mgorus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/yaml.v2"
 )
+
+// Hook our logger into MongoDB
+func init() {
+	hooker, err := mgorus.NewHooker("localhost:27017", "ritaErr", "runErr")
+
+	if err == nil {
+		log.AddHook(hooker)
+	} else {
+		log.WithFields(log.Fields{
+			"Database Hook": "Not connected!",
+		}).Warn("Log could not be hooked into MongoDB, errors will not be logged!")
+	}
+}
 
 type (
 	SystemConfig struct {

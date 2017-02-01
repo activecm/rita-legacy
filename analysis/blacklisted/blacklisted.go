@@ -13,13 +13,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database/inteldb"
-	"github.com/ocmdev/rita/intel"
-	"github.com/ocmdev/rita/util"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database/inteldb"
+	"github.com/bglebrun/rita/intel"
+	"github.com/bglebrun/rita/util"
 
-	"github.com/ocmdev/rita/datatypes/blacklisted"
-	datatype_structure "github.com/ocmdev/rita/datatypes/structure"
+	"github.com/bglebrun/rita/datatypes/blacklisted"
+	datatype_structure "github.com/bglebrun/rita/datatypes/structure"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"

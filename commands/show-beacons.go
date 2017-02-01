@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"text/template"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/TBD"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database"
+	"github.com/bglebrun/rita/datatypes/TBD"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )

@@ -9,13 +9,14 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/ocmdev/rita/config"
-	datatype_TBD "github.com/ocmdev/rita/datatypes/TBD"
-	"github.com/ocmdev/rita/datatypes/data"
-	"github.com/ocmdev/rita/datatypes/structure"
-	"github.com/ocmdev/rita/util"
+	"github.com/bglebrun/rita/config"
+	datatype_TBD "github.com/bglebrun/rita/datatypes/TBD"
+	"github.com/bglebrun/rita/datatypes/data"
+	"github.com/bglebrun/rita/datatypes/structure"
+	"github.com/bglebrun/rita/util"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/weekface/mgorus"
 )
 
 type (
@@ -49,6 +50,19 @@ type (
 		//resp_bytes []int64
 	}
 )
+
+// Hook our logger into MongoDB
+func init() {
+	hooker, err := mgorus.NewHooker("localhost:27017", "ritaErr", "runErr")
+
+	if err == nil {
+		log.AddHook(hooker)
+	} else {
+		log.WithFields(log.Fields{
+			"Database Hook": "Not connected!",
+		}).Warn("Log could not be hooked into MongoDB, errors will not be logged!")
+	}
+}
 
 // New creates a new TBD module
 func New(c *config.Resources) *TBD {

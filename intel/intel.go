@@ -10,10 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database/inteldb"
-	"github.com/ocmdev/rita/datatypes/intel"
-	"github.com/ocmdev/rita/util"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database/inteldb"
+	"github.com/bglebrun/rita/datatypes/intel"
+	"github.com/bglebrun/rita/util"
+	"github.com/weekface/mgorus"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -63,6 +64,19 @@ var PEBadCymruFieldCount = errors.New("Line contained incorrect number of fields
 var CLBadIPAddress = errors.New("CymruLookupRecieved an invalid IP address")
 
 const expectedCymruFields = 7
+
+// Hook our logger into MongoDB
+func init() {
+	hooker, err := mgorus.NewHooker("localhost:27017", "ritaErr", "runErr")
+
+	if err == nil {
+		log.AddHook(hooker)
+	} else {
+		log.WithFields(log.Fields{
+			"Database Hook": "Not connected!",
+		}).Warn("Log could not be hooked into MongoDB, errors will not be logged!")
+	}
+}
 
 // NewIntelHandle uses a config.Resources to generate a new intel handle
 func NewIntelHandle(conf *config.Resources) *IntelHandle {

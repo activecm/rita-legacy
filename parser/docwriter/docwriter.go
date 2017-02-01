@@ -5,8 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/database"
+	"github.com/weekface/mgorus"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/davecgh/go-spew/spew"
@@ -38,6 +39,19 @@ type (
 		dblock    *sync.Mutex            // For the Databases fields
 	}
 )
+
+// Hook our logger into MongoDB
+func init() {
+	hooker, err := mgorus.NewHooker("localhost:27017", "ritaErr", "runErr")
+
+	if err == nil {
+		log.AddHook(hooker)
+	} else {
+		log.WithFields(log.Fields{
+			"Database Hook": "Not connected!",
+		}).Warn("Log could not be hooked into MongoDB, errors will not be logged!")
+	}
+}
 
 // New generates a new DocWriter
 func New(cfg *config.Resources, mdb *database.MetaDBHandle) *DocWriter {

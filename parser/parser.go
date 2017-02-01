@@ -12,8 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/parser/docwriter"
+	"github.com/bglebrun/rita/config"
+	"github.com/bglebrun/rita/parser/docwriter"
+	"github.com/weekface/mgorus"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -47,6 +48,19 @@ type (
 		}
 	}
 )
+
+// Hook our logger into MongoDB
+func init() {
+	hooker, err := mgorus.NewHooker("localhost:27017", "ritaErr", "runErr")
+
+	if err == nil {
+		log.AddHook(hooker)
+	} else {
+		log.WithFields(log.Fields{
+			"Database Hook": "Not connected!",
+		}).Warn("Log could not be hooked into MongoDB, errors will not be logged!")
+	}
+}
 
 // ParseFile generates a document parser and parses the file to the writer
 // Pass this a started writer. Otherwise the writers will be started several times and may lock

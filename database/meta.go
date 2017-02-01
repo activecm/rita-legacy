@@ -5,7 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
+	"github.com/bglebrun/rita/config"
+	"github.com/weekface/mgorus"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"
@@ -41,6 +42,19 @@ type (
 		Analyzed bool          `bson:"analyzed"`      // Has this database been analyzed
 	}
 )
+
+// Hook our logger into MongoDB
+func init() {
+	hooker, err := mgorus.NewHooker("localhost:27017", "ritaErr", "runErr")
+
+	if err == nil {
+		log.AddHook(hooker)
+	} else {
+		log.WithFields(log.Fields{
+			"Database Hook": "Not connected!",
+		}).Warn("Log could not be hooked into MongoDB, errors will not be logged!")
+	}
+}
 
 // NewMetaDBHandle takes in a configuration and returns a MetaDBHandle controller
 func NewMetaDBHandle(cfg *config.Resources) *MetaDBHandle {
