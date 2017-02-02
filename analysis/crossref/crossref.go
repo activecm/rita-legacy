@@ -4,28 +4,22 @@ import (
 	"sync"
 
 	"github.com/ocmdev/rita/database"
-)
-
-type (
-	//XRefSelector selects internal and external hosts from analysis modules
-	XRefSelector interface {
-		// GetName returns the name of the analyis module
-		GetName() string
-		// Select returns channels containgin the internal and external hosts
-		Select(*database.Resources) (<-chan string, <-chan string)
-	}
+	dataXRef "github.com/ocmdev/rita/datatypes/crossref"
 )
 
 // getXRefSelectors is a place to add new selectors to the crossref module
-func getXRefSelectors() []XRefSelector {
+func getXRefSelectors() []dataXRef.XRefSelector {
 	beaconing := BeaconingSelector{}
 	scanning := ScanningSelector{}
 
-	return []XRefSelector{beaconing, scanning}
+	return []dataXRef.XRefSelector{beaconing, scanning}
 }
 
 // BuildCrossrefCollection runs threaded crossref analysis
 func BuildCrossrefCollection(res *database.Resources) {
+	res.DB.CreateCollection("internXREF", []string{"host"})
+	res.DB.CreateCollection("externXREF", []string{"host"})
+
 	//maps from analysis types to channels of hosts found
 	internal := make(map[string]<-chan string)
 	external := make(map[string]<-chan string)
@@ -52,29 +46,27 @@ func BuildCrossrefCollection(res *database.Resources) {
 func multiplexCrossref(res *database.Resources, collection string,
 	analysisModules map[string]<-chan string) {
 
-	//While Mongo has awesome document level concurrency
-	//writing the results from two different analysis modules will lead
-	//to lock contention we can spin up several threads per test type
+	xRefWG := new(sync.WaitGroup)
 	for name, hosts := range analysisModules {
-		internWG := new(sync.WaitGroup)
-
-		//create a number of threads to write
-		//TODO config this value
-		for i := 0; i < 2; i++ {
-			internWG.Add(1)
-			go writeCrossref(res, collection, name, hosts, internWG)
-		}
-		internWG.Wait() //waitfor all of the writes for this analysis module
+		xRefWG.Add(1)
+		go writeCrossref(res, collection, name, hosts, xRefWG)
 	}
+	xRefWG.Wait()
 }
 
 // writeCrossref upserts a value into the target crossref collection
-func writeCrossref(res *database.Resources, collection string, name string,
-	hosts <-chan string, externWG *sync.WaitGroup) {
+func writeCrossref(res *database.Resources, collection string,
+	moduleName string, hosts <-chan string, externWG *sync.WaitGroup) {
+
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
 
 	for host := range hosts {
-		//mongo upsert
-		_ = host
+		data := dataXRef.XRef{
+			ModuleName: moduleName,
+			Host:       host,
+		}
+		ssn.DB(res.DB.GetSelectedDB()).C(collection).Insert(data)
 	}
 	externWG.Done()
 }

@@ -20,6 +20,7 @@ func (s ScanningSelector) Select(res *database.Resources) (<-chan string, <-chan
 	// run the read code async and return the channels immediately
 	go func() {
 		ssn := res.DB.Session.Copy()
+		defer ssn.Close()
 		iter := ssn.DB(res.DB.GetSelectedDB()).
 			C(res.System.ScanningConfig.ScanTable).Find(nil).Iter()
 
