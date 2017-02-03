@@ -28,9 +28,7 @@ func BuildHostsCollection(res *database.Resources) {
 		return
 	}
 
-	// In case we need results
-	results := []bson.M{}
-	res.DB.AggregateCollection(source_collection_name, pipeline, &results)
+	res.DB.AggregateCollection(source_collection_name, pipeline)
 }
 
 func getHosts(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
