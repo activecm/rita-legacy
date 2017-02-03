@@ -91,6 +91,11 @@ BlackListed:
     BlackListTable: blacklisted
     Database: rita-blacklist
 
+Crossref:
+    InternalTable: internXREF
+    ExternalTable: externXREF
+    TBDThreshold: .7
+
 Scanning:
     ScanThreshold: 50
     ScanTable: scan

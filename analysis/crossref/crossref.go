@@ -15,10 +15,10 @@ func getXRefSelectors() []dataXRef.XRefSelector {
 	return []dataXRef.XRefSelector{beaconing, scanning}
 }
 
-// BuildCrossrefCollection runs threaded crossref analysis
-func BuildCrossrefCollection(res *database.Resources) {
-	res.DB.CreateCollection("internXREF", []string{"host"})
-	res.DB.CreateCollection("externXREF", []string{"host"})
+// BuildXRefCollection runs threaded crossref analysis
+func BuildXRefCollection(res *database.Resources) {
+	res.DB.CreateCollection(res.System.CrossrefConfig.InternalTable, []string{"host"})
+	res.DB.CreateCollection(res.System.CrossrefConfig.ExternalTable, []string{"host"})
 
 	//maps from analysis types to channels of hosts found
 	internal := make(map[string]<-chan string)
@@ -36,26 +36,26 @@ func BuildCrossrefCollection(res *database.Resources) {
 	//but, we have a thread for each analysis module reading,
 	//this thread, and a number of write threads already spun.
 	//TODO: config collection names
-	multiplexCrossref(res, "internXREF", internal)
-	multiplexCrossref(res, "externXREF", external)
+	multiplexXRef(res, res.System.CrossrefConfig.InternalTable, internal)
+	multiplexXRef(res, res.System.CrossrefConfig.ExternalTable, external)
 }
 
-//multiplexCrossref takes a target colllection, and a map from
+//multiplexXRef takes a target colllection, and a map from
 //analysis module names to a channel containging the hosts associated with it
 //and writes the incoming hosts to the target crossref collection
-func multiplexCrossref(res *database.Resources, collection string,
+func multiplexXRef(res *database.Resources, collection string,
 	analysisModules map[string]<-chan string) {
 
 	xRefWG := new(sync.WaitGroup)
 	for name, hosts := range analysisModules {
 		xRefWG.Add(1)
-		go writeCrossref(res, collection, name, hosts, xRefWG)
+		go writeXRef(res, collection, name, hosts, xRefWG)
 	}
 	xRefWG.Wait()
 }
 
-// writeCrossref upserts a value into the target crossref collection
-func writeCrossref(res *database.Resources, collection string,
+// writeXRef upserts a value into the target crossref collection
+func writeXRef(res *database.Resources, collection string,
 	moduleName string, hosts <-chan string, externWG *sync.WaitGroup) {
 
 	ssn := res.DB.Session.Copy()
