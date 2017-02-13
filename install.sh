@@ -84,7 +84,7 @@ __install() {
       sudo tar -zxvf  go1.7.1.linux-amd64.tar.gz -C /usr/local/
       sudo rm go1.7.1.linux-amd64.tar.gz
   else
-        echo -e "\e[31m[-] WARNING: Go has been detected in /usr/bin/go,\e[37m if you
+        echo -e "\e[31m[-] WARNING: Go has been detected on this system,\e[37m if you
   installed with apt, RITA has only been tested with golang 1.7 which is currently not the
   version in the Ubuntu apt repositories, make sure your golang is up to date
   with 'go version'. Otherwise you can remove with 'sudo apt remove golang' and let this script
