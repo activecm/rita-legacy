@@ -134,13 +134,20 @@ __install() {
   sudo chown -R $USER /data
 
   printf "[+] Running 'go get github.com/ocmdev/rita'\n\n"
+  if [-e "/usr/local/go/bin"]
+  then
+    /usr/local/go/bin/go get github.com/ocmdev/rita
+    cd $GOPATH/src/github.com/ocmdev/rita
 
-  /usr/local/go/bin/go get github.com/ocmdev/rita
-  cd $GOPATH/src/github.com/ocmdev/rita
-
-  printf "[+] Done! Now we just have to build and install RITA.\n"
-  /usr/local/go/bin/go build
-  /usr/local/go/bin/go install
+    printf "[+] Done! Now we just have to build and install RITA.\n"
+    /usr/local/go/bin/go build
+    /usr/local/go/bin/go install
+  else
+    go get github.com/ocmdev/rita
+    cd $GOPATH/src/github.com/ocmdev/rita
+    go build
+    go install
+  fi
 
 	printf "[+] Transferring files\n"
 	mkdir $_RITADIR
