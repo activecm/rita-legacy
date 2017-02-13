@@ -87,11 +87,12 @@ version in the Ubuntu apt repositories, make sure your golang is up to date
 with 'go version'. Otherwise you can remove with 'sudo apt remove golang' and let this script
 install the correct version for you!"
     sleep 10s
-  else
-    # golang most recent update
-    wget https://storage.googleapis.com/golang/go1.7.1.linux-amd64.tar.gz
-    sudo tar -zxvf  go1.7.1.linux-amd64.tar.gz -C /usr/local/
-    sudo rm go1.7.1.linux-amd64.tar.gz
+    else
+      # golang most recent update
+      wget https://storage.googleapis.com/golang/go1.7.1.linux-amd64.tar.gz
+      sudo tar -zxvf  go1.7.1.linux-amd64.tar.gz -C /usr/local/
+      sudo rm go1.7.1.linux-amd64.tar.gz
+    fi
   else
     echo "[-] Looks like go is already installed, we'll skip downloading and installing for now"
   fi
