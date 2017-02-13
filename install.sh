@@ -85,16 +85,12 @@ __install() {
       sudo rm go1.7.1.linux-amd64.tar.gz
   else
     if [-e "/usr/bin/go"]
-      then
-        echo -e "\e[31m[-] WARNING: Go has been detected in /usr/bin/go,\e[37m often times a result of
-  installing with apt, RITA has only been tested with golang 1.7 which is currently not the correct
+        echo -e "\e[31m[-] WARNING: Go has been detected in /usr/bin/go,\e[37m if you
+  installed with apt, RITA has only been tested with golang 1.7 which is currently not the
   version in the Ubuntu apt repositories, make sure your golang is up to date
   with 'go version'. Otherwise you can remove with 'sudo apt remove golang' and let this script
   install the correct version for you!"
       sleep 10s
-      else
-      echo "[-] Looks like go is already installed, we'll skip downloading and installing for now"
-    fi
   fi
 
   echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
