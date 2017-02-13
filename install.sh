@@ -77,7 +77,7 @@ __install() {
   sudo apt install -y build-essential
 
 
-  if [ ! -f "/usr/local/go/"]
+  if [ ! -e "/usr/local/go/" ]
   then
       # golang most recent update
       wget https://storage.googleapis.com/golang/go1.7.1.linux-amd64.tar.gz
