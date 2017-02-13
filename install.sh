@@ -77,24 +77,24 @@ __install() {
   sudo apt install -y build-essential
 
 
-  if [-e "/usr/local/go/"]
+  if [!-e "/usr/local/go/"]
   then
       # golang most recent update
       wget https://storage.googleapis.com/golang/go1.7.1.linux-amd64.tar.gz
       sudo tar -zxvf  go1.7.1.linux-amd64.tar.gz -C /usr/local/
       sudo rm go1.7.1.linux-amd64.tar.gz
   else
+    if [-e "/usr/bin/go"]
+      then
+        echo -e "\e[31m[-] WARNING: Go has been detected in /usr/bin/go,\e[37m often times a result of
+  installing with apt, RITA has only been tested with golang 1.7 which is currently not the correct
+  version in the Ubuntu apt repositories, make sure your golang is up to date
+  with 'go version'. Otherwise you can remove with 'sudo apt remove golang' and let this script
+  install the correct version for you!"
+      sleep 10s
+      else
       echo "[-] Looks like go is already installed, we'll skip downloading and installing for now"
-  fi
-
-  if [-e "/usr/bin/go"]
-    then
-      echo -e "\e[31m[-] WARNING: Go has been detected in /usr/bin/go,\e[37m often times a result of
-installing with apt, RITA has only been tested with golang 1.7 which is currently not the correct
-version in the Ubuntu apt repositories, make sure your golang is up to date
-with 'go version'. Otherwise you can remove with 'sudo apt remove golang' and let this script
-install the correct version for you!"
-    sleep 10s
+    fi
   fi
 
   echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
