@@ -6,12 +6,8 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// BuildHostsCollection builds the 'host' collection for this timeframe. Note
-// that this is a different host collection that the one found in HostsIntelDB.
-// This host collection references only hosts found in this time frame, info
-// from the HostsIntelDB collection can be found by following the 'intelid' field
-// after it is populated by the cymru and blacklist modules. Runs via mongodb
-// aggregation. Sourced from the 'conn' table.
+// BuildHostsCollection builds the 'host' collection for this timeframe.
+// Runs via mongodb aggregation. Sourced from the 'conn' table.
 // TODO: Confirm that this section of code is not faster than an aggregation from
 // the 'uconn' table which should have less repeated data.
 func BuildHostsCollection(res *database.Resources) {

@@ -14,7 +14,6 @@ type (
 		LogType           string          `yaml:"LogType"`
 		GNUNetcatPath     string          `yaml:"GNUNetcatPath"`
 		BatchSize         int             `yaml:"BatchSize"`
-		HostIntelDB       string          `yaml:"HostIntelDB"`
 		DatabaseHost      string          `yaml:"DatabaseHost"`
 		LogLevel          int             `yaml:"LogLevel"`
 		Prefetch          float64         `yaml:"Prefetch"`

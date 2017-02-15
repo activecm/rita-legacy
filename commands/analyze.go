@@ -11,7 +11,6 @@ import (
 	"github.com/ocmdev/rita/analysis/urls"
 	"github.com/ocmdev/rita/analysis/useragent"
 	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/intel"
 	"github.com/urfave/cli"
 )
 
@@ -82,16 +81,10 @@ func analyze(inDb string, configFile string) {
 
 		urls.BuildUrlsCollection(res)
 
-		// The intel module leans on the hostnames collection
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Building the hostnames collection\n")
 
 		urls.BuildHostnamesCollection(res)
-
-		fmt.Fprintf(os.Stdout,
-			"\t[-] Adding new external hosts to the intelligence database\n")
-
-		intel.NewIntelHandle(res).Run()
 
 		// Module Collections
 		fmt.Fprintf(os.Stdout,
