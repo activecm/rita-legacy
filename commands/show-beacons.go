@@ -42,7 +42,8 @@ func showBeacons(c *cli.Context) error {
 	res := database.InitResources("")
 	res.DB.SelectDB(c.String("database"))
 
-	data := TBD.GetTBDResultsView(res, cutoffScore)
+	var data []tbdData.TBDAnalysisView
+	TBD.GetTBDResultsView(res, cutoffScore).All(data)
 
 	if humanreadable {
 		return showBeaconReport(data)

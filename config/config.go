@@ -21,6 +21,7 @@ type (
 		Whitelist         []string        `yaml:"WhiteList"`
 		ImportWhitelist   bool            `yaml:"ImportWhitelist"`
 		BlacklistedConfig BlacklistedCfg  `yaml:"BlackListed"`
+		CrossrefConfig    CrossrefCfg     `yaml:"Crossref"`
 		ScanningConfig    ScanningCfg     `yaml:"Scanning"`
 		StructureConfig   StructureCfg    `yaml:"Structure"`
 		TBDConfig         TBDCfg          `yaml:"TBD"`
@@ -43,6 +44,12 @@ type (
 		ChannelSize       int    `yaml:"ChannelSize"`
 		BlacklistTable    string `yaml:"BlackListTable"`
 		BlacklistDatabase string `yaml:"Database"`
+	}
+
+	CrossrefCfg struct {
+		InternalTable string  `yaml:"InternalTable"`
+		ExternalTable string  `yaml:"ExternalTable"`
+		TBDThreshold  float64 `yaml:"TBDThreshold"`
 	}
 
 	SafeBrowsingCfg struct {

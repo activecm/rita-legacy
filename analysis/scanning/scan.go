@@ -22,8 +22,7 @@ func BuildScanningCollection(res *database.Resources) {
 	}
 
 	// Aggregate it!
-	results := []bson.M{}
-	res.DB.AggregateCollection(source_collection_name, pipeline, &results)
+	res.DB.AggregateCollection(source_collection_name, pipeline)
 }
 
 func getScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {

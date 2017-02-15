@@ -104,7 +104,7 @@ func (d *DB) CreateCollection(name string, indeces []string) string {
  * Purpose:  Builds collections that are built via aggregation
  * comments:
  */
-func (d *DB) AggregateCollection(source_collection_name string, pipeline []bson.D, results interface{}) {
+func (d *DB) AggregateCollection(source_collection_name string, pipeline []bson.D) *mgo.Iter {
 	// Make a copy of the current session
 	session := d.Session.Copy()
 	defer session.Close()
@@ -117,24 +117,24 @@ func (d *DB) AggregateCollection(source_collection_name string, pipeline []bson.
 	// Identify the source collection we will aggregate information from into the new collection
 	if !d.CollectionExists(source_collection_name) {
 		d.resources.Log.Info("Failed aggregation: (Source collection: ", source_collection_name, " doesn't exist)")
-		return //results
+		return nil
 	}
 	source_collection := session.DB(d.selected).C(source_collection_name)
 
 	// Create the pipe
 	pipe := source_collection.Pipe(pipeline).AllowDiskUse()
 
-	err := pipe.All(results)
+	iter := pipe.Iter()
 
 	// If error, Throw computer against wall and drink 2 angry beers while
 	// questioning your life, purpose, and relationships.
-	if err != nil {
+	if iter.Err() != nil {
 		d.resources.Log.WithFields(log.Fields{
-			"error": err.Error(),
+			"error": iter.Err().Error(),
 		}).Panic("Failed aggregate operation")
-		return
+		return nil
 	}
-
+	return iter
 }
 
 /*
