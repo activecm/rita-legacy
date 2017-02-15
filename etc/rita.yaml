@@ -1,15 +1,6 @@
 # Mongo Database to connect to
 DatabaseHost: localhost:27017
 
-# Intel makes use of GNU Netcat to make bulk requests from the team cymru WHOIS
-# server. It is important that it is *GNU* netcat at this path.
-GNUNetcatPath: /usr/local/rita
-
-# Name of the host intelligence database. This can be the same across many tests.
-# Data like blacklist information, ASN, etc, will be gathered here in order to
-# attempt to reduce the number of lookups necessary.
-HostIntelDB: HostIntelligence
-
 # LogLevel
 # 3 = debug
 # 2 = info

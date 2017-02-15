@@ -13,8 +13,6 @@ import (
 
 	"github.com/google/safebrowsing"
 
-	"github.com/ocmdev/rita/database/inteldb"
-	"github.com/ocmdev/rita/intel"
 	"github.com/ocmdev/rita/util"
 
 	"github.com/ocmdev/rita-blacklist"
@@ -37,8 +35,6 @@ type (
 		channel_size    int                       // channel size
 		thread_count    int                       // Thread count
 		blacklist_table string                    // Name of blacklist table
-		intelDBHandle   *inteldb.IntelDBHandle    // Handle of the inteld db
-		intelHandle     *intel.IntelHandle        // For cymru lookups
 		safeBrowser     *safebrowsing.SafeBrowser // Google safebrowsing api
 		ritaBL          *blacklist.BlackList      // Blacklisted host database
 	}
@@ -99,8 +95,6 @@ func newBlacklisted(res *database.Resources) *Blacklisted {
 		channel_size:    res.System.BlacklistedConfig.ChannelSize,
 		thread_count:    res.System.BlacklistedConfig.ThreadCount,
 		blacklist_table: res.System.BlacklistedConfig.BlacklistTable,
-		intelDBHandle:   inteldb.NewIntelDBHandle(res),
-		intelHandle:     intel.NewIntelHandle(res),
 		safeBrowser:     sb,
 		ritaBL:          ritabl,
 	}
@@ -174,7 +168,6 @@ func (b *Blacklisted) run() {
 
 	b.log.Info("Lookups complete waiting on checks to run")
 	waitgroup.Wait()
-	b.intelDBHandle.Close()
 	b.log.WithFields(log.Fields{
 		"time_elapsed": time.Since(start),
 	}).Info("Blacklist analysis completed")
