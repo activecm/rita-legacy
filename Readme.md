@@ -11,6 +11,51 @@ Hunter is available in this package. The only thing not here is the graphical
 front end which Offensive CounterMeasures has created to help visualize this
 data.
 
+### Automatic Installation
+Rita is currently supported on Ubuntu 16.04 LTS.
+
+Clone the package:
+```bash
+git clone https://github.com/ocmdev/rita.git
+```
+
+Change into the source directory:
+```bash
+cd rita
+```
+Run the installer:
+
+**Note:** Make sure you have permission to write to the install directory.
+By default, Rita will install to /usr/local/rita.
+However, you can change the install location with the *-i* flag.
+```bash
+./install.sh
+```
+
+***or***
+
+```bash
+./install.sh -i /path/to/install/directory
+```
+
+### Manual Installation
+To install each component of Rita by hand, [check out the instructions in the wiki](https://github.com/ocmdev/rita/wiki/Installation).
+
+### Configuration File
+The default location for the config file is */etc/rita/config.yaml*. However, if the installer did not have permission to write to that directory, the config file will be found at *~/.rita*.
+
+
+### API Keys
+Rita relies on the the [Google Safe Browsing API](https://developers.google.com/safe-browsing/) to check network log data for connections to known threats. An API key is required to use this service. Obtaining a key is free, and only requires a Google account.
+
+To obtain an API key:
+  * Go to the [cloud platform console](https://console.cloud.google.com/).
+  * From the projects list, select a project or create a new one.
+  * If the API Manager page isn't already open, open the left side menu and select **API Manager**.
+  * On the left, choose **Credentials**.
+  * Click **Create credentials** and then select **API key**.
+  
+Copy this API key to the **APIKey** field under **SafeBrowsing** in the configuration file.
 
 ###Getting help
 Head over to OFTC and join #ocmdev for any questions you may have. Please
