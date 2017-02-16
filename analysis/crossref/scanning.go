@@ -15,8 +15,8 @@ func (s ScanningSelector) GetName() string {
 
 func (s ScanningSelector) Select(res *database.Resources) (<-chan string, <-chan string) {
 	// make channels to return
-	internalHosts := make(chan string)
-	externalHosts := make(chan string)
+	internalHosts := make(chan string, 100)
+	externalHosts := make(chan string, 100)
 	// run the read code async and return the channels immediately
 	go func() {
 		ssn := res.DB.Session.Copy()

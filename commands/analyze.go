@@ -6,6 +6,7 @@ import (
 
 	"github.com/ocmdev/rita/analysis/TBD"
 	"github.com/ocmdev/rita/analysis/blacklisted"
+	"github.com/ocmdev/rita/analysis/crossref"
 	"github.com/ocmdev/rita/analysis/scanning"
 	"github.com/ocmdev/rita/analysis/structure"
 	"github.com/ocmdev/rita/analysis/urls"
@@ -105,6 +106,10 @@ func analyze(inDb string, configFile string) {
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Searching for port scanning activity\n")
 		scanning.BuildScanningCollection(res)
+
+		fmt.Fprintf(os.Stdout,
+			"\t[-] Running cross-reference analysis\n")
+		crossref.BuildXRefCollection(res)
 
 		res.MetaDB.MarkDBAnalyzed(td, true)
 		fmt.Fprintf(os.Stdout,
