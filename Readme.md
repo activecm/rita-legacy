@@ -11,6 +11,34 @@ Hunter is available in this package. The only thing not here is the graphical
 front end which Offensive CounterMeasures has created to help visualize this
 data.
 
+### Installation
+Rita is currently supported on Ubuntu 16.04 LTS.
+
+Clone the package:
+```bash
+git clone https://github.com/ocmdev/rita.git
+```
+
+Change into the source directory:
+```bash
+cd rita
+```
+Run the installer:
+
+**Note:** Make sure you have permission to write to the install directory.
+By default, Rita will install to /usr/local/rita.
+However, you can change the install location with the *-i* flag.
+```bash
+./install.sh
+```
+
+***or***
+
+```bash
+./install.sh -i /path/to/install/directory
+```
+
+
 
 ###Getting help
 Head over to OFTC and join #ocmdev for any questions you may have. Please
