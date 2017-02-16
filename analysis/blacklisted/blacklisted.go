@@ -61,15 +61,31 @@ func BuildBlacklistedCollection(res *database.Resources) {
 // New will create a new blacklisted module
 func newBlacklisted(res *database.Resources) *Blacklisted {
 
-	// Initialize the hook to google's safebrowsing api.
-	sbConfig := safebrowsing.Config{
-		APIKey: res.System.SafeBrowsing.APIKey,
-		DBPath: res.System.SafeBrowsing.Database,
-		Logger: res.Log.Writer(),
+	ret := Blacklisted{
+		db:              res.DB.GetSelectedDB(),
+		batch_size:      res.System.BatchSize,
+		prefetch:        res.System.Prefetch,
+		resources:       res,
+		log:             res.Log,
+		channel_size:    res.System.BlacklistedConfig.ChannelSize,
+		thread_count:    res.System.BlacklistedConfig.ThreadCount,
+		blacklist_table: res.System.BlacklistedConfig.BlacklistTable,
 	}
-	sb, err := safebrowsing.NewSafeBrowser(sbConfig)
-	if err != nil {
-		res.Log.WithField("Error", err).Error("Error opening safe browser API")
+
+	// Check if the config file contains a safe browsing key
+	if len(res.System.SafeBrowsing.APIKey) > 0 {
+		// Initialize the hook to google's safebrowsing api.
+		sbConfig := safebrowsing.Config{
+			APIKey: res.System.SafeBrowsing.APIKey,
+			DBPath: res.System.SafeBrowsing.Database,
+			Logger: res.Log.Writer(),
+		}
+		sb, err := safebrowsing.NewSafeBrowser(sbConfig)
+		if err != nil {
+			res.Log.WithField("Error", err).Error("Error opening safe browser API")
+		} else {
+			ret.safeBrowser = sb
+		}
 	}
 
 	// Initialize a rita-blacklist instance. Opens a database connection
@@ -81,23 +97,12 @@ func newBlacklisted(res *database.Resources) *Blacklisted {
 		port, err := strconv.Atoi(hostport[1])
 		if err == nil {
 			ritabl.Init(hostport[0], port, res.System.BlacklistedConfig.BlacklistDatabase)
+			ret.ritaBL = ritabl
 		} else {
 			res.Log.WithField("Error", err).Error("Error opening rita-blacklist hook")
 		}
 	}
-
-	return &Blacklisted{
-		db:              res.DB.GetSelectedDB(),
-		batch_size:      res.System.BatchSize,
-		prefetch:        res.System.Prefetch,
-		resources:       res,
-		log:             res.Log,
-		channel_size:    res.System.BlacklistedConfig.ChannelSize,
-		thread_count:    res.System.BlacklistedConfig.ThreadCount,
-		blacklist_table: res.System.BlacklistedConfig.BlacklistTable,
-		safeBrowser:     sb,
-		ritaBL:          ritabl,
-	}
+	return &ret
 }
 
 // Run runs the module
@@ -186,21 +191,30 @@ func (b *Blacklisted) processIPs(ip chan string, waitgroup *sync.WaitGroup) {
 			return
 		}
 
+		// Append the sources that determined this host
+		// was blacklisted
+		sourcelist := []string{}
+
 		score := 0
 		result := b.ritaBL.CheckHosts([]string{ip}, b.resources.System.BlacklistedConfig.BlacklistDatabase)
 		if len(result) > 0 {
-			score = len(result[0].Results)
+			for _, val := range result[0].Results {
+				score += 1
+				sourcelist = append(sourcelist, val.HostList)
+			}
+
 		}
 
 		if score > 0 {
 			err := cur.Insert(&blacklisted.Blacklist{
-				BLHash:      fmt.Sprintf("%x", md5.Sum([]byte(ip))),
-				BlType:      "ip",
-				Score:       score,
-				DateChecked: time.Now().Unix(),
-				Host:        ip,
-				IsIp:        true,
-				IsUrl:       false,
+				BLHash:          fmt.Sprintf("%x", md5.Sum([]byte(ip))),
+				BlType:          "ip",
+				Score:           score,
+				DateChecked:     time.Now().Unix(),
+				Host:            ip,
+				IsIp:            true,
+				IsUrl:           false,
+				BlacklistSource: sourcelist,
 			})
 
 			if err != nil {
@@ -227,13 +241,22 @@ func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup,
 			continue
 		}
 
+		// Append the sources that determined this host
+		// was blacklisted
+		sourcelist := []string{}
+
 		score := 0
 
 		urlList := []string{actualURL}
-		result, _ := b.safeBrowser.LookupURLs(urlList)
-		if len(result) > 0 && len(result[0]) > 0 {
-			for _ = range url.IPs {
-				score += 1
+
+		if b.safeBrowser != nil {
+			result, _ := b.safeBrowser.LookupURLs(urlList)
+			if len(result) > 0 && len(result[0]) > 0 {
+				for _ = range url.IPs {
+					score += 1
+					// TODO: Populate this with the information returned from the safebrowsing lookup.
+					sourcelist = append(sourcelist, "google-safebrowsing-api")
+				}
 			}
 		}
 
