@@ -2,21 +2,6 @@
 
 Brought to you by Offensive CounterMeasures
 
-###Current state
-
-####Terminal output
-Right now we're working on getting output that makes getting your analysis data
-easy and follows common unix ideas. Ideally this output will eventually be fully
-compatible with the formatting of bro's logs which should make working with the
-output much easier for those already versed in the useage of tools like bro-cut.
-This feature is being worked on.
-
-####Graphical front end
-We're also working on getting a minimalist front end to the platform that can
-be used to simply avoid the command line. This will probably take longer than
-the above and should not be expected to have the data visualization features
-present in the AI Hunt project.
-
 ###What's here
 
 RITA has all of the logic used to analyze Bro data. With an input of Bro data a
