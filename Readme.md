@@ -17,7 +17,6 @@ data.
  * Bro [https://www.bro.org](https://www.bro.org)
  * MongoDB [https://www.mongodb.com](https://www.mongodb.com)
  * Golang [https://www.golang.org](https://www.golang.org)
- * GNU netcat [http://netcat.sourceforge.net/](http://netcat.sourceforge.net/)
 
 1. Setting up your environment:
   1. Install bro using the directions at [https://www.bro.org/sphinx/install/install.html](https://www.bro.org/sphinx/install/install.html)
@@ -28,7 +27,6 @@ data.
   1. Install MongoDB (You will need MongoDB 3.2.0 which is not included in the Ubuntu 16.04 package manager. If you use your package manager, make sure it is at least MongoDB version 3.x)
     * Download 3.2.0 at https://www.mongodb.com/download-center?jmp=nav#community
     * Select your version of linux and download the package
-  1. Install GNU Netcat, make sure that it is GNU Netcat. NC will not work. [http://netcat.sourceforge.net/](http://netcat.sourceforge.net/)
   1. Install GoLang using the instructions at [https://golang.org/doc/install](https://golang.org/doc/install)
   1. After the install we need to set a local GOPATH for our user. So lets set up a directory in our HomeDir
     * ```mkdir -p $HOME/go/{src,pkg,bin}```
