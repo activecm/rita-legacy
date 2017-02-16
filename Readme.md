@@ -57,6 +57,11 @@ To obtain an API key:
   
 Copy this API key to the **APIKey** field under **SafeBrowsing** in the configuration file.
 
+### Getting Started 
+**Note: WORKING ON THIS SECTION**
+ * Will describe collecting logs, importing, and analyzing.
+ * Also planning on writing an entry in the wiki on setting up a tap/span port and collecting bro logs. 
+
 ###Getting help
 Head over to OFTC and join #ocmdev for any questions you may have. Please
 remember that this is an open source project, the developers working in here
