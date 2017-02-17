@@ -170,7 +170,6 @@ install the correct version for you!
 	# Install the base configuration file
 	printf "[+] Installing config to $HOME/.rita/config.yaml\n\n"
 	mkdir $HOME/.rita
-	mkdir $HOME/.rita/safebrowsing
 	cp etc/rita.yaml $HOME/.rita/config.yaml
 	
 

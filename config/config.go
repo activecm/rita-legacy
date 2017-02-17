@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
+	"reflect"
 
 	"gopkg.in/yaml.v2"
 )
@@ -86,8 +87,30 @@ type (
 	}
 )
 
-// LoadSystemConfig attempts to parse a config file
-func LoadSystemConfig(cfgPath string) (*SystemConfig, bool) {
+// GetConfig retrieves a configuration in order of precedence
+func GetConfig(cfgPath string) (*SystemConfig, bool) {
+	if cfgPath != "" {
+		return loadSystemConfig(cfgPath)
+	}
+
+	// Get the user's homedir
+	user, err := user.Current()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not get user info: %s\n", err.Error())
+	} else {
+
+		conf, ok := loadSystemConfig(user.HomeDir + "/.rita/config.yaml")
+		if ok {
+			return conf, ok
+		}
+	}
+
+	// If none of the other configs have worked, go for the global config
+	return loadSystemConfig("/etc/rita/config.yaml")
+}
+
+// loadSystemConfig attempts to parse a config file
+func loadSystemConfig(cfgPath string) (*SystemConfig, bool) {
 	var config = new(SystemConfig)
 
 	if _, err := os.Stat(cfgPath); !os.IsNotExist(err) {
@@ -96,6 +119,11 @@ func LoadSystemConfig(cfgPath string) (*SystemConfig, bool) {
 			return config, false
 		}
 		err = yaml.Unmarshal(cfgFile, config)
+
+		// expand env variables, config is a pointer
+		// so we have to call elem on the reflect value
+		expandConfig(reflect.ValueOf(config).Elem())
+
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to read config: %s\n", err.Error())
 			return config, false
@@ -105,24 +133,15 @@ func LoadSystemConfig(cfgPath string) (*SystemConfig, bool) {
 	return config, false
 }
 
-// GetConfig retrieves a configuration in order of precedence
-func GetConfig(cfgPath string) (*SystemConfig, bool) {
-	if cfgPath != "" {
-		return LoadSystemConfig(cfgPath)
-	}
-
-	// Get the user's homedir
-	user, err := user.Current()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not get user info: %s\n", err.Error())
-	} else {
-
-		conf, ok := LoadSystemConfig(user.HomeDir + "/.rita/config.yaml")
-		if ok {
-			return conf, ok
+// expandConfig expands environment variables in config strings
+func expandConfig(reflected reflect.Value) {
+	for i := 0; i < reflected.NumField(); i++ {
+		f := reflected.Field(i)
+		// process sub configs
+		if f.Kind() == reflect.Struct {
+			expandConfig(f)
+		} else if f.Kind() == reflect.String {
+			f.SetString(os.ExpandEnv(f.String()))
 		}
 	}
-
-	// If none of the other configs have worked, go for the global config
-	return LoadSystemConfig("/etc/rita/config.yaml")
 }

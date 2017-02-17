@@ -42,8 +42,7 @@ type (
 	// UrlShort is a shortened version of the URL datatype that only accounts
 	// for the IP and url (hostname)
 	UrlShort struct {
-		Url string   `bson:"host"`
-		IPs []string `bson:"ips"`
+		Url string `bson:"host"`
 	}
 )
 
@@ -157,12 +156,6 @@ func (b *Blacklisted) run() {
 
 		var u UrlShort
 		for iter.Next(&u) {
-			for _, ip := range u.IPs {
-				if util.RFC1918(ip) {
-					continue
-				}
-				ipchan <- ip
-			}
 			urlchan <- u
 		}
 	}(urlit, urls, ipaddrs)
@@ -190,7 +183,6 @@ func (b *Blacklisted) processIPs(ip chan string, waitgroup *sync.WaitGroup) {
 		if !ok {
 			return
 		}
-
 		// Append the sources that determined this host
 		// was blacklisted
 		sourcelist := []string{}
@@ -202,7 +194,6 @@ func (b *Blacklisted) processIPs(ip chan string, waitgroup *sync.WaitGroup) {
 				score += 1
 				sourcelist = append(sourcelist, val.HostList)
 			}
-
 		}
 
 		if score > 0 {
@@ -252,11 +243,8 @@ func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup,
 		if b.safeBrowser != nil {
 			result, _ := b.safeBrowser.LookupURLs(urlList)
 			if len(result) > 0 && len(result[0]) > 0 {
-				for _ = range url.IPs {
-					score += 1
-					// TODO: Populate this with the information returned from the safebrowsing lookup.
-					sourcelist = append(sourcelist, "google-safebrowsing-api")
-				}
+				score = 1
+				sourcelist = append(sourcelist, "google-safebrowsing-api")
 			}
 		}
 

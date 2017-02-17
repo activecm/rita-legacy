@@ -6,7 +6,7 @@ DatabaseHost: localhost:27017
 # 2 = info
 # 1 = warn
 # 0 = error
-LogLevel: 2
+LogLevel: 1
 
 # Adjusting batchsize and prefetch may help speed up certain database queries
 BatchSize: 300
@@ -66,7 +66,7 @@ Bro:
 
 SafeBrowsing:
     APIKey: ""
-    Database: ~/.rita/safebrowsing
+    Database: $HOME/.rita/safebrowsing
 
 # NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
 Structure:
