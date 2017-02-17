@@ -54,12 +54,12 @@ To obtain an API key:
   * If the API Manager page isn't already open, open the left side menu and select **API Manager**.
   * On the left, choose **Credentials**.
   * Click **Create credentials** and then select **API key**.
-  * On the left, choose **Library**
-  * Search for **Safe Browsing**
-  * Click on **Google Safe Browsing API**
-  * Near the top, click **Enable**
-  
-Copy this API key to the **APIKey** field under **SafeBrowsing** in the configuration file.
+  * Copy this API key to the **APIKey** field under **SafeBrowsing** in the configuration file.
+  * On the left, choose **Library**.
+  * Search for **Safe Browsing**.
+  * Click on **Google Safe Browsing API**.
+  * Near the top, click **Enable**.
+
 
 ### Getting Started
 **Note: WORKING ON THIS SECTION**
