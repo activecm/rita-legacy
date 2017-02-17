@@ -54,13 +54,17 @@ To obtain an API key:
   * If the API Manager page isn't already open, open the left side menu and select **API Manager**.
   * On the left, choose **Credentials**.
   * Click **Create credentials** and then select **API key**.
+  * On the left, choose **Library**
+  * Search for **Safe Browsing**
+  * Click on **Google Safe Browsing API**
+  * Near the top, click **Enable**
   
 Copy this API key to the **APIKey** field under **SafeBrowsing** in the configuration file.
 
-### Getting Started 
+### Getting Started
 **Note: WORKING ON THIS SECTION**
  * Will describe collecting logs, importing, and analyzing.
- * Also planning on writing an entry in the wiki on setting up a tap/span port and collecting bro logs. 
+ * Also planning on writing an entry in the wiki on setting up a tap/span port and collecting bro logs.
 
 ###Getting help
 Head over to OFTC and join #ocmdev for any questions you may have. Please
