@@ -13,8 +13,9 @@ import (
 func getXRefSelectors() []dataXRef.XRefSelector {
 	beaconing := BeaconingSelector{}
 	scanning := ScanningSelector{}
+	blacklisted := BlacklistedSelector{}
 
-	return []dataXRef.XRefSelector{beaconing, scanning}
+	return []dataXRef.XRefSelector{beaconing, scanning, blacklisted}
 }
 
 // BuildXRefCollection runs threaded crossref analysis
@@ -35,10 +36,12 @@ func BuildXRefCollection(res *database.Resources) {
 
 	xRefWG := new(sync.WaitGroup)
 	xRefWG.Add(2)
+	//kick off writes
 	go multiplexXRef(res, res.System.CrossrefConfig.InternalTable, internal, xRefWG)
 	go multiplexXRef(res, res.System.CrossrefConfig.ExternalTable, external, xRefWG)
 	xRefWG.Wait()
 
+	//group by host ip and put module findings into an array
 	finalizeXRef(res, res.System.CrossrefConfig.InternalTable)
 	finalizeXRef(res, res.System.CrossrefConfig.ExternalTable)
 }

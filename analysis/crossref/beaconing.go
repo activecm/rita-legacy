@@ -24,6 +24,8 @@ func (s BeaconingSelector) Select(res *database.Resources) (<-chan string, <-cha
 		defer ssn.Close()
 		iter := TBD.GetTBDResultsView(res, ssn, res.System.CrossrefConfig.TBDThreshold)
 
+		//this will produce duplicates if multiple sources beaconed to the same dest
+		//however, this is accounted for in the finalizing step of xref
 		var data dataTBD.TBDAnalysisView
 		for iter.Next(&data) {
 			if data.LocalSrc {

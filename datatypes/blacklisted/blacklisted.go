@@ -14,5 +14,6 @@ type (
 		IsUrl           bool          `bson:"is_url"`
 		IsIp            bool          `bson:"is_ip"`
 		BlacklistSource []string      `bson:"blacklist_sources"`
+		Sources         []string      //sources are not stored, but can be loaded
 	}
 )
