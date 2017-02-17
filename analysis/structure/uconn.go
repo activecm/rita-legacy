@@ -21,8 +21,11 @@ func BuildUniqueConnectionsCollection(res *database.Resources) {
 		return
 	}
 
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
 	// In case we need results
-	res.DB.AggregateCollection(source_collection_name, pipeline)
+	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
 }
 
 func getUniqueConnectionsScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {

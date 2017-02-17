@@ -28,8 +28,10 @@ func BuildUrlsCollection(res *database.Resources) {
 		return
 	}
 
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
 	// Aggregate it
-	res.DB.AggregateCollection(new_collection_name, pipeline)
+	res.DB.AggregateCollection(new_collection_name, ssn, pipeline)
 }
 
 func getUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, mgo.MapReduce, []bson.D) {
@@ -88,7 +90,10 @@ func BuildHostnamesCollection(res *database.Resources) {
 		return
 	}
 
-	res.DB.AggregateCollection(source_collection_name, pipeline)
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
 }
 
 func getHostnamesAggregationScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {

@@ -104,15 +104,8 @@ func (d *DB) CreateCollection(name string, indeces []string) string {
  * Purpose:  Builds collections that are built via aggregation
  * comments:
  */
-func (d *DB) AggregateCollection(source_collection_name string, pipeline []bson.D) *mgo.Iter {
-	// Make a copy of the current session
-	session := d.Session.Copy()
-	defer session.Close()
-
+func (d *DB) AggregateCollection(source_collection_name string, session *mgo.Session, pipeline []bson.D) *mgo.Iter {
 	session.SetSocketTimeout(2 * time.Hour)
-
-	// Setup a container for the results
-	// results := []bson.D{}
 
 	// Identify the source collection we will aggregate information from into the new collection
 	if !d.CollectionExists(source_collection_name) {

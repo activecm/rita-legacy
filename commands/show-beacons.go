@@ -43,7 +43,10 @@ func showBeacons(c *cli.Context) error {
 	res.DB.SelectDB(c.String("database"))
 
 	var data []tbdData.TBDAnalysisView
-	TBD.GetTBDResultsView(res, cutoffScore).All(&data)
+
+	ssn := res.DB.Session.Copy()
+	TBD.GetTBDResultsView(res, ssn, cutoffScore).All(&data)
+	ssn.Close()
 
 	if humanreadable {
 		return showBeaconReport(data)

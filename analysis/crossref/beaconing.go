@@ -20,7 +20,9 @@ func (s BeaconingSelector) Select(res *database.Resources) (<-chan string, <-cha
 	externalHosts := make(chan string)
 	// run the read code async and return the channels immediately
 	go func() {
-		iter := TBD.GetTBDResultsView(res, res.System.CrossrefConfig.TBDThreshold)
+		ssn := res.DB.Session.Copy()
+		defer ssn.Close()
+		iter := TBD.GetTBDResultsView(res, ssn, res.System.CrossrefConfig.TBDThreshold)
 
 		var data dataTBD.TBDAnalysisView
 		for iter.Next(&data) {

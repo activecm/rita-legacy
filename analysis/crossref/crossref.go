@@ -3,6 +3,8 @@ package crossref
 import (
 	"sync"
 
+	"gopkg.in/mgo.v2/bson"
+
 	"github.com/ocmdev/rita/database"
 	dataXRef "github.com/ocmdev/rita/datatypes/crossref"
 )
@@ -36,6 +38,9 @@ func BuildXRefCollection(res *database.Resources) {
 	go multiplexXRef(res, res.System.CrossrefConfig.InternalTable, internal, xRefWG)
 	go multiplexXRef(res, res.System.CrossrefConfig.ExternalTable, external, xRefWG)
 	xRefWG.Wait()
+
+	finalizeXRef(res, res.System.CrossrefConfig.InternalTable)
+	finalizeXRef(res, res.System.CrossrefConfig.ExternalTable)
 }
 
 //multiplexXRef takes a target colllection, and a map from
@@ -68,4 +73,36 @@ func writeXRef(res *database.Resources, collection string,
 		ssn.DB(res.DB.GetSelectedDB()).C(collection).Insert(data)
 	}
 	externWG.Done()
+}
+
+func finalizeXRef(res *database.Resources, collection string) {
+	// Aggregation script
+	pipeline := []bson.D{
+		{
+			{"$group", bson.D{
+				{"_id", bson.D{
+					{"host", "$host"},
+				}},
+				{"host", bson.D{
+					{"$first", "$host"},
+				}},
+				{"modules", bson.D{
+					{"$addToSet", "$module"},
+				}},
+			}},
+		},
+		{
+			{"$project", bson.D{
+				{"_id", 0},
+				{"host", 1},
+				{"modules", 1},
+			}},
+		},
+		{
+			{"$out", collection},
+		},
+	}
+	ssn := res.DB.Session.Copy()
+	res.DB.AggregateCollection(collection, ssn, pipeline)
+	ssn.Close()
 }
