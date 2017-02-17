@@ -31,20 +31,18 @@ func BuildXRefCollection(res *database.Resources) {
 		external[selector.GetName()] = externalHosts
 	}
 
-	//build internal and external at the same time
-	//we could build the two collections at the same time
-	//but, we have a thread for each analysis module reading,
-	//this thread, and a number of write threads already spun.
-	//TODO: config collection names
-	multiplexXRef(res, res.System.CrossrefConfig.InternalTable, internal)
-	multiplexXRef(res, res.System.CrossrefConfig.ExternalTable, external)
+	xRefWG := new(sync.WaitGroup)
+	xRefWG.Add(2)
+	go multiplexXRef(res, res.System.CrossrefConfig.InternalTable, internal, xRefWG)
+	go multiplexXRef(res, res.System.CrossrefConfig.ExternalTable, external, xRefWG)
+	xRefWG.Wait()
 }
 
 //multiplexXRef takes a target colllection, and a map from
 //analysis module names to a channel containging the hosts associated with it
 //and writes the incoming hosts to the target crossref collection
 func multiplexXRef(res *database.Resources, collection string,
-	analysisModules map[string]<-chan string) {
+	analysisModules map[string]<-chan string, externWG *sync.WaitGroup) {
 
 	xRefWG := new(sync.WaitGroup)
 	for name, hosts := range analysisModules {
@@ -52,6 +50,7 @@ func multiplexXRef(res *database.Resources, collection string,
 		go writeXRef(res, collection, name, hosts, xRefWG)
 	}
 	xRefWG.Wait()
+	externWG.Done()
 }
 
 // writeXRef upserts a value into the target crossref collection

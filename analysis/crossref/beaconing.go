@@ -16,8 +16,8 @@ func (s BeaconingSelector) GetName() string {
 
 func (s BeaconingSelector) Select(res *database.Resources) (<-chan string, <-chan string) {
 	// make channels to return
-	internalHosts := make(chan string, 100)
-	externalHosts := make(chan string, 100)
+	internalHosts := make(chan string)
+	externalHosts := make(chan string)
 	// run the read code async and return the channels immediately
 	go func() {
 		iter := TBD.GetTBDResultsView(res, res.System.CrossrefConfig.TBDThreshold)
