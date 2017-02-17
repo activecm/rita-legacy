@@ -30,13 +30,13 @@ __prep() {
 	cat <<HEREDOC
 So here's what this script will need to do to prepare for RITA:
 
-1) Download and install GNU Netcat, Bro, Golang, and the latest version of MongoDB.
-
-The MongoDB, netcat and golang versions we'd like aren't a part of the regular Ubuntu apt packages, but this script will add the key to the latest MongoDB repo to your package manager and install/auto config it and everything else.
+1) Download and install Bro, Golang, and the latest version of MongoDB.
 
 2) Set up a Golang development enviornment in order to 'go get' and 'build' RITA.
 
 This requires us to create directory "go" in your home folder and add a new PATH and GOPATH entry to your .bashrc
+
+3) Create a configuration directory for RITA under your home folder called .rita
 
 HEREDOC
 }
@@ -59,11 +59,13 @@ __uninstall() {
 	rm -rf $GOPATH/bin/rita
 	printf "Removing $GOPATH/src/github.com/ocmdev \n"
 	rm -rf $GOPATH/src/github.com/ocmdev
-	printf "Removing /etc/rita \n"
-	rm -rf /etc/rita
+	printf "Removing $HOME/.rita \n"
+	rm -rf $HOME/.rita
 }
 
 __install() {
+
+	# Check if RITA is already installed, if so ask if this is a re-install
 	if [ -e $_RITADIR ]
 	then
 		printf "[+] $_RITADIR already exists.\n"
@@ -92,8 +94,11 @@ __install() {
 [+] Ensuring go is installed...
 "
 
+
+	# Check if go is not available in the path
 	if [ ! $(command -v go) ]
 	then
+		# Check if go is available in the standard location
 		if [ ! -e "/usr/local/go" ]
 		then
 			# golang most recent update
@@ -102,24 +107,26 @@ __install() {
 			echo 'export PATH=$PATH:/usr/local/go/bin' >> $HOME/.bashrc
 			rm go1.7.1.linux-amd64.tar.gz
 		fi
+		# Add go to the path
 		export PATH="$PATH:/usr/local/go/bin"
 	else
 		echo -e "\e[31m[-] WARNING: Go has been detected on this system,\e[37m if you
 installed with apt, RITA has only been tested with golang 1.7 which is currently not the
 version in the Ubuntu apt repositories, make sure your golang is up to date
 with 'go version'. Otherwise you can remove with 'sudo apt remove golang' and let this script
-install the correct version for you!"
+install the correct version for you!
+"
 		
 		sleep 10s
 	fi
 
 
-	echo -e "
-[+] Configuring Go dev environment...
+	echo -e "[+] Configuring Go dev environment...
 \e[0m"
 
 	sleep 3s
 
+	# Check if the GOPATH isn't set
 	if [ -z "${GOPATH}" ]
 	then
 		mkdir -p $HOME/go/{src,pkg,bin}
@@ -145,6 +152,8 @@ install the correct version for you!"
 	apt install -y mongodb-org
 
 	printf "\n[+] Running 'go get github.com/ocmdev/rita...'\n\n"
+
+	# Build RITA
 	
 	go get github.com/ocmdev/rita
 	printf "[+] Installing RITA...\n\n"
@@ -159,15 +168,15 @@ install the correct version for you!"
 	cp LICENSE $_RITADIR/LICENSE
 
 	# Install the base configuration file
-	if [ ! -e /etc/rita ]
-	then
-		printf "[+] Installing global config to /etc/rita/config.yaml\n\n"
-		mkdir /etc/rita
-		cp etc/rita.yaml /etc/rita/config.yaml
-	fi
+	printf "[+] Installing config to $HOME/.rita/config.yaml\n\n"
+	mkdir $HOME/.rita
+	mkdir $HOME/.rita/safebrowsing
+	cp etc/rita.yaml $HOME/.rita/config.yaml
+	
 
 	# Give ownership of ~/go to the user
-	sudo chown -R $SUDO_USER:$SUDO_USER /home/$SUDO_USER/go
+	sudo chown -R $SUDO_USER:$SUDO_USER $HOME/go
+	sudo chown -R $SUDO_USER:$SUDO_USER $HOME/.rita
 
 	echo "[+] Make sure you also configure Bro and run with 'sudo broctl deploy' and make sure MongoDB is running with the command 'mongo' or 'sudo mongo'.
 "

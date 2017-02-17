@@ -117,12 +117,12 @@ func GetConfig(cfgPath string) (*SystemConfig, bool) {
 		fmt.Fprintf(os.Stderr, "Could not get user info: %s\n", err.Error())
 	} else {
 
-		conf, ok := LoadSystemConfig(user.HomeDir + "/.rita")
+		conf, ok := LoadSystemConfig(user.HomeDir + "/.rita/config.yaml")
 		if ok {
 			return conf, ok
 		}
 	}
 
-	// If none of the other configs have worked, go for the homedir config
+	// If none of the other configs have worked, go for the global config
 	return LoadSystemConfig("/etc/rita/config.yaml")
 }
