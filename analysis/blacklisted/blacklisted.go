@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ocmdev/rita/analysis/structure"
+	"github.com/ocmdev/rita/analysis/urls"
 	"github.com/ocmdev/rita/database"
 
 	"github.com/google/safebrowsing"
@@ -45,6 +47,16 @@ type (
 		Url string `bson:"host"`
 	}
 )
+
+func SetBlacklistSources(res *database.Resources, result *blacklisted.Blacklist) {
+	if result.IsUrl {
+		for _, destIP := range urls.GetIPsFromHost(res, result.Host) {
+			result.Sources = append(result.Sources, structure.GetConnSourcesFromDest(res, destIP)...)
+		}
+	} else {
+		result.Sources = structure.GetConnSourcesFromDest(res, result.Host)
+	}
+}
 
 func BuildBlacklistedCollection(res *database.Resources) {
 	collection_name := res.System.BlacklistedConfig.BlacklistTable

@@ -6,22 +6,15 @@ import (
 	"strconv"
 	"strings"
 
-	"gopkg.in/mgo.v2/bson"
-
 	"github.com/alecthomas/template"
+	"github.com/ocmdev/rita/analysis/blacklisted"
 	"github.com/ocmdev/rita/database"
+	blacklistedData "github.com/ocmdev/rita/datatypes/blacklisted"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
 
 var sourcesFlag bool
-
-type blresult struct {
-	Host    string `bson:"host"`
-	Score   int    `bson:"count"`
-	IsUrl   bool   `bson:"is_url"`
-	Sources []string
-}
 
 func init() {
 	command := cli.Command{
@@ -50,15 +43,15 @@ func showBlacklisted(c *cli.Context) error {
 	res := database.InitResources("")
 	res.DB.SelectDB(c.String("database"))
 
-	var result blresult
-	var results []blresult
+	var result blacklistedData.Blacklist
+	var results []blacklistedData.Blacklist
 
 	coll := res.DB.Session.DB(c.String("database")).C(res.System.BlacklistedConfig.BlacklistTable)
 	iter := coll.Find(nil).Sort("-count").Iter()
 
 	for iter.Next(&result) {
 		if sourcesFlag {
-			findBLSources(res, c.String("database"), &result)
+			blacklisted.SetBlacklistSources(res, &result)
 		}
 		results = append(results, result)
 	}
@@ -69,39 +62,9 @@ func showBlacklisted(c *cli.Context) error {
 	return showBlacklistedCsv(results)
 }
 
-func findBLSources(res *database.Resources, db string, result *blresult) {
-	if result.IsUrl {
-		hostnames := res.DB.Session.DB(db).C(res.System.UrlsConfig.HostnamesTable)
-		var destIPs struct {
-			IPs []string `bson:"ips"`
-		}
-		hostnames.Find(bson.M{"host": result.Host}).One(&destIPs)
-		for _, destIP := range destIPs.IPs {
-			result.Sources = append(result.Sources, getConnSourceFromDest(res, db, destIP)...)
-		}
-	} else {
-		result.Sources = getConnSourceFromDest(res, db, result.Host)
-	}
-}
-
-func getConnSourceFromDest(res *database.Resources, db string, ip string) []string {
-	cons := res.DB.Session.DB(db).C(res.System.StructureConfig.UniqueConnTable)
-	srcIter := cons.Find(bson.M{"dst": ip}).Iter()
-
-	var srcStruct struct {
-		Src string `bson:"src"`
-	}
-	var sources []string
-
-	for srcIter.Next(&srcStruct) {
-		sources = append(sources, srcStruct.Src)
-	}
-	return sources
-}
-
 // TODO: Convert this over to tablewriter
 // showBlacklisted prints all blacklisted for a given database
-func showBlacklistedHuman(results []blresult) error {
+func showBlacklistedHuman(results []blacklistedData.Blacklist) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetColWidth(100)
 	if sourcesFlag {
@@ -122,7 +85,7 @@ func showBlacklistedHuman(results []blresult) error {
 	return nil
 }
 
-func showBlacklistedCsv(results []blresult) error {
+func showBlacklistedCsv(results []blacklistedData.Blacklist) error {
 	tmpl := "{{.Host}}," + `{{.Score}}`
 	if sourcesFlag {
 		tmpl += ",{{range $idx, $src := .Sources}}{{if $idx}} {{end}}{{ $src }}{{end}}\n"
