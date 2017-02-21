@@ -77,7 +77,7 @@ func cleanAnalysis(database string, res *database.Resources) error {
 func cleanAnalysisAll(res *database.Resources) error {
 	var err error = nil
 
-	for _, name := range res.MetaDB.GetAnalyzedDatabases() {
+	for _, name := range res.MetaDB.GetDatabases() {
 		e := cleanAnalysis(name, res)
 		//return last error
 		if e != nil {

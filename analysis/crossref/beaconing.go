@@ -16,12 +16,16 @@ func (s BeaconingSelector) GetName() string {
 
 func (s BeaconingSelector) Select(res *database.Resources) (<-chan string, <-chan string) {
 	// make channels to return
-	internalHosts := make(chan string, 100)
-	externalHosts := make(chan string, 100)
+	internalHosts := make(chan string)
+	externalHosts := make(chan string)
 	// run the read code async and return the channels immediately
 	go func() {
-		iter := TBD.GetTBDResultsView(res, res.System.CrossrefConfig.TBDThreshold)
+		ssn := res.DB.Session.Copy()
+		defer ssn.Close()
+		iter := TBD.GetTBDResultsView(res, ssn, res.System.CrossrefConfig.TBDThreshold)
 
+		//this will produce duplicates if multiple sources beaconed to the same dest
+		//however, this is accounted for in the finalizing step of xref
 		var data dataTBD.TBDAnalysisView
 		for iter.Next(&data) {
 			if data.LocalSrc {

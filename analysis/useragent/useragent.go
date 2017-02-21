@@ -21,8 +21,11 @@ func BuildUserAgentCollection(res *database.Resources) {
 		return
 	}
 
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
 	// Aggregate it!
-	res.DB.AggregateCollection(source_collection_name, pipeline)
+	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
 }
 
 func getUserAgentCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {

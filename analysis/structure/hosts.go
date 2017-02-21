@@ -24,7 +24,10 @@ func BuildHostsCollection(res *database.Resources) {
 		return
 	}
 
-	res.DB.AggregateCollection(source_collection_name, pipeline)
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
 }
 
 func getHosts(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {

@@ -28,8 +28,10 @@ func BuildUrlsCollection(res *database.Resources) {
 		return
 	}
 
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
 	// Aggregate it
-	res.DB.AggregateCollection(new_collection_name, pipeline)
+	res.DB.AggregateCollection(new_collection_name, ssn, pipeline)
 }
 
 func getUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, mgo.MapReduce, []bson.D) {
@@ -76,6 +78,27 @@ func getUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []stri
 	return source_collection_name, new_collection_name, keys, job, pipeline
 }
 
+// GetIPsFromHost uses the hostnames table to do a cached whois query
+func GetIPsFromHost(res *database.Resources, host string) []string {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	hostnames := ssn.DB(res.DB.GetSelectedDB()).C(res.System.UrlsConfig.HostnamesTable)
+
+	//I don't know if this can be cleaned up
+	//TODO: Research of query projections
+	var destIPs struct {
+		IPs []string `bson:"ips"`
+	}
+	hostnames.Find(bson.M{"host": host}).One(&destIPs)
+
+	var ips []string
+	for _, ip := range destIPs.IPs {
+		ips = append(ips, ip)
+	}
+	return ips
+}
+
 func BuildHostnamesCollection(res *database.Resources) {
 	source_collection_name,
 		new_collection_name,
@@ -88,7 +111,10 @@ func BuildHostnamesCollection(res *database.Resources) {
 		return
 	}
 
-	res.DB.AggregateCollection(source_collection_name, pipeline)
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
 }
 
 func getHostnamesAggregationScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {

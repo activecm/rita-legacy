@@ -20,9 +20,10 @@ func BuildScanningCollection(res *database.Resources) {
 		res.Log.Error("Failed: ", new_collection_name, error_check)
 		return
 	}
-
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
 	// Aggregate it!
-	res.DB.AggregateCollection(source_collection_name, pipeline)
+	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
 }
 
 func getScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {

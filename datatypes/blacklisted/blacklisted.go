@@ -14,5 +14,6 @@ type (
 		IsUrl           bool          `bson:"is_url"`
 		IsIp            bool          `bson:"is_ip"`
 		BlacklistSource []string      `bson:"blacklist_sources"`
+		Sources         []string      `bson:"sources,omitempty"`
 	}
 )

@@ -7,6 +7,26 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+// GetConnSourcesFromDest finds all of the ips which communicated with a
+// given destination ip
+func GetConnSourcesFromDest(res *database.Resources, ip string) []string {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	cons := ssn.DB(res.DB.GetSelectedDB()).C(res.System.StructureConfig.UniqueConnTable)
+	srcIter := cons.Find(bson.M{"dst": ip}).Iter()
+
+	var srcStruct struct {
+		Src string `bson:"src"`
+	}
+	var sources []string
+
+	for srcIter.Next(&srcStruct) {
+		sources = append(sources, srcStruct.Src)
+	}
+	return sources
+}
+
 func BuildUniqueConnectionsCollection(res *database.Resources) {
 	// Create the aggregate command
 	source_collection_name,
@@ -21,8 +41,11 @@ func BuildUniqueConnectionsCollection(res *database.Resources) {
 		return
 	}
 
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
 	// In case we need results
-	res.DB.AggregateCollection(source_collection_name, pipeline)
+	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
 }
 
 func getUniqueConnectionsScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {

@@ -62,9 +62,9 @@ func BuildTBDCollection(res *database.Resources) {
 	newTBD(res).run()
 }
 
-func GetTBDResultsView(res *database.Resources, cutoffScore float64) *mgo.Iter {
+func GetTBDResultsView(res *database.Resources, ssn *mgo.Session, cutoffScore float64) *mgo.Iter {
 	pipeline := getViewPipeline(res, cutoffScore)
-	return res.DB.AggregateCollection(res.System.TBDConfig.TBDTable, pipeline)
+	return res.DB.AggregateCollection(res.System.TBDConfig.TBDTable, ssn, pipeline)
 }
 
 // New creates a new TBD module
