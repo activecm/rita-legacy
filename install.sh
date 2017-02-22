@@ -81,7 +81,7 @@ __install() {
 	echo "[+] Updating apt...
 "
 
-	apt -qq update
+	apt update -qq
 
 	echo "
 [+] Ensuring bro is installed...
@@ -148,7 +148,7 @@ install the correct version for you!
 
 	echo "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.4 multiverse" > /etc/apt/sources.list.d/mongodb-org-3.4.list
 
-	apt -qq update
+	apt update -qq
 	apt install -y mongodb-org
 
 	printf "\n[+] Running 'go get github.com/ocmdev/rita...'\n\n"
