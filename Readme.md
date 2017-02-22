@@ -63,15 +63,13 @@ To obtain an API key:
   * Click on **Google Safe Browsing API**.
   * Near the top, click **Enable**.
 
+Now replace the **APIKey** field under **SafeBrowsing** in the configuration file with the obtained key.
 
 ### Getting Started
-**Link to webcast tutorial will be added soon!**
+**Link to video tutorial will be added soon!**
 
 ###Getting help
-Head over to OFTC and join #ocmdev for any questions you may have. Please
-remember that this is an open source project, the developers working in here
-have full time jobs and are not your personal tech support. So please be civil
-with us.
+Head over to OFTC and join #ocmdev for any questions you may have. 
 
 ###License
 GNU GPL V3
