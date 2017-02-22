@@ -85,7 +85,7 @@ BlackListed:
 Crossref:
     InternalTable: internXREF
     ExternalTable: externXREF
-    TBDThreshold: .7
+    BeaconThreshold: .7
 
 Scanning:
     ScanThreshold: 50

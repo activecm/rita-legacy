@@ -1,9 +1,9 @@
 package crossref
 
 import (
-	"github.com/ocmdev/rita/analysis/TBD"
+	"github.com/ocmdev/rita/analysis/beacon"
 	"github.com/ocmdev/rita/database"
-	dataTBD "github.com/ocmdev/rita/datatypes/TBD"
+	dataBeacon "github.com/ocmdev/rita/datatypes/beacon"
 )
 
 type (
@@ -22,11 +22,11 @@ func (s BeaconingSelector) Select(res *database.Resources) (<-chan string, <-cha
 	go func() {
 		ssn := res.DB.Session.Copy()
 		defer ssn.Close()
-		iter := TBD.GetTBDResultsView(res, ssn, res.System.CrossrefConfig.TBDThreshold)
+		iter := beacon.GetBeaconResultsView(res, ssn, res.System.CrossrefConfig.BeaconThreshold)
 
 		//this will produce duplicates if multiple sources beaconed to the same dest
 		//however, this is accounted for in the finalizing step of xref
-		var data dataTBD.TBDAnalysisView
+		var data dataBeacon.BeaconAnalysisView
 		for iter.Next(&data) {
 			if data.LocalSrc {
 				internalHosts <- data.Src

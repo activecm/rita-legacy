@@ -45,7 +45,7 @@ func showBeacons(c *cli.Context) error {
 	var data []beaconData.BeaconAnalysisView
 
 	ssn := res.DB.Session.Copy()
-	Beacon.GetBeaconResultsView(res, ssn, cutoffScore).All(&data)
+	beacon.GetBeaconResultsView(res, ssn, cutoffScore).All(&data)
 	ssn.Close()
 
 	if humanreadable {

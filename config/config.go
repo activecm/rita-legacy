@@ -47,9 +47,9 @@ type (
 	}
 
 	CrossrefCfg struct {
-		InternalTable string  `yaml:"InternalTable"`
-		ExternalTable string  `yaml:"ExternalTable"`
-		TBDThreshold  float64 `yaml:"TBDThreshold"`
+		InternalTable    string  `yaml:"InternalTable"`
+		ExternalTable 	 string  `yaml:"ExternalTable"`
+		BeaconThreshold  float64 `yaml:"BeaconThreshold"`
 	}
 
 	SafeBrowsingCfg struct {
