@@ -155,7 +155,7 @@ install the correct version for you!
 
 	# Build RITA
 
-  apt install -y build-essential  
+	apt install -y build-essential  
 	go get github.com/ocmdev/rita
 	printf "[+] Installing RITA...\n\n"
 	cd $GOPATH/src/github.com/ocmdev/rita
