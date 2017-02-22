@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ocmdev/rita/analysis/TBD"
+	"github.com/ocmdev/rita/analysis/beacon"
 	"github.com/ocmdev/rita/analysis/blacklisted"
 	"github.com/ocmdev/rita/analysis/crossref"
 	"github.com/ocmdev/rita/analysis/scanning"
@@ -91,7 +91,7 @@ func analyze(inDb string, configFile string) {
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Running beacon analysis\n")
 
-		TBD.BuildTBDCollection(res)
+		beacon.BuildBeaconCollection(res)
 
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Running blacklisted analysis\n")

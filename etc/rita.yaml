@@ -85,15 +85,15 @@ BlackListed:
 Crossref:
     InternalTable: internXREF
     ExternalTable: externXREF
-    TBDThreshold: .7
+    BeaconThreshold: .7
 
 Scanning:
     ScanThreshold: 50
     ScanTable: scan
 
-TBD:
+Beacon:
     DefaultConnectionThresh: 24
-    TBDTable: tbd
+    BeaconTable: beacon
 
 Urls:
     UrlsTable: urls
