@@ -154,12 +154,13 @@ install the correct version for you!
 	printf "\n[+] Running 'go get github.com/ocmdev/rita...'\n\n"
 
 	# Build RITA
-	
+
+  apt install -y build-essential  
 	go get github.com/ocmdev/rita
 	printf "[+] Installing RITA...\n\n"
 	cd $GOPATH/src/github.com/ocmdev/rita
-	go build
-	go install
+	make
+	make install
 
 	printf "[+] Transferring files...\n\n"
 	mkdir $_RITADIR

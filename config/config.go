@@ -10,6 +10,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var VERSION = "undefined"
+
 type (
 	SystemConfig struct {
 		LogType           string          `yaml:"LogType"`
@@ -29,6 +31,7 @@ type (
 		UserAgentConfig   UserAgentCfg    `yaml:"UserAgent"`
 		BroConfig         BroCfg          `yaml:"Bro"`
 		SafeBrowsing      SafeBrowsingCfg `yaml:"SafeBrowsing"`
+		Version           string
 	}
 
 	StructureCfg struct {
@@ -111,6 +114,8 @@ func GetConfig(cfgPath string) (*SystemConfig, bool) {
 // loadSystemConfig attempts to parse a config file
 func loadSystemConfig(cfgPath string) (*SystemConfig, bool) {
 	var config = new(SystemConfig)
+
+	config.Version = VERSION
 
 	if _, err := os.Stat(cfgPath); !os.IsNotExist(err) {
 		cfgFile, err := ioutil.ReadFile(cfgPath)
