@@ -62,7 +62,7 @@ Bro:
     # to treat each day as a separate test. 24hours worth of data is the ideal for
     # analysis, and using dates will ensure that tests are broken into 24hour periods
     # around midnight of each day.
-    UseDates: true
+    UseDates: false
 
 SafeBrowsing:
     APIKey: ""
