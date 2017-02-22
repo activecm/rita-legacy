@@ -24,7 +24,7 @@ type (
 		CrossrefConfig    CrossrefCfg     `yaml:"Crossref"`
 		ScanningConfig    ScanningCfg     `yaml:"Scanning"`
 		StructureConfig   StructureCfg    `yaml:"Structure"`
-		TBDConfig         TBDCfg          `yaml:"TBD"`
+		BeaconConfig      BeaconCfg       `yaml:"Beacon"`
 		UrlsConfig        UrlsCfg         `yaml:"Urls"`
 		UserAgentConfig   UserAgentCfg    `yaml:"UserAgent"`
 		BroConfig         BroCfg          `yaml:"Bro"`
@@ -62,9 +62,9 @@ type (
 		ScanTable     string `yaml:"ScanTable"`
 	}
 
-	TBDCfg struct {
+	BeaconCfg struct {
 		DefaultConnectionThresh int    `yaml:"DefaultConnectionThresh"`
-		TBDTable                string `yaml:"TBDTable"`
+		BeaconTable             string `yaml:"BeaconTable"`
 	}
 
 	UrlsCfg struct {

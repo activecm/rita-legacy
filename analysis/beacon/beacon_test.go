@@ -1,4 +1,4 @@
-package TBD
+package beacon
 
 import (
 	"fmt"
@@ -7,10 +7,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ocmdev/rita/database"
-	datatype_TBD "github.com/ocmdev/rita/datatypes/TBD"
+	datatype_beacon "github.com/ocmdev/rita/datatypes/beacon"
 )
 
-func printAnalysis(res *datatype_TBD.TBDAnalysisOutput) string {
+func printAnalysis(res *datatype_beacon.BeaconAnalysisOutput) string {
 	v := reflect.ValueOf(*res)
 
 	var ret string
@@ -26,15 +26,15 @@ func printAnalysis(res *datatype_TBD.TBDAnalysisOutput) string {
 func TestAnalysis(t *testing.T) {
 	resources := database.InitMockResources("")
 	resources.Log.Level = log.DebugLevel
-	resources.System.TBDConfig.DefaultConnectionThresh = 2
+	resources.System.BeaconConfig.DefaultConnectionThresh = 2
 
 	fail := false
 	for i, val := range testDataList {
-		beaconing := newTBD(resources)
+		beaconing := newBeacon(resources)
 		//set first and last connection times
 		beaconing.minTime = val.ts[0]
 		beaconing.maxTime = val.ts[len(val.ts)-1]
-		data := &tbdAnalysisInput{
+		data := &beaconAnalysisInput{
 			src: "0.0.0.0",
 			dst: "0.0.0.0",
 			ts:  val.ts,

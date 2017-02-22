@@ -1,4 +1,4 @@
-package TBD
+package beacon
 
 type testData struct {
 	ts          []int64

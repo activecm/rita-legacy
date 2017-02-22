@@ -91,9 +91,9 @@ Scanning:
     ScanThreshold: 50
     ScanTable: scan
 
-TBD:
+Beacon:
     DefaultConnectionThresh: 24
-    TBDTable: tbd
+    BeaconTable: beacon
 
 Urls:
     UrlsTable: urls

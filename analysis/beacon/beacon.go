@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/ocmdev/rita/database"
@@ -19,23 +20,23 @@ import (
 )
 
 type (
-	//beacon contains methods for conducting a beacon hunt
-	beacon struct {
-		db                string                          			// current database
-		resources         *database.Resources             			// holds the global config and DB layer
-		defaultConnThresh int                             			// default connections threshold
-		collectChannel    chan string                     			// holds ip addresses
-		analysisChannel   chan *beaconAnalysisInput          		// holds unanalyzed data
-		writeChannel      chan *dataBeacon.BeaconAnalysisOutput	// holds analyzed data
-		collectWg         sync.WaitGroup                  			// wait for collection to finish
-		analysisWg        sync.WaitGroup                  			// wait for analysis to finish
-		writeWg           sync.WaitGroup                  			// wait for writing to finish
-		collectThreads    int                             			// the number of read / collection threads
-		analysisThreads   int                             			// the number of analysis threads
-		writeThreads      int                             			// the number of write threads
-		log               *log.Logger                     			// system Logger
-		minTime           int64                           			// minimum time
-		maxTime           int64                           			// maximum time
+	//Beacon contains methods for conducting a beacon hunt
+	Beacon struct {
+		db                string                          // current database
+		resources         *database.Resources             // holds the global config and DB layer
+		defaultConnThresh int                             // default connections threshold
+		collectChannel    chan string                     // holds ip addresses
+		analysisChannel   chan *beaconAnalysisInput       // holds unanalyzed data
+		writeChannel      chan *dataBeacon.BeaconAnalysisOutput // holds analyzed data
+		collectWg         sync.WaitGroup                  // wait for collection to finish
+		analysisWg        sync.WaitGroup                  // wait for analysis to finish
+		writeWg           sync.WaitGroup                  // wait for writing to finish
+		collectThreads    int                             // the number of read / collection threads
+		analysisThreads   int                             // the number of analysis threads
+		writeThreads      int                             // the number of write threads
+		log               *log.Logger                     // system Logger
+		minTime           int64                           // minimum time
+		maxTime           int64                           // maximum time
 	}
 
 	//beaconAnalysisInput binds a src, dst pair with their analysis data
@@ -51,7 +52,7 @@ type (
 )
 
 func BuildBeaconCollection(res *database.Resources) {
-	collection_name := res.System.TBDConfig.TBDTable
+	collection_name := res.System.BeaconConfig.BeaconTable
 	collection_keys := []string{"uconn_id", "ts_score"}
 	error_check := res.DB.CreateCollection(collection_name, collection_keys)
 	if error_check != "" {
@@ -61,25 +62,23 @@ func BuildBeaconCollection(res *database.Resources) {
 	newBeacon(res).run()
 }
 
-func GetBeaconResultsView(res *database.Resources, cutoffScore float64) []dataBeacon.BeaconAnalysisView {
+func GetBeaconResultsView(res *database.Resources, ssn *mgo.Session, cutoffScore float64) *mgo.Iter {
 	pipeline := getViewPipeline(res, cutoffScore)
-	var results []dataBeacon.BeaconAnalysisView
-	res.DB.AggregateCollection(res.System.TBDConfig.TBDTable, pipeline, &results)
-	return results
+	return res.DB.AggregateCollection(res.System.BeaconConfig.BeaconTable, ssn, pipeline)
 }
 
 // New creates a new beacon module
-func newBeacon(res *database.Resources) *beacon {
+func newBeacon(res *database.Resources) *Beacon {
 
 	// If the threshold is incorrectly specified, fix it up.
 	// We require at least four delta times to analyze
 	// (Q1, Q2, Q3, Q4). So we need at least 5 connections
-	thresh := res.System.TBDConfig.DefaultConnectionThresh
+	thresh := res.System.BeaconConfig.DefaultConnectionThresh
 	if thresh < 5 {
 		thresh = 5
 	}
 
-	return &beacon{
+	return &Beacon{
 		db:                res.DB.GetSelectedDB(),
 		resources:         res,
 		defaultConnThresh: thresh,
@@ -94,7 +93,7 @@ func newBeacon(res *database.Resources) *beacon {
 }
 
 // Run Starts the beacon hunt process
-func (t *beacon) run() {
+func (t *Beacon) run() {
 	t.log.Info("Running beacon hunt")
 	session := t.resources.DB.Session.Copy()
 	defer session.Close()
@@ -163,7 +162,7 @@ func (t *beacon) run() {
 }
 
 // collect grabs all src, dst pairs and their connection data
-func (t *beacon) collect() {
+func (t *Beacon) collect() {
 	session := t.resources.DB.Session.Copy()
 	defer session.Close()
 	host, more := <-t.collectChannel
@@ -205,7 +204,7 @@ func (t *beacon) collect() {
 }
 
 // analyze src, dst pairs with their connection data
-func (t *beacon) analyze() {
+func (t *Beacon) analyze() {
 	for data := range t.analysisChannel {
 		//sort the timestamps since they may have arrived out of order
 		sort.Sort(util.SortableInt64(data.ts))
@@ -217,7 +216,7 @@ func (t *beacon) analyze() {
 
 		//If removing duplicates lowered the conn count under the threshold,
 		//remove this data from the analysis
-		if len(data.ts) < t.resources.System.TBDConfig.DefaultConnectionThresh {
+		if len(data.ts) < t.resources.System.BeaconConfig.DefaultConnectionThresh {
 			continue
 		}
 
@@ -249,7 +248,7 @@ func (t *beacon) analyze() {
 		bNum := low + high - 2*mid
 		bDen := high - low
 
-		//bSkew should equal zero if the denominator equals zero
+		//bSkew should equal zero if hte denominator equals zero
 		if bDen != 0 {
 			bSkew = float64(bNum) / float64(bDen)
 		}
@@ -306,12 +305,12 @@ func (t *beacon) analyze() {
 }
 
 // write writes the beacon analysis results to the database
-func (t *beacon) write() {
+func (t *Beacon) write() {
 	session := t.resources.DB.Session.Copy()
 	defer session.Close()
 
 	for data := range t.writeChannel {
-		session.DB(t.db).C(t.resources.System.TBDConfig.TBDTable).Insert(data)
+		session.DB(t.db).C(t.resources.System.BeaconConfig.BeaconTable).Insert(data)
 	}
 	t.writeWg.Done()
 }
@@ -378,6 +377,8 @@ func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 				{"ts_score", 1},
 				{"src", "$uconn.src"},
 				{"dst", "$uconn.dst"},
+				{"local_src", "$uconn.local_src"},
+				{"local_dst", "$uconn.local_dst"},
 				{"connection_count", "$uconn.connection_count"},
 				{"avg_bytes", "$uconn.avg_bytes"},
 				{"ts_iRange", 1},
