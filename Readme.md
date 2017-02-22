@@ -11,6 +11,8 @@ The framework ingests [Bro Logs](https://www.bro.org/), and currently supports t
  - **Blacklisted**: Query blacklists to search for suspicious domains and hosts in your network traffic
  - **Scanning**: Search for signs of port scans in your network
 
+Additional functionality is being developed and will be included soon.
+
 
 ### Automatic Installation
 **The automatic RITA installer is officially supported on Ubuntu 16.04 LTS**
