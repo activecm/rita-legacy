@@ -38,6 +38,7 @@ type (
 		Name       string        `bson:"name"`          // Top level name of the database
 		Analyzed   bool          `bson:"analyzed"`      // Has this database been analyzed
 		UsingDates bool          `bson:"dates"`         // Whether this db was created with dates enabled
+		Version    string        `bson:"version"`       // Rita version at import
 	}
 )
 
@@ -54,6 +55,7 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 			Name:       name,
 			Analyzed:   false,
 			UsingDates: m.res.System.BroConfig.UseDates,
+			Version:    m.res.System.Version,
 		},
 	)
 	if err != nil {
