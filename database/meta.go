@@ -20,22 +20,24 @@ type (
 		res  *Resources  // Keep resources object
 	}
 
-	// PFile retains everything we need to know about a given file
-	PFile struct {
+	// IndexedFile retains everything we need to know about a given file
+	IndexedFile struct {
 		ID       bson.ObjectId `bson:"_id,omitempty"`
 		Path     string        `bson:"filepath"`
 		Hash     string        `bson:"hash"`
 		Length   int64         `bson:"length"`
 		Parsed   int64         `bson:"time_complete"`
 		Mod      time.Time     `bson:"modified"`
-		DataBase string        `bson:"database"`
+		Database string        `bson:"database"`
+		Date     string        `bson:"date"`
 	}
 
 	// DBMetaInfo defines some information about the database
 	DBMetaInfo struct {
-		ID       bson.ObjectId `bson:"_id,omitempty"` // Ident
-		Name     string        `bson:"name"`          // Top level name of the database
-		Analyzed bool          `bson:"analyzed"`      // Has this database been analyzed
+		ID         bson.ObjectId `bson:"_id,omitempty"` // Ident
+		Name       string        `bson:"name"`          // Top level name of the database
+		Analyzed   bool          `bson:"analyzed"`      // Has this database been analyzed
+		UsingDates bool          `bson:"dates"`         // Whether this db was created with dates enabled
 	}
 )
 
@@ -47,7 +49,13 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
-	err := ssn.DB(m.DB).C("databases").Insert(DBMetaInfo{Name: name, Analyzed: false})
+	err := ssn.DB(m.DB).C("databases").Insert(
+		DBMetaInfo{
+			Name:       name,
+			Analyzed:   false,
+			UsingDates: m.res.System.BroConfig.UseDates,
+		},
+	)
 	if err != nil {
 		m.res.Log.WithFields(log.Fields{
 			"error": err.Error(),
@@ -78,12 +86,39 @@ func (m *MetaDBHandle) DeleteDB(name string) error {
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
-	err := ssn.DB(m.DB).C("databases").Remove(bson.M{"name": name})
+	//get the record
+	var db DBMetaInfo
+	err := ssn.DB(m.DB).C("databases").Find(bson.M{"name": name}).One(&db)
 	if err != nil {
 		return err
 	}
 
+	//delete the record
+	err = ssn.DB(m.DB).C("databases").Remove(bson.M{"name": name})
+	if err != nil {
+		return err
+	}
+
+	//drop the data
 	ssn.DB(name).DropDatabase()
+
+	//delete any parsed file records associated
+	if db.UsingDates {
+		date := name[len(name)-10:]
+		name = name[:len(name)-11]
+		_, err = ssn.DB(m.DB).C("files").RemoveAll(
+			bson.M{"database": name, "date": date},
+		)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = ssn.DB(m.DB).C("files").RemoveAll(bson.M{"database": name})
+		if err != nil {
+			return err
+		}
+	}
+
 	m.logDebug("DeleteDB", "exiting")
 	return nil
 }
@@ -196,53 +231,52 @@ func (m *MetaDBHandle) GetAnalyzedDatabases() []string {
 //                            File Processing                                //
 ///////////////////////////////////////////////////////////////////////////////
 
-// GetFiles gets a list of all PFile objects in the database if successful return a list of files
+// GetFiles gets a list of all IndexedFile objects in the database if successful return a list of files
 // from the database, in the case of failure return a zero length list of files and generat a log
 // message.
-func (m *MetaDBHandle) GetFiles() []*PFile {
+func (m *MetaDBHandle) GetFiles() ([]IndexedFile, error) {
 	m.logDebug("GetFiles", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	var ret []*PFile
+	var toReturn []IndexedFile
 
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
-	var f PFile
 	//TODO: Make this read the database from the config file
-	iter := ssn.DB(m.DB).C("files").Find(nil).Iter()
-
-	for iter.Next(&f) {
-		ret = append(ret, &f)
+	err := ssn.DB(m.DB).C("files").Find(nil).Iter().All(&toReturn)
+	if err != nil {
+		m.res.Log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Error("could not fetch files from meta database")
+		return nil, err
 	}
 	m.logDebug("GetFiles", "exiting")
-	return ret
+	return toReturn, nil
 }
 
 // markComplete will mark a file as having been completed in the database
-func (m *MetaDBHandle) MarkFileImported(f *PFile) error {
+func (m *MetaDBHandle) MarkFileImported(f *IndexedFile) error {
 	m.logDebug("MarkFileImported", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
-	pfile := PFile{}
+	f.Parsed = time.Now().Unix()
+
 	//TODO: Make this read the database from the config file
 	err := ssn.DB(m.DB).C("files").
-		Find(bson.M{"hash": f.Hash, "database": f.DataBase}).One(&pfile)
-
-	if err != nil {
-		m.res.Log.WithFields(log.Fields{
-			"file":  f.Path,
-			"error": err.Error(),
-		}).Error("file could not be looked up by hash")
-		return err
-	}
-
-	//TODO: Make this read the database from the config file
-	err = ssn.DB(m.DB).C("files").
-		Update(bson.M{"_id": pfile.ID}, bson.M{"$set": bson.M{"time_complete": time.Now().Unix()}})
+		Update(
+			bson.M{
+				"hash": f.Hash, "database": f.Database,
+			},
+			bson.M{
+				"$set": bson.M{
+					"time_complete": f.Parsed,
+					"date":          f.Date,
+				},
+			})
 
 	if err != nil {
 		m.res.Log.WithFields(log.Fields{
@@ -256,38 +290,41 @@ func (m *MetaDBHandle) MarkFileImported(f *PFile) error {
 	return nil
 }
 
-// UpdateFiles updates the files table with all of the new files from a recent walk of the dir structure
-// at the end of the update we return a new GetFiles array so that the parser knows which files to get
+// InsertNewIndexedFiles updates the files table with all of the new files from a recent walk of the dir structure
+// at the end of the update we return a new array so that the parser knows which files to get
 // to parsing.
-func (m *MetaDBHandle) UpdateFiles(files []*PFile) []*PFile {
-	m.logDebug("UpdateFiles", "entering")
-	m.lock.Lock()
-	m.lock.Unlock()
+func (m *MetaDBHandle) InsertNewIndexedFiles(files []*IndexedFile) []*IndexedFile {
+	m.logDebug("InsertNewIndexedFiles", "entering")
 
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
-	var work []*PFile
-	myFiles := m.GetFiles()
+	var work []*IndexedFile
+	myFiles, _ := m.GetFiles()
 
 	for _, infile := range files {
 		have := false
 		for _, file := range myFiles {
-			if file.Hash == infile.Hash {
+			if file.Hash == infile.Hash && file.Database == infile.Database {
 				have = true
-				if file.Parsed > 0 && infile.Parsed > file.Parsed {
+				if file.Parsed > 0 {
 					m.res.Log.WithFields(log.Fields{
-						"warn": "mismatched parse times",
 						"path": file.Path,
-					}).Warning("file may have been parsed twice")
-
+					}).Warning("Refusing to import file into the same database twice")
+				} else {
+					m.res.Log.WithFields(log.Fields{
+						"path": file.Path,
+					}).Warning("Previously errored on file. Skipping")
 				}
+				break
 			}
 		}
 		if !have {
 			work = append(work, infile)
 		}
 	}
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	//TODO: Make this read the database from the config file
 	cur := ssn.DB(m.DB).C("files")
@@ -301,7 +338,7 @@ func (m *MetaDBHandle) UpdateFiles(files []*PFile) []*PFile {
 			}).Error("Failed to insert")
 		}
 	}
-	m.logDebug("UpdateFiles", "exiting")
+	m.logDebug("InsertNewIndexedFiles", "exiting")
 	return work
 }
 

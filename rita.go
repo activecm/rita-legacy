@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"runtime"
 
 	"github.com/ocmdev/rita/commands"
 
@@ -21,5 +22,6 @@ func main() {
 	// Define commands used with this application
 	app.Commands = commands.Commands()
 
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	app.Run(os.Args)
 }

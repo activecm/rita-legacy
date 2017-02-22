@@ -48,7 +48,7 @@ func showBeacons(c *cli.Context) error {
 	beacon.GetBeaconResultsView(res, ssn, cutoffScore).All(&data)
 	ssn.Close()
 
-	if humanreadable {
+	if c.Bool("human-readable") {
 		return showBeaconReport(data)
 	}
 
