@@ -3,7 +3,6 @@ package blacklisted
 import (
 	"crypto/md5"
 	"fmt"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -128,7 +127,6 @@ func (b *Blacklisted) run() {
 	ipcur := ipssn.DB(b.db).C(b.resources.System.StructureConfig.HostTable)
 	urlcur := urlssn.DB(b.db).C(b.resources.System.UrlsConfig.HostnamesTable)
 
-	runtime.GOMAXPROCS(runtime.NumCPU())
 	ipaddrs := make(chan string, b.channel_size)
 	urls := make(chan UrlShort, b.channel_size)
 	cash := util.NewCache()

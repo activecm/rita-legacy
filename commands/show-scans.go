@@ -32,7 +32,7 @@ func init() {
 			coll := res.DB.Session.DB(c.String("database")).C(res.System.ScanningConfig.ScanTable)
 			coll.Find(nil).All(&scans)
 
-			if humanreadable {
+			if c.Bool("human-readable") {
 				return showScansHuman(scans)
 			}
 			return showScans(scans)

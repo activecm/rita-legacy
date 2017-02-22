@@ -5,6 +5,7 @@ import (
 
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/parser"
+	"github.com/ocmdev/rita/util"
 	"github.com/urfave/cli"
 )
 
@@ -37,6 +38,7 @@ func doImport(c *cli.Context) error {
 	res := database.InitResources(c.String("config"))
 	importDir := c.String("import-dir")
 	databaseName := c.String("database")
+	threads := util.Max(c.Int("threads")/2, 1)
 
 	//one flag was set
 	if importDir != "" && databaseName == "" || importDir == "" && databaseName != "" {
@@ -56,9 +58,7 @@ func doImport(c *cli.Context) error {
 	}
 
 	fmt.Printf("Importing %s\n", res.System.BroConfig.LogPath)
-	dw := parser.NewDocWriter(res)
-	dw.Start(c.Int("threads"))
-	parser.NewWatcher(res).Run(dw)
+	parser.NewWatcher(res, threads).Run(parser.NewDocWriter(res, threads))
 	fmt.Println("Finished importing!")
 	return nil
 }

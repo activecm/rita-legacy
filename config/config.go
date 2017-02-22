@@ -47,9 +47,9 @@ type (
 	}
 
 	CrossrefCfg struct {
-		InternalTable    string  `yaml:"InternalTable"`
-		ExternalTable 	 string  `yaml:"ExternalTable"`
-		BeaconThreshold  float64 `yaml:"BeaconThreshold"`
+		InternalTable   string  `yaml:"InternalTable"`
+		ExternalTable   string  `yaml:"ExternalTable"`
+		BeaconThreshold float64 `yaml:"BeaconThreshold"`
 	}
 
 	SafeBrowsingCfg struct {
@@ -80,7 +80,6 @@ type (
 		LogPath         string            `yaml:"LogPath"`
 		DBPrefix        string            `yaml:"DBPrefix"`
 		MetaDB          string            `yaml:"MetaDB"`
-		WriteThreads    int               `yaml:"WriteThreads"`
 		DirectoryMap    map[string]string `yaml:"DirectoryMap"`
 		DefaultDatabase string            `yaml:"DefaultDatabase"`
 		UseDates        bool              `yaml:"UseDates"`

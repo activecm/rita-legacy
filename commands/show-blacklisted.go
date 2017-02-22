@@ -56,7 +56,7 @@ func showBlacklisted(c *cli.Context) error {
 		results = append(results, result)
 	}
 
-	if humanreadable {
+	if c.Bool("human-readable") {
 		return showBlacklistedHuman(results)
 	}
 	return showBlacklistedCsv(results)
