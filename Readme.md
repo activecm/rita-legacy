@@ -4,15 +4,18 @@ Brought to you by Offensive CounterMeasures
 
 ###What's here
 
-RITA has all of the logic used to analyze Bro data. With an input of Bro data a
-MongoDB database will be created, which can be analyzed for review of that data.
-All of the mathematics, lookups, and storage of Offensive CounterMeasures AI
-Hunter is available in this package. The only thing not here is the graphical
-front end which Offensive CounterMeasures has created to help visualize this
-data.
+RITA is an open source network traffic analysis framework.
+
+The framework ingests [Bro Logs](https://www.bro.org/), and currently supports the following analysis features:
+ - **Beaconing**: Search for signs of beaconing behavior in and out of your network
+ - **Blacklisted**: Query blacklists to search for suspicious domains and hosts in your network traffic
+ - **Scanning**: Search for signs of port scans in your network
+
+Additional functionality is being developed and will be included soon.
+
 
 ### Automatic Installation
-Rita is currently supported on Ubuntu 16.04 LTS.
+**The automatic RITA installer is officially supported on Ubuntu 16.04 LTS**
 
 Clone the package:
 ```bash
@@ -25,24 +28,26 @@ cd rita
 ```
 Run the installer:
 
-**Note:** Make sure you have permission to write to the install directory.
+**Note:** 
 By default, Rita will install to /usr/local/rita.
 However, you can change the install location with the *-i* flag.
 ```bash
-./install.sh
+sudo ./install.sh
 ```
 
 ***or***
 
 ```bash
-./install.sh -i /path/to/install/directory
+sudo ./install.sh -i /path/to/install/directory
 ```
 
 ### Manual Installation
 To install each component of Rita by hand, [check out the instructions in the wiki](https://github.com/ocmdev/rita/wiki/Installation).
 
 ### Configuration File
-The default location for the config file is */etc/rita/config.yaml*. However, if the installer did not have permission to write to that directory, the config file will be found at *~/.rita*.
+RITA contains a yaml format configuration file.
+
+You can specify the location for the configuration file with the **-c** command line flag. If not specified, RITA will first look for the configuration in **~/.rita/config.yaml** then **/etc/rita/config.yaml**.
 
 
 ### API Keys
@@ -60,17 +65,13 @@ To obtain an API key:
   * Click on **Google Safe Browsing API**.
   * Near the top, click **Enable**.
 
+Now replace the **APIKey** field under **SafeBrowsing** in the configuration file with the obtained key.
 
 ### Getting Started
-**Note: WORKING ON THIS SECTION**
- * Will describe collecting logs, importing, and analyzing.
- * Also planning on writing an entry in the wiki on setting up a tap/span port and collecting bro logs.
+**Link to video tutorial will be added soon!**
 
 ###Getting help
-Head over to OFTC and join #ocmdev for any questions you may have. Please
-remember that this is an open source project, the developers working in here
-have full time jobs and are not your personal tech support. So please be civil
-with us.
+Head over to OFTC and join #ocmdev for any questions you may have. 
 
 ###License
 GNU GPL V3
