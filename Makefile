@@ -6,4 +6,5 @@ default:
 	go build -ldflags="-X github.com/ocmdev/rita/config.VERSION=${VERSION}"
 
 install:
-	go install
+	go install -ldflags="-X github.com/ocmdev/rita/config.VERSION=${VERSION}"
+
