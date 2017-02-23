@@ -61,6 +61,10 @@ type DNS struct {
 	Rejected bool `bson:"rejected" bro:"rejected" brotype:"bool"`
 }
 
+func (in *DNS) TargetCollection() string {
+	return "dns"
+}
+
 // GetHostName is our method for collecting host name
 // This is temporary for the time being
 func (in *DNS) IsWhiteListed(whitelist []string) bool {
