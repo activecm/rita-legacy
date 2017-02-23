@@ -159,7 +159,6 @@ install the correct version for you!
 	go get github.com/ocmdev/rita
 	printf "[+] Installing RITA...\n\n"
 	cd $GOPATH/src/github.com/ocmdev/rita
-	make
 	make install
 
 	printf "[+] Transferring files...\n\n"
