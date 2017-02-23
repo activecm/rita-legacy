@@ -1,21 +1,12 @@
 # Mongo Database to connect to
 DatabaseHost: localhost:27017
 
-# Intel makes use of GNU Netcat to make bulk requests from the team cymru WHOIS
-# server. It is important that it is *GNU* netcat at this path.
-GNUNetcatPath: /usr/local/rita
-
-# Name of the host intelligence database. This can be the same across many tests.
-# Data like blacklist information, ASN, etc, will be gathered here in order to
-# attempt to reduce the number of lookups necessary.
-HostIntelDB: HostIntelligence
-
 # LogLevel
 # 3 = debug
 # 2 = info
 # 1 = warn
 # 0 = error
-LogLevel: 2
+LogLevel: 1
 
 # Adjusting batchsize and prefetch may help speed up certain database queries
 BatchSize: 300
@@ -57,27 +48,24 @@ Bro:
     # about the test and the files related to the test. If there are several
     # subnets mapped in DirectoryMap each will be handled separately and that
     # separation is handled by the metadatabase.
-    MetaDB: MetaDataBase
-
-    # If the ingestor is running slowly and there is plenty of resources
-    # remaining, it may be wise to increase the number of write threads
-    # accordingly. Note that writing to MongoDB is a part of this equation.
-    # If MongoDB is tipping over when import is run, then reduce the number of
-    # write threads.
-    WriteThreads: 10
+    MetaDB: MetaDatabase
 
     # If use dates is true the logs will be split into databases by date, this is
     # best for if you have multiple days worth of log files in the logpath and wish
     # to treat each day as a separate test. 24hours worth of data is the ideal for
     # analysis, and using dates will ensure that tests are broken into 24hour periods
     # around midnight of each day.
-    UseDates: true
+    UseDates: false
 
+SafeBrowsing:
+    APIKey: ""
+    Database: $HOME/.rita/safebrowsing
 
 # NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
 Structure:
     ConnectionTable: conn
     HttpTable: http
+    DnsTable: dns
     UniqueConnectionTable: uconn
     HostTable: host
 
@@ -85,17 +73,20 @@ BlackListed:
     ThreadCount: 2
     ChannelSize: 1000
     BlackListTable: blacklisted
+    Database: rita-blacklist
 
-Dns:
-    DnsTable: dns
+Crossref:
+    InternalTable: internXREF
+    ExternalTable: externXREF
+    BeaconThreshold: .7
 
 Scanning:
     ScanThreshold: 50
     ScanTable: scan
 
-TBD:
+Beacon:
     DefaultConnectionThresh: 24
-    TBDTable: tbd
+    BeaconTable: beacon
 
 Urls:
     UrlsTable: urls
