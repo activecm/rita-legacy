@@ -97,13 +97,9 @@ code.
 
 1. Work on bug fixes. Grab from the issues list and submit fixes.
 
-1. Helping add features:
-  	* If you'd like to become involved in the development effort please hop on our
-OFTC channel at #ocmdev and try and chat with booodead about what's currently
-being worked on.
-  	* If you have a feature request or idea, also please hop on OFTC #ocmdev and
-chat with booodead about your idea. There's a chance we're already working on it and
-would be happy to share that work with you.
+1. Help add features:
+  	* If you would like to become involved in the development effort, please hop on our
+OFTC channel at #ocmdev and chat about what's currently being worked on.
 
 #####Submitting work:
 Please send pull requests and such as small as possible. As this is a product that
