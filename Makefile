@@ -1,4 +1,4 @@
-VERSION := $(shell git describe --always --long --dirty)
+VERSION := $(shell git describe --always --long --dirty --tags)
 GOPATH := $(GOPATH)
 BINARY := rita
 
