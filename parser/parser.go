@@ -242,17 +242,17 @@ func (d *docParser) parseLine() {
 			case STRING_SET:
 				tokens := strings.Split(line[idx], ",")
 				tVal := reflect.ValueOf(tokens)
-				data.Field(d.SFields[val]).Set(tVal)
+				data.Field(fieldOffset).Set(tVal)
 				break
 			case ENUM_SET:
 				tokens := strings.Split(line[idx], ",")
 				tVal := reflect.ValueOf(tokens)
-				data.Field(d.SFields[val]).Set(tVal)
+				data.Field(fieldOffset).Set(tVal)
 				break
 			case STRING_VECTOR:
 				tokens := strings.Split(line[idx], ",")
 				tVal := reflect.ValueOf(tokens)
-				data.Field(d.SFields[val]).Set(tVal)
+				data.Field(fieldOffset).Set(tVal)
 				break
 			//case DURATION_VECTOR:
 			//	data.Field(d.SFields[val]).SetString(line[idx])
@@ -268,12 +268,11 @@ func (d *docParser) parseLine() {
 							"error": err.Error(),
 							"value": val,
 						}).Error("Couldn't convert float")
-						data.Field(d.SFields[val]).SetFloat(-1.0)
 						break
 					}
 				}
 				fVal := reflect.ValueOf(floats)
-				data.Field(d.SFields[val]).Set(fVal)
+				data.Field(fieldOffset).Set(fVal)
 				break
 			default:
 				d.log.WithFields(log.Fields{
