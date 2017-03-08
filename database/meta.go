@@ -76,6 +76,7 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 	newRes.DB = &DB{Session: m.res.DB.Session, resources: &newRes, selected: name}
 	buildConnectionsCollection(&newRes)
 	buildHttpCollection(&newRes)
+	buildDNSCollection(&newRes)
 	m.logDebug("AddNewDB", "exiting")
 	return nil
 }

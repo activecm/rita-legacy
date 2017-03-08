@@ -56,19 +56,19 @@ type HTTP struct {
 	// Password will contain a password in the case of basic auth implementation
 	Password string `bson:"password" bro:"password" brotype:"string"`
 	// Proxied contains all headers that indicate a request was proxied
-	Proxied string `bson:"proxied" bro:"proxied" brotype:"set[string]"`
+	Proxied []string `bson:"proxied" bro:"proxied" brotype:"set[string]"`
 	// OrigFuids contains an ordered vector of uniq file IDs
-	OrigFuids string `bson:"orig_fuids" bro:"orig_fuids" brotype:"vector[string]"`
+	OrigFuids []string `bson:"orig_fuids" bro:"orig_fuids" brotype:"vector[string]"`
 	// OrigFilenames contains an ordered vector of filenames from the client
-	OrigFilenames string `bson:"orig_filenames" bro:"orig_filenames" brotype:"vector[string]"`
+	OrigFilenames []string `bson:"orig_filenames" bro:"orig_filenames" brotype:"vector[string]"`
 	// OrigMimeTypes contains an ordered vector of mimetypes
-	OrigMimeTypes string `bson:"orig_mime_types" bro:"orig_mime_types" brotype:"vector[string]"`
+	OrigMimeTypes []string `bson:"orig_mime_types" bro:"orig_mime_types" brotype:"vector[string]"`
 	// RespFuids contains an ordered vector of unique file IDs in the response
-	RespFuids string `bson:"resp_fuids" bro:"resp_fuids" brotype:"vector[string]"`
+	RespFuids []string `bson:"resp_fuids" bro:"resp_fuids" brotype:"vector[string]"`
 	// RespFilenames contains an ordered vector of unique files in the response
-	RespFilenames string `bson:"resp_filenames" bro:"resp_filenames" brotype:"vector[string]"`
+	RespFilenames []string `bson:"resp_filenames" bro:"resp_filenames" brotype:"vector[string]"`
 	// RespMimeTypes contains an ordered vector of unique MIME entities in the HTTP response body
-	RespMimeTypes string `bson:"resp_mime_types" bro:"resp_mime_types" brotype:"vector[string]"`
+	RespMimeTypes []string `bson:"resp_mime_types" bro:"resp_mime_types" brotype:"vector[string]"`
 }
 
 func (in *HTTP) TargetCollection() string {
