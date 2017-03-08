@@ -70,18 +70,30 @@ const (
 	// TABLE represents an associated array that maps from one set of
 	// values to another. Values being mapped are refered to as indices and
 	// the resulting map the yield.
-	TABLE = "table"
+	//TABLE = "table"
 
 	// SET is like table but the collection of indicies do not have to map
 	// to any yield value.
-	SET = "set"
+	//SET = "set"
 
 	// VECTOR is a table which is always mapped by its count.
-	VECTOR = "vector"
+	//VECTOR = "vector"
 
 	// RECORD represents a collection of values each with a field name and
 	// type.
-	RECORD = "record"
+	//RECORD = "record"
+
+	// STRING_SET is a SET which contains STRINGs
+	STRING_SET = "set[string]"
+
+	// ENUM_SET is a SET which contains ENUMs
+	ENUM_SET = "set[enum]"
+
+	// STRING_VECTOR is a VECTOR which contains STRINGs
+	STRING_VECTOR = "vector[string]"
+
+	// INTERVAL_VECTOR is a VECTOR which contains INTERVALs
+	INTERVAL_VECTOR = "vector[interval]"
 
 	// FUNCTION represents a function type in bro script.
 	FUNCTION = "function"

@@ -54,9 +54,9 @@ type DNS struct {
 	// Z represents the state of a reseverd field that should be zero in qll queries
 	Z int64 `bson:"Z" bro:"Z" brotype:"count"`
 	// Answers contains the set of resource descriptions in the query answer
-	Answers string `bson:"answers" bro:"answers" brotype:"vector[string]"`
+	Answers []string `bson:"answers" bro:"answers" brotype:"vector[string]"`
 	// TTLs contians a vector of interval type time to live values
-	TTLs string `bson:"TTLs" bro:"TTLs" brotype:"vector[interval]"`
+	TTLs []float64 `bson:"TTLs" bro:"TTLs" brotype:"vector[interval]"`
 	// Rejected indicates if this query was rejected or not
 	Rejected bool `bson:"rejected" bro:"rejected" brotype:"bool"`
 }

@@ -52,7 +52,7 @@ type (
 		// RespIpBytes gives the bytecount of response data
 		RespIPBytes int64 `bson:"resp_ip_bytes" bro:"resp_ip_bytes" brotype:"count"`
 		// TunnelParents lists tunnel parents
-		TunnelParents string `bson:"tunnel_parents" bro:"tunnel_parents" brotype:"set[string]"`
+		TunnelParents []string `bson:"tunnel_parents" bro:"tunnel_parents" brotype:"set[string]"`
 	}
 )
 

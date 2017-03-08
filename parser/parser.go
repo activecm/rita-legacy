@@ -233,20 +233,41 @@ func (d *docParser) parseLine() {
 				}
 				data.Field(d.SFields[val]).SetBool(false)
 				break
-			case "set[string]":
-				data.Field(d.SFields[val]).SetString(line[idx])
+			case STRING_SET:
+				tokens := strings.Split(line[idx], ",")
+				tVal := reflect.ValueOf(tokens)
+				data.Field(d.SFields[val]).Set(tVal)
 				break
-			case "set[enum]":
-				data.Field(d.SFields[val]).SetString(line[idx])
+			case ENUM_SET:
+				tokens := strings.Split(line[idx], ",")
+				tVal := reflect.ValueOf(tokens)
+				data.Field(d.SFields[val]).Set(tVal)
 				break
-			case "vector[string]":
-				data.Field(d.SFields[val]).SetString(line[idx])
+			case STRING_VECTOR:
+				tokens := strings.Split(line[idx], ",")
+				tVal := reflect.ValueOf(tokens)
+				data.Field(d.SFields[val]).Set(tVal)
 				break
-			case "vector[duration]":
-				data.Field(d.SFields[val]).SetString(line[idx])
-				break
-			case "vector[interval]":
-				data.Field(d.SFields[val]).SetString(line[idx])
+			//case DURATION_VECTOR:
+			//	data.Field(d.SFields[val]).SetString(line[idx])
+			//	break
+			case INTERVAL_VECTOR:
+				tokens := strings.Split(line[idx], ",")
+				floats := make([]float64, len(tokens))
+				for i, val := range tokens {
+					var err error
+					floats[i], err = strconv.ParseFloat(val, 64)
+					if err != nil {
+						d.log.WithFields(log.Fields{
+							"error": err.Error(),
+							"value": val,
+						}).Error("Couldn't convert float")
+						data.Field(d.SFields[val]).SetFloat(-1.0)
+						break
+					}
+				}
+				fVal := reflect.ValueOf(floats)
+				data.Field(d.SFields[val]).Set(fVal)
 				break
 			default:
 				d.log.WithFields(log.Fields{
