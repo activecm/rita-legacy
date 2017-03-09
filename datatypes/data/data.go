@@ -19,4 +19,21 @@ type (
 		LocalSrc bool          `bson:"local_orig,omitempty"`
 		LocalDst bool          `bson:"local_resp,omitempty"`
 	}
+
+	// DNS provides structure for a subset of the fields in the
+	// parser.DNS data structure. If fields are needed that are
+	// not in this Conn structure use parser.DNS instead.
+	DNS struct {
+		ID      bson.ObjectId `bson:"_id,omitempty"`
+		Ts      int64         `bson:"ts"`
+		UID     string        `bson:"uid"`
+		Src     string        `bson:"id_origin_h"`
+		Spt     int           `bson:"id_origin_p"`
+		Dst     string        `bson:"id_resp_h"`
+		Dpt     int           `bson:"id_resp_p"`
+		Proto   string        `bson:"proto"`
+		QType   string        `bson:"qtype_name"`
+		Query   string        `bson:"query"`
+		Answers []string      `bson:"answers"`
+	}
 )
