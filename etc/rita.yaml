@@ -79,6 +79,9 @@ BlackListed:
     BlackListTable: blacklisted
     Database: rita-blacklist
 
+Dns:
+    ExplodedDnsTable: explodedDns
+
 Crossref:
     InternalTable: internXREF
     ExternalTable: externXREF
