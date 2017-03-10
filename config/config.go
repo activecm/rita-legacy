@@ -24,6 +24,7 @@ type (
 		ImportWhitelist   bool            `yaml:"ImportWhitelist"`
 		RitaLogPath       string          `yaml:"RitaLogPath"`
 		BlacklistedConfig BlacklistedCfg  `yaml:"BlackListed"`
+		DnsConfig         DnsCfg          `yaml:"Dns"`
 		CrossrefConfig    CrossrefCfg     `yaml:"Crossref"`
 		ScanningConfig    ScanningCfg     `yaml:"Scanning"`
 		StructureConfig   StructureCfg    `yaml:"Structure"`
@@ -48,6 +49,10 @@ type (
 		ChannelSize       int    `yaml:"ChannelSize"`
 		BlacklistTable    string `yaml:"BlackListTable"`
 		BlacklistDatabase string `yaml:"Database"`
+	}
+
+	DnsCfg struct {
+		ExplodedDnsTable string `yaml:"ExplodedDnsTable"`
 	}
 
 	CrossrefCfg struct {
