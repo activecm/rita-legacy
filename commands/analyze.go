@@ -7,6 +7,7 @@ import (
 	"github.com/ocmdev/rita/analysis/beacon"
 	"github.com/ocmdev/rita/analysis/blacklisted"
 	"github.com/ocmdev/rita/analysis/crossref"
+	"github.com/ocmdev/rita/analysis/dns"
 	"github.com/ocmdev/rita/analysis/scanning"
 	"github.com/ocmdev/rita/analysis/structure"
 	"github.com/ocmdev/rita/analysis/urls"
@@ -88,6 +89,10 @@ func analyze(inDb string, configFile string) {
 		urls.BuildHostnamesCollection(res)
 
 		// Module Collections
+
+		fmt.Fprintf(os.Stdout, "\t[-] Running dns analysis\n")
+		dns.BuildExplodedDNSCollection(res)
+
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Running beacon analysis\n")
 
