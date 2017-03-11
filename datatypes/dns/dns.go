@@ -6,7 +6,7 @@ type (
 	ExplodedDNS struct {
 		ID         bson.ObjectId `bson:"_id,omitempty"`
 		Domain     string        `bson:"domain"`
-		Subdomains float64       `bson:"subdomains"`
-		Visited    float64       `bson:"visited"`
+		Subdomains int64         `bson:"subdomains"`
+		Visited    int64         `bson:"visited"`
 	}
 )
