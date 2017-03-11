@@ -15,6 +15,10 @@ func BuildExplodedDNSCollection(res *database.Resources) {
 	buildExplodedDNSVistedCounts(res)
 	buildExplodedDNSUniqSubdomains(res)
 	zipExplodedDNSResults(res)
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+	ssn.DB(res.DB.GetSelectedDB()).C(tempVistedCountCollName).DropCollection()
+	ssn.DB(res.DB.GetSelectedDB()).C(tempUniqSubdomainCollName).DropCollection()
 }
 
 // buildExplodedDNSVistedCounts uses the map reduce job to count how many
