@@ -13,8 +13,6 @@ import (
 	"github.com/urfave/cli"
 )
 
-var cutoffScore float64
-
 func init() {
 	command := cli.Command{
 		Name:  "show-beacons",
@@ -22,12 +20,7 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			cli.Float64Flag{
-				Name:        "score, s",
-				Usage:       "change the beacon cutoff score",
-				Destination: &cutoffScore,
-				Value:       .7,
-			},
+			allFlag,
 		},
 		Action: showBeacons,
 	}
@@ -43,6 +36,10 @@ func showBeacons(c *cli.Context) error {
 	res.DB.SelectDB(c.String("database"))
 
 	var data []beaconData.BeaconAnalysisView
+	cutoffScore := .7
+	if c.Bool("all") {
+		cutoffScore = 0
+	}
 
 	ssn := res.DB.Session.Copy()
 	beacon.GetBeaconResultsView(res, ssn, cutoffScore).All(&data)
