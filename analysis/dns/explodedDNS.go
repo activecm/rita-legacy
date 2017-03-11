@@ -52,7 +52,7 @@ func buildExplodedDNSUniqSubdomains(res *database.Resources) {
 func zipExplodedDNSResults(res *database.Resources) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
-	res.DB.CreateCollection(res.System.DnsConfig.ExplodedDnsTable, []string{"domain"})
+	res.DB.CreateCollection(res.System.DnsConfig.ExplodedDnsTable, []string{"domain", "subdomains"})
 	res.DB.AggregateCollection(tempVistedCountCollName, ssn,
 		[]bson.D{
 			{
