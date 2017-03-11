@@ -23,9 +23,10 @@ func buildExplodedDNSVistedCounts(res *database.Resources) {
 	res.DB.MapReduceCollection(
 		res.System.StructureConfig.DnsTable,
 		mgo.MapReduce{
-			Map:    getExplodedDNSMapper("query"),
-			Reduce: getExplodedDNSReducer(),
-			Out:    bson.M{"replace": tempVistedCountCollName},
+			Map:      getExplodedDNSMapper("query"),
+			Reduce:   getExplodedDNSReducer(),
+			Finalize: getExplodedDNSFinalizer(),
+			Out:      bson.M{"replace": tempVistedCountCollName},
 		},
 	)
 }
@@ -36,9 +37,10 @@ func buildExplodedDNSUniqSubdomains(res *database.Resources) {
 	res.DB.MapReduceCollection(
 		tempVistedCountCollName,
 		mgo.MapReduce{
-			Map:    getExplodedDNSMapper("_id"),
-			Reduce: getExplodedDNSReducer(),
-			Out:    bson.M{"replace": tempUniqSubdomainCollName},
+			Map:      getExplodedDNSMapper("_id"),
+			Reduce:   getExplodedDNSReducer(),
+			Finalize: getExplodedDNSFinalizer(),
+			Out:      bson.M{"replace": tempUniqSubdomainCollName},
 		},
 	)
 }
@@ -64,8 +66,8 @@ func zipExplodedDNSResults(res *database.Resources) {
 				{"$project", bson.D{
 					{"_id", 0},
 					{"domain", "$_id"},
-					{"visited", "$value"},
-					{"subdomains", "$subdomains.value"},
+					{"visited", "$value.result"},
+					{"subdomains", "$subdomains.value.result"},
 				}},
 			},
 			{
@@ -101,5 +103,13 @@ func getExplodedDNSMapper(nameField string) string {
 func getExplodedDNSReducer() string {
 	return `function(subdomain, countArr) {
 						return Array.sum(countArr);
+					}`
+}
+
+func getExplodedDNSFinalizer() string {
+	return `function(subdomain, count) {
+						// For some reason this works
+						return {result: new NumberLong(count)};
+						// But return new NumberLong(count) doesn't...
 					}`
 }
