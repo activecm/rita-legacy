@@ -1,4 +1,4 @@
-# RITA
+# RITA (Real Intelligence Threat Analytics)
 
 Brought to you by Offensive CounterMeasures.
 
@@ -68,19 +68,21 @@ To obtain an API key:
 #### Obtaining Data (Generating Bro Logs):
   * **Option 1**: Generate PCAPs outside of Bro
     * Generate PCAP files with a packet sniffer ([tcpdump](http://www.tcpdump.org/), [wireshark](https://www.wireshark.org/), etc.)
-    * Merge your PCAP files into one PCAP
+    * (Optional) Merge multiple PCAP files into one PCAP file
       * `mergecap -w outFile.pcap inFile1.pcap inFile2.pcap`
     * Generate bro logs from the PCAP files
       * `bro -r pcap_to_log.pcap`
   * **Option 2**: Install Bro and let it monitor an interface directly [[instructions](https://www.bro.org/sphinx/quickstart/)]
       * You may wish to [compile Bro from source](https://www.bro.org/sphinx/install/install.html) for performance reasons
+      * The automated installer for RITA installs pre-compiled Bro binaries
 
 #### Importing Data Into RITA
+  * After installing, `rita` should be in your `PATH`
   * **Option 1**: Import directly from the terminal (one time import)
-    * `rita import -i path/to/yout/bro_logs/ -d dataset_name`
+    * `rita import -i path/to/your/bro_logs/ -d dataset_name`
   * **Option 2**: Set up the Bro configuration in config.yaml for repeated imports
     * Set `LogPath` to the `path/to/your/bro_logs`
-    * Set `DBPrefix` to an identifier common to your sets of logs
+    * Set `DBPrefix` to an identifier common to your set of logs
     * Set up the `DirectoryMap`
       * Logs found in folders which match the substring on the left are imported
       into  the dataset on the right
@@ -88,10 +90,10 @@ To obtain an API key:
       * Let's say you have two sets of logs to analyze
         * `/share/bro_logs/networkA`
         * `/share/bro_logs/networkB`
-      * A correct Bro config would look like
+      * A correct Bro config section would look like
       ```yaml
       Bro:
-        LogPath: /share/bro_logs/
+          LogPath: /share/bro_logs/
           DBPrefix: MyCompany_
           DirectoryMap:
             networkA: A
@@ -102,12 +104,21 @@ To obtain an API key:
 
 
 #### Analyzing Data With RITA
+  * **Option 1**: Analyze one dataset
+    * `rita analyze -d dataset_name`
+  * **Option 2**: Analyze all imported datasets
+    * `rita analyze`
 
+#### Examining Data With RITA
+  * Use the **show-X** commands
+  * `-H` displays human readable data
+  * `rita show-beacons -d dataset_name -H`
+  * `rita show-blacklisted -d dataset_name -H`
 
-**Link to video tutorial will be added soon!**
+**A link to a video tutorial will be added soon!**
 
 ### Getting help
-Head over to OFTC and join #ocmdev for any questions you may have.
+Head over to [OFTC and join #ocmdev](https://webchat.oftc.net/?channels=ocmdev) for any questions you may have.
 
 ### License
 GNU GPL V3
@@ -135,12 +146,9 @@ code.
 
 1. Help add features:
   	* If you would like to become involved in the development effort, please hop on our
-OFTC channel at #ocmdev and chat about what's currently being worked on.
+[OFTC channel at #ocmdev](https://webchat.oftc.net/?channels=ocmdev) and chat about what's currently being worked on.
 
-#####Submitting work:
-Please send pull requests and such as small as possible. As this is a product that
-we use internally, as well as a backend for a piece of commercially supported
-software. Every line of code that goes in must be inspected and approved. So if it
-is taking a while to get back to you on your work, or we reject code, don't be
-offended, we're just paranoid and desire to get this project to a very stable and
-useable place.
+##### Submitting work:
+Please make your pull requests, patches, etc. as small as possible. As this is a product that
+we use internally, as well as a backend for a piece of commercially supported software. Every line of code that goes in must be inspected and approved. So if it is taking a while to get back to you on your work, or we reject code, don't be
+offended, we're just paranoid and desire to get this project to a very stable and usable place.
