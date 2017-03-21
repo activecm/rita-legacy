@@ -1,10 +1,10 @@
-#RITA
+# RITA
 
-Brought to you by Offensive CounterMeasures
+Brought to you by Offensive CounterMeasures.
 
-###What's here
+### What's here
 
-RITA is an open source network traffic analysis framework.
+RITA is an open source framework for network traffic analysis.
 
 The framework ingests [Bro Logs](https://www.bro.org/), and currently supports the following analysis features:
  - **Beaconing**: Search for signs of beaconing behavior in and out of your network
@@ -12,7 +12,6 @@ The framework ingests [Bro Logs](https://www.bro.org/), and currently supports t
  - **Scanning**: Search for signs of port scans in your network
 
 Additional functionality is being developed and will be included soon.
-
 
 ### Automatic Installation
 **The automatic RITA installer is officially supported on Ubuntu 16.04 LTS**
@@ -28,7 +27,7 @@ cd rita
 ```
 Run the installer:
 
-**Note:** 
+**Note:**
 By default, Rita will install to /usr/local/rita.
 However, you can change the install location with the *-i* flag.
 ```bash
@@ -54,7 +53,7 @@ You can specify the location for the configuration file with the **-c** command 
 Rita relies on the the [Google Safe Browsing API](https://developers.google.com/safe-browsing/) to check network log data for connections to known threats. An API key is required to use this service. Obtaining a key is free, and only requires a Google account.
 
 To obtain an API key:
-  * Go to the [cloud platform console](https://console.cloud.google.com/).
+  * Go to the Google [cloud platform console](https://console.cloud.google.com/).
   * From the projects list, select a project or create a new one.
   * If the API Manager page isn't already open, open the left side menu and select **API Manager**.
   * On the left, choose **Credentials**.
@@ -65,19 +64,56 @@ To obtain an API key:
   * Click on **Google Safe Browsing API**.
   * Near the top, click **Enable**.
 
-Now replace the **APIKey** field under **SafeBrowsing** in the configuration file with the obtained key.
-
 ### Getting Started
+#### Obtaining Data (Generating Bro Logs):
+  * **Option 1**: Generate PCAPs outside of Bro
+    * Generate PCAP files with a packet sniffer ([tcpdump](http://www.tcpdump.org/), [wireshark](https://www.wireshark.org/), etc.)
+    * Merge your PCAP files into one PCAP
+      * `mergecap -w outFile.pcap inFile1.pcap inFile2.pcap`
+    * Generate bro logs from the PCAP files
+      * `bro -r pcap_to_log.pcap`
+  * **Option 2**: Install Bro and let it monitor an interface directly [[instructions](https://www.bro.org/sphinx/quickstart/)]
+      * You may wish to [compile Bro from source](https://www.bro.org/sphinx/install/install.html) for performance reasons
+
+#### Importing Data Into RITA
+  * **Option 1**: Import directly from the terminal (one time import)
+    * `rita import -i path/to/yout/bro_logs/ -d dataset_name`
+  * **Option 2**: Set up the Bro configuration in config.yaml for repeated imports
+    * Set `LogPath` to the `path/to/your/bro_logs`
+    * Set `DBPrefix` to an identifier common to your sets of logs
+    * Set up the `DirectoryMap`
+      * Logs found in folders which match the substring on the left are imported
+      into  the dataset on the right
+    * Example
+      * Let's say you have two sets of logs to analyze
+        * `/share/bro_logs/networkA`
+        * `/share/bro_logs/networkB`
+      * A correct Bro config would look like
+      ```yaml
+      Bro:
+        LogPath: /share/bro_logs/
+          DBPrefix: MyCompany_
+          DirectoryMap:
+            networkA: A
+            networkB: B
+      ```
+      * This would import `/share/brologs/networkA` into `MyCompany_A` and
+      `/share/brologs/networkB` into `MyCompany_B`
+
+
+#### Analyzing Data With RITA
+
+
 **Link to video tutorial will be added soon!**
 
-###Getting help
-Head over to OFTC and join #ocmdev for any questions you may have. 
+### Getting help
+Head over to OFTC and join #ocmdev for any questions you may have.
 
-###License
+### License
 GNU GPL V3
 &copy; Offensive CounterMeasures &trade;
 
-###Contributing
+### Contributing
 
 Want to help? We'd love that! Here are some ways to get involved ranging in
 difficulty from easiest to hardest.
