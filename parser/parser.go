@@ -152,6 +152,12 @@ func (d *docParser) parseLine() {
 				continue
 			}
 
+			//fields not in the struct will not be parsed
+			fieldOffset, ok := d.SFields[val]
+			if !ok {
+				continue
+			}
+
 			switch d.Header.Types[idx] {
 			case TIME:
 				secs := strings.Split(line[idx], ".")
@@ -161,7 +167,7 @@ func (d *docParser) parseLine() {
 						"error": err.Error(),
 						"value": line[idx],
 					}).Error("Couldn't convert unix ts")
-					data.Field(d.SFields[val]).SetInt(-1)
+					data.Field(fieldOffset).SetInt(-1)
 					break
 				}
 
@@ -171,21 +177,21 @@ func (d *docParser) parseLine() {
 						"error": err.Error(),
 						"value": line[idx],
 					}).Error("Couldn't convert unix ts")
-					data.Field(d.SFields[val]).SetInt(-1)
+					data.Field(fieldOffset).SetInt(-1)
 					break
 				}
 
 				ttim := time.Unix(s, n)
 				tval := ttim.Unix()
-				data.Field(d.SFields[val]).SetInt(tval)
+				data.Field(fieldOffset).SetInt(tval)
 				d.file.Date = fmt.Sprintf("%d-%02d-%02d",
 					ttim.Year(), ttim.Month(), ttim.Day())
 				break
 			case STRING:
-				data.Field(d.SFields[val]).SetString(line[idx])
+				data.Field(fieldOffset).SetString(line[idx])
 				break
 			case ADDR:
-				data.Field(d.SFields[val]).SetString(line[idx])
+				data.Field(fieldOffset).SetString(line[idx])
 				break
 			case PORT:
 				pval, err := strconv.ParseInt(line[idx], 10, 32)
@@ -194,13 +200,13 @@ func (d *docParser) parseLine() {
 						"error": err.Error(),
 						"value": line[idx],
 					}).Error("Couldn't convert port number")
-					data.Field(d.SFields[val]).SetInt(-1)
+					data.Field(fieldOffset).SetInt(-1)
 					break
 				}
-				data.Field(d.SFields[val]).SetInt(pval)
+				data.Field(fieldOffset).SetInt(pval)
 				break
 			case ENUM:
-				data.Field(d.SFields[val]).SetString(line[idx])
+				data.Field(fieldOffset).SetString(line[idx])
 				break
 			case INTERVAL:
 				flt, err := strconv.ParseFloat(line[idx], 64)
@@ -209,10 +215,10 @@ func (d *docParser) parseLine() {
 						"error": err.Error(),
 						"value": line[idx],
 					}).Error("Couldn't convert float")
-					data.Field(d.SFields[val]).SetFloat(-1.0)
+					data.Field(fieldOffset).SetFloat(-1.0)
 					break
 				}
-				data.Field(d.SFields[val]).SetFloat(flt)
+				data.Field(fieldOffset).SetFloat(flt)
 				break
 			case COUNT:
 				cnt, err := strconv.ParseInt(line[idx], 10, 64)
@@ -221,32 +227,32 @@ func (d *docParser) parseLine() {
 						"error": err.Error(),
 						"value": line[idx],
 					}).Error("Couldn't convert count")
-					data.Field(d.SFields[val]).SetInt(-1)
+					data.Field(fieldOffset).SetInt(-1)
 					break
 				}
-				data.Field(d.SFields[val]).SetInt(cnt)
+				data.Field(fieldOffset).SetInt(cnt)
 				break
 			case BOOL:
 				if line[idx] == "T" {
-					data.Field(d.SFields[val]).SetBool(true)
+					data.Field(fieldOffset).SetBool(true)
 					break
 				}
-				data.Field(d.SFields[val]).SetBool(false)
+				data.Field(fieldOffset).SetBool(false)
 				break
 			case "set[string]":
-				data.Field(d.SFields[val]).SetString(line[idx])
+				data.Field(fieldOffset).SetString(line[idx])
 				break
 			case "set[enum]":
-				data.Field(d.SFields[val]).SetString(line[idx])
+				data.Field(fieldOffset).SetString(line[idx])
 				break
 			case "vector[string]":
-				data.Field(d.SFields[val]).SetString(line[idx])
+				data.Field(fieldOffset).SetString(line[idx])
 				break
 			case "vector[duration]":
-				data.Field(d.SFields[val]).SetString(line[idx])
+				data.Field(fieldOffset).SetString(line[idx])
 				break
 			case "vector[interval]":
-				data.Field(d.SFields[val]).SetString(line[idx])
+				data.Field(fieldOffset).SetString(line[idx])
 				break
 			default:
 				d.log.WithFields(log.Fields{
@@ -421,7 +427,7 @@ func (d *docParser) validateStruct(s interface{}) error {
 	// structure. Completes 2 & 3.
 	for x, v := range d.Header.Names {
 
-		// Grab the field out of our map, if it's not present that's an error
+		// Grab the field out of our map, warn if it's not present
 		field, ok := fields[v]
 		if !ok {
 			errval := errors.New("unmatched field in log")
@@ -429,8 +435,8 @@ func (d *docParser) validateStruct(s interface{}) error {
 				"path":          d.file.Path,
 				"error":         errval.Error(),
 				"missing_field": v,
-			}).Error("the log contains a field with no candidate in the data structure")
-			return errval
+			}).Warning("the log contains a field with no candidate in the data structure")
+			continue
 		}
 
 		// Check to ensure that the fields in the file have the same type as in the data structure
