@@ -3,8 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/database"
 	"github.com/urfave/cli"
 )
 
@@ -14,9 +13,8 @@ func init() {
 		Name:  "show-databases",
 		Usage: "Print the databases currently stored",
 		Action: func(c *cli.Context) error {
-			conf := config.InitConfig("")
-			dbm := database.NewMetaDBHandle(conf)
-			for _, name := range dbm.GetDatabases() {
+			res := database.InitResources("")
+			for _, name := range res.MetaDB.GetDatabases() {
 				fmt.Println(name)
 			}
 			return nil

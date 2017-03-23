@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"text/template"
 
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/database"
-	"github.com/bglebrun/rita/datatypes/TBD"
+	"github.com/ocmdev/rita/analysis/beacon"
+	"github.com/ocmdev/rita/database"
+	beaconData "github.com/ocmdev/rita/datatypes/beacon"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -39,20 +39,23 @@ func showBeacons(c *cli.Context) error {
 	if c.String("database") == "" {
 		return cli.NewExitError("Specify a database with -d", -1)
 	}
-	conf := config.InitConfig("")
-	conf.System.DB = c.String("database")
+	res := database.InitResources("")
+	res.DB.SelectDB(c.String("database"))
 
-	db := database.NewDB(conf)
-	data := db.GetTBDResultsView(cutoffScore)
+	var data []beaconData.BeaconAnalysisView
 
-	if humanreadable {
+	ssn := res.DB.Session.Copy()
+	beacon.GetBeaconResultsView(res, ssn, cutoffScore).All(&data)
+	ssn.Close()
+
+	if c.Bool("human-readable") {
 		return showBeaconReport(data)
 	}
 
 	return showBeaconCsv(data)
 }
 
-func showBeaconReport(data []TBD.TBDAnalysisView) error {
+func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
 		"Connections", "Avg. Bytes", "Intvl Range", "Top Intvl",
@@ -74,12 +77,12 @@ func showBeaconReport(data []TBD.TBDAnalysisView) error {
 	return nil
 }
 
-func showBeaconCsv(data []TBD.TBDAnalysisView) error {
+func showBeaconCsv(data []beaconData.BeaconAnalysisView) error {
 	tmpl := "{{.TS_score}},{{.Src}},{{.Dst}},{{.Connections}},{{.AvgBytes}},"
 	tmpl += "{{.TS_iRange}},{{.TS_iMode}},{{.TS_iModeCount}},"
 	tmpl += "{{.TS_iSkew}},{{.TS_iDispersion}},{{.TS_duration}}\n"
 
-	out, err := template.New("tbd").Parse(tmpl)
+	out, err := template.New("beacon").Parse(tmpl)
 	if err != nil {
 		return err
 	}

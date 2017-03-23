@@ -5,63 +5,59 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
+	"reflect"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/weekface/mgorus"
-	"gopkg.in/mgo.v2"
 	"gopkg.in/yaml.v2"
 )
 
-// Hook our logger into MongoDB
-func init() {
-	hooker, err := mgorus.NewHooker("localhost:27017", "ritaErr", "runErr")
-
-	if err == nil {
-		log.AddHook(hooker)
-	} else {
-		log.WithFields(log.Fields{
-			"Database Hook": "Not connected!",
-		}).Warn("Log could not be hooked into MongoDB, errors will not be logged!")
-	}
-}
+var VERSION = "undefined"
 
 type (
 	SystemConfig struct {
-		LogType           string         `yaml:"LogType"`
-		GNUNetcatPath     string         `yaml:"GNUNetcatPath"`
-		BatchSize         int            `yaml:"BatchSize"`
-		DB                string         `yaml:"Database"`
-		HostIntelDB       string         `yaml:"HostIntelDB"`
-		DatabaseHost      string         `yaml:"DatabaseHost"`
-		LogLevel          int            `yaml:"LogLevel"`
-		Prefetch          float64        `yaml:"Prefetch"`
-		Whitelist         []string       `yaml:"WhiteList"`
-		ImportWhitelist   bool           `yaml:"ImportWhitelist"`
-		BlacklistedConfig BlacklistedCfg `yaml:"BlackListed"`
-		DnsConfig         DnsCfg         `yaml:"Dns"`
-		ScanningConfig    ScanningCfg    `yaml:"Scanning"`
-		StructureConfig   StructureCfg   `yaml:"Structure"`
-		TBDConfig         TBDCfg         `yaml:"TBD"`
-		UrlsConfig        UrlsCfg        `yaml:"Urls"`
-		UserAgentConfig   UserAgentCfg   `yaml:"UserAgent"`
-		BroConfig         BroCfg         `yaml:"Bro"`
+		LogType           string          `yaml:"LogType"`
+		GNUNetcatPath     string          `yaml:"GNUNetcatPath"`
+		BatchSize         int             `yaml:"BatchSize"`
+		DatabaseHost      string          `yaml:"DatabaseHost"`
+		LogLevel          int             `yaml:"LogLevel"`
+		Prefetch          float64         `yaml:"Prefetch"`
+		Whitelist         []string        `yaml:"WhiteList"`
+		ImportWhitelist   bool            `yaml:"ImportWhitelist"`
+		BlacklistedConfig BlacklistedCfg  `yaml:"BlackListed"`
+		CrossrefConfig    CrossrefCfg     `yaml:"Crossref"`
+		ScanningConfig    ScanningCfg     `yaml:"Scanning"`
+		StructureConfig   StructureCfg    `yaml:"Structure"`
+		BeaconConfig      BeaconCfg       `yaml:"Beacon"`
+		UrlsConfig        UrlsCfg         `yaml:"Urls"`
+		UserAgentConfig   UserAgentCfg    `yaml:"UserAgent"`
+		BroConfig         BroCfg          `yaml:"Bro"`
+		SafeBrowsing      SafeBrowsingCfg `yaml:"SafeBrowsing"`
+		Version           string
 	}
 
 	StructureCfg struct {
 		ConnTable       string `yaml:"ConnectionTable"`
 		HttpTable       string `yaml:"HttpTable"`
+		DnsTable        string `yaml:"DnsTable"`
 		UniqueConnTable string `yaml:"UniqueConnectionTable"`
 		HostTable       string `yaml:"HostTable"`
 	}
 
 	BlacklistedCfg struct {
-		ThreadCount    int    `yaml:"ThreadCount"`
-		ChannelSize    int    `yaml:"ChannelSize"`
-		BlacklistTable string `yaml:"BlackListTable"`
+		ThreadCount       int    `yaml:"ThreadCount"`
+		ChannelSize       int    `yaml:"ChannelSize"`
+		BlacklistTable    string `yaml:"BlackListTable"`
+		BlacklistDatabase string `yaml:"Database"`
 	}
 
-	DnsCfg struct {
-		DnsTable string `yaml:"DnsTable"`
+	CrossrefCfg struct {
+		InternalTable   string  `yaml:"InternalTable"`
+		ExternalTable   string  `yaml:"ExternalTable"`
+		BeaconThreshold float64 `yaml:"BeaconThreshold"`
+	}
+
+	SafeBrowsingCfg struct {
+		APIKey   string `yaml:"APIKey"`
+		Database string `yaml:"Database"`
 	}
 
 	ScanningCfg struct {
@@ -69,9 +65,9 @@ type (
 		ScanTable     string `yaml:"ScanTable"`
 	}
 
-	TBDCfg struct {
+	BeaconCfg struct {
 		DefaultConnectionThresh int    `yaml:"DefaultConnectionThresh"`
-		TBDTable                string `yaml:"TBDTable"`
+		BeaconTable             string `yaml:"BeaconTable"`
 	}
 
 	UrlsCfg struct {
@@ -87,30 +83,51 @@ type (
 		LogPath         string            `yaml:"LogPath"`
 		DBPrefix        string            `yaml:"DBPrefix"`
 		MetaDB          string            `yaml:"MetaDB"`
-		WriteThreads    int               `yaml:"WriteThreads"`
 		DirectoryMap    map[string]string `yaml:"DirectoryMap"`
 		DefaultDatabase string            `yaml:"DefaultDatabase"`
 		UseDates        bool              `yaml:"UseDates"`
 	}
-
-	// Resources provides a data structure for passing system Resources
-	Resources struct {
-		System  SystemConfig
-		Session *mgo.Session
-		Log     *log.Logger
-	}
 )
 
-// LoadSystemConfig attempts to parse a config file
-func LoadSystemConfig(cfgPath string) (SystemConfig, bool) {
-	var config SystemConfig
+// GetConfig retrieves a configuration in order of precedence
+func GetConfig(cfgPath string) (*SystemConfig, bool) {
+	if cfgPath != "" {
+		return loadSystemConfig(cfgPath)
+	}
+
+	// Get the user's homedir
+	user, err := user.Current()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not get user info: %s\n", err.Error())
+	} else {
+
+		conf, ok := loadSystemConfig(user.HomeDir + "/.rita/config.yaml")
+		if ok {
+			return conf, ok
+		}
+	}
+
+	// If none of the other configs have worked, go for the global config
+	return loadSystemConfig("/etc/rita/config.yaml")
+}
+
+// loadSystemConfig attempts to parse a config file
+func loadSystemConfig(cfgPath string) (*SystemConfig, bool) {
+	var config = new(SystemConfig)
+
+	config.Version = VERSION
 
 	if _, err := os.Stat(cfgPath); !os.IsNotExist(err) {
 		cfgFile, err := ioutil.ReadFile(cfgPath)
 		if err != nil {
 			return config, false
 		}
-		err = yaml.Unmarshal(cfgFile, &config)
+		err = yaml.Unmarshal(cfgFile, config)
+
+		// expand env variables, config is a pointer
+		// so we have to call elem on the reflect value
+		expandConfig(reflect.ValueOf(config).Elem())
+
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to read config: %s\n", err.Error())
 			return config, false
@@ -120,83 +137,15 @@ func LoadSystemConfig(cfgPath string) (SystemConfig, bool) {
 	return config, false
 }
 
-// GetConfig retrieves a configuration in order of precedence
-func GetConfig(cfgPath string) (SystemConfig, bool) {
-	if cfgPath != "" {
-		return LoadSystemConfig(cfgPath)
-	}
-
-	// Get the user's homedir
-	user, err := user.Current()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not get user info: %s\n", err.Error())
-	} else {
-
-		conf, ok := LoadSystemConfig(user.HomeDir + "/.rita")
-		if ok {
-			return conf, ok
+// expandConfig expands environment variables in config strings
+func expandConfig(reflected reflect.Value) {
+	for i := 0; i < reflected.NumField(); i++ {
+		f := reflected.Field(i)
+		// process sub configs
+		if f.Kind() == reflect.Struct {
+			expandConfig(f)
+		} else if f.Kind() == reflect.String {
+			f.SetString(os.ExpandEnv(f.String()))
 		}
 	}
-
-	// If none of the other configs have worked, go for the homedir config
-	return LoadSystemConfig("/etc/rita/config.yaml")
-}
-
-// InitConfig grabs the configuration file and intitializes the configuration data
-// returning a *Resources object which has all of the necessary configuration information
-func InitConfig(cfgPath string) *Resources {
-	config, ok := GetConfig(cfgPath)
-	if !ok {
-		fmt.Fprintf(os.Stdout, "Failed to config, exiting")
-		os.Exit(-1)
-	}
-
-	// Fire up the logging system
-	log, err := InitLog(config.LogLevel, config.LogType)
-	if err != nil {
-		fmt.Printf("Failed to prep logger: %s", err.Error())
-		os.Exit(-1)
-	}
-
-	// Jump into the requested database
-	session, err := mgo.Dial(config.DatabaseHost)
-	if err != nil {
-		fmt.Printf("Failed to connect to database: %s", err.Error())
-		os.Exit(-1)
-	}
-
-	return &Resources{Log: log, Session: session, System: config}
-}
-
-/*
- * Name:     InitLog
- * Purpose:  Initializes logging utilities
- * comments:
- */
-func InitLog(level int, logtype string) (*log.Logger, error) {
-	var logs = &log.Logger{}
-
-	if logtype == "production" {
-		logs.Formatter = new(log.JSONFormatter)
-	} else {
-		logs.Formatter = new(log.TextFormatter)
-	}
-
-	logs.Out = os.Stderr
-
-	switch level {
-	case 3:
-		logs.Level = log.DebugLevel
-		break
-	case 2:
-		logs.Level = log.InfoLevel
-		break
-	case 1:
-		logs.Level = log.WarnLevel
-		break
-	case 0:
-		logs.Level = log.ErrorLevel
-	}
-
-	return logs, nil
 }

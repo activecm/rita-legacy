@@ -4,9 +4,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/database"
-	"github.com/bglebrun/rita/intel"
+	"github.com/ocmdev/rita/analysis/beacon"
+	"github.com/ocmdev/rita/analysis/blacklisted"
+	"github.com/ocmdev/rita/analysis/crossref"
+	"github.com/ocmdev/rita/analysis/scanning"
+	"github.com/ocmdev/rita/analysis/structure"
+	"github.com/ocmdev/rita/analysis/urls"
+	"github.com/ocmdev/rita/analysis/useragent"
+	"github.com/ocmdev/rita/database"
 	"github.com/urfave/cli"
 )
 
@@ -16,9 +21,10 @@ func init() {
 		Usage: "Analyze imported databases, if no [database,d] flag is specified will attempt all",
 		Flags: []cli.Flag{
 			databaseFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			analyze(c.String("database"))
+			analyze(c.String("database"), c.String("config"))
 			return nil
 		},
 	}
@@ -26,23 +32,21 @@ func init() {
 	bootstrapCommands(analyzeCommand)
 }
 
-func analyze(inDb string) {
-
-	conf := config.InitConfig("")
-	dbm := database.NewMetaDBHandle(conf)
+func analyze(inDb string, configFile string) {
+	res := database.InitResources(configFile)
 	var toRun []string
 
 	// Check to see if we want to run a full database or just one off the command line
 	if inDb == "" {
 		fmt.Println("Running analysis against all databases")
-		names := dbm.GetUnAnalyzedDatabases()
+		names := res.MetaDB.GetUnAnalyzedDatabases()
 		fmt.Println("Preparing to analyze these databases:")
 		for _, db := range names {
 			fmt.Println(db)
 			toRun = append(toRun, db)
 		}
 	} else {
-		info, err := dbm.GetDBMetaInfo(inDb)
+		info, err := res.MetaDB.GetDBMetaInfo(inDb)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "Error: %s not found.\n", inDb)
 			return
@@ -58,61 +62,56 @@ func analyze(inDb string) {
 		toRun = append(toRun, inDb)
 	}
 
-	// TODO: Thread this
 	for _, td := range toRun {
 		fmt.Fprintf(os.Stdout,
 			"[!] Constructing databases for %s\n", td)
 
-		conf.System.DB = td
-		d := database.NewDB(conf)
+		res.DB.SelectDB(td)
 
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Building the Unique Connections Collection\n")
 
-		d.BuildUniqueConnectionsCollection()
+		structure.BuildUniqueConnectionsCollection(res)
 
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Building the Hosts Collection\n")
-		d.BuildHostsCollection()
+		structure.BuildHostsCollection(res)
 
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Building the URL collection\n")
 
-		d.BuildUrlsCollection()
+		urls.BuildUrlsCollection(res)
 
-		// The intel module leans on the hostnames collection
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Building the hostnames collection\n")
 
-		d.BuildHostnamesCollection()
-
-		fmt.Fprintf(os.Stdout,
-			"\t[-] Adding new external hosts to the intelligence database\n")
-
-		itl := intel.NewIntelHandle(conf)
-		itl.Run()
+		urls.BuildHostnamesCollection(res)
 
 		// Module Collections
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Running beacon analysis\n")
 
-		d.BuildTBDCollection()
+		beacon.BuildBeaconCollection(res)
 
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Running blacklisted analysis\n")
 
-		d.BuildBlacklistedCollection()
+		blacklisted.BuildBlacklistedCollection(res)
 
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Running useragent analysis\n")
 
-		d.BuildUserAgentCollection()
+		useragent.BuildUserAgentCollection(res)
 
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Searching for port scanning activity\n")
-		d.BuildScanningCollection()
+		scanning.BuildScanningCollection(res)
 
-		dbm.MarkDBCompleted(td, true)
+		fmt.Fprintf(os.Stdout,
+			"\t[-] Running cross-reference analysis\n")
+		crossref.BuildXRefCollection(res)
+
+		res.MetaDB.MarkDBAnalyzed(td, true)
 		fmt.Fprintf(os.Stdout,
 			"[+] %s analysis complete!\n", td)
 	}

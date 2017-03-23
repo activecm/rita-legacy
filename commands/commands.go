@@ -1,21 +1,20 @@
 package commands
 
 import (
+	"runtime"
+
 	"github.com/urfave/cli"
 )
 
 var (
 	allCommands []cli.Command
 
-	// For the human readable flags
-	humanreadable = false
-
 	// below are some prebuilt flags that get used often in various commands
 
 	// databaseFlag allows users to specify which database they'd like to use
 	databaseFlag = cli.StringFlag{
 		Name:  "database, d",
-		Usage: "execute this command against `DATASET`",
+		Usage: "execute this command against the database named `NAME`",
 		Value: "",
 	}
 
@@ -23,7 +22,7 @@ var (
 	threadFlag = cli.IntFlag{
 		Name:  "threads, t",
 		Usage: "use `N` threads when executing this command",
-		Value: 8,
+		Value: runtime.NumCPU(),
 	}
 
 	// configFlag allows users to specify an alternate config file to use
@@ -36,9 +35,8 @@ var (
 	// for output we often want a human readable option which produces a nice
 	// report instead of the simple csv style output
 	humanFlag = cli.BoolFlag{
-		Name:        "human-readable, H",
-		Usage:       "print a report instead of csv",
-		Destination: &humanreadable,
+		Name:  "human-readable, H",
+		Usage: "print a report instead of csv",
 	}
 )
 
@@ -52,25 +50,4 @@ func bootstrapCommands(commands ...cli.Command) {
 // Commands provides all of the defined commands to the front end
 func Commands() []cli.Command {
 	return allCommands
-}
-
-// padAddr specifically pads ip addresses so that they're a full 16 chars wide
-func padAddr(addr string) string {
-	for {
-
-		if len(addr) > 15 {
-			return addr
-		}
-		addr = " " + addr
-	}
-}
-
-// leftPad
-func leftPad(s string, n int) string {
-	for {
-		s = " " + s
-		if len(s) > n {
-			return s
-		}
-	}
 }

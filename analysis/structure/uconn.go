@@ -1,12 +1,54 @@
 package structure
 
 import (
-	"github.com/bglebrun/rita/config"
+	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 
 	"gopkg.in/mgo.v2/bson"
 )
 
-func GetUniqueConnectionsScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
+// GetConnSourcesFromDest finds all of the ips which communicated with a
+// given destination ip
+func GetConnSourcesFromDest(res *database.Resources, ip string) []string {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	cons := ssn.DB(res.DB.GetSelectedDB()).C(res.System.StructureConfig.UniqueConnTable)
+	srcIter := cons.Find(bson.M{"dst": ip}).Iter()
+
+	var srcStruct struct {
+		Src string `bson:"src"`
+	}
+	var sources []string
+
+	for srcIter.Next(&srcStruct) {
+		sources = append(sources, srcStruct.Src)
+	}
+	return sources
+}
+
+func BuildUniqueConnectionsCollection(res *database.Resources) {
+	// Create the aggregate command
+	source_collection_name,
+		new_collection_name,
+		new_collection_keys,
+		pipeline := getUniqueConnectionsScript(res.System)
+
+	// Aggregate it!
+	error_check := res.DB.CreateCollection(new_collection_name, new_collection_keys)
+	if error_check != "" {
+		res.Log.Error("Failed: ", new_collection_name, error_check)
+		return
+	}
+
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	// In case we need results
+	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
+}
+
+func getUniqueConnectionsScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
 	source_collection_name := sysCfg.StructureConfig.ConnTable
 

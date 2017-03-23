@@ -1,12 +1,32 @@
 package scanning
 
 import (
-	"github.com/bglebrun/rita/config"
+	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 
 	"gopkg.in/mgo.v2/bson"
 )
 
-func GetScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
+func BuildScanningCollection(res *database.Resources) {
+	// Create the aggregate command
+	source_collection_name,
+		new_collection_name,
+		new_collection_keys,
+		pipeline := getScanningCollectionScript(res.System)
+
+	// Create it
+	error_check := res.DB.CreateCollection(new_collection_name, new_collection_keys)
+	if error_check != "" {
+		res.Log.Error("Failed: ", new_collection_name, error_check)
+		return
+	}
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+	// Aggregate it!
+	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
+}
+
+func getScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
 	source_collection_name := sysCfg.StructureConfig.ConnTable
 
@@ -77,7 +97,6 @@ func GetScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, [
 				{"total_bytes", 1},
 				{"avg_bytes", 1},
 				{"total_duration", 1},
-				{"uid", 1},
 				{"port_set", 1},
 				{"port_count", bson.D{
 					{"$size", "$port_set"},
@@ -89,6 +108,11 @@ func GetScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, [
 				{"port_count", bson.D{
 					{"$gt", scan_thresh},
 				}},
+			}},
+		},
+		{
+			{"$sort", bson.D{
+				{"port_count", -1},
 			}},
 		},
 		{

@@ -3,8 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/database"
 	"github.com/urfave/cli"
 )
 
@@ -16,13 +15,12 @@ func init() {
 			databaseFlag,
 		},
 		Action: func(c *cli.Context) error {
-			conf := config.InitConfig("")
-			dbm := database.NewMetaDBHandle(conf)
+			res := database.InitResources("")
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 			fmt.Println("Deleting database:", c.String("database"))
-			return dbm.DeleteDB(c.String("database"))
+			return res.MetaDB.DeleteDB(c.String("database"))
 		},
 	}
 

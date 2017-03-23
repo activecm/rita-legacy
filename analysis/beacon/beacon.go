@@ -1,4 +1,4 @@
-package TBD
+package beacon
 
 import (
 	"math"
@@ -7,40 +7,40 @@ import (
 	"sync"
 	"time"
 
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/bglebrun/rita/config"
-	datatype_TBD "github.com/bglebrun/rita/datatypes/TBD"
-	"github.com/bglebrun/rita/datatypes/data"
-	"github.com/bglebrun/rita/datatypes/structure"
-	"github.com/bglebrun/rita/util"
+	"github.com/ocmdev/rita/database"
+	dataBeacon "github.com/ocmdev/rita/datatypes/beacon"
+	"github.com/ocmdev/rita/datatypes/data"
+	"github.com/ocmdev/rita/datatypes/structure"
+	"github.com/ocmdev/rita/util"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/weekface/mgorus"
 )
 
 type (
-	//TBD contains methods for conducting a beacon hunt
-	TBD struct {
-		db                string                               // current database
-		resources         *config.Resources                    // holds the global config
-		defaultConnThresh int                                  // default connections threshold
-		collectChannel    chan string                          // holds ip addresses
-		analysisChannel   chan *tbdAnalysisInput               // holds unanalyzed data
-		writeChannel      chan *datatype_TBD.TBDAnalysisOutput // holds analyzed data
-		collectWg         sync.WaitGroup                       // wait for collection to finish
-		analysisWg        sync.WaitGroup                       // wait for analysis to finish
-		writeWg           sync.WaitGroup                       // wait for writing to finish
-		collectThreads    int                                  // the number of read / collection threads
-		analysisThreads   int                                  // the number of analysis threads
-		writeThreads      int                                  // the number of write threads
-		log               *log.Logger                          // system Logger
-		minTime           int64                                // minimum time
-		maxTime           int64                                // maximum time
+	//Beacon contains methods for conducting a beacon hunt
+	Beacon struct {
+		db                string                          // current database
+		resources         *database.Resources             // holds the global config and DB layer
+		defaultConnThresh int                             // default connections threshold
+		collectChannel    chan string                     // holds ip addresses
+		analysisChannel   chan *beaconAnalysisInput       // holds unanalyzed data
+		writeChannel      chan *dataBeacon.BeaconAnalysisOutput // holds analyzed data
+		collectWg         sync.WaitGroup                  // wait for collection to finish
+		analysisWg        sync.WaitGroup                  // wait for analysis to finish
+		writeWg           sync.WaitGroup                  // wait for writing to finish
+		collectThreads    int                             // the number of read / collection threads
+		analysisThreads   int                             // the number of analysis threads
+		writeThreads      int                             // the number of write threads
+		log               *log.Logger                     // system Logger
+		minTime           int64                           // minimum time
+		maxTime           int64                           // maximum time
 	}
 
-	//tbdAnalysisInput binds a src, dst pair with their analysis data
-	tbdAnalysisInput struct {
+	//beaconAnalysisInput binds a src, dst pair with their analysis data
+	beaconAnalysisInput struct {
 		src     string        // Source IP
 		dst     string        // Destination IP
 		uconnID bson.ObjectId // Unique Connection ID
@@ -51,38 +51,41 @@ type (
 	}
 )
 
-// Hook our logger into MongoDB
-func init() {
-	hooker, err := mgorus.NewHooker("localhost:27017", "ritaErr", "runErr")
-
-	if err == nil {
-		log.AddHook(hooker)
-	} else {
-		log.WithFields(log.Fields{
-			"Database Hook": "Not connected!",
-		}).Warn("Log could not be hooked into MongoDB, errors will not be logged!")
+func BuildBeaconCollection(res *database.Resources) {
+	collection_name := res.System.BeaconConfig.BeaconTable
+	collection_keys := []string{"uconn_id", "ts_score"}
+	error_check := res.DB.CreateCollection(collection_name, collection_keys)
+	if error_check != "" {
+		res.Log.Error("Failed: ", collection_name, error_check)
+		return
 	}
+	newBeacon(res).run()
 }
 
-// New creates a new TBD module
-func New(c *config.Resources) *TBD {
+func GetBeaconResultsView(res *database.Resources, ssn *mgo.Session, cutoffScore float64) *mgo.Iter {
+	pipeline := getViewPipeline(res, cutoffScore)
+	return res.DB.AggregateCollection(res.System.BeaconConfig.BeaconTable, ssn, pipeline)
+}
+
+// New creates a new beacon module
+func newBeacon(res *database.Resources) *Beacon {
 
 	// If the threshold is incorrectly specified, fix it up.
 	// We require at least four delta times to analyze
 	// (Q1, Q2, Q3, Q4). So we need at least 5 connections
-	thresh := c.System.TBDConfig.DefaultConnectionThresh
+	thresh := res.System.BeaconConfig.DefaultConnectionThresh
 	if thresh < 5 {
 		thresh = 5
 	}
 
-	return &TBD{
-		db:                c.System.DB,
-		resources:         c,
+	return &Beacon{
+		db:                res.DB.GetSelectedDB(),
+		resources:         res,
 		defaultConnThresh: thresh,
-		log:               c.Log,
+		log:               res.Log,
 		collectChannel:    make(chan string),
-		analysisChannel:   make(chan *tbdAnalysisInput),
-		writeChannel:      make(chan *datatype_TBD.TBDAnalysisOutput),
+		analysisChannel:   make(chan *beaconAnalysisInput),
+		writeChannel:      make(chan *dataBeacon.BeaconAnalysisOutput),
 		collectThreads:    util.Max(1, runtime.NumCPU()/2),
 		analysisThreads:   util.Max(1, runtime.NumCPU()/2),
 		writeThreads:      util.Max(1, runtime.NumCPU()/2),
@@ -90,9 +93,9 @@ func New(c *config.Resources) *TBD {
 }
 
 // Run Starts the beacon hunt process
-func (t *TBD) Run() {
+func (t *Beacon) run() {
 	t.log.Info("Running beacon hunt")
-	session := t.resources.Session.Copy()
+	session := t.resources.DB.Session.Copy()
 	defer session.Close()
 
 	//Find first time
@@ -159,8 +162,8 @@ func (t *TBD) Run() {
 }
 
 // collect grabs all src, dst pairs and their connection data
-func (t *TBD) collect() {
-	session := t.resources.Session.Copy()
+func (t *Beacon) collect() {
+	session := t.resources.DB.Session.Copy()
 	defer session.Close()
 	host, more := <-t.collectChannel
 	for more {
@@ -177,7 +180,7 @@ func (t *TBD) collect() {
 			}
 
 			//create our new input
-			newInput := &tbdAnalysisInput{
+			newInput := &beaconAnalysisInput{
 				uconnID: uconn.ID,
 				src:     uconn.Src,
 				dst:     uconn.Dst,
@@ -201,9 +204,8 @@ func (t *TBD) collect() {
 }
 
 // analyze src, dst pairs with their connection data
-func (t *TBD) analyze() {
-	data, more := <-t.analysisChannel
-	for more {
+func (t *Beacon) analyze() {
+	for data := range t.analysisChannel {
 		//sort the timestamps since they may have arrived out of order
 		sort.Sort(util.SortableInt64(data.ts))
 
@@ -214,8 +216,7 @@ func (t *TBD) analyze() {
 
 		//If removing duplicates lowered the conn count under the threshold,
 		//remove this data from the analysis
-		if len(data.ts) < t.defaultConnThresh {
-			data, more = <-t.analysisChannel
+		if len(data.ts) < t.resources.System.BeaconConfig.DefaultConnectionThresh {
 			continue
 		}
 
@@ -272,7 +273,7 @@ func (t *TBD) analyze() {
 		//and the most occurring interval
 		intervals, intervalCounts, mode, modeCount := createCountMap(diff)
 
-		newOutput := &datatype_TBD.TBDAnalysisOutput{
+		output := dataBeacon.BeaconAnalysisOutput{
 			UconnID:           data.uconnID,
 			TS_iSkew:          bSkew,
 			TS_iDispersion:    madm,
@@ -296,23 +297,20 @@ func (t *TBD) analyze() {
 		gamma := duration
 
 		//in order of ascending importance: skew, duration, dispersion
-		newOutput.TS_score = (alpha + beta + gamma) / 3.0
-
-		t.writeChannel <- newOutput
-		data, more = <-t.analysisChannel
+		output.TS_score = (alpha + beta + gamma) / 3.0
+		t.writeChannel <- &output
 	}
+
 	t.analysisWg.Done()
 }
 
-// write writes the tbd analysis results to the database
-func (t *TBD) write() {
-	session := t.resources.Session.Copy()
+// write writes the beacon analysis results to the database
+func (t *Beacon) write() {
+	session := t.resources.DB.Session.Copy()
 	defer session.Close()
 
-	data, more := <-t.writeChannel
-	for more {
-		session.DB(t.db).C(t.resources.System.TBDConfig.TBDTable).Insert(data)
-		data, more = <-t.writeChannel
+	for data := range t.writeChannel {
+		session.DB(t.db).C(t.resources.System.BeaconConfig.BeaconTable).Insert(data)
 	}
 	t.writeWg.Done()
 }
@@ -347,9 +345,9 @@ func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
 	return distinct, counts, mode, max
 }
 
-// GetViewPipeline creates an aggregation for user views since the tbd table
+// GetViewPipeline creates an aggregation for user views since the beacon table
 // stores uconn uid's rather than src, dest pairs
-func GetViewPipeline(r *config.Resources, cuttoff float64) []bson.D {
+func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 	return []bson.D{
 		{
 			{"$match", bson.D{
@@ -379,6 +377,8 @@ func GetViewPipeline(r *config.Resources, cuttoff float64) []bson.D {
 				{"ts_score", 1},
 				{"src", "$uconn.src"},
 				{"dst", "$uconn.dst"},
+				{"local_src", "$uconn.local_src"},
+				{"local_dst", "$uconn.local_dst"},
 				{"connection_count", "$uconn.connection_count"},
 				{"avg_bytes", "$uconn.avg_bytes"},
 				{"ts_iRange", 1},

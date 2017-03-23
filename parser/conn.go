@@ -56,6 +56,10 @@ type (
 	}
 )
 
+func (in *Conn) TargetCollection() string {
+	return "conn"
+}
+
 // GetHostName is our method for collecting host name
 // Temporary function
 func (in *Conn) IsWhiteListed(whitelist []string) bool {

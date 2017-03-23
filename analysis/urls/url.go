@@ -1,13 +1,40 @@
 package urls
 
 import (
-	"github.com/bglebrun/rita/config"
+	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
-func GetUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, mgo.MapReduce, []bson.D) {
+func BuildUrlsCollection(res *database.Resources) {
+	// Create the aggregate command
+	source_collection_name,
+		new_collection_name,
+		new_collection_keys,
+		job,
+		pipeline := getUrlCollectionScript(res.System)
+
+	// Create it
+	error_check := res.DB.CreateCollection(new_collection_name, new_collection_keys)
+	if error_check != "" {
+		res.Log.Error("Failed: ", new_collection_name, error_check)
+		return
+	}
+
+	// Map reduce it!
+	if !res.DB.MapReduceCollection(source_collection_name, job) {
+		return
+	}
+
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+	// Aggregate it
+	res.DB.AggregateCollection(new_collection_name, ssn, pipeline)
+}
+
+func getUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, mgo.MapReduce, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
 	source_collection_name := sysCfg.StructureConfig.HttpTable
 
@@ -51,7 +78,46 @@ func GetUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []stri
 	return source_collection_name, new_collection_name, keys, job, pipeline
 }
 
-func GetHostnamesAggregationScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
+// GetIPsFromHost uses the hostnames table to do a cached whois query
+func GetIPsFromHost(res *database.Resources, host string) []string {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	hostnames := ssn.DB(res.DB.GetSelectedDB()).C(res.System.UrlsConfig.HostnamesTable)
+
+	//I don't know if this can be cleaned up
+	//TODO: Research of query projections
+	var destIPs struct {
+		IPs []string `bson:"ips"`
+	}
+	hostnames.Find(bson.M{"host": host}).One(&destIPs)
+
+	var ips []string
+	for _, ip := range destIPs.IPs {
+		ips = append(ips, ip)
+	}
+	return ips
+}
+
+func BuildHostnamesCollection(res *database.Resources) {
+	source_collection_name,
+		new_collection_name,
+		new_collection_keys,
+		pipeline := getHostnamesAggregationScript(res.System)
+
+	err := res.DB.CreateCollection(new_collection_name, new_collection_keys)
+	if err != "" {
+		res.Log.Error("Failed: ", new_collection_name, err)
+		return
+	}
+
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
+}
+
+func getHostnamesAggregationScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
 	source_collection_name := sysCfg.UrlsConfig.UrlsTable
 
 	new_collection_name := sysCfg.UrlsConfig.HostnamesTable

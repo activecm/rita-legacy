@@ -12,32 +12,30 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/parser/docwriter"
-	"github.com/weekface/mgorus"
-
 	log "github.com/Sirupsen/logrus"
+	"github.com/ocmdev/rita/database"
 )
 
 type (
-	//TODO: make interface a named interface
-	creatorFunc func() interface {
+	ParsedLine interface {
 		IsWhiteListed(whitelist []string) bool
-	} // A function that creates arbitrary objects
-	processorFunc func(interface{}) // A function that processes arbitrary objects
-	docParser     struct {          // The document parsing structure
-		path      string               // fully qualified path
-		db        string               // database to write output to
-		writer    *docwriter.DocWriter // writer to write out the records
-		Errors    []error              // All errors for this file
-		log       *log.Logger          // log output
-		curFile   *os.File             // currently open file
-		creator   creatorFunc          // For creating the objects
-		processor processorFunc        // For processing the objects (may be nil)
-		unParsed  chan string          // Records for parsing
-		SFields   map[string]int       // A field lookup for types
-		useDates  bool                 // Check if we want dates used in db names
-		Header    struct {             // Header maintains the header of the bro log
+		TargetCollection() string
+	}
+
+	creatorFunc   func() ParsedLine // A function that creates arbitrary objects
+	processorFunc func(ParsedLine)  // A function that processes arbitrary objects
+
+	docParser struct { // The document parsing structure
+		file      *database.IndexedFile // the file we are parsing
+		writer    *DocWriter            // writer to write out the records
+		Errors    []error               // All errors for this file
+		log       *log.Logger           // log output
+		curFile   *os.File              // currently open file
+		creator   creatorFunc           // For creating the objects
+		processor processorFunc         // For processing the objects (may be nil)
+		unParsed  chan string           // Records for parsing
+		SFields   map[string]int        // A field lookup for types
+		Header    struct {              // Header maintains the header of the bro log
 			Names     []string // Names of fields
 			Types     []string // Types of fields
 			Separator string   // Field separator
@@ -49,35 +47,21 @@ type (
 	}
 )
 
-// Hook our logger into MongoDB
-func init() {
-	hooker, err := mgorus.NewHooker("localhost:27017", "ritaErr", "runErr")
-
-	if err == nil {
-		log.AddHook(hooker)
-	} else {
-		log.WithFields(log.Fields{
-			"Database Hook": "Not connected!",
-		}).Warn("Log could not be hooked into MongoDB, errors will not be logged!")
-	}
-}
-
 // ParseFile generates a document parser and parses the file to the writer
 // Pass this a started writer. Otherwise the writers will be started several times and may lock
 // out unexpectedly.
-func ParseFile(path string, wr *docwriter.DocWriter, rs *config.Resources, database string) {
-
-	d := &docParser{path: path, writer: wr, db: database}
-	d.log = rs.Log
-	d.useDates = rs.System.BroConfig.UseDates
+func parseFile(file *database.IndexedFile, wr *DocWriter, res *database.Resources) error {
+	d := &docParser{file: file, writer: wr}
+	d.log = res.Log
 	d.unParsed = make(chan string, 100)
 	d.SFields = make(map[string]int)
+
 	scn, err := d.getScanner()
 	if err != nil {
 		d.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("parser exiting early")
-		return
+		return err
 	}
 
 	err = d.scanHeader(scn)
@@ -85,16 +69,16 @@ func ParseFile(path string, wr *docwriter.DocWriter, rs *config.Resources, datab
 		d.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("scanHeader failure, exiting early")
-		return
+		return err
 	}
-
 	d.curFile.Close()
+
 	scn, err = d.getScanner()
 	if err != nil {
 		d.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("parser exiting early (getScanner)")
-		return
+		return err
 	}
 
 	//This error is reported as info since it simply means we don't
@@ -104,7 +88,7 @@ func ParseFile(path string, wr *docwriter.DocWriter, rs *config.Resources, datab
 		d.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Info("parser exiting early (setStructType)")
-		return
+		return err
 	}
 
 	err = d.validateStruct(d.creator())
@@ -112,13 +96,13 @@ func ParseFile(path string, wr *docwriter.DocWriter, rs *config.Resources, datab
 		d.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("exiting early (validateStruct)")
-		return
+		return err
 	}
 
 	wg := new(sync.WaitGroup)
-	for i := 0; i < rs.System.BroConfig.WriteThreads; i++ {
+	for i := 0; i < d.writer.threadCount; i++ {
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
 			d.parseLine()
 			wg.Done()
 		}()
@@ -135,7 +119,7 @@ func ParseFile(path string, wr *docwriter.DocWriter, rs *config.Resources, datab
 	close(d.unParsed)
 
 	wg.Wait()
-
+	return nil
 }
 
 // parseLine ... you can probably guess
@@ -152,7 +136,6 @@ func (d *docParser) parseLine() {
 		if strings.Contains(line[0], "#") {
 			continue
 		}
-		dbTs := d.db
 		dat := d.creator()
 		data := reflect.ValueOf(dat).Elem()
 
@@ -195,12 +178,8 @@ func (d *docParser) parseLine() {
 				ttim := time.Unix(s, n)
 				tval := ttim.Unix()
 				data.Field(d.SFields[val]).SetInt(tval)
-				// Make the correct database for this guy
-				if d.useDates {
-					dbTs += "-" + fmt.Sprintf("%d-%02d-%02d",
-						ttim.Year(), ttim.Month(), ttim.Day())
-				}
-
+				d.file.Date = fmt.Sprintf("%d-%02d-%02d",
+					ttim.Year(), ttim.Month(), ttim.Day())
 				break
 			case STRING:
 				data.Field(d.SFields[val]).SetString(line[idx])
@@ -283,17 +262,19 @@ func (d *docParser) parseLine() {
 			d.processor(dat)
 		}
 
-		d.writer.Write(docwriter.Document{Doc: dat,
-			DB:   dbTs,
-			Coll: d.Header.ObjType})
+		//TODO: get Coll from the config
+		var toWrite = new(WriteQueuedLine)
+		toWrite.line = dat
+		toWrite.file = d.file
+		d.writer.Write(toWrite)
 	}
 }
 
 // scanHeader looks through the header of a file to determine the files configuration
 func (d *docParser) scanHeader(scan *bufio.Scanner) error {
 	d.log.WithFields(log.Fields{
-		"path": d.path,
-	}).Info("Entered scanHeader")
+		"path": d.file.Path,
+	}).Debug("Entered scanHeader")
 
 	for scan.Scan() {
 		if scan.Err() != nil {
@@ -347,22 +328,22 @@ func (d *docParser) scanHeader(scan *bufio.Scanner) error {
 
 // getScanner returns a scanner given the path in the object
 func (d *docParser) getScanner() (*bufio.Scanner, error) {
-	ftype := d.path[len(d.path)-3:]
+	ftype := d.file.Path[len(d.file.Path)-3:]
 	if ftype != ".gz" && ftype != "log" {
 		err := errors.New("Filetype not recognized")
 		d.log.WithFields(log.Fields{
 			"error": err.Error(),
-			"path":  d.path,
+			"path":  d.file.Path,
 		}).Error("Filetype must be .gz or .log")
 		d.Errors = append(d.Errors, err)
 		return nil, err
 	}
 
-	f, err := os.Open(d.path)
+	f, err := os.Open(d.file.Path)
 	if err != nil {
 		d.log.WithFields(log.Fields{
 			"error": err.Error(),
-			"path":  d.path,
+			"path":  d.file.Path,
 		}).Error("Couldn't open file")
 		d.Errors = append(d.Errors, err)
 		return nil, err
@@ -376,7 +357,7 @@ func (d *docParser) getScanner() (*bufio.Scanner, error) {
 			f.Close()
 			d.log.WithFields(log.Fields{
 				"error": err.Error(),
-				"path":  d.path,
+				"path":  d.file.Path,
 			}).Error("Couldn't create gzip reader")
 			d.Errors = append(d.Errors, err)
 			return nil, err
@@ -426,7 +407,7 @@ func (d *docParser) validateStruct(s interface{}) error {
 		if len(bro) == 0 || len(brotype) == 0 {
 			errval := errors.New("incomplete bro variable")
 			d.log.WithFields(log.Fields{
-				"path":  d.path,
+				"path":  d.file.Path,
 				"error": errval.Error(),
 			}).Error("found an incomplete type: (bro)", bro, "(brotype)",
 				brotype, "both fields must be filled in or neither")
@@ -445,7 +426,7 @@ func (d *docParser) validateStruct(s interface{}) error {
 		if !ok {
 			errval := errors.New("unmatched field in log")
 			d.log.WithFields(log.Fields{
-				"path":          d.path,
+				"path":          d.file.Path,
 				"error":         errval.Error(),
 				"missing_field": v,
 			}).Error("the log contains a field with no candidate in the data structure")
@@ -456,7 +437,7 @@ func (d *docParser) validateStruct(s interface{}) error {
 		if d.Header.Types[x] != field.brotype {
 			errval := errors.New("Type mismatch found in log")
 			d.log.WithFields(log.Fields{
-				"path":            d.path,
+				"path":            d.file.Path,
 				"error":           errval.Error(),
 				"field_name":      v,
 				"log_has_type":    d.Header.Types[x],
@@ -471,7 +452,6 @@ func (d *docParser) validateStruct(s interface{}) error {
 
 	// Having completed both loops with no errors we're safe to move on
 	return nil
-
 }
 
 // setStructType sets the structure type that we want for a line parser
@@ -479,34 +459,24 @@ func (d *docParser) validateStruct(s interface{}) error {
 // as a lookup for mapping a creatorFunc to the object
 func (d *docParser) setStructType() error {
 	switch d.Header.ObjType {
-
-	//TODO: make interface a named interface
 	case "conn":
-		d.creator = func() interface {
-			IsWhiteListed(whitelist []string) bool
-		} {
+		d.creator = func() ParsedLine {
 			return &Conn{}
 		}
 		break
 	case "dns":
-		d.creator = func() interface {
-			IsWhiteListed(whitelist []string) bool
-		} {
+		d.creator = func() ParsedLine {
 			return &DNS{}
 		}
 		break
 	case "http":
-		d.creator = func() interface {
-			IsWhiteListed(whitelist []string) bool
-		} {
+		d.creator = func() ParsedLine {
 			return &HTTP{}
 		}
 		d.processor = processHTTP // fixes absolute vs relative uris
 		break
 	default:
-		return errors.New("Unkown log type")
-
+		return errors.New("Unknown log type")
 	}
-	// fmt.Println("end of getstruct")
 	return nil
 }
