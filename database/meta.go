@@ -1,11 +1,14 @@
 package database
 
 import (
+	"fmt"
 	"os"
 	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/rifflock/lfshook"
+	"github.com/weekface/mgorus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -41,6 +44,22 @@ type (
 		Version    string        `bson:"version"`       // Rita version at import
 	}
 )
+
+func init() {
+	MGOhook, err := mgorus.NewHooker("localhost:27017", "db", "collection")
+	if err == nil {
+		log.AddHook(MGOhook)
+	} else {
+		fmt.Print(err)
+	}
+
+	//log.Formatter = new(log.JSONFormatter)
+
+	log.AddHook(lfshook.NewHook(lfshook.PathMap{
+		log.InfoLevel:  "/var/log/info.log",
+		log.ErrorLevel: "/var/log/error.log",
+	}))
+}
 
 // AddNewDB adds a new database tot he DBMetaInfo table
 func (m *MetaDBHandle) AddNewDB(name string) error {
