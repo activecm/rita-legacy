@@ -47,22 +47,16 @@ type (
 )
 
 func init() {
-	MGOhook, err := mgorus.NewHooker("localhost:27017", "db", "collection")
+	MGOhook, err := mgorus.NewHooker("localhost:27017", "db", "RITA-Logs")
 	if err == nil {
 		log.AddHook(MGOhook)
 	} else {
 		fmt.Print(err)
 	}
 
-	/*formatter := &log.JSONFormatter{
-		log.FieldMap: log.FieldMap{
-			FieldKeyTime:  "@timestamp",
-			FieldKeyLevel: "@level",
-			FieldKeyLevel: "@message",
-		},
-	}*/
+	formatter := &log.JSONFormatter{}
 
-	//log.SetFormatter(formatter)
+	log.SetFormatter(formatter)
 
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
@@ -292,7 +286,7 @@ func (m *MetaDBHandle) GetFiles() ([]IndexedFile, error) {
 	return toReturn, nil
 }
 
-// markComplete will mark a file as having been completed in the database
+// MarkFileImported will mark a file as having been completed in the database
 func (m *MetaDBHandle) MarkFileImported(f *IndexedFile) error {
 	m.logDebug("MarkFileImported", "entering")
 	m.lock.Lock()
