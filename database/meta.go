@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -53,11 +54,26 @@ func init() {
 		fmt.Print(err)
 	}
 
-	//log.Formatter = new(log.JSONFormatter)
+	/*formatter := &log.JSONFormatter{
+		log.FieldMap: log.FieldMap{
+			FieldKeyTime:  "@timestamp",
+			FieldKeyLevel: "@level",
+			FieldKeyLevel: "@message",
+		},
+	}*/
+
+	//log.SetFormatter(formatter)
+
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dir = dir + "/.rita"
 
 	log.AddHook(lfshook.NewHook(lfshook.PathMap{
-		log.InfoLevel:  "/var/log/info.log",
-		log.ErrorLevel: "/var/log/error.log",
+		log.InfoLevel:  dir + "/info.log",
+		log.ErrorLevel: dir + "/error.log",
 	}))
 }
 
