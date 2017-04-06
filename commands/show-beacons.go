@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"text/template"
 
-	"github.com/ocmdev/rita/analysis/beacon"
-	"github.com/ocmdev/rita/database"
-	beaconData "github.com/ocmdev/rita/datatypes/beacon"
+	"github.com/bglebrun/rita/analysis/beacon"
+	"github.com/bglebrun/rita/database"
+	beaconData "github.com/bglebrun/rita/datatypes/beacon"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )

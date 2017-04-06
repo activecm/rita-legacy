@@ -22,6 +22,7 @@ type (
 		Prefetch          float64         `yaml:"Prefetch"`
 		Whitelist         []string        `yaml:"WhiteList"`
 		ImportWhitelist   bool            `yaml:"ImportWhitelist"`
+		LogPath           string          `yaml:"LogPath"`
 		BlacklistedConfig BlacklistedCfg  `yaml:"BlackListed"`
 		CrossrefConfig    CrossrefCfg     `yaml:"Crossref"`
 		ScanningConfig    ScanningCfg     `yaml:"Scanning"`

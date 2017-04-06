@@ -19,7 +19,7 @@ Additional functionality is being developed and will be included soon.
 
 Clone the package:
 ```bash
-git clone https://github.com/ocmdev/rita.git
+git clone https://github.com/bglebrun/rita.git
 ```
 
 Change into the source directory:
@@ -42,7 +42,7 @@ sudo ./install.sh -i /path/to/install/directory
 ```
 
 ### Manual Installation
-To install each component of Rita by hand, [check out the instructions in the wiki](https://github.com/ocmdev/rita/wiki/Installation).
+To install each component of Rita by hand, [check out the instructions in the wiki](https://github.com/bglebrun/rita/wiki/Installation).
 
 ### Configuration File
 RITA contains a yaml format configuration file.

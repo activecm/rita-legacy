@@ -4,8 +4,8 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/ocmdev/rita/commands"
-	"github.com/ocmdev/rita/config"
+	"github.com/bglebrun/rita/commands"
+	"github.com/bglebrun/rita/config"
 	"github.com/urfave/cli"
 )
 

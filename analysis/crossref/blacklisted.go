@@ -1,10 +1,10 @@
 package crossref
 
 import (
-	"github.com/ocmdev/rita/analysis/blacklisted"
-	"github.com/ocmdev/rita/analysis/urls"
-	"github.com/ocmdev/rita/database"
-	blacklistedData "github.com/ocmdev/rita/datatypes/blacklisted"
+	"github.com/bglebrun/rita/analysis/blacklisted"
+	"github.com/bglebrun/rita/analysis/urls"
+	"github.com/bglebrun/rita/database"
+	blacklistedData "github.com/bglebrun/rita/datatypes/blacklisted"
 )
 
 type (

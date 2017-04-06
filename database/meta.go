@@ -3,7 +3,6 @@ package database
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -58,12 +57,12 @@ func init() {
 
 	log.SetFormatter(formatter)
 
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	/*dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		log.Fatal(err)
-	}
+	}*/
 
-	dir = dir + "/.rita"
+	dir := "~/.rita/logs"
 
 	log.AddHook(lfshook.NewHook(lfshook.PathMap{
 		log.InfoLevel:  dir + "/info.log",

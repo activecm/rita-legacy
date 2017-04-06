@@ -3,9 +3,9 @@ package commands
 import (
 	"fmt"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/parser"
-	"github.com/ocmdev/rita/util"
+	"github.com/bglebrun/rita/database"
+	"github.com/bglebrun/rita/parser"
+	"github.com/bglebrun/rita/util"
 	"github.com/urfave/cli"
 )
 

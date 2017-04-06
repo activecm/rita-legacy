@@ -151,14 +151,14 @@ install the correct version for you!
 	apt update -qq
 	apt install -y mongodb-org
 
-	printf "\n[+] Running 'go get github.com/ocmdev/rita...'\n\n"
+	printf "\n[+] Running 'go get github.com/bglebrun/rita...'\n\n"
 
 	# Build RITA
 
 	apt install -y build-essential  
-	go get github.com/ocmdev/rita
+	go get github.com/bglebrun/rita
 	printf "[+] Installing RITA...\n\n"
-	cd $GOPATH/src/github.com/ocmdev/rita
+	cd $GOPATH/src/github.com/bglebrun/rita
 	make install
 
 	printf "[+] Transferring files...\n\n"
