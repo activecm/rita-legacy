@@ -45,31 +45,6 @@ type (
 	}
 )
 
-func init() {
-	MGOhook, err := mgorus.NewHooker("localhost:27017", "db", "RITA-Logs")
-	if err == nil {
-		log.AddHook(MGOhook)
-	} else {
-		fmt.Print(err)
-	}
-
-	formatter := &log.JSONFormatter{}
-
-	log.SetFormatter(formatter)
-
-	/*dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		log.Fatal(err)
-	}*/
-
-	dir := "~/.rita/logs"
-
-	log.AddHook(lfshook.NewHook(lfshook.PathMap{
-		log.InfoLevel:  dir + "/info.log",
-		log.ErrorLevel: dir + "/error.log",
-	}))
-}
-
 // AddNewDB adds a new database tot he DBMetaInfo table
 func (m *MetaDBHandle) AddNewDB(name string) error {
 	m.logDebug("AddNewDB", "entering")
@@ -420,6 +395,25 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
+	// Log Hooks init, spin off MGOrus hook and lfshook
+	MGOhook, err := mgorus.NewHooker("localhost:27017", "db", "RITA-Logs")
+	if err == nil {
+		m.res.Log.Hooks.Add(MGOhook)
+	} else {
+		fmt.Print(err)
+	}
+
+	//formatter := &log.JSONFormatter{}
+
+	//m.res.Log.Hooks.SetFormatter(formatter)
+
+	dir := "/home/bglebrun/.rita/logs"
+
+	m.res.Log.Hooks.Add(lfshook.NewHook(lfshook.PathMap{
+		log.InfoLevel:  dir + "/info.log",
+		log.ErrorLevel: dir + "/error.log",
+	}))
+
 	// Create the files collection
 	myCol := mgo.CollectionInfo{
 		DisableIdIndex: false,
@@ -427,7 +421,7 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 	}
 
 	//TODO: Make this read the database from the config file
-	err := ssn.DB(m.DB).C("files").Create(&myCol)
+	err = ssn.DB(m.DB).C("files").Create(&myCol)
 	errchk(err)
 
 	idx := mgo.Index{
