@@ -1,14 +1,12 @@
 package database
 
 import (
-	"fmt"
 	"os"
 	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/rifflock/lfshook"
-	"github.com/weekface/mgorus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -396,16 +394,18 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 	defer ssn.Close()
 
 	// Log Hooks init, spin off MGOrus hook and lfshook
-	MGOhook, err := mgorus.NewHooker("localhost:27017", "db", "RITA-Logs")
-	if err == nil {
+	m.res.Log = log.New()
+
+	//MGOhook, err := mgorus.NewHooker("localhost:27017", "db", "RITA-Logs")
+	/*if err == nil {
 		m.res.Log.Hooks.Add(MGOhook)
 	} else {
 		fmt.Print(err)
-	}
+	}*/
 
-	//formatter := &log.JSONFormatter{}
-
-	//m.res.Log.Hooks.SetFormatter(formatter)
+	formatter := &log.JSONFormatter{}
+	m.res.Log.Formatter = formatter
+	//m.res.Log.SetFormatter(formatter)
 
 	dir := "/home/bglebrun/.rita/logs"
 
@@ -421,7 +421,7 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 	}
 
 	//TODO: Make this read the database from the config file
-	err = ssn.DB(m.DB).C("files").Create(&myCol)
+	err := ssn.DB(m.DB).C("files").Create(&myCol)
 	errchk(err)
 
 	idx := mgo.Index{
