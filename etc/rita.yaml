@@ -27,7 +27,6 @@ ImportWhitelist: true
 # $HOME/.rita/logs
 RitaLogPath: $HOME/.rita/logs
 
-
 # The section Bro configures the bro ingestor
 Bro:
     # Path to a top level directory of log files
