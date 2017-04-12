@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -402,7 +401,7 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 	if mgoHkErr == nil {
 		m.res.Log.Hooks.Add(mgohook)
 	} else {
-		fmt.Print(mgoHkErr)
+		errchk(mgoHkErr)
 	}
 
 	dir := m.res.System.RitaLogPath
