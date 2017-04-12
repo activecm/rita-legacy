@@ -43,9 +43,9 @@ HEREDOC
 
 __title() {
 	cat <<HEREDOC
- _ \ _ _| __ __|  \
-   /   |     |   _ \
-_|_\ ___|   _| _/  _\
+ _ \ _ _| __ __|  \ 
+   /   |     |   _ \ 
+_|_\ ___|   _| _/  _\ 
 
 Brought to you by the Offensive CounterMeasures
 
@@ -77,7 +77,7 @@ __install() {
 			exit -1
 		fi
 	fi
-
+	
 	echo "[+] Updating apt...
 "
 
@@ -116,7 +116,7 @@ version in the Ubuntu apt repositories, make sure your golang is up to date
 with 'go version'. Otherwise you can remove with 'sudo apt remove golang' and let this script
 install the correct version for you!
 "
-
+		
 		sleep 10s
 	fi
 
@@ -155,7 +155,7 @@ install the correct version for you!
 
 	# Build RITA
 
-	apt install -y build-essential
+	apt install -y build-essential  
 	go get github.com/ocmdev/rita
 	printf "[+] Installing RITA...\n\n"
 	cd $GOPATH/src/github.com/ocmdev/rita
@@ -171,7 +171,7 @@ install the correct version for you!
 	printf "[+] Installing config to $HOME/.rita/config.yaml\n\n"
 	mkdir -p $HOME/.rita/logs
 	cp etc/rita.yaml $HOME/.rita/config.yaml
-
+	
 
 	# Give ownership of ~/go to the user
 	sudo chown -R $SUDO_USER:$SUDO_USER $HOME/go
@@ -209,10 +209,10 @@ __entry() {
 	then
 		_INSDIR=$( echo "${@}" | cut -d' ' -f2 )
 	fi
-
-	# Set the rita directory
+	
+	# Set the rita directory	
 	_RITADIR="$_INSDIR/rita"
-
+	
 
 	# Check to see if the user has permission to install to this directory
 	if [ -w $_INSDIR ]
