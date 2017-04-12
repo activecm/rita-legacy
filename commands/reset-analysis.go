@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/database"
 	"github.com/urfave/cli"
 )
 

@@ -1,9 +1,9 @@
 package crossref
 
 import (
-	"github.com/bglebrun/rita/analysis/beacon"
-	"github.com/bglebrun/rita/database"
-	dataBeacon "github.com/bglebrun/rita/datatypes/beacon"
+	"github.com/ocmdev/rita/analysis/beacon"
+	"github.com/ocmdev/rita/database"
+	dataBeacon "github.com/ocmdev/rita/datatypes/beacon"
 )
 
 type (

@@ -1,8 +1,8 @@
 package crossref
 
 import (
-	"github.com/bglebrun/rita/database"
-	"github.com/bglebrun/rita/datatypes/scanning"
+	"github.com/ocmdev/rita/database"
+	"github.com/ocmdev/rita/datatypes/scanning"
 )
 
 type (

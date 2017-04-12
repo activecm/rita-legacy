@@ -1,8 +1,8 @@
 package structure
 
 import (
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 
 	"gopkg.in/mgo.v2/bson"
 )

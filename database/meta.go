@@ -1,12 +1,14 @@
 package database
 
 import (
+	"fmt"
 	"os"
 	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/rifflock/lfshook"
+	"github.com/weekface/mgorus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -396,15 +398,12 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 	// Log Hooks init, spin off MGOrus hook and lfshook
 	m.res.Log = log.New()
 
-	//MGOhook, err := mgorus.NewHooker("localhost:27017", "db", "RITA-Logs")
-	/*if err == nil {
-		m.res.Log.Hooks.Add(MGOhook)
+	mGOhook, hookerr := mgorus.NewHooker("localhost:27017", "RITA-sys", "Logs")
+	if hookerr == nil {
+		m.res.Log.Hooks.Add(mGOhook)
 	} else {
-		fmt.Print(err)
-	}*/
-
-	//formatter := &log.JSONFormatter{}
-	//m.res.Log.Formatter = formatter
+		fmt.Print(hookerr)
+	}
 
 	dir := m.res.System.RitaLogPath
 

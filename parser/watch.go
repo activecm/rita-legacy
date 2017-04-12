@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/database"
 
 	log "github.com/Sirupsen/logrus"
 )

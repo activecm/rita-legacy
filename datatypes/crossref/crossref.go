@@ -1,7 +1,7 @@
 package crossref
 
 import (
-	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/database"
 	"gopkg.in/mgo.v2/bson"
 )
 
