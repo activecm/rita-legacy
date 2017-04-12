@@ -398,11 +398,11 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 	// Log Hooks init, spin off MGOrus hook and lfshook
 	m.res.Log = log.New()
 
-	mGOhook, hookerr := mgorus.NewHooker("localhost:27017", "RITA-sys", "Logs")
-	if hookerr == nil {
-		m.res.Log.Hooks.Add(mGOhook)
+	mgohook, mgoHkErr := mgorus.NewHooker("localhost:27017", "RITA-sys", "Logs")
+	if mgoHkErr == nil {
+		m.res.Log.Hooks.Add(mgohook)
 	} else {
-		fmt.Print(hookerr)
+		fmt.Print(mgoHkErr)
 	}
 
 	dir := m.res.System.RitaLogPath
