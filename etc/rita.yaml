@@ -25,7 +25,7 @@ ImportWhitelist: true
 
 # LogPath is the path for Rita's logs, generally this just defaults to
 # $HOME/.rita/logs
-LogPath: $HOME/.rita/logs
+RitaLogPath: $HOME/.rita/logs
 
 
 # The section Bro configures the bro ingestor

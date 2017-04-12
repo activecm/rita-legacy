@@ -403,15 +403,14 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 		fmt.Print(err)
 	}*/
 
-	formatter := &log.JSONFormatter{}
-	m.res.Log.Formatter = formatter
-	//m.res.Log.SetFormatter(formatter)
+	//formatter := &log.JSONFormatter{}
+	//m.res.Log.Formatter = formatter
 
-	dir := "/home/bglebrun/.rita/logs"
+	dir := m.res.System.RitaLogPath
 
 	m.res.Log.Hooks.Add(lfshook.NewHook(lfshook.PathMap{
-		log.InfoLevel:  dir + "/info.log",
-		log.ErrorLevel: dir + "/error.log",
+		log.InfoLevel:  dir + "/info-" + time.Now().Format("2006-01-02 15:04:05") + ".log",
+		log.ErrorLevel: dir + "/error-" + time.Now().Format("2006-01-02 15:04:05") + ".log",
 	}))
 
 	// Create the files collection
