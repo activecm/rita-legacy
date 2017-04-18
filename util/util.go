@@ -245,7 +245,6 @@ func TypeConvert(m interface{}, desiredType reflect.Kind) (interface{}, int) {
 
 	switch desiredType {
 	default:
-		fmt.Println("fuckface mcgee (add more types to type switcher, asshole)")
 		return m, BAD
 	case reflect.String:
 		if currType == reflect.Int {
