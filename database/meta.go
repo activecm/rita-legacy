@@ -6,6 +6,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/rifflock/lfshook"
+	"github.com/weekface/mgorus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -258,7 +260,7 @@ func (m *MetaDBHandle) GetFiles() ([]IndexedFile, error) {
 	return toReturn, nil
 }
 
-// markComplete will mark a file as having been completed in the database
+// MarkFileImported will mark a file as having been completed in the database
 func (m *MetaDBHandle) MarkFileImported(f *IndexedFile) error {
 	m.logDebug("MarkFileImported", "entering")
 	m.lock.Lock()
@@ -392,6 +394,23 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
+
+	// Log Hooks init, spin off MGOrus hook and lfshook
+	m.res.Log = log.New()
+
+	mgohook, mgoHkErr := mgorus.NewHooker("localhost:27017", m.res.System.BroConfig.MetaDB, "Logs")
+	if mgoHkErr == nil {
+		m.res.Log.Hooks.Add(mgohook)
+	} else {
+		errchk(mgoHkErr)
+	}
+
+	dir := m.res.System.RitaLogPath
+
+	m.res.Log.Hooks.Add(lfshook.NewHook(lfshook.PathMap{
+		log.InfoLevel:  dir + "/info-" + time.Now().Format("2006-01-02 15:04") + ".log",
+		log.ErrorLevel: dir + "/error-" + time.Now().Format("2006-01-02 15:04") + ".log",
+	}))
 
 	// Create the files collection
 	myCol := mgo.CollectionInfo{
