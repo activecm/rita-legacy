@@ -397,7 +397,7 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 	// Log Hooks init, spin off MGOrus hook and lfshook
 	m.res.Log = log.New()
 
-	mgohook, mgoHkErr := mgorus.NewHooker("localhost:27017", m.res.System.BroConfig.MetaDB, "Logs")
+	mgohook, mgoHkErr := mgorus.NewHookeer(m.res.System.DatabaseHost, m.res.System.BroConfig.MetaDB, "Logs")
 	if mgoHkErr == nil {
 		m.res.Log.Hooks.Add(mgohook)
 	} else {
