@@ -1,20 +1,28 @@
-#RITA Commands
+# RITA Commands
 
-###Hacking
+## A note on philosophy
+As RITA is written in Go and targeted towards Unix based systems, we believe that RITA too should follow the Unix Philosophy.
 
-####Some things to remember
-Commands should behave like typical Unix systems commands. For example, the human readable output from
-show-beacons or show-scans is MUCH easier to read... but the default is just an unformatted comma
-delimited list which looks like garbage. The latter option is much easier to parse with sed, awk, cut, etc...
+As such RITA commands should implement this philosophy by default.
 
-We've tried to make adding commands to rita easier. Here's a quick rundown of how a command might be added
-to the system.
+For example, the human readable output from `show-beacons` or `show-blacklisted` is easy to read, but the default action is to print an unformatted comma
+separated list. This "ugly" format is much easier to parse and process with tools such as `sed`, `awk`, and `cut`. 
 
-1. Create a new command file in the commands directory called "nameofcommand.go"
-1. Create an init function in this command that declares your command and adds it to the allCommands global.
-1. Create a function that executes the business logic of your command.
+These tools are great at processing the results that come out of RITA, and we believe that RITA should do its best to support them.
+
+## How to create a new command
+
+Adding commands to RITA is a straight-forward process.
+
+1. Create a new command file in the commands directory
+1. Create an `init` function in the newly created file that declares your command and boostraps it
+1. Create a function that executes the business logic of your command
 1. Profit.
+
+## Example Command
+
 ```go
+//init functions run import
 func init() {
 	// command to do something
 	command := cli.Command{
@@ -24,32 +32,31 @@ func init() {
 				Usage: "set test flag",
 				Value: 29,
 			},
-			// There are also a few pre-defined flags for you to use
-			configFlag,
+			// There are also a few pre-defined flags for you to use in commands.go
+			allFlag,
 		},
-		Name: "nameofcommand",
+		Name: "name-of-command",
 		Usage: "how to use the command",
 		Action: nameOfCmdFunc,
 	}
 
-	// command to do some related thing
-	othercommand := cli.Command{
+	// command to do something else
+	otherCommand := cli.Command{
 		Flags: []cli.Flags{
 			cli.IntFlag{
 				Name: "test, t",
 				Usage: "set test flag",
 				Value: 29,
 			},
-			// There are also a few pre-defined flags for you to use
 			configFlag,
 		},
-		Name: "nameofothercommand",
+		Name: "name-of-other-command",
 		Usage: "how to use the other command",
 		Action: nameOfOtherCmdFunc,
 	}
 
-	// Add the command to the allCommands data structure (IMPORTANT)
-	bootstrapCommands(command, othercommand)
+	// Bootstrap the commands (IMPORTANT)
+	bootstrapCommands(command, otherCommand)
 }
 
 // It is very important that we use a function of this type (for compatibility with cli)
