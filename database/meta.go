@@ -398,7 +398,7 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 	// Log Hooks init, spin off MGOrus hook and lfshook
 	m.res.Log = log.New()
 
-	mgohook, mgoHkErr := mgorus.NewHookeer(m.res.System.DatabaseHost, m.res.System.BroConfig.MetaDB, "Logs")
+	mgohook, mgoHkErr := mgorus.NewHooker(m.res.System.DatabaseHost, m.res.System.BroConfig.MetaDB, "Logs")
 	if mgoHkErr == nil {
 		m.res.Log.Hooks.Add(mgohook)
 	} else {
@@ -408,8 +408,8 @@ func (m *MetaDBHandle) newMetaDBHandle() {
 	dir := m.res.System.RitaLogPath
 
 	m.res.Log.Hooks.Add(lfshook.NewHook(lfshook.PathMap{
-		log.InfoLevel:  dir + "/info-" + time.Now().Format("2006-01-02 15:04") + ".log",
-		log.ErrorLevel: dir + "/error-" + time.Now().Format("2006-01-02 15:04") + ".log",
+		log.InfoLevel:  dir + "/info-" + time.Now().Format("2006-01-02-15:04") + ".log",
+		log.ErrorLevel: dir + "/error-" + time.Now().Format("2006-01-02-15:04") + ".log",
 	}))
 
 	// Create the files collection
