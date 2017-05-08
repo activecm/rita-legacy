@@ -1,7 +1,6 @@
 package util
 
 import (
-	"fmt"
 	"math"
 	"net"
 	"net/url"
