@@ -1,6 +1,9 @@
 package parsetypes
 
-import "gopkg.in/mgo.v2/bson"
+import (
+	"github.com/ocmdev/rita/config"
+	"gopkg.in/mgo.v2/bson"
+)
 
 // DNS provides a data structure for entries in the bro DNS log
 type DNS struct {
@@ -57,4 +60,11 @@ type DNS struct {
 	Rejected bool `bson:"rejected" bro:"rejected" brotype:"bool"`
 }
 
+//TargetCollection returns the mongo collection this entry should be inserted
+//into
+func (in *DNS) TargetCollection(config *config.StructureCfg) string {
+	return config.DnsTable
+}
+
+//Normalize pre processes this type of entry before it is imported by rita
 func (in *DNS) Normalize() {}

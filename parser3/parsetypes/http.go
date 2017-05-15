@@ -1,7 +1,12 @@
 package parsetypes
 
-import "gopkg.in/mgo.v2/bson"
-import "net/url"
+import (
+	"net/url"
+
+	"github.com/ocmdev/rita/config"
+	"gopkg.in/mgo.v2/bson"
+)
+
 import "strings"
 
 // HTTP provides a data structure for entries in bro's HTTP log file
@@ -69,6 +74,12 @@ type HTTP struct {
 	RespFilenames []string `bson:"resp_filenames" bro:"resp_filenames" brotype:"vector[string]"`
 	// RespMimeTypes contains an ordered vector of unique MIME entities in the HTTP response body
 	RespMimeTypes []string `bson:"resp_mime_types" bro:"resp_mime_types" brotype:"vector[string]"`
+}
+
+//TargetCollection returns the mongo collection this entry should be inserted
+//into
+func (line *HTTP) TargetCollection(config *config.StructureCfg) string {
+	return config.HttpTable
 }
 
 // Normalize fixes up absolute uri's as read by bro to be relative

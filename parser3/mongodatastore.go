@@ -1,49 +1,67 @@
 package parser3
 
-import "github.com/ocmdev/rita/parser3/parsetypes"
+import (
+	"sync"
+
+	"github.com/ocmdev/rita/parser3/parsetypes"
+)
+
+//importedData is sent to a datastore to be stored away
+type importedData struct {
+	broData parsetypes.BroData
+	file    *IndexedFile
+}
 
 //MongoDatastore is a datastore which stores bro data in MongoDB
 type MongoDatastore struct {
-	dbMap map[string]map[string]chan ImportedData
-}
-
-//ImportedData is sent to a datastore to be stored away
-type ImportedData struct {
-	BroData parsetypes.BroData
-	File    *IndexedFile
-}
-
-//Datastore represents a place to store imported bro data
-type Datastore interface {
-	Store(ImportedData)
+	dbMap     map[string]map[string]chan importedData
+	waitgroup *sync.WaitGroup
 }
 
 //NewMongoDatastore creates a datastore which stores bro data in MongoDB
 func NewMongoDatastore() *MongoDatastore {
 	return &MongoDatastore{
-		dbMap: make(map[string]map[string]chan ImportedData),
+		dbMap:     make(map[string]map[string]chan importedData),
+		waitgroup: new(sync.WaitGroup),
 	}
 }
 
-//Store a line of imported data in MongoDB
-func (mongo *MongoDatastore) Store(data ImportedData) {
-	collectionMap, ok := mongo.dbMap[data.File.TargetDatabase]
+//store a line of imported data in MongoDB
+func (mongo *MongoDatastore) store(data importedData) {
+	collectionMap, ok := mongo.dbMap[data.file.TargetDatabase]
 	if !ok {
-		collectionMap = make(map[string]chan ImportedData)
-		mongo.dbMap[data.File.TargetDatabase] = collectionMap
+		collectionMap = make(map[string]chan importedData)
+		mongo.dbMap[data.file.TargetDatabase] = collectionMap
 	}
-	channel, ok := collectionMap[data.File.TargetCollection]
+	channel, ok := collectionMap[data.file.TargetCollection]
 	if !ok {
-		channel = make(chan ImportedData)
-		collectionMap[data.File.TargetCollection] = channel
-		go mongo.bulkInsertImportedData(channel)
+		channel = make(chan importedData)
+		collectionMap[data.file.TargetCollection] = channel
+		mongo.waitgroup.Add(1)
+		go bulkInsertImportedData(channel, mongo.waitgroup)
 	}
 	channel <- data
 }
 
-func (mongo *MongoDatastore) bulkInsertImportedData(channel chan ImportedData) {
-	for data := range channel {
-		//TODO: Write mongo bulk insertion code
-		_ = data
+//flush flushes the datastore
+func (mongo *MongoDatastore) flush() {
+	for _, db := range mongo.dbMap {
+		for _, channel := range db {
+			close(channel)
+		}
 	}
+	mongo.waitgroup.Wait()
+}
+
+func bulkInsertImportedData(channel chan importedData, wg *sync.WaitGroup) {
+	for data := range channel {
+		_ = data
+		//TODO: Write mongo bulk insertion code
+		//jsonData, _ := json.Marshal(data.broData)
+		//jsonData2, _ := json.Marshal(data.file)
+		//fmt.Println(string(jsonData))
+		//fmt.Println(string(jsonData2))
+		//fmt.Println("")
+	}
+	wg.Done()
 }

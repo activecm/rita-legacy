@@ -1,8 +1,7 @@
 package parsetypes
 
 import (
-	"strings"
-
+	"github.com/ocmdev/rita/config"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -56,25 +55,11 @@ type (
 	}
 )
 
-func (in *Conn) TargetCollection() string {
-	return "conn"
+//TargetCollection returns the mongo collection this entry should be inserted
+//into
+func (in *Conn) TargetCollection(config *config.StructureCfg) string {
+	return config.ConnTable
 }
 
-// GetHostName is our method for collecting host name
-// Temporary function
-func (in *Conn) IsWhiteListed(whitelist []string) bool {
-	if whitelist == nil {
-		return false
-	}
-
-	if in.Destination == "" {
-		return false
-	}
-
-	for count := range whitelist {
-		if strings.Contains(in.Destination, whitelist[count]) {
-			return true
-		}
-	}
-	return false
-}
+//Normalize pre processes this type of entry before it is imported by rita
+func (in *Conn) Normalize() {}
