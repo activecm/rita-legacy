@@ -13,28 +13,14 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/parser3/fileparsetypes"
 	"github.com/ocmdev/rita/parser3/parsetypes"
 )
 
-//IndexedFile ties a file to a target collection and database
-type IndexedFile struct {
-	Path             string
-	Length           int64
-	ModTime          time.Time
-	Hash             string
-	TargetCollection string
-	TargetDatabase   string
-	LogTime          time.Time
-	ParseTime        time.Time
-	header           *broHeader
-	broDataFactory   func() parsetypes.BroData
-	fieldMap         broHeaderIndexMap
-}
-
 //newIndexedFile takes in a file path and the bro config and opens up the
 //file path and parses out some metadata
-func newIndexedFile(filePath string, config *config.SystemConfig, logger *log.Logger) (*IndexedFile, error) {
-	toReturn := new(IndexedFile)
+func newIndexedFile(filePath string, config *config.SystemConfig, logger *log.Logger) (*fileparsetypes.IndexedFile, error) {
+	toReturn := new(fileparsetypes.IndexedFile)
 	toReturn.Path = filePath
 
 	fileHandle, err := os.Open(filePath)
@@ -68,21 +54,21 @@ func newIndexedFile(filePath string, config *config.SystemConfig, logger *log.Lo
 		fileHandle.Close()
 		return toReturn, err
 	}
-	toReturn.header = header
+	toReturn.SetHeader(header)
 
-	broDataFactory := parsetypes.NewBroDataFactory(header.objType)
+	broDataFactory := parsetypes.NewBroDataFactory(header.ObjType)
 	if broDataFactory == nil {
 		fileHandle.Close()
 		return toReturn, errors.New("Could not map file header to parse type")
 	}
-	toReturn.broDataFactory = broDataFactory
+	toReturn.SetBroDataFactory(broDataFactory)
 
 	fieldMap, err := mapBroHeaderToParserType(header, broDataFactory, logger)
 	if err != nil {
 		fileHandle.Close()
 		return toReturn, err
 	}
-	toReturn.fieldMap = fieldMap
+	toReturn.SetFieldMap(fieldMap)
 
 	//parse first line
 	line := parseLine(scanner.Text(), header, fieldMap, broDataFactory, logger)
@@ -92,12 +78,19 @@ func newIndexedFile(filePath string, config *config.SystemConfig, logger *log.Lo
 	}
 
 	toReturn.TargetCollection = line.TargetCollection(&config.StructureConfig)
+	if toReturn.TargetCollection == "" {
+		fileHandle.Close()
+		return toReturn, errors.New("Could not find a target collection for file")
+	}
 
 	timeVal := reflect.ValueOf(line).Elem().Field(fieldMap["ts"]).Int()
 	toReturn.LogTime = time.Unix(timeVal, 0)
 
-	targetDB := getTargetDatabase(filePath, toReturn.LogTime, &config.BroConfig)
-	toReturn.TargetDatabase = targetDB
+	toReturn.TargetDatabase = getTargetDatabase(filePath, toReturn.LogTime, &config.BroConfig)
+	if toReturn.TargetDatabase == "" {
+		fileHandle.Close()
+		return toReturn, errors.New("Could not find a dataset for file")
+	}
 
 	fileHandle.Close()
 	return toReturn, nil

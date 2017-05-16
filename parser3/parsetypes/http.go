@@ -82,6 +82,11 @@ func (line *HTTP) TargetCollection(config *config.StructureCfg) string {
 	return config.HttpTable
 }
 
+//Indices gives MongoDB indices that should be used with the collection
+func (line *HTTP) Indices() []string {
+	return []string{"$hashed:uid"}
+}
+
 // Normalize fixes up absolute uri's as read by bro to be relative
 func (line *HTTP) Normalize() {
 	//uri is missing the protocol. set uri to ""

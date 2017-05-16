@@ -60,9 +60,9 @@ func SetBlacklistSources(res *database.Resources, result *blacklisted.Blacklist)
 func BuildBlacklistedCollection(res *database.Resources) {
 	collection_name := res.System.BlacklistedConfig.BlacklistTable
 	collection_keys := []string{"bl_hash", "host"}
-	error_check := res.DB.CreateCollection(collection_name, collection_keys)
-	if error_check != "" {
-		res.Log.Error("Failed: ", collection_name, error_check)
+	err := res.DB.CreateCollection(collection_name, collection_keys)
+	if err != nil {
+		res.Log.Error("Failed: ", collection_name, err.Error())
 		return
 	}
 	newBlacklisted(res).run()

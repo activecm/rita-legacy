@@ -6,6 +6,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/ocmdev/rita/parser3/fileparsetypes"
 	"github.com/rifflock/lfshook"
 	"github.com/weekface/mgorus"
 	"gopkg.in/mgo.v2"
@@ -22,18 +23,6 @@ type (
 		res  *Resources  // Keep resources object
 	}
 
-	// IndexedFile retains everything we need to know about a given file
-	IndexedFile struct {
-		ID       bson.ObjectId `bson:"_id,omitempty"`
-		Path     string        `bson:"filepath"`
-		Hash     string        `bson:"hash"`
-		Length   int64         `bson:"length"`
-		Parsed   int64         `bson:"time_complete"`
-		Mod      time.Time     `bson:"modified"`
-		Database string        `bson:"database"`
-		Date     string        `bson:"date"`
-	}
-
 	// DBMetaInfo defines some information about the database
 	DBMetaInfo struct {
 		ID         bson.ObjectId `bson:"_id,omitempty"` // Ident
@@ -44,7 +33,7 @@ type (
 	}
 )
 
-// AddNewDB adds a new database tot he DBMetaInfo table
+// AddNewDB adds a new database to the DBMetaInfo table
 func (m *MetaDBHandle) AddNewDB(name string) error {
 	m.logDebug("AddNewDB", "entering")
 	m.lock.Lock()
@@ -68,17 +57,6 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 		return err
 	}
 
-	// We create the base collections in a threaded nature, the rest of the
-	// system has been written for analyzing one database at a time
-	// here we create a new config for each database
-
-	//dereference our current resource context, create a shallow copy
-	newRes := *m.res
-	//create a new DB struct for the new resource context
-	newRes.DB = &DB{Session: m.res.DB.Session, resources: &newRes, selected: name}
-	buildConnectionsCollection(&newRes)
-	buildHttpCollection(&newRes)
-	buildDNSCollection(&newRes)
 	m.logDebug("AddNewDB", "exiting")
 	return nil
 }
@@ -112,6 +90,7 @@ func (m *MetaDBHandle) DeleteDB(name string) error {
 		date := name[len(name)-10:]
 		name = name[:len(name)-11]
 		_, err = ssn.DB(m.DB).C("files").RemoveAll(
+			//TODO: change
 			bson.M{"database": name, "date": date},
 		)
 		if err != nil {
@@ -239,11 +218,11 @@ func (m *MetaDBHandle) GetAnalyzedDatabases() []string {
 // GetFiles gets a list of all IndexedFile objects in the database if successful return a list of files
 // from the database, in the case of failure return a zero length list of files and generat a log
 // message.
-func (m *MetaDBHandle) GetFiles() ([]IndexedFile, error) {
+func (m *MetaDBHandle) GetFiles() ([]fileparsetypes.IndexedFile, error) {
 	m.logDebug("GetFiles", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	var toReturn []IndexedFile
+	var toReturn []fileparsetypes.IndexedFile
 
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
@@ -260,92 +239,36 @@ func (m *MetaDBHandle) GetFiles() ([]IndexedFile, error) {
 	return toReturn, nil
 }
 
-// MarkFileImported will mark a file as having been completed in the database
-func (m *MetaDBHandle) MarkFileImported(f *IndexedFile) error {
-	m.logDebug("MarkFileImported", "entering")
+//AddParsedFiles adds indexed files to the files the metaDB using the bulk API
+func (m *MetaDBHandle) AddParsedFiles(files []*fileparsetypes.IndexedFile) error {
+	m.logDebug("AddParsedFiles", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
-	f.Parsed = time.Now().Unix()
-
 	//TODO: Make this read the database from the config file
-	err := ssn.DB(m.DB).C("files").
-		Update(
-			bson.M{
-				"hash": f.Hash, "database": f.Database,
-			},
-			bson.M{
-				"$set": bson.M{
-					"time_complete": f.Parsed,
-					"date":          f.Date,
-				},
-			})
+	bulk := ssn.DB(m.DB).C("files").Bulk()
+	bulk.Unordered()
 
-	if err != nil {
-		m.res.Log.WithFields(log.Fields{
-			"file":  f.Path,
-			"error": err.Error(),
-		}).Error("could not update file in meta")
-		return err
+	//construct the interface slice for bulk
+	interfaceSlice := make([]interface{}, len(files))
+	for i, d := range files {
+		interfaceSlice[i] = *d
 	}
 
-	m.logDebug("MarkFileImported", "exiting")
+	bulk.Insert(interfaceSlice...)
+	_, err := bulk.Run()
+	if err != nil {
+		m.res.Log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Error("could not insert files into meta database")
+		return err
+	}
 	return nil
 }
 
-// InsertNewIndexedFiles updates the files table with all of the new files from a recent walk of the dir structure
-// at the end of the update we return a new array so that the parser knows which files to get
-// to parsing.
-func (m *MetaDBHandle) InsertNewIndexedFiles(files []*IndexedFile) []*IndexedFile {
-	m.logDebug("InsertNewIndexedFiles", "entering")
-
-	ssn := m.res.DB.Session.Copy()
-	defer ssn.Close()
-
-	var work []*IndexedFile
-	myFiles, _ := m.GetFiles()
-
-	for _, infile := range files {
-		have := false
-		for _, file := range myFiles {
-			if file.Hash == infile.Hash && file.Database == infile.Database {
-				have = true
-				if file.Parsed > 0 {
-					m.res.Log.WithFields(log.Fields{
-						"path": file.Path,
-					}).Warning("Refusing to import file into the same database twice")
-				} else {
-					m.res.Log.WithFields(log.Fields{
-						"path": file.Path,
-					}).Warning("Previously errored on file. Skipping")
-				}
-				break
-			}
-		}
-		if !have {
-			work = append(work, infile)
-		}
-	}
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	//TODO: Make this read the database from the config file
-	cur := ssn.DB(m.DB).C("files")
-
-	for _, f := range work {
-		err := cur.Insert(f)
-		if err != nil {
-			m.res.Log.WithFields(log.Fields{
-				"error": err.Error(),
-				"file":  f.Path,
-			}).Error("Failed to insert")
-		}
-	}
-	m.logDebug("InsertNewIndexedFiles", "exiting")
-	return work
-}
+/////////////////////
 
 // isBuilt checks to see if a file table exists, as the existence of parsed files is prerequisite
 // to the existance of anything else.

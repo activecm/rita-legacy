@@ -34,17 +34,15 @@ func BuildUniqueConnectionsCollection(res *database.Resources) {
 		new_collection_keys,
 		pipeline := getUniqueConnectionsScript(res.System)
 
-	// Aggregate it!
-	error_check := res.DB.CreateCollection(new_collection_name, new_collection_keys)
-	if error_check != "" {
-		res.Log.Error("Failed: ", new_collection_name, error_check)
+	err := res.DB.CreateCollection(new_collection_name, new_collection_keys)
+	if err != nil {
+		res.Log.Error("Failed: ", new_collection_name, err.Error())
 		return
 	}
 
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	// In case we need results
 	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
 }
 

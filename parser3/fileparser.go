@@ -11,24 +11,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/ocmdev/rita/parser3/fileparsetypes"
 	"github.com/ocmdev/rita/parser3/parsetypes"
 )
-
-//broHeader contains the parse information contained within the comment lines
-//of bro files
-type broHeader struct {
-	names     []string // Names of fields
-	types     []string // Types of fields
-	separator string   // Field separator
-	setSep    string   // Set separator
-	empty     string   // Empty field tag
-	unset     string   // Unset field tag
-	objType   string   // Object type (comes from #path)
-}
-
-//broHeaderIndexMap maps the names of bro fields to their indexes in a
-//BroData struct
-type broHeaderIndexMap map[string]int
 
 // getFileScanner returns a buffered file scanner for a bro log file
 func getFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
@@ -51,8 +36,8 @@ func getFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
 // scanHeader scans the comment lines out of a bro file and returns a
 // BroHeader object containing the information. NOTE: This has the side
 // effect of advancing the fileScanner
-func scanHeader(fileScanner *bufio.Scanner) (*broHeader, error) {
-	toReturn := new(broHeader)
+func scanHeader(fileScanner *bufio.Scanner) (*fileparsetypes.BroHeader, error) {
+	toReturn := new(fileparsetypes.BroHeader)
 	for fileScanner.Scan() {
 		if fileScanner.Err() != nil {
 			break
@@ -66,20 +51,20 @@ func scanHeader(fileScanner *bufio.Scanner) (*broHeader, error) {
 			if strings.Contains(line[0], "separator") {
 				//TODO: Verify this works
 				if line[1] == "\\x09" {
-					toReturn.separator = "\x09"
+					toReturn.Separator = "\x09"
 				}
 			} else if strings.Contains(line[0], "set_separator") {
-				toReturn.setSep = line[1]
+				toReturn.SetSep = line[1]
 			} else if strings.Contains(line[0], "empty_field") {
-				toReturn.empty = line[1]
+				toReturn.Empty = line[1]
 			} else if strings.Contains(line[0], "unset_field") {
-				toReturn.unset = line[1]
+				toReturn.Unset = line[1]
 			} else if strings.Contains(line[0], "fields") {
-				toReturn.names = line[1:]
+				toReturn.Names = line[1:]
 			} else if strings.Contains(line[0], "types") {
-				toReturn.types = line[1:]
+				toReturn.Types = line[1:]
 			} else if strings.Contains(line[0], "path") {
-				toReturn.objType = line[1]
+				toReturn.ObjType = line[1]
 			}
 		} else {
 			//We are done parsing the comments
@@ -87,7 +72,7 @@ func scanHeader(fileScanner *bufio.Scanner) (*broHeader, error) {
 		}
 	}
 
-	if len(toReturn.names) != len(toReturn.types) {
+	if len(toReturn.Names) != len(toReturn.Types) {
 		return toReturn, errors.New("Name / Type mismatch")
 	}
 	return toReturn, nil
@@ -96,8 +81,8 @@ func scanHeader(fileScanner *bufio.Scanner) (*broHeader, error) {
 //mapBroHeaderToParserType checks a parsed BroHeader against
 //a BroData struct and returns a mapping from bro field names in the
 //bro header to the indexes of the respective fields in the BroData struct
-func mapBroHeaderToParserType(header *broHeader, broDataFactory func() parsetypes.BroData,
-	logger *log.Logger) (broHeaderIndexMap, error) {
+func mapBroHeaderToParserType(header *fileparsetypes.BroHeader, broDataFactory func() parsetypes.BroData,
+	logger *log.Logger) (fileparsetypes.BroHeaderIndexMap, error) {
 	// The lookup struct gives us a way to walk the data structure only once
 	type lookup struct {
 		broType string
@@ -137,7 +122,7 @@ func mapBroHeaderToParserType(header *broHeader, broDataFactory func() parsetype
 
 	// walk the header names array and link each field up with a type in the
 	// bro data
-	for index, name := range header.names {
+	for index, name := range header.Names {
 		lu, ok := fieldTypes[name]
 		if !ok {
 			//NOTE: an unmatched field which exists in the log but not the struct
@@ -149,7 +134,7 @@ func mapBroHeaderToParserType(header *broHeader, broDataFactory func() parsetype
 			continue
 		}
 
-		if header.types[index] != lu.broType {
+		if header.Types[index] != lu.broType {
 			return nil, errors.New("Type mismatch found in log")
 		}
 	}
@@ -159,11 +144,11 @@ func mapBroHeaderToParserType(header *broHeader, broDataFactory func() parsetype
 
 //parseLine parses a line of a bro log with a given broHeader, fieldMap, into
 //the BroData created by the broDataFactory
-func parseLine(lineString string, header *broHeader,
-	fieldMap broHeaderIndexMap, broDataFactory func() parsetypes.BroData,
+func parseLine(lineString string, header *fileparsetypes.BroHeader,
+	fieldMap fileparsetypes.BroHeaderIndexMap, broDataFactory func() parsetypes.BroData,
 	logger *log.Logger) parsetypes.BroData {
-	line := strings.Split(lineString, header.separator)
-	if len(line) < len(header.names) {
+	line := strings.Split(lineString, header.Separator)
+	if len(line) < len(header.Names) {
 		return nil
 	}
 	if strings.Contains(line[0], "#") {
@@ -173,9 +158,9 @@ func parseLine(lineString string, header *broHeader,
 	dat := broDataFactory()
 	data := reflect.ValueOf(dat).Elem()
 
-	for idx, val := range header.names {
-		if line[idx] == header.empty ||
-			line[idx] == header.unset {
+	for idx, val := range header.Names {
+		if line[idx] == header.Empty ||
+			line[idx] == header.Unset {
 			continue
 		}
 
@@ -185,7 +170,7 @@ func parseLine(lineString string, header *broHeader,
 			continue
 		}
 
-		switch header.types[idx] {
+		switch header.Types[idx] {
 		case parsetypes.Time:
 			secs := strings.Split(line[idx], ".")
 			s, err := strconv.ParseInt(secs[0], 10, 64)
@@ -299,7 +284,7 @@ func parseLine(lineString string, header *broHeader,
 		default:
 			logger.WithFields(log.Fields{
 				"error": "Unhandled type",
-				"value": header.types[idx],
+				"value": header.Types[idx],
 			}).Error("Encountered unhandled type in log")
 		}
 	}

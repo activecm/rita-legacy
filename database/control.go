@@ -1,6 +1,7 @@
 package database
 
 import (
+	"errors"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -39,8 +40,8 @@ func (d *DB) CollectionExists(table string) bool {
 	if err != nil {
 		d.resources.Log.WithFields(log.Fields{
 			"error": err.Error(),
-		}).Panic("Failed collection name lookup")
-		panic("Failed collection lookup")
+		}).Error("Failed collection name lookup")
+		return false
 	}
 	for _, name := range coll {
 		if name == table {
@@ -48,7 +49,6 @@ func (d *DB) CollectionExists(table string) bool {
 		}
 	}
 	return false
-
 }
 
 /*
@@ -56,33 +56,36 @@ func (d *DB) CollectionExists(table string) bool {
  * Purpose:  Creates a new collection with required indeces
  * comments:
  */
-func (d *DB) CreateCollection(name string, indeces []string) string {
+func (d *DB) CreateCollection(name string, indeces []string) error {
 	// Make a copy of the current session
 	session := d.Session.Copy()
 	defer session.Close()
 
 	if len(name) < 1 {
 		d.resources.Log.Debug("Error, check the collection name in yaml file and systemConfig: ", name)
-		return " (Name error: check collection name in yaml file and config) "
+		return errors.New("name error: check collection name in yaml file and config")
 	}
 
 	// Check if ollection already exists
 	if d.CollectionExists(name) {
 		d.resources.Log.Debug("Collection already exists:", name)
-		return " (Collection already exists!) "
+		return errors.New("collection already exists")
 	}
 
 	d.resources.Log.Info("Building collection: ", name)
 
 	// Create new collection by referencing to it, no need to call Create
-	collection := session.DB(d.selected).C(name)
+	err := session.DB(d.selected).C(name).Create(
+		&mgo.CollectionInfo{},
+	)
 
 	// Make sure it actually got created
-	if d.CollectionExists(name) {
-		d.resources.Log.Debug("Error, check the collection name in yaml file and systemConfig: ", name)
-		return " (Name error: check the collection name in yaml file and config) "
+	if err != nil {
+		d.resources.Log.Error("Error, check the collection name in yaml file and systemConfig: ", name)
+		return err
 	}
 
+	collection := session.DB(d.selected).C(name)
 	for _, val := range indeces {
 		index := mgo.Index{
 			Key: []string{val},
@@ -91,12 +94,12 @@ func (d *DB) CreateCollection(name string, indeces []string) string {
 		if err != nil {
 			d.resources.Log.WithFields(log.Fields{
 				"error": err.Error(),
-			}).Panic("Failed to create indeces")
-			return " (Failed to create indeces!) "
+			}).Error("Failed to create indeces")
+			return err
 		}
 	}
 
-	return ""
+	return nil
 }
 
 /*
