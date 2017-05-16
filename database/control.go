@@ -20,19 +20,18 @@ type DB struct {
 ////////////////////////// SUPPORTING FUNCTIONS ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
+//SelectDB selects a database for analysis
 func (d *DB) SelectDB(db string) {
 	d.selected = db
 }
 
+//GetSelectedDB retrieves the currently selected database for analysis
 func (d *DB) GetSelectedDB() string {
 	return d.selected
 }
 
-/*
- * Name:     CollectionExists
- * Purpose:  Returns true if collection exists in database
- * comments:
- */
+//CollectionExists returns true if collection exists in the currently
+//selected database
 func (d *DB) CollectionExists(table string) bool {
 	ssn := d.Session.Copy()
 	defer ssn.Close()
@@ -51,11 +50,8 @@ func (d *DB) CollectionExists(table string) bool {
 	return false
 }
 
-/*
- * Name:     createNewCollection
- * Purpose:  Creates a new collection with required indeces
- * comments:
- */
+//CreateCollection creates a new collection in the currently selected
+//database with the required indeces
 func (d *DB) CreateCollection(name string, indeces []string) error {
 	// Make a copy of the current session
 	session := d.Session.Copy()
@@ -102,23 +98,21 @@ func (d *DB) CreateCollection(name string, indeces []string) error {
 	return nil
 }
 
-/*
- * Name:     AggregateCollection
- * Purpose:  Builds collections that are built via aggregation
- * comments:
- */
-func (d *DB) AggregateCollection(source_collection_name string, session *mgo.Session, pipeline []bson.D) *mgo.Iter {
+//AggregateCollection builds a collection via a MongoDB pipeline
+func (d *DB) AggregateCollection(sourceCollection string,
+	session *mgo.Session, pipeline []bson.D) *mgo.Iter {
 	session.SetSocketTimeout(2 * time.Hour)
 
 	// Identify the source collection we will aggregate information from into the new collection
-	if !d.CollectionExists(source_collection_name) {
-		d.resources.Log.Info("Failed aggregation: (Source collection: ", source_collection_name, " doesn't exist)")
+	if !d.CollectionExists(sourceCollection) {
+		d.resources.Log.Info("Failed aggregation: (Source collection: ",
+			sourceCollection, " doesn't exist)")
 		return nil
 	}
-	source_collection := session.DB(d.selected).C(source_collection_name)
+	collection := session.DB(d.selected).C(sourceCollection)
 
 	// Create the pipe
-	pipe := source_collection.Pipe(pipeline).AllowDiskUse()
+	pipe := collection.Pipe(pipeline).AllowDiskUse()
 
 	iter := pipe.Iter()
 
@@ -133,12 +127,8 @@ func (d *DB) AggregateCollection(source_collection_name string, session *mgo.Ses
 	return iter
 }
 
-/*
- * Name:     mapReduce Collection
- * Purpose:  Builds collections that are built via map reduce
- * comments:
- */
-func (d *DB) MapReduceCollection(source_collection_name string, job mgo.MapReduce) bool {
+//MapReduceCollection builds collections via javascript map reduce jobs
+func (d *DB) MapReduceCollection(sourceCollection string, job mgo.MapReduce) bool {
 	// Make a copy of the current session
 	session := d.Session.Copy()
 	defer session.Close()
@@ -146,19 +136,19 @@ func (d *DB) MapReduceCollection(source_collection_name string, job mgo.MapReduc
 	session.SetSocketTimeout(2 * time.Hour)
 
 	// Identify the source collection we will aggregate information from into the new collection
-	if !d.CollectionExists(source_collection_name) {
-		d.resources.Log.Info("Failed map reduce: (Source collection: ", source_collection_name, " doesn't exist)")
+	if !d.CollectionExists(sourceCollection) {
+		d.resources.Log.Info("Failed map reduce: (Source collection: ", sourceCollection, " doesn't exist)")
 		return false
 	}
-	source_collection := session.DB(d.selected).C(source_collection_name)
+	collection := session.DB(d.selected).C(sourceCollection)
 
 	// Map reduce that shit
-	_, err := source_collection.Find(nil).MapReduce(&job, nil)
+	_, err := collection.Find(nil).MapReduce(&job, nil)
 
 	// If error, Throw computer against wall and drink 2 angry beers while
 	// questioning your life, purpose, and relationships.
 	if err != nil {
-		d.resources.Log.Error("Failed map reduce for: ", source_collection_name, err)
+		d.resources.Log.Error("Failed map reduce for: ", sourceCollection, err)
 		return false
 	}
 

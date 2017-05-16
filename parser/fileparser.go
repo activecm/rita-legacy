@@ -1,4 +1,4 @@
-package parser3
+package parser
 
 import (
 	"bufio"
@@ -11,8 +11,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ocmdev/rita/parser3/fileparsetypes"
-	"github.com/ocmdev/rita/parser3/parsetypes"
+	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
+	pt "github.com/ocmdev/rita/parser/parsetypes"
 )
 
 // getFileScanner returns a buffered file scanner for a bro log file
@@ -36,8 +36,8 @@ func getFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
 // scanHeader scans the comment lines out of a bro file and returns a
 // BroHeader object containing the information. NOTE: This has the side
 // effect of advancing the fileScanner
-func scanHeader(fileScanner *bufio.Scanner) (*fileparsetypes.BroHeader, error) {
-	toReturn := new(fileparsetypes.BroHeader)
+func scanHeader(fileScanner *bufio.Scanner) (*fpt.BroHeader, error) {
+	toReturn := new(fpt.BroHeader)
 	for fileScanner.Scan() {
 		if fileScanner.Err() != nil {
 			break
@@ -81,8 +81,8 @@ func scanHeader(fileScanner *bufio.Scanner) (*fileparsetypes.BroHeader, error) {
 //mapBroHeaderToParserType checks a parsed BroHeader against
 //a BroData struct and returns a mapping from bro field names in the
 //bro header to the indexes of the respective fields in the BroData struct
-func mapBroHeaderToParserType(header *fileparsetypes.BroHeader, broDataFactory func() parsetypes.BroData,
-	logger *log.Logger) (fileparsetypes.BroHeaderIndexMap, error) {
+func mapBroHeaderToParserType(header *fpt.BroHeader, broDataFactory func() pt.BroData,
+	logger *log.Logger) (fpt.BroHeaderIndexMap, error) {
 	// The lookup struct gives us a way to walk the data structure only once
 	type lookup struct {
 		broType string
@@ -144,9 +144,9 @@ func mapBroHeaderToParserType(header *fileparsetypes.BroHeader, broDataFactory f
 
 //parseLine parses a line of a bro log with a given broHeader, fieldMap, into
 //the BroData created by the broDataFactory
-func parseLine(lineString string, header *fileparsetypes.BroHeader,
-	fieldMap fileparsetypes.BroHeaderIndexMap, broDataFactory func() parsetypes.BroData,
-	logger *log.Logger) parsetypes.BroData {
+func parseLine(lineString string, header *fpt.BroHeader,
+	fieldMap fpt.BroHeaderIndexMap, broDataFactory func() pt.BroData,
+	logger *log.Logger) pt.BroData {
 	line := strings.Split(lineString, header.Separator)
 	if len(line) < len(header.Names) {
 		return nil
@@ -171,7 +171,7 @@ func parseLine(lineString string, header *fileparsetypes.BroHeader,
 		}
 
 		switch header.Types[idx] {
-		case parsetypes.Time:
+		case pt.Time:
 			secs := strings.Split(line[idx], ".")
 			s, err := strconv.ParseInt(secs[0], 10, 64)
 			if err != nil {
@@ -197,13 +197,13 @@ func parseLine(lineString string, header *fileparsetypes.BroHeader,
 			tval := ttim.Unix()
 			data.Field(fieldOffset).SetInt(tval)
 			break
-		case parsetypes.String:
+		case pt.String:
 			data.Field(fieldOffset).SetString(line[idx])
 			break
-		case parsetypes.Addr:
+		case pt.Addr:
 			data.Field(fieldOffset).SetString(line[idx])
 			break
-		case parsetypes.Port:
+		case pt.Port:
 			pval, err := strconv.ParseInt(line[idx], 10, 32)
 			if err != nil {
 				logger.WithFields(log.Fields{
@@ -215,10 +215,10 @@ func parseLine(lineString string, header *fileparsetypes.BroHeader,
 			}
 			data.Field(fieldOffset).SetInt(pval)
 			break
-		case parsetypes.Enum:
+		case pt.Enum:
 			data.Field(fieldOffset).SetString(line[idx])
 			break
-		case parsetypes.Interval:
+		case pt.Interval:
 			flt, err := strconv.ParseFloat(line[idx], 64)
 			if err != nil {
 				logger.WithFields(log.Fields{
@@ -230,7 +230,7 @@ func parseLine(lineString string, header *fileparsetypes.BroHeader,
 			}
 			data.Field(fieldOffset).SetFloat(flt)
 			break
-		case parsetypes.Count:
+		case pt.Count:
 			cnt, err := strconv.ParseInt(line[idx], 10, 64)
 			if err != nil {
 				logger.WithFields(log.Fields{
@@ -242,29 +242,29 @@ func parseLine(lineString string, header *fileparsetypes.BroHeader,
 			}
 			data.Field(fieldOffset).SetInt(cnt)
 			break
-		case parsetypes.Bool:
+		case pt.Bool:
 			if line[idx] == "T" {
 				data.Field(fieldOffset).SetBool(true)
 				break
 			}
 			data.Field(fieldOffset).SetBool(false)
 			break
-		case parsetypes.StringSet:
+		case pt.StringSet:
 			tokens := strings.Split(line[idx], ",")
 			tVal := reflect.ValueOf(tokens)
 			data.Field(fieldOffset).Set(tVal)
 			break
-		case parsetypes.EnumSet:
+		case pt.EnumSet:
 			tokens := strings.Split(line[idx], ",")
 			tVal := reflect.ValueOf(tokens)
 			data.Field(fieldOffset).Set(tVal)
 			break
-		case parsetypes.StringVector:
+		case pt.StringVector:
 			tokens := strings.Split(line[idx], ",")
 			tVal := reflect.ValueOf(tokens)
 			data.Field(fieldOffset).Set(tVal)
 			break
-		case parsetypes.IntervalVector:
+		case pt.IntervalVector:
 			tokens := strings.Split(line[idx], ",")
 			floats := make([]float64, len(tokens))
 			for i, val := range tokens {

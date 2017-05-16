@@ -6,7 +6,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ocmdev/rita/parser3/fileparsetypes"
+	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
 	"github.com/rifflock/lfshook"
 	"github.com/weekface/mgorus"
 	"gopkg.in/mgo.v2"
@@ -218,11 +218,11 @@ func (m *MetaDBHandle) GetAnalyzedDatabases() []string {
 // GetFiles gets a list of all IndexedFile objects in the database if successful return a list of files
 // from the database, in the case of failure return a zero length list of files and generat a log
 // message.
-func (m *MetaDBHandle) GetFiles() ([]fileparsetypes.IndexedFile, error) {
+func (m *MetaDBHandle) GetFiles() ([]fpt.IndexedFile, error) {
 	m.logDebug("GetFiles", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	var toReturn []fileparsetypes.IndexedFile
+	var toReturn []fpt.IndexedFile
 
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
@@ -240,7 +240,7 @@ func (m *MetaDBHandle) GetFiles() ([]fileparsetypes.IndexedFile, error) {
 }
 
 //AddParsedFiles adds indexed files to the files the metaDB using the bulk API
-func (m *MetaDBHandle) AddParsedFiles(files []*fileparsetypes.IndexedFile) error {
+func (m *MetaDBHandle) AddParsedFiles(files []*fpt.IndexedFile) error {
 	m.logDebug("AddParsedFiles", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()

@@ -3,7 +3,7 @@ package fileparsetypes
 import (
 	"time"
 
-	"github.com/ocmdev/rita/parser3/parsetypes"
+	pt "github.com/ocmdev/rita/parser/parsetypes"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -35,7 +35,7 @@ type IndexedFile struct {
 	LogTime          time.Time     `bson:"date"`
 	ParseTime        time.Time     `bson:"time_complete"`
 	header           *BroHeader
-	broDataFactory   func() parsetypes.BroData
+	broDataFactory   func() pt.BroData
 	fieldMap         BroHeaderIndexMap
 }
 
@@ -55,13 +55,13 @@ func (i *IndexedFile) GetHeader() *BroHeader {
 
 //SetBroDataFactory sets the function which makes bro data corresponding
 //with this type of bro file
-func (i *IndexedFile) SetBroDataFactory(broDataFactory func() parsetypes.BroData) {
+func (i *IndexedFile) SetBroDataFactory(broDataFactory func() pt.BroData) {
 	i.broDataFactory = broDataFactory
 }
 
 //GetBroDataFactory retrieves the function which makes bro data corresponding
 //with this type of bro file
-func (i *IndexedFile) GetBroDataFactory() func() parsetypes.BroData {
+func (i *IndexedFile) GetBroDataFactory() func() pt.BroData {
 	return i.broDataFactory
 }
 

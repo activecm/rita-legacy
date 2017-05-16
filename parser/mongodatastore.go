@@ -1,4 +1,4 @@
-package parser3
+package parser
 
 import (
 	log "github.com/Sirupsen/logrus"
@@ -7,14 +7,14 @@ import (
 
 	mgo "gopkg.in/mgo.v2"
 
-	"github.com/ocmdev/rita/parser3/fileparsetypes"
-	"github.com/ocmdev/rita/parser3/parsetypes"
+	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
+	pt "github.com/ocmdev/rita/parser/parsetypes"
 )
 
 //importedData is sent to a datastore to be stored away
 type importedData struct {
-	broData parsetypes.BroData
-	file    *fileparsetypes.IndexedFile
+	broData pt.BroData
+	file    *fpt.IndexedFile
 }
 
 //MongoDatastore is a datastore which stores bro data in MongoDB
@@ -29,7 +29,8 @@ type MongoDatastore struct {
 }
 
 //NewMongoDatastore creates a datastore which stores bro data in MongoDB
-func NewMongoDatastore(session *mgo.Session, bufferSize int, logger *log.Logger) *MongoDatastore {
+func NewMongoDatastore(session *mgo.Session,
+	bufferSize int, logger *log.Logger) *MongoDatastore {
 	return &MongoDatastore{
 		dbMap:      make(map[string]map[string]chan importedData),
 		bufferSize: bufferSize,

@@ -1,4 +1,4 @@
-package parser3
+package parser
 
 import (
 	"crypto/md5"
@@ -13,14 +13,15 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/parser3/fileparsetypes"
-	"github.com/ocmdev/rita/parser3/parsetypes"
+	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
+	pt "github.com/ocmdev/rita/parser/parsetypes"
 )
 
 //newIndexedFile takes in a file path and the bro config and opens up the
 //file path and parses out some metadata
-func newIndexedFile(filePath string, config *config.SystemConfig, logger *log.Logger) (*fileparsetypes.IndexedFile, error) {
-	toReturn := new(fileparsetypes.IndexedFile)
+func newIndexedFile(filePath string, config *config.SystemConfig,
+	logger *log.Logger) (*fpt.IndexedFile, error) {
+	toReturn := new(fpt.IndexedFile)
 	toReturn.Path = filePath
 
 	fileHandle, err := os.Open(filePath)
@@ -56,7 +57,7 @@ func newIndexedFile(filePath string, config *config.SystemConfig, logger *log.Lo
 	}
 	toReturn.SetHeader(header)
 
-	broDataFactory := parsetypes.NewBroDataFactory(header.ObjType)
+	broDataFactory := pt.NewBroDataFactory(header.ObjType)
 	if broDataFactory == nil {
 		fileHandle.Close()
 		return toReturn, errors.New("Could not map file header to parse type")

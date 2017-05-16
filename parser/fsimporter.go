@@ -1,4 +1,4 @@
-package parser3
+package parser
 
 import (
 	"io/ioutil"
@@ -11,7 +11,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/parser3/fileparsetypes"
+	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
 )
 
 type (
@@ -100,15 +100,15 @@ func readDir(cpath string, logger *log.Logger) []string {
 //indexFiles takes in a list of bro files, a number of threads, and parses
 //some metadata out of the files
 func indexFiles(files []string, indexingThreads int,
-	cfg *config.SystemConfig, logger *log.Logger) []*fileparsetypes.IndexedFile {
+	cfg *config.SystemConfig, logger *log.Logger) []*fpt.IndexedFile {
 	n := len(files)
-	output := make([]*fileparsetypes.IndexedFile, n)
+	output := make([]*fpt.IndexedFile, n)
 	indexingWG := new(sync.WaitGroup)
 
 	for i := 0; i < indexingThreads; i++ {
 		indexingWG.Add(1)
 
-		go func(files []string, indexedFiles []*fileparsetypes.IndexedFile,
+		go func(files []string, indexedFiles []*fpt.IndexedFile,
 			sysConf *config.SystemConfig, logger *log.Logger,
 			wg *sync.WaitGroup, start int, jump int, length int) {
 
@@ -136,7 +136,7 @@ func indexFiles(files []string, indexingThreads int,
 //threads to use to parse the files, a MogoDB datastore object to store
 //the bro data in, and a logger to report errors and parses the bro files
 //line by line into the database.
-func parseFiles(indexedFiles []*fileparsetypes.IndexedFile, parsingThreads int,
+func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
 	datastore *MongoDatastore, logger *log.Logger) {
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
@@ -144,7 +144,9 @@ func parseFiles(indexedFiles []*fileparsetypes.IndexedFile, parsingThreads int,
 	for i := 0; i < parsingThreads; i++ {
 		parsingWG.Add(1)
 
-		go func(indexedFiles []*fileparsetypes.IndexedFile, logger *log.Logger, wg *sync.WaitGroup, start int, jump int, length int) {
+		go func(indexedFiles []*fpt.IndexedFile, logger *log.Logger,
+			wg *sync.WaitGroup, start int, jump int, length int) {
+
 			for j := start; j < length; j += jump {
 				fileHandle, err := os.Open(indexedFiles[j].Path)
 				if err != nil {
@@ -190,9 +192,9 @@ func parseFiles(indexedFiles []*fileparsetypes.IndexedFile, parsingThreads int,
 	datastore.flush()
 }
 
-func removeOldFilesFromIndex(indexedFiles []*fileparsetypes.IndexedFile,
-	metaDatabase *database.MetaDBHandle, logger *log.Logger) []*fileparsetypes.IndexedFile {
-	var toReturn []*fileparsetypes.IndexedFile
+func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
+	metaDatabase *database.MetaDBHandle, logger *log.Logger) []*fpt.IndexedFile {
+	var toReturn []*fpt.IndexedFile
 	oldFiles, err := metaDatabase.GetFiles()
 	if err != nil {
 		logger.WithFields(log.Fields{
@@ -226,7 +228,7 @@ func removeOldFilesFromIndex(indexedFiles []*fileparsetypes.IndexedFile,
 }
 
 //createNewDatabases updates the metaDB with the new target databases
-func createNewDatabases(indexedFiles []*fileparsetypes.IndexedFile, metaDatabase *database.MetaDBHandle,
+func createNewDatabases(indexedFiles []*fpt.IndexedFile, metaDatabase *database.MetaDBHandle,
 	logger *log.Logger) {
 	var seen = make(map[string]bool)
 	for _, file := range indexedFiles {
@@ -256,7 +258,7 @@ func createNewDatabases(indexedFiles []*fileparsetypes.IndexedFile, metaDatabase
 }
 
 //updateFilesIndex updates the files collection in the metaDB with the newly parsed files
-func updateFilesIndex(indexedFiles []*fileparsetypes.IndexedFile, metaDatabase *database.MetaDBHandle,
+func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.MetaDBHandle,
 	logger *log.Logger) {
 	err := metaDatabase.AddParsedFiles(indexedFiles)
 	if err != nil {
