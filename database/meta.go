@@ -86,21 +86,9 @@ func (m *MetaDBHandle) DeleteDB(name string) error {
 	ssn.DB(name).DropDatabase()
 
 	//delete any parsed file records associated
-	if db.UsingDates {
-		date := name[len(name)-10:]
-		name = name[:len(name)-11]
-		_, err = ssn.DB(m.DB).C("files").RemoveAll(
-			//TODO: change
-			bson.M{"database": name, "date": date},
-		)
-		if err != nil {
-			return err
-		}
-	} else {
-		_, err = ssn.DB(m.DB).C("files").RemoveAll(bson.M{"database": name})
-		if err != nil {
-			return err
-		}
+	_, err = ssn.DB(m.DB).C("files").RemoveAll(bson.M{"database": name})
+	if err != nil {
+		return err
 	}
 
 	m.logDebug("DeleteDB", "exiting")
