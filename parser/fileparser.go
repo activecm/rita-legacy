@@ -22,15 +22,19 @@ func getFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
 		return nil, errors.New("Filetype not recognized")
 	}
 
+	var scanner *bufio.Scanner
 	if ftype == ".gz" {
 		rdr, err := gzip.NewReader(fileHandle)
 		if err != nil {
 			return nil, err
 		}
-		return bufio.NewScanner(rdr), nil
+		scanner = bufio.NewScanner(rdr)
+	} else {
+		scanner = bufio.NewScanner(fileHandle)
 	}
-	// Else (not a gz)
-	return bufio.NewScanner(fileHandle), nil
+
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	return scanner, nil
 }
 
 // scanHeader scans the comment lines out of a bro file and returns a
