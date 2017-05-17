@@ -55,7 +55,7 @@ type HTTP struct {
 	FileName string `bson:"filename" bro:"filename" brotype:"string"`
 	// Tags contains a set of indicators of various attributes related to a particular req and
 	// response pair
-	Tags string `bson:"tags" bro:"tags" brotype:"set[enum]"`
+	Tags []string `bson:"tags" bro:"tags" brotype:"set[enum]"`
 	// UserName will contain a username in the case of basic auth implementation
 	UserName string `bson:"username" bro:"username" brotype:"string"`
 	// Password will contain a password in the case of basic auth implementation
