@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ocmdev/rita/analysis/dns"
 	"github.com/ocmdev/rita/analysis/structure"
-	"github.com/ocmdev/rita/analysis/urls"
 	"github.com/ocmdev/rita/database"
 
 	"github.com/google/safebrowsing"
@@ -49,7 +49,7 @@ type (
 
 func SetBlacklistSources(res *database.Resources, result *blacklisted.Blacklist) {
 	if result.IsUrl {
-		for _, destIP := range urls.GetIPsFromHost(res, result.Host) {
+		for _, destIP := range dns.GetIPsFromHost(res, result.Host) {
 			result.Sources = append(result.Sources, structure.GetConnSourcesFromDest(res, destIP)...)
 		}
 	} else {

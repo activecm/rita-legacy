@@ -86,7 +86,7 @@ func analyze(inDb string, configFile string) {
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Building the hostnames collection\n")
 
-		urls.BuildHostnamesCollection(res)
+		dns.BuildHostnamesCollection(res)
 
 		// Module Collections
 
