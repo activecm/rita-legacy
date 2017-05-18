@@ -80,6 +80,7 @@ func writeXRef(res *database.Resources, collection string,
 
 func finalizeXRef(res *database.Resources, collection string) {
 	// Aggregation script
+	// nolint: vet
 	pipeline := []bson.D{
 		{
 			{"$group", bson.D{

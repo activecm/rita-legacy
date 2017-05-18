@@ -41,6 +41,7 @@ func getHosts(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) 
 	keys := []string{"$hashed:ip", "local"}
 
 	// Aggregation script
+	// nolint: vet
 	pipeline := []bson.D{
 		{
 			{"$project", bson.D{

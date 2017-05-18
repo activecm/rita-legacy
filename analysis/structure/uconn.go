@@ -59,6 +59,7 @@ func getUniqueConnectionsScript(sysCfg *config.SystemConfig) (string, string, []
 	keys := []string{"$hashed:src", "$hashed:dst"}
 
 	// Aggregation script
+	// nolint: vet
 	pipeline := []bson.D{
 		{
 			{"$group", bson.D{
