@@ -30,7 +30,7 @@ func init() {
 			res := database.InitResources("")
 
 			var explodedResults []dns.ExplodedDNS
-			iter := res.DB.Session.DB(c.String("database")).C(res.System.DnsConfig.ExplodedDnsTable).Find(nil)
+			iter := res.DB.Session.DB(c.String("database")).C(res.System.DNSConfig.ExplodedDNSTable).Find(nil)
 			count, _ := iter.Count()
 
 			if !c.Bool("all") {
