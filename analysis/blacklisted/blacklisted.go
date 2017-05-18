@@ -125,7 +125,7 @@ func (b *Blacklisted) run() {
 
 	// build up cursors
 	ipcur := ipssn.DB(b.db).C(b.resources.System.StructureConfig.HostTable)
-	urlcur := urlssn.DB(b.db).C(b.resources.System.UrlsConfig.HostnamesTable)
+	urlcur := urlssn.DB(b.db).C(b.resources.System.DnsConfig.HostnamesTable)
 
 	ipaddrs := make(chan string, b.channel_size)
 	urls := make(chan UrlShort, b.channel_size)
