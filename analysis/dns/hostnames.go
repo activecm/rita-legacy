@@ -18,7 +18,7 @@ func BuildHostnamesCollection(res *database.Resources) {
 		tempCollectionName,
 		pipeline := getHostnamesAggregationScript(res.System)
 
-	hostNamesCollection := res.System.DnsConfig.HostnamesTable
+	hostNamesCollection := res.System.DNSConfig.HostnamesTable
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -39,7 +39,7 @@ func BuildHostnamesCollection(res *database.Resources) {
 //getHostnamesAggregationScript maps dns a type queries to their answers
 //unfortunately, answers may be other hostnames
 func getHostnamesAggregationScript(sysCfg *config.SystemConfig) (string, string, []bson.D) {
-	sourceCollectionName := sysCfg.StructureConfig.DnsTable
+	sourceCollectionName := sysCfg.StructureConfig.DNSTable
 
 	newCollectionName := tempHostnamesCollName
 
@@ -117,7 +117,7 @@ func GetIPsFromHost(res *database.Resources, host string) []string {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	hostnames := ssn.DB(res.DB.GetSelectedDB()).C(res.System.DnsConfig.HostnamesTable)
+	hostnames := ssn.DB(res.DB.GetSelectedDB()).C(res.System.DNSConfig.HostnamesTable)
 
 	var destIPs dnsTypes.Hostname
 	hostnames.Find(bson.M{"host": host}).One(&destIPs)
