@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/alecthomas/template"
-	"github.com/ocmdev/rita/analysis/blacklisted"
-	"github.com/ocmdev/rita/database"
-	blacklistedData "github.com/ocmdev/rita/datatypes/blacklisted"
+	"github.com/bglebrun/rita/analysis/blacklisted"
+	"github.com/bglebrun/rita/database"
+	blacklistedData "github.com/bglebrun/rita/datatypes/blacklisted"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )

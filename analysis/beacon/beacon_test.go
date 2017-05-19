@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ocmdev/rita/database"
-	datatype_beacon "github.com/ocmdev/rita/datatypes/beacon"
+	"github.com/bglebrun/rita/database"
+	datatype_beacon "github.com/bglebrun/rita/datatypes/beacon"
 )
 
 func printAnalysis(res *datatype_beacon.BeaconAnalysisOutput) string {

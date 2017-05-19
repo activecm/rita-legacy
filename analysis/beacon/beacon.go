@@ -10,11 +10,11 @@ import (
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/ocmdev/rita/database"
-	dataBeacon "github.com/ocmdev/rita/datatypes/beacon"
-	"github.com/ocmdev/rita/datatypes/data"
-	"github.com/ocmdev/rita/datatypes/structure"
-	"github.com/ocmdev/rita/util"
+	"github.com/bglebrun/rita/database"
+	dataBeacon "github.com/bglebrun/rita/datatypes/beacon"
+	"github.com/bglebrun/rita/datatypes/data"
+	"github.com/bglebrun/rita/datatypes/structure"
+	"github.com/bglebrun/rita/util"
 
 	log "github.com/Sirupsen/logrus"
 )

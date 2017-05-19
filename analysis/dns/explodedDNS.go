@@ -1,7 +1,7 @@
 package dns
 
 import (
-	"github.com/ocmdev/rita/database"
+	"github.com/bglebrun/rita/database"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )

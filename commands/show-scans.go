@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"text/template"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/scanning"
+	"github.com/bglebrun/rita/database"
+	"github.com/bglebrun/rita/datatypes/scanning"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
