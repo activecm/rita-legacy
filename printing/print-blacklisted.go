@@ -12,15 +12,9 @@ import (
 	blacklistedData "github.com/bglebrun/rita/datatypes/blacklisted"
 	htmlTempl "github.com/bglebrun/rita/printing/templates"
 	"github.com/olekukonko/tablewriter"
-	"github.com/urfave/cli"
 )
 
-func showBlacklisted(db string, dir string) error {
-	if db == "" {
-		return cli.NewExitError("Specify a database with -d", -1)
-	}
-
-	res := database.InitResources("")
+func printBlacklisted(db string, dir string, res *database.Resources) error {
 	res.DB.SelectDB(db)
 
 	var result blacklistedData.Blacklist

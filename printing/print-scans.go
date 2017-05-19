@@ -17,7 +17,7 @@ type scan struct {
 	Writer string
 }
 
-func printScans(res *database.Resources, db string, dir string) error {
+func printScans(db string, dir string, res *database.Resources) error {
 	var scans []scanning.Scan
 	coll := res.DB.Session.DB(db).C(res.System.ScanningConfig.ScanTable)
 	coll.Find(nil).All(&scans)

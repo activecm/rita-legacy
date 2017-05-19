@@ -49,7 +49,7 @@ func Printing(res *database.Resources) error {
 
 	// Start db iteration
 	for k := range dbs {
-		err = writeDB(dbs[k], wd, session, res)
+		err = writeDB(dbs[k], wd, res)
 		if err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ func writeHomePage(Dbs []string) error {
 	return out.Execute(f, Dbs)
 }
 
-func writeDB(db string, wd string, session *mgo.Session, res *database.Resources) error {
+func writeDB(db string, wd string, res *database.Resources) error {
 	writeDir := wd + "/" + db
 
 	fExists, err := exists(writeDir)
@@ -101,7 +101,19 @@ func writeDB(db string, wd string, session *mgo.Session, res *database.Resources
 		os.Mkdir(writeDir, 0644)
 	}
 
-	err = printScans(res, db, writeDir)
+	err = printScans(db, writeDir, res)
+	if err != nil {
+		return err
+	}
+	err = printBlacklisted(db, writeDir, res)
+	if err != nil {
+		return err
+	}
+	err = printDNSHtml(db, writeDir, res)
+	if err != nil {
+		return err
+	}
+	err = printBeacons(db, writeDir, res)
 	if err != nil {
 		return err
 	}

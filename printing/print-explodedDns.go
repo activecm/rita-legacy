@@ -6,13 +6,13 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/bglebrun/rita/database"
+	"github.com/bglebrun/rita/datatypes/dns"
 	"github.com/bglebrun/rita/printing/templates"
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/dns"
 	"github.com/olekukonko/tablewriter"
 )
 
-func printDNSHtml(db string, res *database.Resources, dir string) error {
+func printDNSHtml(db string, dir string, res *database.Resources) error {
 	f, err := os.Create(dir + "/dns.html")
 	if err != nil {
 		return err

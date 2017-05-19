@@ -12,14 +12,20 @@ func init() {
 		Name:  "Print-scans",
 		Usage: "Write scanning information to html output",
 		Flags: []cli.Flag{
-			databaseFlag,
+			configFlag,
+			cli.StringFlag{
+				Name:  "database, d",
+				Usage: "Specify which databases to dump, otherwise will import all databases",
+				Value: "",
+			},
 		},
 		Action: func(c *cli.Context) error {
-			if c.String("database") == "" {
-				return cli.NewExitError("Specify a database with -d", -1)
-			}
-
 			res := database.InitResources("")
+			databaseName := c.String("database")
+			if databaseName != "" {
+				res.System.BroConfig.DBPrefix = ""
+				res.System.BroConfig.DefaultDatabase = databaseName
+			}
 			return printing.Printing(res)
 		},
 	}
