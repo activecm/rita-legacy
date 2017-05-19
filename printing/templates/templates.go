@@ -48,7 +48,7 @@ li a:hover {
 
 // ScansTempl is our scans html template
 var ScansTempl = `<head>
-<link rel="stylesheet" type="text/css" href="style.css">
+<link rel="stylesheet" type="text/css" href="../style.css">
 </head>
 
 <ul>
@@ -106,7 +106,7 @@ var Hometempl = `<head>
 
 // DNStempl is our dns page template
 var DNStempl = `<head>
-<link rel="stylesheet" type="text/css" href="style.css">
+<link rel="stylesheet" type="text/css" href="../style.css">
 </head>
 
 <ul>
@@ -134,7 +134,7 @@ var DNStempl = `<head>
 
 // DBhometempl is our database home template for each directory
 var DBhometempl = `<head>
-<link rel="stylesheet" type="text/css" href="style.css">
+<link rel="stylesheet" type="text/css" href="../style.css">
 </head>
 
 <ul>
@@ -163,7 +163,7 @@ var DBhometempl = `<head>
 
 // BeaconsTempl is our beacons html template
 var BeaconsTempl = `<head>
-<link rel="stylesheet" type="text/css" href="style.css">
+<link rel="stylesheet" type="text/css" href="../style.css">
 </head>
 
 <ul>
@@ -194,7 +194,7 @@ var BeaconsTempl = `<head>
 
 // BlacklistedTempl is our beacons html template
 var BlacklistedTempl = `<head>
-<link rel="stylesheet" type="text/css" href="style.css">
+<link rel="stylesheet" type="text/css" href="../style.css">
 </head>
 
 <ul>
