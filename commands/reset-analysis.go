@@ -35,8 +35,8 @@ func cleanAnalysis(database string, res *database.Resources) error {
 	//clean database
 
 	conn := res.System.StructureConfig.ConnTable
-	http := res.System.StructureConfig.HttpTable
-	dns := res.System.StructureConfig.DnsTable
+	http := res.System.StructureConfig.HTTPTable
+	dns := res.System.StructureConfig.DNSTable
 
 	names, err := res.DB.Session.DB(database).CollectionNames()
 	if err != nil || len(names) == 0 {

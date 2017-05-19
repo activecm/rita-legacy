@@ -31,7 +31,7 @@ func BuildUserAgentCollection(res *database.Resources) {
 
 func getUserAgentCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
-	sourceCollectionName := sysCfg.StructureConfig.HttpTable
+	sourceCollectionName := sysCfg.StructureConfig.HTTPTable
 
 	// Name of the new collection
 	newCollectionName := sysCfg.UserAgentConfig.UserAgentTable
