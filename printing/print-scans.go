@@ -17,18 +17,18 @@ type scan struct {
 	Writer string
 }
 
-func printScans(db string, dir string, res *database.Resources) error {
+func printScans(db string, res *database.Resources) error {
 	var scans []scanning.Scan
 	coll := res.DB.Session.DB(db).C(res.System.ScanningConfig.ScanTable)
 	coll.Find(nil).All(&scans)
 
-	return printScansHTML(scans, db, dir)
+	return printScansHTML(scans, db)
 
 }
 
 // printScansHTML prints all scans for a given database
-func printScansHTML(scans []scanning.Scan, db string, dir string) error {
-	f, err := os.Create(dir + "scans.html")
+func printScansHTML(scans []scanning.Scan, db string) error {
+	f, err := os.Create("scans.html")
 	if err != nil {
 		return err
 	}

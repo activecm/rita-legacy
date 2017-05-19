@@ -12,8 +12,8 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-func printDNSHtml(db string, dir string, res *database.Resources) error {
-	f, err := os.Create(dir + "/dns.html")
+func printDNSHtml(db string, res *database.Resources) error {
+	f, err := os.Create("dns.html")
 	if err != nil {
 		return err
 	}

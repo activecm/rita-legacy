@@ -22,11 +22,15 @@ func init() {
 		Action: func(c *cli.Context) error {
 			res := database.InitResources("")
 			databaseName := c.String("database")
+			var databases []string
 			if databaseName != "" {
 				res.System.BroConfig.DBPrefix = ""
 				res.System.BroConfig.DefaultDatabase = databaseName
+				databases = append(databases, databaseName)
+			} else {
+				databases = res.MetaDB.GetDatabases()
 			}
-			return printing.Printing(res)
+			return printing.Printing(databases, res)
 		},
 	}
 	bootstrapCommands(command)

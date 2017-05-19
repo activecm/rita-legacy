@@ -13,18 +13,18 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-func printBeacons(db string, dir string, res *database.Resources) error {
+func printBeacons(db string, res *database.Resources) error {
 	res.DB.SelectDB(db)
 	var data []beaconData.BeaconAnalysisView
 	ssn := res.DB.Session.Copy()
 	beacon.GetBeaconResultsView(res, ssn, 0).All(&data)
 	ssn.Close()
 
-	return printBeaconHTML(dir, db, data)
+	return printBeaconHTML(db, data)
 }
 
-func printBeaconHTML(dir string, db string, data []beaconData.BeaconAnalysisView) error {
-	f, err := os.Create(dir + "beacons.html")
+func printBeaconHTML(db string, data []beaconData.BeaconAnalysisView) error {
+	f, err := os.Create("beacons.html")
 	if err != nil {
 		return err
 	}

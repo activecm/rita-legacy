@@ -9,23 +9,18 @@ import (
 
 	"github.com/bglebrun/rita/config"
 	"github.com/bglebrun/rita/database"
-	"github.com/bglebrun/ritahtmltest/pageTemplates"
+	htmlTempl "github.com/bglebrun/rita/printing/templates"
 	mgo "gopkg.in/mgo.v2"
 )
 
 // Printing is our main printing function
-func Printing(res *database.Resources) error {
+func Printing(dbs []string, res *database.Resources) error {
 	con, ok := config.GetConfig("")
 	if !ok {
 		return errors.New("unable to get config")
 	}
 
-	dbs := res.MetaDB.GetDatabases()
-
 	host := con.DatabaseHost
-	if len(os.Args) > 1 {
-		host = os.Args[2]
-	}
 
 	session, err := mgo.Dial(host)
 	if err != nil {
@@ -78,42 +73,79 @@ func writeHomePage(Dbs []string) error {
 	}
 	defer f.Close()
 
-	err = ioutil.WriteFile("style.css", pageTemplates.CSStempl, 0644)
+	err = ioutil.WriteFile("style.css", htmlTempl.CSStempl, 0777)
 	if err != nil {
 		return err
 	}
 
-	out, err := template.New("home.html").Parse(pageTemplates.Hometempl)
+	out, err := template.New("home.html").Parse(htmlTempl.Hometempl)
 	if err != nil {
 		return err
 	}
 	return out.Execute(f, Dbs)
 }
 
+func writeDBHomePage(db string) error {
+	f, err := os.Create("index.html")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	err = ioutil.WriteFile("style.css", htmlTempl.CSStempl, 0777)
+	if err != nil {
+		return err
+	}
+
+	out, err := template.New("index.html").Parse(htmlTempl.DBhometempl)
+	if err != nil {
+		return err
+	}
+
+	return out.Execute(f, db)
+}
+
 func writeDB(db string, wd string, res *database.Resources) error {
 	writeDir := wd + "/" + db
 
+	fmt.Print("[-] Writing: " + writeDir + "\n")
 	fExists, err := exists(writeDir)
 	if err != nil {
 		return err
 	}
 	if !fExists {
-		os.Mkdir(writeDir, 0644)
+		err = os.Mkdir(db, 0777)
+		if err != nil {
+			return err
+		}
+		err = os.Chdir(db)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = printScans(db, writeDir, res)
+	/*err = writeDBHomePage(db)
+	if err != nil {
+		return err
+	}*/
+	err = printScans(db, res)
 	if err != nil {
 		return err
 	}
-	err = printBlacklisted(db, writeDir, res)
+	err = printBlacklisted(db, res)
 	if err != nil {
 		return err
 	}
-	err = printDNSHtml(db, writeDir, res)
+	err = printDNSHtml(db, res)
 	if err != nil {
 		return err
 	}
-	err = printBeacons(db, writeDir, res)
+	err = printBeacons(db, res)
+	if err != nil {
+		return err
+	}
+
+	err = os.Chdir("..")
 	if err != nil {
 		return err
 	}

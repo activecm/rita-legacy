@@ -14,7 +14,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-func printBlacklisted(db string, dir string, res *database.Resources) error {
+func printBlacklisted(db string, res *database.Resources) error {
 	res.DB.SelectDB(db)
 
 	var result blacklistedData.Blacklist
@@ -28,13 +28,13 @@ func printBlacklisted(db string, dir string, res *database.Resources) error {
 		results = append(results, result)
 	}
 
-	return printBlacklistedHTML(results, dir, db)
+	return printBlacklistedHTML(results, db)
 }
 
 // TODO: Convert this over to tablewriter
 // printBlacklistedHTML prints all blacklisted for a given database
-func printBlacklistedHTML(results []blacklistedData.Blacklist, dir string, db string) error {
-	f, err := os.Create(dir + "blacklisted.html")
+func printBlacklistedHTML(results []blacklistedData.Blacklist, db string) error {
+	f, err := os.Create("blacklisted.html")
 	if err != nil {
 		return err
 	}
