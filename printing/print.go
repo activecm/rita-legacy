@@ -50,7 +50,7 @@ func Printing(dbs []string, res *database.Resources) error {
 		}
 	}
 
-	fmt.Println("Wrote outputs, check ~/.rita/html for files")
+	fmt.Println("Wrote outputs, check " + wd + " for files")
 	// End db iteration
 	return nil
 }
@@ -92,11 +92,6 @@ func writeDBHomePage(db string) error {
 	}
 	defer f.Close()
 
-	err = ioutil.WriteFile("style.css", htmlTempl.CSStempl, 0777)
-	if err != nil {
-		return err
-	}
-
 	out, err := template.New("index.html").Parse(htmlTempl.DBhometempl)
 	if err != nil {
 		return err
@@ -124,10 +119,10 @@ func writeDB(db string, wd string, res *database.Resources) error {
 		}
 	}
 
-	/*err = writeDBHomePage(db)
+	err = writeDBHomePage(db)
 	if err != nil {
 		return err
-	}*/
+	}
 	err = printScans(db, res)
 	if err != nil {
 		return err
