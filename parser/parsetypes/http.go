@@ -79,7 +79,7 @@ type HTTP struct {
 //TargetCollection returns the mongo collection this entry should be inserted
 //into
 func (line *HTTP) TargetCollection(config *config.StructureCfg) string {
-	return config.HttpTable
+	return config.HTTPTable
 }
 
 //Indices gives MongoDB indices that should be used with the collection

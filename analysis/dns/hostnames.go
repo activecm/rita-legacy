@@ -26,7 +26,7 @@ func BuildHostnamesCollection(res *database.Resources) {
 
 	err := res.DB.CreateCollection(hostNamesCollection, []string{"$hashed:host"})
 
-	if err != "" {
+	if err != nil {
 		res.Log.Error("Could not create ", hostNamesCollection, err)
 		return
 	}
