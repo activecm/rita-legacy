@@ -8,38 +8,39 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+//BuildUrlsCollection performs url length analysis
 func BuildUrlsCollection(res *database.Resources) {
 	// Create the aggregate command
-	source_collection_name,
-		new_collection_name,
-		new_collection_keys,
+	sourceCollectionName,
+		newCollectionName,
+		newCollectionKeys,
 		job,
-		pipeline := getUrlCollectionScript(res.System)
+		pipeline := getURLCollectionScript(res.System)
 
 	// Create it
-	error_check := res.DB.CreateCollection(new_collection_name, new_collection_keys)
-	if error_check != "" {
-		res.Log.Error("Failed: ", new_collection_name, error_check)
+	err := res.DB.CreateCollection(newCollectionName, newCollectionKeys)
+	if err != "" {
+		res.Log.Error("Failed: ", newCollectionName, err)
 		return
 	}
 
 	// Map reduce it!
-	if !res.DB.MapReduceCollection(source_collection_name, job) {
+	if !res.DB.MapReduceCollection(sourceCollectionName, job) {
 		return
 	}
 
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 	// Aggregate it
-	res.DB.AggregateCollection(new_collection_name, ssn, pipeline)
+	res.DB.AggregateCollection(newCollectionName, ssn, pipeline)
 }
 
-func getUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, mgo.MapReduce, []bson.D) {
+func getURLCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, mgo.MapReduce, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
-	source_collection_name := sysCfg.StructureConfig.HTTPTable
+	sourceCollectionName := sysCfg.StructureConfig.HTTPTable
 
 	// Name of the new collection
-	new_collection_name := sysCfg.UrlsConfig.UrlsTable
+	newCollectionName := sysCfg.UrlsConfig.UrlsTable
 
 	// Desired indeces
 	keys := []string{"$hashed:url", "-length"}
@@ -56,14 +57,15 @@ func getUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []stri
 					emit(this._id, result);
 				}`,
 		Reduce: "function(key, values){return values}",
-		Out:    bson.M{"replace": new_collection_name},
+		Out:    bson.M{"replace": newCollectionName},
 	}
 
 	// nolint: vet
 	pipeline := []bson.D{
+		//this stage may be unneeded
 		{
 			{"$project", bson.D{
-				{"_id", 1},
+				{"_id", 0},
 				{"url", "$value.host"},
 				{"uri", "$value.uri"},
 				{"ip", "$value.ip"},
@@ -72,9 +74,36 @@ func getUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []stri
 			}},
 		},
 		{
-			{"$out", new_collection_name},
+			{"$group", bson.D{
+				{"_id", bson.D{
+					{"url", "$url"},
+					{"uri", "$uri"},
+				}},
+				{"ips", bson.D{
+					{"$addToSet", "$ip"},
+				}},
+				{"length", bson.D{
+					{"$first", "$length"},
+				}},
+				{"count", bson.D{
+					{"$sum", 1},
+				}},
+			}},
 		},
+		{
+			{"$project", bson.D{
+				{"_id", 0},
+				{"url", "$_id.url"},
+				{"uri", "$_id.uri"},
+				{"ips", 1},
+				{"length", 1},
+				{"count", 1},
+			}},
+		},
+		{{
+			"$out", newCollectionName,
+		}},
 	}
 
-	return source_collection_name, new_collection_name, keys, job, pipeline
+	return sourceCollectionName, newCollectionName, keys, job, pipeline
 }
