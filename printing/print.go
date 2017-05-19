@@ -50,7 +50,7 @@ func Printing(dbs []string, res *database.Resources) error {
 		}
 	}
 
-	fmt.Println("Wrote outputs, check " + wd + " for files")
+	fmt.Println("[-] Wrote outputs, check " + wd + " for files")
 	// End db iteration
 	return nil
 }
