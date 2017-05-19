@@ -53,6 +53,7 @@ type (
 
 	DnsCfg struct {
 		ExplodedDnsTable string `yaml:"ExplodedDnsTable"`
+		HostnamesTable   string `yaml:"HostnamesTable"`
 	}
 
 	CrossrefCfg struct {
@@ -77,8 +78,7 @@ type (
 	}
 
 	UrlsCfg struct {
-		UrlsTable      string `yaml:"UrlsTable"`
-		HostnamesTable string `yaml:"HostnamesTable"`
+		UrlsTable string `yaml:"UrlsTable"`
 	}
 
 	UserAgentCfg struct {

@@ -59,6 +59,7 @@ func getUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []stri
 		Out:    bson.M{"replace": new_collection_name},
 	}
 
+	// nolint: vet
 	pipeline := []bson.D{
 		{
 			{"$project", bson.D{
@@ -76,80 +77,4 @@ func getUrlCollectionScript(sysCfg *config.SystemConfig) (string, string, []stri
 	}
 
 	return source_collection_name, new_collection_name, keys, job, pipeline
-}
-
-// GetIPsFromHost uses the hostnames table to do a cached whois query
-func GetIPsFromHost(res *database.Resources, host string) []string {
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	hostnames := ssn.DB(res.DB.GetSelectedDB()).C(res.System.UrlsConfig.HostnamesTable)
-
-	//I don't know if this can be cleaned up
-	//TODO: Research of query projections
-	var destIPs struct {
-		IPs []string `bson:"ips"`
-	}
-	hostnames.Find(bson.M{"host": host}).One(&destIPs)
-
-	var ips []string
-	for _, ip := range destIPs.IPs {
-		ips = append(ips, ip)
-	}
-	return ips
-}
-
-func BuildHostnamesCollection(res *database.Resources) {
-	source_collection_name,
-		new_collection_name,
-		new_collection_keys,
-		pipeline := getHostnamesAggregationScript(res.System)
-
-	err := res.DB.CreateCollection(new_collection_name, new_collection_keys)
-	if err != "" {
-		res.Log.Error("Failed: ", new_collection_name, err)
-		return
-	}
-
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
-}
-
-func getHostnamesAggregationScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
-	source_collection_name := sysCfg.UrlsConfig.UrlsTable
-
-	new_collection_name := sysCfg.UrlsConfig.HostnamesTable
-
-	keys := []string{"$hashed:host"}
-
-	pipeline := []bson.D{
-		{
-			{"$project", bson.D{
-				{"_id", 0},
-				{"url", 1},
-				{"ip", 1},
-			}},
-		},
-		{
-			{"$group", bson.D{
-				{"_id", "$url"},
-				{"ips", bson.D{
-					{"$addToSet", "$ip"},
-				}},
-			}},
-		},
-		{
-			{"$project", bson.D{
-				{"_id", 0},
-				{"host", "$_id"},
-				{"ips", 1},
-			}},
-		},
-		{
-			{"$out", new_collection_name},
-		},
-	}
-	return source_collection_name, new_collection_name, keys, pipeline
 }

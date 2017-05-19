@@ -39,6 +39,7 @@ func getUserAgentCollectionScript(sysCfg *config.SystemConfig) (string, string, 
 	keys := []string{"$hashed:user_agent"}
 
 	// First aggregation script
+	// nolint: vet
 	pipeline := []bson.D{
 		{
 			{"$group", bson.D{

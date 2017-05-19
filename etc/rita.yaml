@@ -81,6 +81,7 @@ BlackListed:
 
 Dns:
     ExplodedDnsTable: explodedDns
+    HostnamesTable: hostnames
 
 Crossref:
     InternalTable: internXREF
@@ -97,7 +98,6 @@ Beacon:
 
 Urls:
     UrlsTable: urls
-    HostnamesTable: hostnames
 
 UserAgent:
     UserAgentTable: useragent

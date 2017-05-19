@@ -40,6 +40,7 @@ func getScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, [
 	keys := []string{"-port_count", "$hashed:src", "$hashed:dst"}
 
 	// Aggregation script
+	// nolint: vet
 	pipeline := []bson.D{
 		{
 			{"$group", bson.D{

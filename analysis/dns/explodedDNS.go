@@ -6,8 +6,8 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-var tempVistedCountCollName string = "__temp_ExplodedDNSVistedCounts"
-var tempUniqSubdomainCollName string = "__temp_UniqSubdomains"
+const tempVistedCountCollName string = "__temp_ExplodedDNSVistedCounts"
+const tempUniqSubdomainCollName string = "__temp_UniqSubdomains"
 
 // BuildExplodedDNSCollection splits domain names into sub-domains
 // and performs analysis
@@ -54,6 +54,7 @@ func zipExplodedDNSResults(res *database.Resources) {
 	defer ssn.Close()
 	res.DB.CreateCollection(res.System.DnsConfig.ExplodedDnsTable, []string{"domain", "subdomains"})
 	res.DB.AggregateCollection(tempVistedCountCollName, ssn,
+		// nolint: vet
 		[]bson.D{
 			{
 				{"$lookup", bson.D{
