@@ -27,8 +27,10 @@ var ScansTempl = `<head>
 </ul>
 
 <p>
-
-  {{.Writer}}
+  <table>
+    <tr><th>Source</th><th>Destination</th><th>Port Count</th><th>Port Set</th></tr>
+      {{.Writer}}
+  </table>
 
 </p>
 `
@@ -92,9 +94,10 @@ var DNStempl = `<head>
 </ul>
 
 <p>
-
-  {{.Writer}}
-
+  <table>
+    <tr><th>Subdomain</th><th>Visited</th><th>Domain</th><tr>
+      {{.Writer}}
+  </table>
 </p>
 `
 
@@ -126,7 +129,6 @@ var DBhometempl = `<head>
 
 <p>
   <div>To view results, click on any of the links above.</div>
-
 </p>
 `
 
@@ -157,8 +159,12 @@ var BeaconsTempl = `<head>
 </ul>
 
 <p>
-
-  {{.Writer}}
+  <table>
+  <tr><th>TS_score</th><th>Source</th><th>Destination</th><th>Connections</th><th>AvgBytes</th><th>
+	TS_In Range</th><th>TS In Mode</th><th>TS In Mode Count</th><th>
+	TS In Skew</th><th>TS In Dispersion</th><th>TS Duration</tr>
+      {{.Writer}}
+  </table>
 
 </p>
 `
@@ -190,8 +196,10 @@ var BlacklistedTempl = `<head>
 </ul>
 
 <p>
+  <table>
+  <tr><th>Host</th><th>Score</th><th>Sources</th><tr>
 
-  {{.Writer}}
-
+    {{.Writer}}
+  </table>
 </p>
 `

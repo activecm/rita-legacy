@@ -4,17 +4,15 @@ import (
 	"bytes"
 	"html/template"
 	"os"
-	"strconv"
 
 	"github.com/bglebrun/rita/database"
 	"github.com/bglebrun/rita/datatypes/scanning"
 	"github.com/bglebrun/rita/printing/templates"
-	"github.com/olekukonko/tablewriter"
 )
 
 type scan struct {
 	Dbs    string
-	Writer string
+	Writer template.HTML
 }
 
 func printScans(db string, res *database.Resources) error {
@@ -34,19 +32,35 @@ func printScansHTML(scans []scanning.Scan, db string) error {
 	}
 	defer f.Close()
 
-	w := new(bytes.Buffer)
-
-	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"Source", "Destination", "Ports Scanned"})
-	for _, scan := range scans {
-		table.Append([]string{scan.Src, scan.Dst, strconv.Itoa(scan.PortCount)})
-	}
-	table.Render()
-
 	out, err := template.New("scans.html").Parse(templates.ScansTempl)
 	if err != nil {
 		return err
 	}
 
-	return out.Execute(f, &scan{Dbs: db, Writer: w.String()})
+	w, err := getScanWriter(scans)
+	if err != nil {
+		return err
+	}
+
+	return out.Execute(f, &scan{Dbs: db, Writer: template.HTML(w)})
+}
+
+func getScanWriter(scans []scanning.Scan) (string, error) {
+
+	tmpl := "<tr><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.PortCount}}</td><td>{{range $idx, $port := .PortSet}}{{if $idx}} {{end}}{{ $port }}{{end}}</td></tr>\n"
+
+	out, err := template.New("scn").Parse(tmpl)
+	if err != nil {
+		return "", err
+	}
+
+	w := new(bytes.Buffer)
+
+	for _, scan := range scans {
+		err := out.Execute(w, scan)
+		if err != nil {
+			return "", err
+		}
+	}
+	return w.String(), nil
 }

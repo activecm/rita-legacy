@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"html/template"
 	"os"
-	"strconv"
 
 	"github.com/bglebrun/rita/analysis/beacon"
 	"github.com/bglebrun/rita/database"
 	beaconData "github.com/bglebrun/rita/datatypes/beacon"
 	"github.com/bglebrun/rita/printing/templates"
-	"github.com/olekukonko/tablewriter"
 )
 
 func printBeacons(db string, res *database.Resources) error {
@@ -30,29 +28,38 @@ func printBeaconHTML(db string, data []beaconData.BeaconAnalysisView) error {
 	}
 	defer f.Close()
 
-	w := new(bytes.Buffer)
-
-	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
-		"Connections", "Avg. Bytes", "Intvl Range", "Top Intvl",
-		"Top Intvl Count", "Intvl Skew", "Intvl Dispersion", "Intvl Duration"})
-	fl := func(fl float64) string {
-		return strconv.FormatFloat(fl, 'g', 6, 64)
-	}
-	in := func(in int64) string {
-		return strconv.FormatInt(in, 10)
-	}
-	for _, d := range data {
-		table.Append(
-			[]string{
-				fl(d.TS_score), d.Src, d.Dst, in(d.Connections), fl(d.AvgBytes),
-				in(d.TS_iRange), in(d.TS_iMode), in(d.TS_iModeCount), fl(d.TS_iSkew),
-				in(d.TS_iDispersion), fl(d.TS_duration)})
-	}
-	table.Render()
 	out, err := template.New("beacon.html").Parse(templates.BeaconsTempl)
 	if err != nil {
 		return err
 	}
-	return out.Execute(f, &scan{Dbs: db, Writer: w.String()})
+
+	w, err := getBeaconWriter(data)
+
+	if err != nil {
+		return err
+	}
+
+	return out.Execute(f, &scan{Dbs: db, Writer: template.HTML(w)})
+}
+
+func getBeaconWriter(beacons []beaconData.BeaconAnalysisView) (string, error) {
+	tmpl := "<tr><td>{{.TS_score}}</td><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.Connections}}</td><td>{{.AvgBytes}}</td><td>"
+	tmpl += "{{.TS_iRange}}</td><td>{{.TS_iMode}}</td><td>{{.TS_iModeCount}}</td><td>"
+	tmpl += "{{.TS_iSkew}}</td><td>{{.TS_iDispersion}}</td><td>{{.TS_duration}}</tr>\n"
+
+	out, err := template.New("beacon").Parse(tmpl)
+	if err != nil {
+		return "", err
+	}
+
+	w := new(bytes.Buffer)
+
+	for _, result := range beacons {
+		err = out.Execute(w, result)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return w.String(), nil
 }

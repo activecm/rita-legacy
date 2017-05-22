@@ -121,27 +121,33 @@ func writeDB(db string, wd string, res *database.Resources) error {
 
 	err = writeDBHomePage(db)
 	if err != nil {
+		fmt.Print(err)
 		return err
 	}
 	err = printScans(db, res)
 	if err != nil {
+		fmt.Print(err)
 		return err
 	}
 	err = printBlacklisted(db, res)
 	if err != nil {
+		fmt.Print(err)
 		return err
 	}
 	err = printDNSHtml(db, res)
 	if err != nil {
+		fmt.Print(err)
 		return err
 	}
 	err = printBeacons(db, res)
 	if err != nil {
+		fmt.Print(err)
 		return err
 	}
 
 	err = os.Chdir("..")
 	if err != nil {
+		fmt.Print(err)
 		return err
 	}
 
