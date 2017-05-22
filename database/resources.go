@@ -46,7 +46,7 @@ func InitResources(cfgPath string) *Resources {
 	}
 	session.SetSocketTimeout(2 * time.Hour)
 	session.SetSyncTimeout(2 * time.Hour)
-	session.SetCursorTimeout(2 * time.Hour)
+	session.SetCursorTimeout(0)
 
 	// Allows code to interact with the database
 	db := &DB{
