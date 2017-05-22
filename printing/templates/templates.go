@@ -26,13 +26,13 @@ var ScansTempl = `<head>
   </li>
 </ul>
 
-<p>
+<div class="container">
   <table>
     <tr><th>Source</th><th>Destination</th><th>Port Count</th><th>Port Set</th></tr>
       {{.Writer}}
   </table>
 
-</p>
+</div>
 `
 
 // Hometempl is our home template html
@@ -93,12 +93,12 @@ var DNStempl = `<head>
   </li>
 </ul>
 
-<p>
+<div class="container">
   <table>
     <tr><th>Subdomain</th><th>Visited</th><th>Domain</th><tr>
       {{.Writer}}
   </table>
-</p>
+</div>
 `
 
 // DBhometempl is our database home template for each directory
@@ -157,16 +157,14 @@ var BeaconsTempl = `<head>
     </a>
   </li>
 </ul>
-
-<p>
+<div class="container">
   <table>
   <tr><th>TS_score</th><th>Source</th><th>Destination</th><th>Connections</th><th>AvgBytes</th><th>
 	TS_In Range</th><th>TS In Mode</th><th>TS In Mode Count</th><th>
 	TS In Skew</th><th>TS In Dispersion</th><th>TS Duration</tr>
       {{.Writer}}
   </table>
-
-</p>
+</div>
 `
 
 // BlacklistedTempl is our beacons html template
@@ -195,11 +193,11 @@ var BlacklistedTempl = `<head>
   </li>
 </ul>
 
-<p>
+<div class="container">
   <table>
   <tr><th>Host</th><th>Score</th><th>Sources</th><tr>
 
     {{.Writer}}
   </table>
-</p>
+</div>
 `

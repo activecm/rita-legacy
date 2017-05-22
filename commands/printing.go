@@ -9,7 +9,7 @@ import (
 func init() {
 	command := cli.Command{
 
-		Name:  "print-scans",
+		Name:  "html-report",
 		Usage: "Write scanning information to html output",
 		Flags: []cli.Flag{
 			configFlag,

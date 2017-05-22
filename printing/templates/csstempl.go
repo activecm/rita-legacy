@@ -90,4 +90,24 @@ li a:hover {
   margin: 20px 40px;
   color: #a9a9a9;
 }
+
+.container {
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even){
+  background-color: #f2f2f2
+}
+
 `)

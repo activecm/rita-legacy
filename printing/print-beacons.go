@@ -43,9 +43,9 @@ func printBeaconHTML(db string, data []beaconData.BeaconAnalysisView) error {
 }
 
 func getBeaconWriter(beacons []beaconData.BeaconAnalysisView) (string, error) {
-	tmpl := "<tr><td>{{.TS_score}}</td><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.Connections}}</td><td>{{.AvgBytes}}</td><td>"
+	tmpl := "<tr><td>{{printf \"%.2f\" .TS_score}}</td><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.Connections}}</td><td>{{printf \"%.2f\" .AvgBytes}}</td><td>"
 	tmpl += "{{.TS_iRange}}</td><td>{{.TS_iMode}}</td><td>{{.TS_iModeCount}}</td><td>"
-	tmpl += "{{.TS_iSkew}}</td><td>{{.TS_iDispersion}}</td><td>{{.TS_duration}}</tr>\n"
+	tmpl += "{{.TS_iSkew}}</td><td>{{.TS_iDispersion}}</td><td>{{printf \"%.2f\" .TS_duration}}</tr>\n"
 
 	out, err := template.New("beacon").Parse(tmpl)
 	if err != nil {
