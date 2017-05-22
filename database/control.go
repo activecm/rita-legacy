@@ -2,7 +2,6 @@ package database
 
 import (
 	"errors"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"
@@ -101,7 +100,6 @@ func (d *DB) CreateCollection(name string, indeces []string) error {
 //AggregateCollection builds a collection via a MongoDB pipeline
 func (d *DB) AggregateCollection(sourceCollection string,
 	session *mgo.Session, pipeline []bson.D) *mgo.Iter {
-	session.SetSocketTimeout(2 * time.Hour)
 
 	// Identify the source collection we will aggregate information from into the new collection
 	if !d.CollectionExists(sourceCollection) {
@@ -132,8 +130,6 @@ func (d *DB) MapReduceCollection(sourceCollection string, job mgo.MapReduce) boo
 	// Make a copy of the current session
 	session := d.Session.Copy()
 	defer session.Close()
-
-	session.SetSocketTimeout(2 * time.Hour)
 
 	// Identify the source collection we will aggregate information from into the new collection
 	if !d.CollectionExists(sourceCollection) {

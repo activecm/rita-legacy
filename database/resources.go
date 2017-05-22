@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	mgo "gopkg.in/mgo.v2"
 
@@ -43,6 +44,9 @@ func InitResources(cfgPath string) *Resources {
 		fmt.Printf("Failed to connect to database: %s", err.Error())
 		os.Exit(-1)
 	}
+	session.SetSocketTimeout(2 * time.Hour)
+	session.SetSyncTimeout(2 * time.Hour)
+	session.SetCursorTimeout(2 * time.Hour)
 
 	// Allows code to interact with the database
 	db := &DB{
