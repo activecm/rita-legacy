@@ -84,6 +84,10 @@ __install() {
 	apt update -qq
 
 	echo "
+[+] Ensuring git is installed...
+"
+	apt install -y git
+	echo "
 [+] Ensuring bro is installed...
 "
 	if [ ! $(dpkg-query -W -f='${Status}' bro 2>/dev/null | grep -c "ok installed") ] &&
