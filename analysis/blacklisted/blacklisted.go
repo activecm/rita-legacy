@@ -11,12 +11,13 @@ import (
 	"github.com/ocmdev/rita/analysis/dns"
 	"github.com/ocmdev/rita/analysis/structure"
 	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/blacklisted"
-	"github.com/ocmdev/rita/util"
 
 	"github.com/google/safebrowsing"
 
+	"github.com/ocmdev/rita/util"
+
 	"github.com/ocmdev/rita-blacklist"
+	"github.com/ocmdev/rita/datatypes/blacklisted"
 	datatype_structure "github.com/ocmdev/rita/datatypes/structure"
 
 	log "github.com/Sirupsen/logrus"
