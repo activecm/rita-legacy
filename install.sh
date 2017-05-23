@@ -43,9 +43,9 @@ HEREDOC
 
 __title() {
 	cat <<HEREDOC
- _ \ _ _| __ __|  \
-   /   |     |   _ \
-_|_\ ___|   _| _/  _\
+ _ \ _ _| __ __|  \ 
+   /   |     |   _ \ 
+_|_\ ___|   _| _/  _\ 
 
 Brought to you by the Offensive CounterMeasures
 
