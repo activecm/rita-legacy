@@ -27,7 +27,7 @@ Make the installer executable: `chmod +x install.sh`
 
 Run the installer: `sudo ./install.sh`
 
-Source your .bashrc (Rita was added to the PATH): `source .bashrc`
+Source your .bashrc (Rita was added to the PATH): `source ~/.bashrc`
 
 Start MongoDB: `sudo service mongod start`
 
