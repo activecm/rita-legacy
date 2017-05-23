@@ -20,7 +20,7 @@ var ScansTempl = `<head>
   <li><a href="dns.html">DNS</a></li>
   <li><a class="active" href="scans.html">Scans</a></li>
   <li style="float:right">
-    <a href="https://github.com/bglebrun/rita" target="_blank">RITA on
+    <a href="https://github.com/ocmdev/rita" target="_blank">RITA on
       <i class="fa fa-github fa-lg" aria-hidden="true" alt="GitHub"></i>
     </a>
   </li>
@@ -50,7 +50,7 @@ var Hometempl = `<head>
     </a>
   <li><a class="active" href="./index.html">RITA</a></li>
   <li style="float:right">
-    <a href="https://github.com/bglebrun/rita" target="_blank">RITA on
+    <a href="https://github.com/ocmdev/rita" target="_blank">RITA on
       <i class="fa fa-github fa-lg" aria-hidden="true" alt="GitHub"></i>
     </a>
   </li>
@@ -87,7 +87,7 @@ var DNStempl = `<head>
   <li><a class="active" href="dns.html">DNS</a></li>
   <li><a href="scans.html">Scans</a></li>
   <li style="float:right">
-    <a href="https://github.com/bglebrun/rita" target="_blank">RITA on
+    <a href="https://github.com/ocmdev/rita" target="_blank">RITA on
       <i class="fa fa-github fa-lg" aria-hidden="true" alt="GitHub"></i>
     </a>
   </li>
@@ -121,7 +121,7 @@ var DBhometempl = `<head>
   <li><a href="dns.html">DNS</a></li>
   <li><a href="scans.html">Scans</a></li>
   <li style="float:right">
-    <a href="https://github.com/bglebrun/rita" target="_blank">RITA on
+    <a href="https://github.com/ocmdev/rita" target="_blank">RITA on
       <i class="fa fa-github fa-lg" aria-hidden="true" alt="GitHub"></i>
     </a>
   </li>
@@ -152,7 +152,7 @@ var BeaconsTempl = `<head>
   <li><a href="dns.html">DNS</a></li>
   <li><a href="scans.html">Scans</a></li>
   <li style="float:right">
-    <a href="https://github.com/bglebrun/rita" target="_blank">RITA on
+    <a href="https://github.com/ocmdev/rita" target="_blank">RITA on
       <i class="fa fa-github fa-lg" aria-hidden="true" alt="GitHub"></i>
     </a>
   </li>
@@ -187,7 +187,7 @@ var BlacklistedTempl = `<head>
   <li><a href="dns.html">DNS</a></li>
   <li><a href="scans.html">Scans</a></li>
   <li style="float:right">
-    <a href="https://github.com/bglebrun/rita" target="_blank">RITA on
+    <a href="https://github.com/ocmdev/rita" target="_blank">RITA on
       <i class="fa fa-github fa-lg" aria-hidden="true" alt="GitHub"></i>
     </a>
   </li>

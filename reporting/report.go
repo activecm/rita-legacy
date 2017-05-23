@@ -7,9 +7,9 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/database"
-	htmlTempl "github.com/bglebrun/rita/reporting/templates"
+	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
+	htmlTempl "github.com/ocmdev/rita/reporting/templates"
 	"github.com/skratchdot/open-golang/open"
 	mgo "gopkg.in/mgo.v2"
 )

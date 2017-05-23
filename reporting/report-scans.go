@@ -5,9 +5,9 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/bglebrun/rita/database"
-	"github.com/bglebrun/rita/datatypes/scanning"
-	"github.com/bglebrun/rita/reporting/templates"
+	"github.com/ocmdev/rita/database"
+	"github.com/ocmdev/rita/datatypes/scanning"
+	"github.com/ocmdev/rita/reporting/templates"
 )
 
 type scan struct {

@@ -1,8 +1,8 @@
 package structure
 
 import (
-	"github.com/bglebrun/rita/config"
-	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/database"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -41,6 +41,7 @@ func getHosts(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) 
 	keys := []string{"$hashed:ip", "local"}
 
 	// Aggregation script
+	// nolint: vet
 	pipeline := []bson.D{
 		{
 			{"$project", bson.D{

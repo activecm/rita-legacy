@@ -13,7 +13,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/database"
 )
 
 type (

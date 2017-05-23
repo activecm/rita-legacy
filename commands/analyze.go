@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bglebrun/rita/analysis/beacon"
-	"github.com/bglebrun/rita/analysis/blacklisted"
-	"github.com/bglebrun/rita/analysis/crossref"
-	"github.com/bglebrun/rita/analysis/dns"
-	"github.com/bglebrun/rita/analysis/scanning"
-	"github.com/bglebrun/rita/analysis/structure"
-	"github.com/bglebrun/rita/analysis/urls"
-	"github.com/bglebrun/rita/analysis/useragent"
-	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/analysis/beacon"
+	"github.com/ocmdev/rita/analysis/blacklisted"
+	"github.com/ocmdev/rita/analysis/crossref"
+	"github.com/ocmdev/rita/analysis/dns"
+	"github.com/ocmdev/rita/analysis/scanning"
+	"github.com/ocmdev/rita/analysis/structure"
+	"github.com/ocmdev/rita/analysis/urls"
+	"github.com/ocmdev/rita/analysis/useragent"
+	"github.com/ocmdev/rita/database"
 	"github.com/urfave/cli"
 )
 
@@ -86,7 +86,7 @@ func analyze(inDb string, configFile string) {
 		fmt.Fprintf(os.Stdout,
 			"\t[-] Building the hostnames collection\n")
 
-		urls.BuildHostnamesCollection(res)
+		dns.BuildHostnamesCollection(res)
 
 		// Module Collections
 

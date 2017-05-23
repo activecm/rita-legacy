@@ -1,8 +1,8 @@
 package commands
 
 import (
-	"github.com/bglebrun/rita/database"
-	"github.com/bglebrun/rita/reporting"
+	"github.com/ocmdev/rita/database"
+	"github.com/ocmdev/rita/reporting"
 	"github.com/urfave/cli"
 )
 

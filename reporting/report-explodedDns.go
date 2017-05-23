@@ -6,9 +6,9 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/bglebrun/rita/database"
-	"github.com/bglebrun/rita/datatypes/dns"
-	"github.com/bglebrun/rita/reporting/templates"
+	"github.com/ocmdev/rita/database"
+	"github.com/ocmdev/rita/datatypes/dns"
+	"github.com/ocmdev/rita/reporting/templates"
 	"github.com/fatih/color"
 )
 

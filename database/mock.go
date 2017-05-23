@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bglebrun/rita/config"
+	"github.com/ocmdev/rita/config"
 )
 
 // InitResources grabs the configuration file and intitializes the configuration data

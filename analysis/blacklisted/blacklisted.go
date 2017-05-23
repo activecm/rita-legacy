@@ -8,17 +8,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bglebrun/rita/analysis/structure"
-	"github.com/bglebrun/rita/analysis/urls"
-	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/analysis/dns"
+	"github.com/ocmdev/rita/analysis/structure"
+	"github.com/ocmdev/rita/database"
+	"github.com/ocmdev/rita/datatypes/blacklisted"
+	"github.com/ocmdev/rita/util"
 
 	"github.com/google/safebrowsing"
 
-	"github.com/bglebrun/rita/util"
-
 	"github.com/ocmdev/rita-blacklist"
-	"github.com/bglebrun/rita/datatypes/blacklisted"
-	datatype_structure "github.com/bglebrun/rita/datatypes/structure"
+	datatype_structure "github.com/ocmdev/rita/datatypes/structure"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"
@@ -49,7 +48,7 @@ type (
 
 func SetBlacklistSources(res *database.Resources, result *blacklisted.Blacklist) {
 	if result.IsUrl {
-		for _, destIP := range urls.GetIPsFromHost(res, result.Host) {
+		for _, destIP := range dns.GetIPsFromHost(res, result.Host) {
 			result.Sources = append(result.Sources, structure.GetConnSourcesFromDest(res, destIP)...)
 		}
 	} else {
@@ -125,7 +124,7 @@ func (b *Blacklisted) run() {
 
 	// build up cursors
 	ipcur := ipssn.DB(b.db).C(b.resources.System.StructureConfig.HostTable)
-	urlcur := urlssn.DB(b.db).C(b.resources.System.UrlsConfig.HostnamesTable)
+	urlcur := urlssn.DB(b.db).C(b.resources.System.DNSConfig.HostnamesTable)
 
 	ipaddrs := make(chan string, b.channel_size)
 	urls := make(chan UrlShort, b.channel_size)

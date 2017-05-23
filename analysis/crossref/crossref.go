@@ -5,8 +5,8 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/bglebrun/rita/database"
-	dataXRef "github.com/bglebrun/rita/datatypes/crossref"
+	"github.com/ocmdev/rita/database"
+	dataXRef "github.com/ocmdev/rita/datatypes/crossref"
 )
 
 // getXRefSelectors is a place to add new selectors to the crossref module
@@ -80,6 +80,7 @@ func writeXRef(res *database.Resources, collection string,
 
 func finalizeXRef(res *database.Resources, collection string) {
 	// Aggregation script
+	// nolint: vet
 	pipeline := []bson.D{
 		{
 			{"$group", bson.D{

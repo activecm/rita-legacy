@@ -1,13 +1,13 @@
 package dns
 
 import (
-	"github.com/bglebrun/rita/database"
+	"github.com/ocmdev/rita/database"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
-var tempVistedCountCollName string = "__temp_ExplodedDNSVistedCounts"
-var tempUniqSubdomainCollName string = "__temp_UniqSubdomains"
+const tempVistedCountCollName string = "__temp_ExplodedDNSVistedCounts"
+const tempUniqSubdomainCollName string = "__temp_UniqSubdomains"
 
 // BuildExplodedDNSCollection splits domain names into sub-domains
 // and performs analysis
@@ -25,7 +25,7 @@ func BuildExplodedDNSCollection(res *database.Resources) {
 // times each super domain was visited
 func buildExplodedDNSVistedCounts(res *database.Resources) {
 	res.DB.MapReduceCollection(
-		res.System.StructureConfig.DnsTable,
+		res.System.StructureConfig.DNSTable,
 		mgo.MapReduce{
 			Map:      getExplodedDNSMapper("query"),
 			Reduce:   getExplodedDNSReducer(),
@@ -52,8 +52,9 @@ func buildExplodedDNSUniqSubdomains(res *database.Resources) {
 func zipExplodedDNSResults(res *database.Resources) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
-	res.DB.CreateCollection(res.System.DnsConfig.ExplodedDnsTable, []string{"domain", "subdomains"})
+	res.DB.CreateCollection(res.System.DNSConfig.ExplodedDNSTable, []string{"domain", "subdomains"})
 	res.DB.AggregateCollection(tempVistedCountCollName, ssn,
+		// nolint: vet
 		[]bson.D{
 			{
 				{"$lookup", bson.D{
@@ -75,7 +76,7 @@ func zipExplodedDNSResults(res *database.Resources) {
 				}},
 			},
 			{
-				{"$out", res.System.DnsConfig.ExplodedDnsTable},
+				{"$out", res.System.DNSConfig.ExplodedDNSTable},
 			},
 		},
 	)

@@ -10,11 +10,11 @@ import (
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/bglebrun/rita/database"
-	dataBeacon "github.com/bglebrun/rita/datatypes/beacon"
-	"github.com/bglebrun/rita/datatypes/data"
-	"github.com/bglebrun/rita/datatypes/structure"
-	"github.com/bglebrun/rita/util"
+	"github.com/ocmdev/rita/database"
+	dataBeacon "github.com/ocmdev/rita/datatypes/beacon"
+	"github.com/ocmdev/rita/datatypes/data"
+	"github.com/ocmdev/rita/datatypes/structure"
+	"github.com/ocmdev/rita/util"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -22,21 +22,21 @@ import (
 type (
 	//Beacon contains methods for conducting a beacon hunt
 	Beacon struct {
-		db                string                          // current database
-		resources         *database.Resources             // holds the global config and DB layer
-		defaultConnThresh int                             // default connections threshold
-		collectChannel    chan string                     // holds ip addresses
-		analysisChannel   chan *beaconAnalysisInput       // holds unanalyzed data
+		db                string                                // current database
+		resources         *database.Resources                   // holds the global config and DB layer
+		defaultConnThresh int                                   // default connections threshold
+		collectChannel    chan string                           // holds ip addresses
+		analysisChannel   chan *beaconAnalysisInput             // holds unanalyzed data
 		writeChannel      chan *dataBeacon.BeaconAnalysisOutput // holds analyzed data
-		collectWg         sync.WaitGroup                  // wait for collection to finish
-		analysisWg        sync.WaitGroup                  // wait for analysis to finish
-		writeWg           sync.WaitGroup                  // wait for writing to finish
-		collectThreads    int                             // the number of read / collection threads
-		analysisThreads   int                             // the number of analysis threads
-		writeThreads      int                             // the number of write threads
-		log               *log.Logger                     // system Logger
-		minTime           int64                           // minimum time
-		maxTime           int64                           // maximum time
+		collectWg         sync.WaitGroup                        // wait for collection to finish
+		analysisWg        sync.WaitGroup                        // wait for analysis to finish
+		writeWg           sync.WaitGroup                        // wait for writing to finish
+		collectThreads    int                                   // the number of read / collection threads
+		analysisThreads   int                                   // the number of analysis threads
+		writeThreads      int                                   // the number of write threads
+		log               *log.Logger                           // system Logger
+		minTime           int64                                 // minimum time
+		maxTime           int64                                 // maximum time
 	}
 
 	//beaconAnalysisInput binds a src, dst pair with their analysis data

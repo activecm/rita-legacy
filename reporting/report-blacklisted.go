@@ -5,10 +5,10 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/bglebrun/rita/analysis/blacklisted"
-	"github.com/bglebrun/rita/database"
-	blacklistedData "github.com/bglebrun/rita/datatypes/blacklisted"
-	htmlTempl "github.com/bglebrun/rita/reporting/templates"
+	"github.com/ocmdev/rita/analysis/blacklisted"
+	"github.com/ocmdev/rita/database"
+	blacklistedData "github.com/ocmdev/rita/datatypes/blacklisted"
+	htmlTempl "github.com/ocmdev/rita/reporting/templates"
 )
 
 func printBlacklisted(db string, res *database.Resources) error {

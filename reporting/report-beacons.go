@@ -5,10 +5,10 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/bglebrun/rita/analysis/beacon"
-	"github.com/bglebrun/rita/database"
-	beaconData "github.com/bglebrun/rita/datatypes/beacon"
-	"github.com/bglebrun/rita/reporting/templates"
+	"github.com/ocmdev/rita/analysis/beacon"
+	"github.com/ocmdev/rita/database"
+	beaconData "github.com/ocmdev/rita/datatypes/beacon"
+	"github.com/ocmdev/rita/reporting/templates"
 )
 
 func printBeacons(db string, res *database.Resources) error {

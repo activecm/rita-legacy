@@ -18,7 +18,7 @@ func buildConnectionsCollection(res *Resources) {
 
 // BuildHttpCollection builds the 'http' collection. Sourced from the bro parser.
 func buildHttpCollection(res *Resources) {
-	collection_name := res.System.StructureConfig.HttpTable
+	collection_name := res.System.StructureConfig.HTTPTable
 	collection_keys := []string{"$hashed:uid"}
 	error_check := res.DB.CreateCollection(collection_name, collection_keys)
 	if error_check != "" {
@@ -29,7 +29,7 @@ func buildHttpCollection(res *Resources) {
 
 // BuildHttpCollection builds the 'http' collection. Sourced from the bro parser.
 func buildDNSCollection(res *Resources) {
-	collection_name := res.System.StructureConfig.DnsTable
+	collection_name := res.System.StructureConfig.DNSTable
 	collection_keys := []string{"$hashed:uid"}
 	error_check := res.DB.CreateCollection(collection_name, collection_keys)
 	if error_check != "" {
