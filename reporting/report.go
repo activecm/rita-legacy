@@ -1,4 +1,4 @@
-package printing
+package reporting
 
 import (
 	"errors"
@@ -9,12 +9,22 @@ import (
 
 	"github.com/bglebrun/rita/config"
 	"github.com/bglebrun/rita/database"
-	htmlTempl "github.com/bglebrun/rita/printing/templates"
+	htmlTempl "github.com/bglebrun/rita/reporting/templates"
+	"github.com/skratchdot/open-golang/open"
 	mgo "gopkg.in/mgo.v2"
 )
 
 // Printing is our main printing function
 func Printing(dbs []string, res *database.Resources) error {
+	err := os.Mkdir("rita-html-report", 0777)
+
+	if err != nil {
+		fmt.Println(err)
+		return (err)
+	}
+
+	os.Chdir("rita-html-report")
+
 	con, ok := config.GetConfig("")
 	if !ok {
 		return errors.New("unable to get config")
@@ -51,6 +61,8 @@ func Printing(dbs []string, res *database.Resources) error {
 	}
 
 	fmt.Println("[-] Wrote outputs, check " + wd + " for files")
+	os.Chdir("..")
+	open.Run("./rita-html-report/index.html")
 	// End db iteration
 	return nil
 }

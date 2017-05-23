@@ -1,4 +1,4 @@
-package printing
+package reporting
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"github.com/bglebrun/rita/analysis/beacon"
 	"github.com/bglebrun/rita/database"
 	beaconData "github.com/bglebrun/rita/datatypes/beacon"
-	"github.com/bglebrun/rita/printing/templates"
+	"github.com/bglebrun/rita/reporting/templates"
 )
 
 func printBeacons(db string, res *database.Resources) error {
@@ -43,9 +43,9 @@ func printBeaconHTML(db string, data []beaconData.BeaconAnalysisView) error {
 }
 
 func getBeaconWriter(beacons []beaconData.BeaconAnalysisView) (string, error) {
-	tmpl := "<tr><td>{{printf \"%.2f\" .TS_score}}</td><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.Connections}}</td><td>{{printf \"%.2f\" .AvgBytes}}</td><td>"
+	tmpl := "<tr><td>{{printf \"%.3f\" .TS_score}}</td><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.Connections}}</td><td>{{printf \"%.3f\" .AvgBytes}}</td><td>"
 	tmpl += "{{.TS_iRange}}</td><td>{{.TS_iMode}}</td><td>{{.TS_iModeCount}}</td><td>"
-	tmpl += "{{.TS_iSkew}}</td><td>{{.TS_iDispersion}}</td><td>{{printf \"%.2f\" .TS_duration}}</tr>\n"
+	tmpl += "{{printf \"%.3f\" .TS_iSkew}}</td><td>{{.TS_iDispersion}}</td><td>{{printf \"%.3f\" .TS_duration}}</tr>\n"
 
 	out, err := template.New("beacon").Parse(tmpl)
 	if err != nil {

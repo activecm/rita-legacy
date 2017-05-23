@@ -48,7 +48,7 @@ var Hometempl = `<head>
       <img src="http://45.33.27.128/wp-content/uploads/2016/02/OCM-logo-022416.png" alt="Offensive Countermeasures"
       style="width:90px; float:left" />
     </a>
-  <li><a class="active" href="../index.html">RITA</a></li>
+  <li><a class="active" href="./index.html">RITA</a></li>
   <li style="float:right">
     <a href="https://github.com/bglebrun/rita" target="_blank">RITA on
       <i class="fa fa-github fa-lg" aria-hidden="true" alt="GitHub"></i>
@@ -128,7 +128,7 @@ var DBhometempl = `<head>
 </ul>
 
 <p>
-  <div>To view results, click on any of the links above.</div>
+  <div class="info">To view results, click on any of the links above.</div>
 </p>
 `
 
@@ -159,8 +159,8 @@ var BeaconsTempl = `<head>
 </ul>
 <div class="container">
   <table>
-  <tr><th>TS_score</th><th>Source</th><th>Destination</th><th>Connections</th><th>AvgBytes</th><th>
-	TS_In Range</th><th>TS In Mode</th><th>TS In Mode Count</th><th>
+  <tr><th>TS score</th><th>Source</th><th>Destination</th><th>Connections</th><th>AvgBytes</th><th>
+	TS In Range</th><th>TS In Mode</th><th>TS In Mode Count</th><th>
 	TS In Skew</th><th>TS In Dispersion</th><th>TS Duration</tr>
       {{.Writer}}
   </table>
@@ -195,7 +195,7 @@ var BlacklistedTempl = `<head>
 
 <div class="container">
   <table>
-  <tr><th>Host</th><th>Score</th><th>Sources</th><tr>
+  <tr><th>Source</th><th>Score</th><th>Destination(s)</th><tr>
 
     {{.Writer}}
   </table>

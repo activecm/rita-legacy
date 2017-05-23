@@ -1,4 +1,4 @@
-package printing
+package reporting
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"github.com/bglebrun/rita/analysis/blacklisted"
 	"github.com/bglebrun/rita/database"
 	blacklistedData "github.com/bglebrun/rita/datatypes/blacklisted"
-	htmlTempl "github.com/bglebrun/rita/printing/templates"
+	htmlTempl "github.com/bglebrun/rita/reporting/templates"
 )
 
 func printBlacklisted(db string, res *database.Resources) error {
@@ -49,7 +49,7 @@ func printBlacklistedHTML(results []blacklistedData.Blacklist, db string) error 
 }
 
 func getBlacklistWriter(results []blacklistedData.Blacklist) (string, error) {
-	tmpl := "<tr><td>{{.Host}}</td><td>{{.Score}}</td><td>{{range $idx, $src := .Sources}}{{if $idx}}{{end}}{{$src}}{{end}}</td></tr>\n"
+	tmpl := "<tr><td>{{.Host}}</td><td>{{.Score}}</td><td>{{range $idx, $src := .Sources}}{{if $idx}}{{end}} -- {{$src}}{{end}} -- </td></tr>\n"
 	w := new(bytes.Buffer)
 	out, err := template.New("blacklist").Parse(tmpl)
 	if err != nil {

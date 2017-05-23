@@ -2,7 +2,7 @@ package commands
 
 import (
 	"github.com/bglebrun/rita/database"
-	"github.com/bglebrun/rita/printing"
+	"github.com/bglebrun/rita/reporting"
 	"github.com/urfave/cli"
 )
 
@@ -30,7 +30,7 @@ func init() {
 			} else {
 				databases = res.MetaDB.GetDatabases()
 			}
-			return printing.Printing(databases, res)
+			return reporting.Printing(databases, res)
 		},
 	}
 	bootstrapCommands(command)

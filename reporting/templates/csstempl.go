@@ -83,12 +83,10 @@ li a:hover {
 }
 
 .info {
-  padding: 30px 40px;
-  font-family: "Arial", Helvetica, sans-serif;
-  font-size: 18px;
-  border-left: 5px solid #000;
-  margin: 20px 40px;
-  color: #a9a9a9;
+  margin: 10px 0px;
+  padding:12px;
+  color: white;
+  background-color: #333;
 }
 
 .container {

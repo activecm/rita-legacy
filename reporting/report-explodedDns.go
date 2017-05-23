@@ -1,13 +1,15 @@
-package printing
+package reporting
 
 import (
 	"bytes"
 	"html/template"
 	"os"
+	"strconv"
 
 	"github.com/bglebrun/rita/database"
 	"github.com/bglebrun/rita/datatypes/dns"
-	"github.com/bglebrun/rita/printing/templates"
+	"github.com/bglebrun/rita/reporting/templates"
+	"github.com/fatih/color"
 )
 
 func printDNSHtml(db string, res *database.Resources) error {
@@ -20,9 +22,18 @@ func printDNSHtml(db string, res *database.Resources) error {
 	var results []dns.ExplodedDNS
 	iter := res.DB.Session.DB(db).C(res.System.DnsConfig.ExplodedDnsTable).Find(nil)
 	iter.Sort("-subdomains").All(&results)
+
 	out, err := template.New("dns.html").Parse(templates.DNStempl)
 	if err != nil {
 		return err
+	}
+
+	if len(results) > 100000 {
+		color.Red("[!!] WARNING: Database " + db + " has a VERY large DNS page (" + strconv.Itoa(len(results)) + " results written)")
+		color.Red("[!!] May crash your browser, consider using something like \"grep -v\" to filter or plaintext to view these results")
+	} else if len(results) > 9000 {
+		color.Yellow("[-] WARNING: Database " + db + " has a large DNS page (" + strconv.Itoa(len(results)) + " results written)")
+		color.Yellow("[-] Page may be slow to load in some browsers")
 	}
 
 	w, err := getDNSWriter(results)

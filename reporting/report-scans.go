@@ -1,4 +1,4 @@
-package printing
+package reporting
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/bglebrun/rita/database"
 	"github.com/bglebrun/rita/datatypes/scanning"
-	"github.com/bglebrun/rita/printing/templates"
+	"github.com/bglebrun/rita/reporting/templates"
 )
 
 type scan struct {
@@ -47,7 +47,7 @@ func printScansHTML(scans []scanning.Scan, db string) error {
 
 func getScanWriter(scans []scanning.Scan) (string, error) {
 
-	tmpl := "<tr><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.PortCount}}</td><td>{{range $idx, $port := .PortSet}}{{if $idx}} {{end}}{{ $port }}{{end}}</td></tr>\n"
+	tmpl := "<tr><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.PortCount}}</td><td>{{range $idx, $port := .PortSet}}{{if $idx}}{{end}} -- {{ $port }}{{end}} -- </td></tr>\n"
 
 	out, err := template.New("scn").Parse(tmpl)
 	if err != nil {
