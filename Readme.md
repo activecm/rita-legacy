@@ -23,10 +23,13 @@ Clone the package:
 
 Change into the source directory: `cd rita`
 
+Make the installer executable: `chmod +x install.sh`
+
 Run the installer: `sudo ./install.sh`
 
 Source your .bashrc (Rita was added to the PATH): `source .bashrc`
 
+Start MongoDB: `sudo service mongod start`
 
 ### Manual Installation
 To install each component of RITA by hand, [check out the instructions in the wiki](https://github.com/ocmdev/rita/wiki/Installation).

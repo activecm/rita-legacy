@@ -154,9 +154,6 @@ install the correct version for you!
 	apt update -qq
 	apt install -y mongodb-org
 
-	sudo systemctl enable mongod.service
-	sudo systemctl start mongod.service
-
 	printf "\n[+] Running 'go get github.com/ocmdev/rita...'\n\n"
 
 	# Build RITA
@@ -188,6 +185,7 @@ install the correct version for you!
 
 	echo -e "[+] If you need to stop Mongo at any time, run 'sudo service mongod stop'
 [+] In order to finish the installation, reload bash config with 'source ~/.bashrc'.
+[+] Also make sure to start the mongoDB service with 'sudo service mongod start' before running RITA.
 [+] You can access the mongo shell with 'sudo mongo'
 "
 
