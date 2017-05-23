@@ -137,10 +137,6 @@ install the correct version for you!
 		export GOPATH=$HOME/go
 		echo 'export PATH=$PATH:$GOPATH/bin' >> $HOME/.bashrc
 		export PATH=$PATH:$GOPATH/bin
-		# Credit: JonZeolla
-		# Will only be effective if someone runs this via `. ./install.sh`
-		source $HOME/.bashrc
-
 	else
 		echo -e "[-] GOPATH seems to be set, we'll skip this part then for now
 		"
@@ -157,6 +153,7 @@ install the correct version for you!
 
 	apt update -qq
 	apt install -y mongodb-org
+
 	sudo systemctl enable mongod.service
 	sudo systemctl start mongod.service
 
@@ -190,6 +187,7 @@ install the correct version for you!
 "
 
 	echo -e "[+] If you need to stop Mongo at any time, run 'sudo service mongod stop'
+[+] In order to finish the installation, reload bash config with 'source ~/.bashrc'.
 [+] You can access the mongo shell with 'sudo mongo'
 "
 

@@ -23,12 +23,9 @@ Clone the package:
 
 Change into the source directory: `cd rita`
 
-Run the installer: `sudo . ./install.sh`
+Run the installer: `sudo ./install.sh`
 
-
-**Note:**
-The dot is used to run the script in the same shell so that the installer may
-add RITA to the system PATH
+Source your .bashrc (Rita was added to the PATH): `source .bashrc`
 
 
 ### Manual Installation
