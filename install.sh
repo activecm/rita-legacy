@@ -43,9 +43,9 @@ HEREDOC
 
 __title() {
 	cat <<HEREDOC
- _ \ _ _| __ __|  \ 
-   /   |     |   _ \ 
-_|_\ ___|   _| _/  _\ 
+ _ \ _ _| __ __|  \
+   /   |     |   _ \
+_|_\ ___|   _| _/  _\
 
 Brought to you by the Offensive CounterMeasures
 
@@ -77,7 +77,7 @@ __install() {
 			exit -1
 		fi
 	fi
-	
+
 	echo "[+] Updating apt...
 "
 
@@ -86,9 +86,12 @@ __install() {
 	echo "
 [+] Ensuring bro is installed...
 "
-
-	apt install -y bro
-	apt install -y broctl
+	if [ ! $(dpkg-query -W -f='${Status}' bro 2>/dev/null | grep -c "ok installed") ] &&
+	[ ! $(dpkg-query -W -f='${Status}' securityonion-bro 2>/dev/null | grep -c "ok installed") ]
+	then
+		apt install -y bro
+		apt install -y broctl
+	fi
 
 	echo "
 [+] Ensuring go is installed...
@@ -116,7 +119,7 @@ version in the Ubuntu apt repositories, make sure your golang is up to date
 with 'go version'. Otherwise you can remove with 'sudo apt remove golang' and let this script
 install the correct version for you!
 "
-		
+
 		sleep 10s
 	fi
 
@@ -134,6 +137,10 @@ install the correct version for you!
 		export GOPATH=$HOME/go
 		echo 'export PATH=$PATH:$GOPATH/bin' >> $HOME/.bashrc
 		export PATH=$PATH:$GOPATH/bin
+		# Credit: JonZeolla
+		# Will only be effective if someone runs this via `. ./install.sh`
+		source $HOME/.bashrc
+
 	else
 		echo -e "[-] GOPATH seems to be set, we'll skip this part then for now
 		"
@@ -146,16 +153,18 @@ install the correct version for you!
 
 	apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14518585931BC711F9BA15703C6
 
-	echo "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.4 multiverse" > /etc/apt/sources.list.d/mongodb-org-3.4.list
+	echo "deb [ arch=amd64 ] http://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/3.4 multiverse" > /etc/apt/sources.list.d/mongodb-org-3.4.list
 
 	apt update -qq
 	apt install -y mongodb-org
+	sudo systemctl enable mongod.service
+	sudo systemctl start mongod.service
 
 	printf "\n[+] Running 'go get github.com/ocmdev/rita...'\n\n"
 
 	# Build RITA
 
-	apt install -y build-essential  
+	apt install -y build-essential
 	go get github.com/ocmdev/rita
 	printf "[+] Installing RITA...\n\n"
 	cd $GOPATH/src/github.com/ocmdev/rita
@@ -171,7 +180,7 @@ install the correct version for you!
 	printf "[+] Installing config to $HOME/.rita/config.yaml\n\n"
 	mkdir -p $HOME/.rita/logs
 	cp etc/rita.yaml $HOME/.rita/config.yaml
-	
+
 
 	# Give ownership of ~/go to the user
 	sudo chown -R $SUDO_USER:$SUDO_USER $HOME/go
@@ -181,8 +190,6 @@ install the correct version for you!
 "
 
 	echo -e "[+] If you need to stop Mongo at any time, run 'sudo service mongod stop'
-[+] In order to finish the installation, reload bash config with 'source ~/.bashrc'.
-[+] Also make sure to start the mongoDB service with 'sudo service mongod start before running RITA.
 [+] You can access the mongo shell with 'sudo mongo'
 "
 
@@ -209,10 +216,10 @@ __entry() {
 	then
 		_INSDIR=$( echo "${@}" | cut -d' ' -f2 )
 	fi
-	
-	# Set the rita directory	
+
+	# Set the rita directory
 	_RITADIR="$_INSDIR/rita"
-	
+
 
 	# Check to see if the user has permission to install to this directory
 	if [ -w $_INSDIR ]
