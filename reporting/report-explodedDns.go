@@ -6,13 +6,13 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/fatih/color"
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/datatypes/dns"
 	"github.com/ocmdev/rita/reporting/templates"
-	"github.com/fatih/color"
 )
 
-func printDNSHtml(db string, res *database.Resources) error {
+func printDNS(db string, res *database.Resources) error {
 	f, err := os.Create("dns.html")
 	if err != nil {
 		return err
@@ -20,7 +20,7 @@ func printDNSHtml(db string, res *database.Resources) error {
 	defer f.Close()
 
 	var results []dns.ExplodedDNS
-	iter := res.DB.Session.DB(db).C(res.System.DnsConfig.ExplodedDnsTable).Find(nil)
+	iter := res.DB.Session.DB(db).C(res.System.DNSConfig.ExplodedDNSTable).Find(nil)
 	iter.Sort("-subdomains").All(&results)
 
 	out, err := template.New("dns.html").Parse(templates.DNStempl)

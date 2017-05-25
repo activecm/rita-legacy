@@ -16,16 +16,6 @@ type scan struct {
 }
 
 func printScans(db string, res *database.Resources) error {
-	var scans []scanning.Scan
-	coll := res.DB.Session.DB(db).C(res.System.ScanningConfig.ScanTable)
-	coll.Find(nil).All(&scans)
-
-	return printScansHTML(scans, db)
-
-}
-
-// printScansHTML prints all scans for a given database
-func printScansHTML(scans []scanning.Scan, db string) error {
 	f, err := os.Create("scans.html")
 	if err != nil {
 		return err
@@ -36,6 +26,10 @@ func printScansHTML(scans []scanning.Scan, db string) error {
 	if err != nil {
 		return err
 	}
+
+	var scans []scanning.Scan
+	coll := res.DB.Session.DB(db).C(res.System.ScanningConfig.ScanTable)
+	coll.Find(nil).All(&scans)
 
 	w, err := getScanWriter(scans)
 	if err != nil {

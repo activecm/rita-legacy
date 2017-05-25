@@ -12,6 +12,17 @@ import (
 )
 
 func printBlacklisted(db string, res *database.Resources) error {
+	f, err := os.Create("blacklisted.html")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	out, err := template.New("blacklisted.html").Parse(htmlTempl.BlacklistedTempl)
+	if err != nil {
+		return err
+	}
+
 	res.DB.SelectDB(db)
 
 	var result blacklistedData.Blacklist
@@ -25,26 +36,11 @@ func printBlacklisted(db string, res *database.Resources) error {
 		results = append(results, result)
 	}
 
-	return printBlacklistedHTML(results, db)
-}
-
-// printBlacklistedHTML prints all blacklisted for a given database
-func printBlacklistedHTML(results []blacklistedData.Blacklist, db string) error {
-
-	f, err := os.Create("blacklisted.html")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	out, err := template.New("blacklisted.html").Parse(htmlTempl.BlacklistedTempl)
-	if err != nil {
-		return err
-	}
 	w, err := getBlacklistWriter(results)
 	if err != nil {
 		return err
 	}
+
 	return out.Execute(f, &scan{Dbs: db, Writer: template.HTML(w)})
 }
 

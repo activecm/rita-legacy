@@ -12,7 +12,7 @@ import (
 )
 
 func printBeacons(db string, res *database.Resources) error {
-	f, err :- os.Create("beacons.html")
+	f, err := os.Create("beacons.html")
 	if err != nil {
 		return err
 	}

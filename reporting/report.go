@@ -8,16 +8,15 @@ import (
 
 	"github.com/ocmdev/rita/database"
 	htmlTempl "github.com/ocmdev/rita/reporting/templates"
+	"github.com/ocmdev/rita/util"
 	"github.com/skratchdot/open-golang/open"
 )
 
-/*
- * PrintHTML is the primary html Print function, this command takes in a
- * list of databases and the resource object from the main rita program and
- * will use HTML templating to write out the results of `rita analyze` into
- * a directory `rita-html-report` within the current working directory,
- * mongodb must be running to call this command, will exit on any writing error
- */
+// PrintHTML is the primary html Print function, this command takes in a
+// list of databases and the resource object from the main rita program and
+// will use HTML templating to write out the results of `rita analyze` into
+// a directory `rita-html-report` within the current working directory,
+// mongodb must be running to call this command, will exit on any writing error
 func PrintHTML(dbs []string, res *database.Resources) error {
 	err := os.Mkdir("rita-html-report", 0755)
 
@@ -27,10 +26,6 @@ func PrintHTML(dbs []string, res *database.Resources) error {
 	}
 
 	os.Chdir("rita-html-report")
-
-	con := res.System
-
-	host := con.DatabaseHost
 
 	session := res.DB.Session.Copy()
 	defer session.Close()
@@ -100,7 +95,7 @@ func writeDB(db string, wd string, res *database.Resources) error {
 	writeDir := wd + "/" + db
 
 	fmt.Print("[-] Writing: " + writeDir + "\n")
-	fExists, err := exists(writeDir)
+	fExists, err := util.Exists(writeDir)
 	if err != nil {
 		return err
 	}
@@ -130,7 +125,7 @@ func writeDB(db string, wd string, res *database.Resources) error {
 		fmt.Print(err)
 		return err
 	}
-	err = printDNSHtml(db, res)
+	err = printDNS(db, res)
 	if err != nil {
 		fmt.Print(err)
 		return err

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	blacklist "github.com/ocmdev/rita-blacklist"
 	"github.com/ocmdev/rita/analysis/dns"
 	"github.com/ocmdev/rita/analysis/structure"
 	"github.com/ocmdev/rita/database"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/ocmdev/rita/util"
 
-	"github.com/ocmdev/rita-blacklist"
 	"github.com/ocmdev/rita/datatypes/blacklisted"
 	datatype_structure "github.com/ocmdev/rita/datatypes/structure"
 
