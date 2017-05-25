@@ -15,7 +15,7 @@ func init() {
 			configFlag,
 			cli.StringFlag{
 				Name:  "database, d",
-				Usage: "Specify which databases to dump, otherwise will import all databases",
+				Usage: "Specify which databases to export, otherwise will export all databases",
 				Value: "",
 			},
 		},
@@ -24,13 +24,11 @@ func init() {
 			databaseName := c.String("database")
 			var databases []string
 			if databaseName != "" {
-				res.System.BroConfig.DBPrefix = ""
-				res.System.BroConfig.DefaultDatabase = databaseName
 				databases = append(databases, databaseName)
 			} else {
 				databases = res.MetaDB.GetDatabases()
 			}
-			return reporting.Printing(databases, res)
+			return reporting.PrintHTML(databases, res)
 		},
 	}
 	bootstrapCommands(command)

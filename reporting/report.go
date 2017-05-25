@@ -1,22 +1,25 @@
 package reporting
 
 import (
-	"errors"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"os"
 
-	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 	htmlTempl "github.com/ocmdev/rita/reporting/templates"
 	"github.com/skratchdot/open-golang/open"
-	mgo "gopkg.in/mgo.v2"
 )
 
-// Printing is our main printing function
-func Printing(dbs []string, res *database.Resources) error {
-	err := os.Mkdir("rita-html-report", 0777)
+/*
+ * PrintHTML is the primary html Print function, this command takes in a
+ * list of databases and the resource object from the main rita program and
+ * will use HTML templating to write out the results of `rita analyze` into
+ * a directory `rita-html-report` within the current working directory,
+ * mongodb must be running to call this command, will exit on any writing error
+ */
+func PrintHTML(dbs []string, res *database.Resources) error {
+	err := os.Mkdir("rita-html-report", 0755)
 
 	if err != nil {
 		fmt.Println(err)
@@ -25,20 +28,12 @@ func Printing(dbs []string, res *database.Resources) error {
 
 	os.Chdir("rita-html-report")
 
-	con, ok := config.GetConfig("")
-	if !ok {
-		return errors.New("unable to get config")
-	}
+	con := res.System
 
 	host := con.DatabaseHost
 
-	session, err := mgo.Dial(host)
-	if err != nil {
-		return err
-	}
+	session := res.DB.Session.Copy()
 	defer session.Close()
-
-	session.SetMode(mgo.Monotonic, true)
 
 	// First, print our home page with our databases, pointing to each db
 	wd, err := os.Getwd()
@@ -67,17 +62,6 @@ func Printing(dbs []string, res *database.Resources) error {
 	return nil
 }
 
-func exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return true, err
-}
-
 func writeHomePage(Dbs []string) error {
 	f, err := os.Create("index.html")
 	if err != nil {
@@ -85,7 +69,7 @@ func writeHomePage(Dbs []string) error {
 	}
 	defer f.Close()
 
-	err = ioutil.WriteFile("style.css", htmlTempl.CSStempl, 0777)
+	err = ioutil.WriteFile("style.css", htmlTempl.CSStempl, 0755)
 	if err != nil {
 		return err
 	}
@@ -121,7 +105,7 @@ func writeDB(db string, wd string, res *database.Resources) error {
 		return err
 	}
 	if !fExists {
-		err = os.Mkdir(db, 0777)
+		err = os.Mkdir(db, 0755)
 		if err != nil {
 			return err
 		}
