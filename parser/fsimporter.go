@@ -41,7 +41,7 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 		log.Fields{
 			"start_time": start.Format("2006-01-02 15:04:05"),
 		},
-	).Info("Starting filesystem import")
+	).Info("Starting filesystem import. Collecting file details.")
 
 	//find all of the bro log paths
 	files := readDir(fs.res.System.BroConfig.LogPath, fs.res.Log)
@@ -49,12 +49,13 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 	//hash the files and get their stats
 	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res.System, fs.res.Log)
 
-	indexTime := time.Now()
+	progTime := time.Now()
 	fs.res.Log.WithFields(
 		log.Fields{
-			"current_time": indexTime.Format("2006-01-02 15:04:05"),
+			"current_time": progTime.Format("2006-01-02 15:04:05"),
+			"total_time":   progTime.Sub(start).String(),
 		},
-	).Info("Finished collecting log file details")
+	).Info("Finished collecting file details. Starting upload.")
 
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
@@ -62,16 +63,26 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 
 	parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
+	datastore.flush()
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
-	parseTime := time.Now()
-
+	progTime = time.Now()
 	fs.res.Log.WithFields(
 		log.Fields{
-			"current_time": parseTime.Format("2006-01-02 15:04:05"),
-			"total_time":   parseTime.Sub(start).String(),
+			"current_time": progTime.Format("2006-01-02 15:04:05"),
+			"total_time":   progTime.Sub(start).String(),
 		},
-	).Info("Finished parsing log files")
+	).Info("Finished upload. Starting indexing")
+
+	datastore.finalize()
+
+	progTime = time.Now()
+	fs.res.Log.WithFields(
+		log.Fields{
+			"current_time": progTime.Format("2006-01-02 15:04:05"),
+			"total_time":   progTime.Sub(start).String(),
+		},
+	).Info("Finished importing log files")
 }
 
 // readDir recursively reads the directory looking for log and .gz files
@@ -189,7 +200,6 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
 		}(indexedFiles, logger, parsingWG, i, parsingThreads, n)
 	}
 	parsingWG.Wait()
-	datastore.flush()
 }
 
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
