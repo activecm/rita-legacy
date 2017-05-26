@@ -103,6 +103,7 @@ type (
 		DirectoryMap    map[string]string `yaml:"DirectoryMap"`
 		DefaultDatabase string            `yaml:"DefaultDatabase"`
 		UseDates        bool              `yaml:"UseDates"`
+		ImportBuffer    int               `yaml:"ImportBuffer"`
 	}
 )
 

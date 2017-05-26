@@ -59,7 +59,8 @@ func doImport(c *cli.Context) error {
 
 	fmt.Printf("Importing %s\n", res.System.BroConfig.LogPath)
 	importer := parser.NewFSImporter(res, threads, threads)
-	datastore := parser.NewMongoDatastore(res.DB.Session, 1000, res.Log)
+	datastore := parser.NewMongoDatastore(res.DB.Session,
+		res.System.BroConfig.ImportBuffer, res.Log)
 	importer.Run(datastore)
 	fmt.Println("Finished importing!")
 	return nil
