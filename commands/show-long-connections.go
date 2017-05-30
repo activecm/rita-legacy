@@ -32,7 +32,7 @@ func init() {
 			var longConns []data.Conn
 			coll := res.DB.Session.DB(c.String("database")).C(res.System.StructureConfig.ConnTable)
 
-			var sortStr string = "-duration"
+			sortStr := "-duration"
 
 			query := coll.Find(nil).Sort(sortStr)
 			if !c.Bool("all") {
@@ -54,7 +54,7 @@ func showConns(connResults []data.Conn) error {
 
 	out, err := template.New("Conn").Parse(tmpl)
 	if err != nil {
-		panic(err)
+		return (err)
 	}
 
 	var error error
@@ -75,9 +75,9 @@ func showConnsHuman(connResults []data.Conn) error {
 	for _, result := range connResults {
 		table.Append([]string{
 			result.Src,
-			strconv.FormatInt(int64(result.Spt), 10),
+			strconv.Itoa(result.Spt),
 			result.Dst,
-			strconv.FormatInt(int64(result.Dpt), 10),
+			strconv.Itoa(result.Dpt),
 			strconv.FormatFloat(result.Dur, 'f', 2, 64),
 			result.Proto,
 		})
