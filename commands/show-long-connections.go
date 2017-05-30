@@ -54,7 +54,7 @@ func showConns(connResults []data.Conn) error {
 
 	out, err := template.New("Conn").Parse(tmpl)
 	if err != nil {
-		return (err)
+		return err
 	}
 
 	var error error

@@ -53,7 +53,7 @@ func showResults(dnsResults []dns.ExplodedDNS) error {
 
 	out, err := template.New("exploded-dns").Parse(tmpl)
 	if err != nil {
-		return (err)
+		return err
 	}
 
 	var error error = nil
