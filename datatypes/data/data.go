@@ -10,8 +10,8 @@ type (
 		ID       bson.ObjectId `bson:"_id,omitempty"`
 		Ts       int64         `bson:"ts,omitempty"`
 		UID      string        `bson:"uid"`
-		Src      string        `bson:"id_orig_h,omitempty"`
-		Spt      int           `bson:"id_orig_p,omitempty"`
+		Src      string        `bson:"id_origin_h,omitempty"`
+		Spt      int           `bson:"id_origin_p,omitempty"`
 		Dst      string        `bson:"id_resp_h,omitempty"`
 		Dpt      int           `bson:"id_resp_p,omitempty"`
 		Dur      float64       `bson:"duration,omitempty"`
