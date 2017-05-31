@@ -8,40 +8,31 @@ RITA is an open source framework for network traffic analysis.
 
 The framework ingests [Bro Logs](https://www.bro.org/), and currently supports the following analysis features:
  - **Beaconing**: Search for signs of beaconing behavior in and out of your network
- - **Blacklisted**: Query blacklists to search for suspicious domains and hosts in your network traffic
+ - **DNS Tunneling** Search for signs of DNS based covert channels
+ - **Blacklisted**: Query blacklists to search for suspicious domains and hosts
+ - **URL Length Analysis**: Search for lengthy URL's indicative of malware
  - **Scanning**: Search for signs of port scans in your network
 
 Additional functionality is being developed and will be included soon.
 
 ### Automatic Installation
-**The automatic RITA installer is officially supported on Ubuntu 16.04 LTS**
+**The automatic  installer is officially supported on Ubuntu 14.04 LTS (Security Onion) and Ubuntu 16.04 LTS**
 
 Clone the package:
-```bash
-git clone https://github.com/ocmdev/rita.git
-```
+`git clone https://github.com/ocmdev/rita.git`
 
-Change into the source directory:
-```bash
-cd rita
-```
-Run the installer:
+Change into the source directory: `cd rita`
 
-**Note:**
-By default, Rita will install to /usr/local/rita.
-However, you can change the install location with the *-i* flag.
-```bash
-sudo ./install.sh
-```
+Make the installer executable: `chmod +x install.sh`
 
-***or***
+Run the installer: `sudo ./install.sh`
 
-```bash
-sudo ./install.sh -i /path/to/install/directory
-```
+Source your .bashrc (Rita was added to the PATH): `source ~/.bashrc`
+
+Start MongoDB: `sudo service mongod start`
 
 ### Manual Installation
-To install each component of Rita by hand, [check out the instructions in the wiki](https://github.com/ocmdev/rita/wiki/Installation).
+To install each component of RITA by hand, [check out the instructions in the wiki](https://github.com/ocmdev/rita/wiki/Installation).
 
 ### Configuration File
 RITA contains a yaml format configuration file.
@@ -50,7 +41,7 @@ You can specify the location for the configuration file with the **-c** command 
 
 
 ### API Keys
-Rita relies on the the [Google Safe Browsing API](https://developers.google.com/safe-browsing/) to check network log data for connections to known threats. An API key is required to use this service. Obtaining a key is free, and only requires a Google account.
+RITA relies on the the [Google Safe Browsing API](https://developers.google.com/safe-browsing/) to check network log data for connections to known threats. An API key is required to use this service. Obtaining a key is free, and only requires a Google account.
 
 To obtain an API key:
   * Go to the Google [cloud platform console](https://console.cloud.google.com/).
