@@ -248,8 +248,9 @@ func (t *Beacon) analyze() {
 		bNum := low + high - 2*mid
 		bDen := high - low
 
-		//bSkew should equal zero if hte denominator equals zero
-		if bDen != 0 {
+		//bSkew should equal zero if the denominator equals zero
+		//bowley skew is unreliable if Q2 = Q1 or Q2 = Q3
+		if bDen != 0 && mid != low && mid != high {
 			bSkew = float64(bNum) / float64(bDen)
 		}
 
