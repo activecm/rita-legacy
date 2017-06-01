@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"text/template"
 
@@ -46,11 +47,12 @@ func showScans(scans []scanning.Scan) error {
 
 	out, err := template.New("scn").Parse(tmpl)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	var error error = nil
+	var error error
 	for _, scan := range scans {
+		sort.Ints(scan.PortSet)
 		err := out.Execute(os.Stdout, scan)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())

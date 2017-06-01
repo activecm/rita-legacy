@@ -34,7 +34,7 @@ func init() {
 
 			query := coll.Find(nil).Sort("-length")
 			if !c.Bool("all") {
-				query.Limit(10)
+				query.Limit(15)
 			}
 			query.All(&urls)
 
@@ -83,7 +83,7 @@ func showURLs(urls []urls.URL) error {
 
 	out, err := template.New("urls").Parse(tmpl)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	var error error

@@ -45,7 +45,7 @@ func cleanAnalysis(database string, res *database.Resources) error {
 	}
 
 	//check if we had an issue dropping a collection
-	var err2Flag error = nil
+	var err2Flag error
 	for _, name := range names {
 		switch name {
 		case conn, http, dns:
@@ -75,7 +75,7 @@ func cleanAnalysis(database string, res *database.Resources) error {
 
 // cleanAnalysisAll uses the metadb to walk all databases and clean the analysis
 func cleanAnalysisAll(res *database.Resources) error {
-	var err error = nil
+	var err error
 
 	for _, name := range res.MetaDB.GetDatabases() {
 		e := cleanAnalysis(name, res)

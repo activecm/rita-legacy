@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"html/template"
 	"os"
-	"strconv"
 
-	"github.com/fatih/color"
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/datatypes/dns"
 	"github.com/ocmdev/rita/reporting/templates"
@@ -21,19 +19,11 @@ func printDNS(db string, res *database.Resources) error {
 
 	var results []dns.ExplodedDNS
 	iter := res.DB.Session.DB(db).C(res.System.DNSConfig.ExplodedDNSTable).Find(nil)
-	iter.Sort("-subdomains").All(&results)
+	iter.Sort("-subdomains").Limit(1000).All(&results)
 
 	out, err := template.New("dns.html").Parse(templates.DNStempl)
 	if err != nil {
 		return err
-	}
-
-	if len(results) > 100000 {
-		color.Red("[!!] WARNING: Database " + db + " has a VERY large DNS page (" + strconv.Itoa(len(results)) + " results written)")
-		color.Red("[!!] May crash your browser, consider using something like \"grep -v\" to filter or plaintext to view these results")
-	} else if len(results) > 9000 {
-		color.Yellow("[-] WARNING: Database " + db + " has a large DNS page (" + strconv.Itoa(len(results)) + " results written)")
-		color.Yellow("[-] Page may be slow to load in some browsers")
 	}
 
 	w, err := getDNSWriter(results)
@@ -41,7 +31,7 @@ func printDNS(db string, res *database.Resources) error {
 		return err
 	}
 
-	return out.Execute(f, &scan{Dbs: db, Writer: template.HTML(w)})
+	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
 func getDNSWriter(results []dns.ExplodedDNS) (string, error) {

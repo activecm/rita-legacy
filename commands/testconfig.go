@@ -32,7 +32,7 @@ func testConfiguration(c *cli.Context) error {
 
 	yml, err := yaml.Marshal(res.System)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	fmt.Fprintf(os.Stdout, "\n%s\n", string(yml))

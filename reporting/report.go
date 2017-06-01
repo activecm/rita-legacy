@@ -21,7 +21,6 @@ func PrintHTML(dbs []string, res *database.Resources) error {
 	err := os.Mkdir("rita-html-report", 0755)
 
 	if err != nil {
-		fmt.Println(err)
 		return (err)
 	}
 
@@ -39,6 +38,7 @@ func PrintHTML(dbs []string, res *database.Resources) error {
 	// Write the homepage
 	err = writeHomePage(dbs)
 	if err != nil {
+		fmt.Print(err)
 		return err
 	}
 
@@ -88,7 +88,7 @@ func writeDBHomePage(db string) error {
 		return err
 	}
 
-	return out.Execute(f, db)
+	return out.Execute(f, htmlTempl.ReportingInfo{DB: db})
 }
 
 func writeDB(db string, wd string, res *database.Resources) error {
@@ -112,33 +112,39 @@ func writeDB(db string, wd string, res *database.Resources) error {
 
 	err = writeDBHomePage(db)
 	if err != nil {
-		fmt.Print(err)
 		return err
 	}
 	err = printScans(db, res)
 	if err != nil {
-		fmt.Print(err)
 		return err
 	}
 	err = printBlacklisted(db, res)
 	if err != nil {
-		fmt.Print(err)
 		return err
 	}
 	err = printDNS(db, res)
 	if err != nil {
-		fmt.Print(err)
 		return err
 	}
 	err = printBeacons(db, res)
 	if err != nil {
-		fmt.Print(err)
+		return err
+	}
+	err = printLongConns(db, res)
+	if err != nil {
+		return err
+	}
+	err = printLongURLs(db, res)
+	if err != nil {
+		return err
+	}
+	err = printUserAgents(db, res)
+	if err != nil {
 		return err
 	}
 
 	err = os.Chdir("..")
 	if err != nil {
-		fmt.Print(err)
 		return err
 	}
 

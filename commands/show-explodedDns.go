@@ -56,7 +56,7 @@ func showResults(dnsResults []dns.ExplodedDNS) error {
 		return err
 	}
 
-	var error error = nil
+	var error error
 	for _, result := range dnsResults {
 		err := out.Execute(os.Stdout, result)
 		if err != nil {

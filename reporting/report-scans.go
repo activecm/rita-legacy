@@ -4,16 +4,12 @@ import (
 	"bytes"
 	"html/template"
 	"os"
+	"sort"
 
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/datatypes/scanning"
 	"github.com/ocmdev/rita/reporting/templates"
 )
-
-type scan struct {
-	Dbs    string
-	Writer template.HTML
-}
 
 func printScans(db string, res *database.Resources) error {
 	f, err := os.Create("scans.html")
@@ -36,12 +32,12 @@ func printScans(db string, res *database.Resources) error {
 		return err
 	}
 
-	return out.Execute(f, &scan{Dbs: db, Writer: template.HTML(w)})
+	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
 func getScanWriter(scans []scanning.Scan) (string, error) {
 
-	tmpl := "<tr><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.PortCount}}</td><td>{{range $idx, $port := .PortSet}}{{if $idx}}{{end}} -- {{ $port }}{{end}} -- </td></tr>\n"
+	tmpl := "<tr><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.PortCount}}</td><td>{{range $idx, $port := .PortSet}}{{if $idx}}, {{end}}{{ $port }}{{end}}</td></tr>\n"
 
 	out, err := template.New("scn").Parse(tmpl)
 	if err != nil {
@@ -51,6 +47,7 @@ func getScanWriter(scans []scanning.Scan) (string, error) {
 	w := new(bytes.Buffer)
 
 	for _, scan := range scans {
+		sort.Ints(scan.PortSet)
 		err := out.Execute(w, scan)
 		if err != nil {
 			return "", err
