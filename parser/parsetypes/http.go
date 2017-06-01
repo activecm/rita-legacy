@@ -1,7 +1,12 @@
-package parser
+package parsetypes
 
-import "gopkg.in/mgo.v2/bson"
-import "net/url"
+import (
+	"net/url"
+
+	"github.com/ocmdev/rita/config"
+	"gopkg.in/mgo.v2/bson"
+)
+
 import "strings"
 
 // HTTP provides a data structure for entries in bro's HTTP log file
@@ -71,35 +76,19 @@ type HTTP struct {
 	RespMimeTypes []string `bson:"resp_mime_types" bro:"resp_mime_types" brotype:"vector[string]"`
 }
 
-func (in *HTTP) TargetCollection() string {
-	return "http"
+//TargetCollection returns the mongo collection this entry should be inserted
+//into
+func (line *HTTP) TargetCollection(config *config.StructureCfg) string {
+	return config.HTTPTable
 }
 
-// GetHostName is our method for collecting host name
-func (in *HTTP) IsWhiteListed(whitelist []string) bool {
-	if whitelist == nil {
-		return false
-	}
-	if in.Host == "" {
-		return false
-	}
-
-	for count := range whitelist {
-		if strings.Contains(in.Host, whitelist[count]) {
-			return true
-		}
-	}
-	return false
+//Indices gives MongoDB indices that should be used with the collection
+func (line *HTTP) Indices() []string {
+	return []string{"$hashed:uid"}
 }
 
-// processHTTP fixes up absolute uri's as read by bro to be relative
-func processHTTP(in ParsedLine) {
-	line, found := in.(*HTTP)
-	if !found {
-		//this is the equivalent to a compile error
-		panic("An object that is not *HTTP was passed into processHTTP")
-	}
-
+// Normalize fixes up absolute uri's as read by bro to be relative
+func (line *HTTP) Normalize() {
 	//uri is missing the protocol. set uri to ""
 	// ex: Host: 67.217.65.244 URI: 67.217.65.244:443
 	if strings.HasPrefix(line.URI, line.Host) {

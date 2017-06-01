@@ -54,9 +54,9 @@ type (
 func BuildBeaconCollection(res *database.Resources) {
 	collection_name := res.System.BeaconConfig.BeaconTable
 	collection_keys := []string{"uconn_id", "ts_score"}
-	error_check := res.DB.CreateCollection(collection_name, collection_keys)
-	if error_check != "" {
-		res.Log.Error("Failed: ", collection_name, error_check)
+	err := res.DB.CreateCollection(collection_name, collection_keys)
+	if err != nil {
+		res.Log.Error("Failed: ", collection_name, err.Error())
 		return
 	}
 	newBeacon(res).run()

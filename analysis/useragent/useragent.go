@@ -17,8 +17,8 @@ func BuildUserAgentCollection(res *database.Resources) {
 
 	// Create it
 	err := res.DB.CreateCollection(newCollectionName, newCollectionKeys)
-	if err != "" {
-		res.Log.Error("Failed: ", newCollectionName, err)
+	if err != nil {
+		res.Log.Error("Failed: ", newCollectionName, err.Error())
 		return
 	}
 

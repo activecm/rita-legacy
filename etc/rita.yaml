@@ -61,6 +61,11 @@ Bro:
     # around midnight of each day.
     UseDates: false
 
+    # The number of records shipped off to MongoDB at a time. Increasing
+    # the size of the buffer will improve import timings but will leave more
+    # records unimported if there is an error
+    ImportBuffer: 100000
+
 SafeBrowsing:
     APIKey: ""
     Database: $HOME/.rita/safebrowsing

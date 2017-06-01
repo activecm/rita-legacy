@@ -19,7 +19,7 @@ func BuildHostsCollection(res *database.Resources) {
 
 	// Aggregate it!
 	error_check := res.DB.CreateCollection(new_collection_name, new_collection_keys)
-	if error_check != "" {
+	if error_check != nil {
 		res.Log.Error("Failed: ", new_collection_name, error_check)
 		return
 	}

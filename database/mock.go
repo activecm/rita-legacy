@@ -7,7 +7,7 @@ import (
 	"github.com/ocmdev/rita/config"
 )
 
-// InitResources grabs the configuration file and intitializes the configuration data
+// InitMockResources grabs the configuration file and intitializes the configuration data
 // returning a *Resources object which has all of the necessary configuration information
 func InitMockResources(cfgPath string) *Resources {
 	//TODO: hard code in a test config
