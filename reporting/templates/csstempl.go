@@ -60,7 +60,7 @@ li a:hover {
 }
 
 .vertical-menu {
-  width: 150px;
+  width: auto;
 }
 
 .vertical-menu a {

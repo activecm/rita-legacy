@@ -34,7 +34,7 @@ func printBeacons(db string, res *database.Resources) error {
 		return err
 	}
 
-	return out.Execute(f, &scan{Dbs: db, Writer: template.HTML(w)})
+	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
 func getBeaconWriter(beacons []beaconData.BeaconAnalysisView) (string, error) {

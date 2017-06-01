@@ -16,7 +16,7 @@ func init() {
 	command := cli.Command{
 
 		Name:  "show-long-connections",
-		Usage: "Print long connections and relevent information",
+		Usage: "Print long connections and relevant information",
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
@@ -36,7 +36,7 @@ func init() {
 
 			query := coll.Find(nil).Sort(sortStr)
 			if !c.Bool("all") {
-				query.Limit(10)
+				query.Limit(15)
 			}
 			query.All(&longConns)
 

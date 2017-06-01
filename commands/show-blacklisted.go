@@ -94,7 +94,7 @@ func showBlacklistedCsv(results []blacklistedData.Blacklist) error {
 	}
 	out, err := template.New("bl").Parse(tmpl)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	for _, result := range results {

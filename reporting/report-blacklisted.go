@@ -41,11 +41,11 @@ func printBlacklisted(db string, res *database.Resources) error {
 		return err
 	}
 
-	return out.Execute(f, &scan{Dbs: db, Writer: template.HTML(w)})
+	return out.Execute(f, &htmlTempl.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
 func getBlacklistWriter(results []blacklistedData.Blacklist) (string, error) {
-	tmpl := "<tr><td>{{.Host}}</td><td>{{.Score}}</td><td>{{range $idx, $src := .Sources}}{{if $idx}}{{end}} -- {{$src}}{{end}} -- </td></tr>\n"
+	tmpl := "<tr><td>{{.Host}}</td><td>{{.Score}}</td><td>{{range $idx, $src := .Sources}}{{if $idx}}, {{end}}{{$src}}{{end}}</td></tr>\n"
 	w := new(bytes.Buffer)
 	out, err := template.New("blacklist").Parse(tmpl)
 	if err != nil {

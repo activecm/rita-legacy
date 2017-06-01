@@ -10,7 +10,7 @@ func init() {
 	command := cli.Command{
 
 		Name:  "html-report",
-		Usage: "Write scanning information to html output",
+		Usage: "Write analysis information to html output",
 		Flags: []cli.Flag{
 			configFlag,
 			cli.StringFlag{

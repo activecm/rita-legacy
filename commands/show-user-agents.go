@@ -45,7 +45,7 @@ func init() {
 
 			query := coll.Find(nil).Sort(sortStr)
 			if !c.Bool("all") {
-				query.Limit(10)
+				query.Limit(15)
 			}
 			query.All(&agents)
 
@@ -63,7 +63,7 @@ func showAgents(agents []useragent.UserAgent) error {
 
 	out, err := template.New("ua").Parse(tmpl)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	var error error
