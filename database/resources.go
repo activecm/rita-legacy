@@ -8,7 +8,7 @@ import (
 
 	mgo "gopkg.in/mgo.v2"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/ocmdev/rita/config"
 )
 

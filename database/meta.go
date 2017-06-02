@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
 	"github.com/rifflock/lfshook"
-	"github.com/weekface/mgorus"
+	"github.com/Zalgo2462/mgorus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )

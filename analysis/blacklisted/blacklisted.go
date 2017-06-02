@@ -20,7 +20,7 @@ import (
 	"github.com/ocmdev/rita/datatypes/blacklisted"
 	datatype_structure "github.com/ocmdev/rita/datatypes/structure"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )

@@ -16,7 +16,7 @@ import (
 	"github.com/ocmdev/rita/datatypes/structure"
 	"github.com/ocmdev/rita/util"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
