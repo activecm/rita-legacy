@@ -12,17 +12,6 @@ LogLevel: 1
 BatchSize: 300
 Prefetch: 0.33
 
-# Whitelisting has been removed, but will return. The option is being left here
-# until it comes back
-WhiteList:
-    - google.com
-    - blackhillsinfosec.com
-
-# Import White List, if true, will import the whitelisted domains/ip addresses,
-# however will not attempt to analyze. If set to false, whitelisted
-# domains won't be imported.
-ImportWhitelist: true
-
 # LogPath is the path for Rita's logs, generally this just defaults to
 # $HOME/.rita/logs
 RitaLogPath: $HOME/.rita/logs
