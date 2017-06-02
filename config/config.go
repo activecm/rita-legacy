@@ -21,8 +21,6 @@ type (
 		DatabaseHost      string          `yaml:"DatabaseHost"`
 		LogLevel          int             `yaml:"LogLevel"`
 		Prefetch          float64         `yaml:"Prefetch"`
-		Whitelist         []string        `yaml:"WhiteList"`
-		ImportWhitelist   bool            `yaml:"ImportWhitelist"`
 		RitaLogPath       string          `yaml:"RitaLogPath"`
 		BlacklistedConfig BlacklistedCfg  `yaml:"BlackListed"`
 		DNSConfig         DNSCfg          `yaml:"Dns"`
