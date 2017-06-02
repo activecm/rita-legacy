@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/ocmdev/rita/database"
 	datatype_beacon "github.com/ocmdev/rita/datatypes/beacon"
 )
