@@ -2,7 +2,8 @@
 
 Brought to you by Offensive CounterMeasures.
 
-### What's here
+---
+### What is Here
 
 RITA is an open source framework for network traffic analysis.
 
@@ -10,7 +11,7 @@ The framework ingests [Bro Logs](https://www.bro.org/), and currently supports t
  - **Beaconing**: Search for signs of beaconing behavior in and out of your network
  - **DNS Tunneling** Search for signs of DNS based covert channels
  - **Blacklisted**: Query blacklists to search for suspicious domains and hosts
- - **URL Length Analysis**: Search for lengthy URL's indicative of malware
+ - **URL Length Analysis**: Search for lengthy URLs indicative of malware
  - **Scanning**: Search for signs of port scans in your network
 
 Additional functionality is being developed and will be included soon.
@@ -18,18 +19,13 @@ Additional functionality is being developed and will be included soon.
 ### Automatic Installation
 **The automatic  installer is officially supported on Ubuntu 14.04 LTS (Security Onion) and Ubuntu 16.04 LTS**
 
-Clone the package:
+* Clone the package:
 `git clone https://github.com/ocmdev/rita.git`
-
-Change into the source directory: `cd rita`
-
-Make the installer executable: `chmod +x install.sh`
-
-Run the installer: `sudo ./install.sh`
-
-Source your .bashrc (Rita was added to the PATH): `source ~/.bashrc`
-
-Start MongoDB: `sudo service mongod start`
+* Change into the source directory: `cd rita`
+* Make the installer executable: `chmod +x install.sh`
+* Run the installer: `sudo ./install.sh`
+* Source your .bashrc (the installer added RITA to the PATH): `source ~/.bashrc`
+* Start MongoDB: `sudo service mongod start`
 
 ### Manual Installation
 To install each component of RITA by hand, [check out the instructions in the wiki](https://github.com/ocmdev/rita/wiki/Installation).
@@ -46,7 +42,7 @@ RITA relies on the the [Google Safe Browsing API](https://developers.google.com/
 To obtain an API key:
   * Go to the Google [cloud platform console](https://console.cloud.google.com/).
   * From the projects list, select a project or create a new one.
-  * If the API Manager page isn't already open, open the left side menu and select **API Manager**.
+  * If the API Manager page is not already open, open the left side menu and select **API Manager**.
   * On the left, choose **Credentials**.
   * Click **Create credentials** and then select **API key**.
   * Copy this API key to the **APIKey** field under **SafeBrowsing** in the configuration file.
@@ -78,7 +74,7 @@ To obtain an API key:
       * Logs found in folders which match the substring on the left are imported
       into  the dataset on the right
     * Example
-      * Let's say you have two sets of logs to analyze
+      * Say you have two sets of logs to analyze
         * `/share/bro_logs/networkA`
         * `/share/bro_logs/networkB`
       * A correct Bro config section would look like
@@ -97,6 +93,7 @@ To obtain an API key:
 #### Analyzing Data With RITA
   * **Option 1**: Analyze one dataset
     * `rita analyze -d dataset_name`
+    * Ex: `rita analyze -d MyCompany_A`
   * **Option 2**: Analyze all imported datasets
     * `rita analyze`
 
@@ -111,35 +108,9 @@ To obtain an API key:
 ### Getting help
 Head over to [OFTC and join #ocmdev](https://webchat.oftc.net/?channels=ocmdev) for any questions you may have.
 
+### Contributing to RITA
+To contribute to RITA visit our [Contributing Guide](https://github.com/ocmdev/rita/blob/master/Contributing.md)
+
 ### License
 GNU GPL V3
 &copy; Offensive CounterMeasures &trade;
-
-### Contributing
-
-Want to help? We'd love that! Here are some ways to get involved ranging in
-difficulty from easiest to hardest.
-
-1. Run the software and tell us when it breaks. We're happy to recieve bug
-reports. Just be sure to do the following:
-  	* Give very specific descriptions of how to reproduce the bug
-  	* Let us know if you're running RITA on weird hardware
-  	* Tell us about the size of the test, and the physical resources available
-
-1. Add godoc comments to the code. This software was developed for internal use
-mostly on the fly and as needed. This means that the code was not built to the
-typical standards of an open source project and we would like to get it there.
-
-1. Fix style compliance issues. Just run golint and start fixing non-compliant
-code.
-
-1. Work on bug fixes. Grab from the issues list and submit fixes.
-
-1. Help add features:
-  	* If you would like to become involved in the development effort, please hop on our
-[OFTC channel at #ocmdev](https://webchat.oftc.net/?channels=ocmdev) and chat about what's currently being worked on.
-
-##### Submitting work:
-Please make your pull requests, patches, etc. as small as possible. As this is a product that
-we use internally, as well as a backend for a piece of commercially supported software. Every line of code that goes in must be inspected and approved. So if it is taking a while to get back to you on your work, or we reject code, don't be
-offended, we're just paranoid and desire to get this project to a very stable and usable place.
