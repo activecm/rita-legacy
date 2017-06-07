@@ -54,7 +54,7 @@ func showBeacons(c *cli.Context) error {
 
 func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
+	table.SetHeader([]string{"Score", "Size Score", "Source IP", "Destination IP",
 		"Connections", "Avg. Bytes", "Intvl Range", "Top Intvl",
 		"Top Intvl Count", "Intvl Skew", "Intvl Dispersion", "Intvl Duration"})
 	f := func(f float64) string {
@@ -66,7 +66,7 @@ func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
 	for _, d := range data {
 		table.Append(
 			[]string{
-				f(d.TS_score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				f(d.TS_score), f(d.DS_score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
 				i(d.TS_iRange), i(d.TS_iMode), i(d.TS_iModeCount), f(d.TS_iSkew),
 				i(d.TS_iDispersion), f(d.TS_duration)})
 	}
@@ -75,8 +75,8 @@ func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
 }
 
 func showBeaconCsv(data []beaconData.BeaconAnalysisView) error {
-	tmpl := "{{.TS_score}},{{.Src}},{{.Dst}},{{.Connections}},{{.AvgBytes}},"
-	tmpl += "{{.TS_iRange}},{{.TS_iMode}},{{.TS_iModeCount}},"
+	tmpl := "{{.TS_score}},{{.DS_score}},{{.Src}},{{.Dst}},{{.Connections}},"
+	tmpl += "{{.AvgBytes}}{{.TS_iRange}},{{.TS_iMode}},{{.TS_iModeCount}},"
 	tmpl += "{{.TS_iSkew}},{{.TS_iDispersion}},{{.TS_duration}}\n"
 
 	out, err := template.New("beacon").Parse(tmpl)

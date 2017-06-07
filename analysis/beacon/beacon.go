@@ -46,7 +46,7 @@ type (
 		uconnID bson.ObjectId // Unique Connection ID
 		ts      []int64       // Connection timestamps for this src, dst pair
 		//dur []int64
-		//orig_bytes []int64
+		orig_bytes []int64
 		//resp_bytes []int64
 	}
 )
@@ -195,6 +195,7 @@ func (t *Beacon) collect() {
 
 			for connIter.Next(&conn) {
 				newInput.ts = append(newInput.ts, conn.Ts)
+				newInput.orig_bytes = append(newInput.orig_bytes, conn.OriginBytes)
 			}
 			t.analysisChannel <- newInput
 		}
@@ -206,8 +207,9 @@ func (t *Beacon) collect() {
 // analyze src, dst pairs with their connection data
 func (t *Beacon) analyze() {
 	for data := range t.analysisChannel {
-		//sort the timestamps since they may have arrived out of order
+		//sort the size and timestamps since they may have arrived out of order
 		sort.Sort(util.SortableInt64(data.ts))
+		sort.Sort(util.SortableInt64(data.orig_bytes))
 
 		//remove subsecond communications
 		//these will appear as beacons if we do not remove them
@@ -221,9 +223,10 @@ func (t *Beacon) analyze() {
 		}
 
 		//store the diff slice length since we use it a lot
-		//this is one less then the data slice length
+		//for timestamps this is one less then the data slice length
 		//since we are calculating the times in between readings
 		length := len(data.ts) - 1
+		ds_length := len(data.orig_bytes)
 
 		//find the duration of this connection
 		//perfect beacons should fill the observation period
@@ -236,10 +239,11 @@ func (t *Beacon) analyze() {
 			diff[i] = data.ts[i+1] - data.ts[i]
 		}
 
-		//perfect beacons should have symmetric delta time distributions
+		//perfect beacons should have symmetric delta time and size distributions
 		//Bowley's measure of skew is used to check symmetry
 		sort.Sort(util.SortableInt64(diff))
 		bSkew := float64(0)
+		ds_bSkew := float64(0)
 
 		//length -1 is used since diff is a zero based slice
 		low := diff[util.Round(.25*float64(length-1))]
@@ -248,10 +252,20 @@ func (t *Beacon) analyze() {
 		bNum := low + high - 2*mid
 		bDen := high - low
 
+		ds_low := data.orig_bytes[util.Round(.25*float64(ds_length-1))]
+		ds_mid := data.orig_bytes[util.Round(.5*float64(ds_length-1))]
+		ds_high := data.orig_bytes[util.Round(.75*float64(ds_length-1))]
+		ds_bNum := ds_low + ds_high - 2*ds_mid
+		ds_bDen := ds_high - ds_low
+
 		//bSkew should equal zero if the denominator equals zero
 		//bowley skew is unreliable if Q2 = Q1 or Q2 = Q3
 		if bDen != 0 && mid != low && mid != high {
 			bSkew = float64(bNum) / float64(bDen)
+		}
+		
+		if ds_bDen != 0 {
+			ds_bSkew = float64(ds_bNum) / float64(ds_bDen)
 		}
 
 		//perfect beacons should have very low dispersion around the
@@ -262,9 +276,17 @@ func (t *Beacon) analyze() {
 		for i := 0; i < length; i++ {
 			devs[i] = util.Abs(diff[i] - mid)
 		}
+		
+		ds_devs := make([]int64, ds_length)
+		for i := 0; i < ds_length; i++ {
+			ds_devs[i] = util.Abs(data.orig_bytes[i] - ds_mid)
+		}
 
 		sort.Sort(util.SortableInt64(devs))
+		sort.Sort(util.SortableInt64(ds_devs))
+		
 		madm := devs[util.Round(.5*float64(length-1))]
+		ds_madm := ds_devs[util.Round(.5*float64(ds_length-1))]
 
 		//Store the range for human analysis
 		iRange := diff[length-1] - diff[0]
@@ -289,16 +311,24 @@ func (t *Beacon) analyze() {
 		//more skewed distributions recieve a lower score
 		//less skewed distributions recieve a higher score
 		alpha := 1.0 - math.Abs(bSkew)
+		ds_alpha := 1.0 - math.Abs(ds_bSkew)
 
 		//lower dispersion is better, cutoff dispersion scores at 30 seconds
 		beta := 1.0 - float64(madm)/30.0
 		if beta < 0 {
 			beta = 0
 		}
+		ds_beta := 1.0 - float64(ds_madm)
+		if ds_beta < 0 {
+			ds_beta = 0
+		}		
+		
 		gamma := duration
 
 		//in order of ascending importance: skew, duration, dispersion
 		output.TS_score = (alpha + beta + gamma) / 3.0
+		//in order of ascending importance: skew, dispersion
+		output.DS_score = (ds_alpha + ds_beta) / 2.0
 		t.writeChannel <- &output
 	}
 
@@ -376,6 +406,7 @@ func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 		{
 			{"$project", bson.D{
 				{"ts_score", 1},
+				{"ds_score", 1},
 				{"src", "$uconn.src"},
 				{"dst", "$uconn.dst"},
 				{"local_src", "$uconn.local_src"},

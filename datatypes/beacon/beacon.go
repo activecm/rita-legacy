@@ -16,6 +16,7 @@ type (
 		TS_iDispersion    int64         `bson:"ts_iDispersion"`
 		TS_duration       float64       `bson:"ts_duration"`
 		TS_score          float64       `bson:"ts_score"`
+		DS_score          float64       `bson:"ds_score"`
 		TS_intervals      []int64       `bson:"ts_intervals"`
 		TS_intervalCounts []int64       `bson:"ts_interval_counts"`
 	}
@@ -36,5 +37,6 @@ type (
 		TS_iDispersion int64         `bson:"ts_iDispersion"`
 		TS_duration    float64       `bson:"ts_duration"`
 		TS_score       float64       `bson:"ts_score"`
+		DS_score       float64       `bson:"ds_score"`
 	}
 )
