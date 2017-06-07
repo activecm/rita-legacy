@@ -8,16 +8,17 @@ type (
 	// not in this Conn structure use parser.Conn instead.
 	Conn struct {
 		ID       bson.ObjectId `bson:"_id,omitempty"`
-		Ts       int64         `bson:"ts,omitempty"`
-		UID      string        `bson:"uid"`
-		Src      string        `bson:"id_origin_h,omitempty"`
-		Spt      int           `bson:"id_origin_p,omitempty"`
-		Dst      string        `bson:"id_resp_h,omitempty"`
-		Dpt      int           `bson:"id_resp_p,omitempty"`
-		Dur      float64       `bson:"duration,omitempty"`
-		Proto    string        `bson:"proto,omitempty"`
-		LocalSrc bool          `bson:"local_orig,omitempty"`
-		LocalDst bool          `bson:"local_resp,omitempty"`
+		Ts          int64         `bson:"ts,omitempty"`
+		UID         string        `bson:"uid"`
+		Src         string        `bson:"id_origin_h,omitempty"`
+		Spt         int           `bson:"id_origin_p,omitempty"`
+		Dst         string        `bson:"id_resp_h,omitempty"`
+		Dpt         int           `bson:"id_resp_p,omitempty"`
+		Dur         float64       `bson:"duration,omitempty"`
+		Proto       string        `bson:"proto,omitempty"`
+		LocalSrc    bool          `bson:"local_orig,omitempty"`
+		LocalDst    bool          `bson:"local_resp,omitempty"`
+		OriginBytes int64         `bson:"orig_bytes,omitempty"`
 	}
 
 	// DNS provides structure for a subset of the fields in the

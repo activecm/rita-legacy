@@ -88,6 +88,9 @@ func getUniqueConnectionsScript(sysCfg *config.SystemConfig) (string, string, []
 						}},
 					}},
 				}},
+				{"orig_bytes", bson.D{
+					{"$first", "$orig_bytes"},
+				}},
 				{"avg_bytes", bson.D{
 					{"$avg", bson.D{
 						{"$add", []interface{}{
@@ -110,6 +113,7 @@ func getUniqueConnectionsScript(sysCfg *config.SystemConfig) (string, string, []
 				{"local_src", 1},
 				{"local_dst", 1},
 				{"total_bytes", 1},
+				{"orig_bytes", 1},
 				{"avg_bytes", 1},
 				{"total_duration", 1},
 				{"uid", 1},
