@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/ocmdev/rita/analysis/beacon"
@@ -12,6 +13,7 @@ import (
 	"github.com/ocmdev/rita/analysis/urls"
 	"github.com/ocmdev/rita/analysis/useragent"
 	"github.com/ocmdev/rita/database"
+	"github.com/ocmdev/rita/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -57,17 +59,22 @@ func analyze(inDb string, configFile string) {
 
 	startAll := time.Now()
 
+	fmt.Println("[+] Analyzing:")
+	for _, db := range toRun {
+		fmt.Println("\t[-] " + db)
+	}
 	res.Log.WithFields(log.Fields{
 		"databases":  toRun,
-		"start_time": startAll.Format("2006-01-02 15:04:05"),
+		"start_time": startAll.Format(util.TimeFormat),
 	}).Info("Preparing to analyze ")
 
 	for _, td := range toRun {
 		startIndiv := time.Now()
 		res.Log.WithFields(log.Fields{
 			"database":   td,
-			"start_time": startIndiv.Format("2006-01-02 15:04:05"),
+			"start_time": startIndiv.Format(util.TimeFormat),
 		}).Info("Analyzing")
+		fmt.Println("[+] Analyzing " + td)
 		res.DB.SelectDB(td)
 		logAnalysisFunc("Unique Connections", td, res,
 			structure.BuildUniqueConnectionsCollection,
@@ -104,13 +111,13 @@ func analyze(inDb string, configFile string) {
 		endIndiv := time.Now()
 		res.Log.WithFields(log.Fields{
 			"database": td,
-			"end_time": endIndiv.Format("2006-01-02 15:04:05"),
+			"end_time": endIndiv.Format(util.TimeFormat),
 			"duration": endIndiv.Sub(startIndiv),
 		}).Info("Analysis complete")
 	}
 	endAll := time.Now()
 	res.Log.WithFields(log.Fields{
-		"end_time": endAll.Format("2006-01-02 15:04:05"),
+		"end_time": endAll.Format(util.TimeFormat),
 		"duration": endAll.Sub(startAll),
 	}).Info("Analysis complete")
 }
@@ -122,14 +129,15 @@ func logAnalysisFunc(analysisName string, databaseName string,
 	resources.Log.WithFields(log.Fields{
 		"analysis":   analysisName,
 		"database":   databaseName,
-		"start_time": start.Format("2006-01-02 15:04:05"),
+		"start_time": start.Format(util.TimeFormat),
 	}).Infof("Running analysis")
+	fmt.Println("\t[-] Running " + analysisName)
 	analysis(resources)
 	end := time.Now()
 	resources.Log.WithFields(log.Fields{
 		"analysis": analysisName,
 		"database": databaseName,
-		"end_time": end.Format("2006-01-02 15:04:05"),
+		"end_time": end.Format(util.TimeFormat),
 		"duration": end.Sub(start),
 	}).Infof("Analysis complete")
 }

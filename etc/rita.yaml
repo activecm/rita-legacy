@@ -7,11 +7,7 @@ LogConfig:
     # 2 = info
     # 1 = warn
     # 0 = error
-    LogLevel: 1
-
-    #LogType controls the type of logs sent to std out. Set to json for json
-    #or text for human readable output
-    LogType: text
+    LogLevel: 2
 
     # LogPath is the path for Rita's logs, generally this just defaults to
     # $HOME/.rita/logs. Logs will only be written here if LogToFile is true

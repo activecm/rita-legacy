@@ -36,7 +36,6 @@ type (
 
 	//LogCfg contains the configuration for logging
 	LogCfg struct {
-		LogType      string `yaml:"LogType"`
 		LogLevel     int    `yaml:"LogLevel"`
 		RitaLogPath  string `yaml:"RitaLogPath"`
 		LogToFile    bool   `yaml:"LogToFile"`

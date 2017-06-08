@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"sync"
 	"time"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/Zalgo2462/mgorus"
 	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/util"
 	"github.com/rifflock/lfshook"
 	log "github.com/sirupsen/logrus"
 )
@@ -34,7 +36,7 @@ func InitResources(cfgPath string) *Resources {
 	}
 
 	// Fire up the logging system
-	log, err := initLog(conf.LogConfig.LogLevel, conf.LogConfig.LogType)
+	log, err := initLog(conf.LogConfig.LogLevel)
 	if err != nil {
 		fmt.Printf("Failed to prep logger: %s", err.Error())
 		os.Exit(-1)
@@ -89,16 +91,12 @@ func InitResources(cfgPath string) *Resources {
 }
 
 // initLog creates the logger for logging to stdout and file
-func initLog(level int, logType string) (*log.Logger, error) {
+func initLog(level int) (*log.Logger, error) {
 	var logs = &log.Logger{}
 
-	if logType == "json" {
-		logs.Formatter = new(log.JSONFormatter)
-	} else {
-		logs.Formatter = new(log.TextFormatter)
-	}
+	logs.Formatter = new(log.TextFormatter)
 
-	logs.Out = os.Stderr
+	logs.Out = ioutil.Discard
 	logs.Hooks = make(log.LevelHooks)
 
 	switch level {
@@ -119,8 +117,10 @@ func initLog(level int, logType string) (*log.Logger, error) {
 
 func addFileLogger(logger *log.Logger, logPath string) {
 	logger.Hooks.Add(lfshook.NewHook(lfshook.PathMap{
-		log.InfoLevel:  logPath + "/info-" + time.Now().Format("2006-01-02-15:04") + ".log",
-		log.ErrorLevel: logPath + "/error-" + time.Now().Format("2006-01-02-15:04") + ".log",
+		log.DebugLevel: logPath + "/debug-" + time.Now().Format(util.TimeFormat) + ".log",
+		log.InfoLevel:  logPath + "/info-" + time.Now().Format(util.TimeFormat) + ".log",
+		log.WarnLevel:  logPath + "/warn-" + time.Now().Format(util.TimeFormat) + ".log",
+		log.ErrorLevel: logPath + "/error-" + time.Now().Format(util.TimeFormat) + ".log",
 	}))
 }
 
