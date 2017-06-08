@@ -116,6 +116,14 @@ func initLog(level int) (*log.Logger, error) {
 }
 
 func addFileLogger(logger *log.Logger, logPath string) {
+	_, err := os.Stat(logPath)
+	if err != nil && os.IsNotExist(err) {
+		err = os.MkdirAll(logPath, 0755)
+		if err != nil {
+			fmt.Println("[!] Could not initialize file logger. Check RitaLogDir.")
+			return
+		}
+	}
 	logger.Hooks.Add(lfshook.NewHook(lfshook.PathMap{
 		log.DebugLevel: logPath + "/debug-" + time.Now().Format(util.TimeFormat) + ".log",
 		log.InfoLevel:  logPath + "/info-" + time.Now().Format(util.TimeFormat) + ".log",
