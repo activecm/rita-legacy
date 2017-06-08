@@ -1,8 +1,11 @@
 package commands
 
 import (
+	"bufio"
 	"fmt"
+	"log"
 	"os"
+	"strings"
 
 	"github.com/ocmdev/rita/database"
 	"github.com/urfave/cli"
@@ -21,7 +24,6 @@ func init() {
 				fmt.Println("Resetting all databases")
 				return cleanAnalysisAll(res)
 			}
-			fmt.Println("Resetting database:", c.String("database"))
 			return cleanAnalysis(c.String("database"), res)
 		},
 	}
@@ -42,6 +44,22 @@ func cleanAnalysis(database string, res *database.Resources) error {
 	if err != nil || len(names) == 0 {
 		fmt.Fprintf(os.Stderr, "Failed to find analysis results\n")
 		return err
+	}
+
+	fmt.Println("Are you sure you want to reset analysis for", database, "[Y/n]")
+
+	read := bufio.NewReader(os.Stdin)
+
+	response, err := read.ReadString('\n')
+	if err != nil {
+		log.Fatal(err)
+	}
+	response = strings.ToLower(strings.TrimSpace(response))
+	if response == "y" || response == "yes" {
+		fmt.Println("Resetting database:", database)
+	} else {
+		fmt.Println("Aborted, nothing reset")
+		return nil
 	}
 
 	//check if we had an issue dropping a collection
