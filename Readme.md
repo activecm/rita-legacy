@@ -58,7 +58,9 @@ To obtain an API key:
     * (Optional) Merge multiple PCAP files into one PCAP file
       * `mergecap -w outFile.pcap inFile1.pcap inFile2.pcap`
     * Generate bro logs from the PCAP files
-      * `bro -r pcap_to_log.pcap`
+      * Set local_nets to your local networks
+      * ```bro -r pcap_to_log.pcap local "Site::local_nets += { 192.168.0.0/24 }"  "Log::default_rotation_interval = 1 day"```
+
   * **Option 2**: Install Bro and let it monitor an interface directly [[instructions](https://www.bro.org/sphinx/quickstart/)]
       * You may wish to [compile Bro from source](https://www.bro.org/sphinx/install/install.html) for performance reasons
       * The automated installer for RITA installs pre-compiled Bro binaries
