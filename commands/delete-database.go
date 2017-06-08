@@ -24,7 +24,7 @@ func init() {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 
-			fmt.Println("Are you sure you want to delete database ", c.String("database"), " [Y/n]")
+			fmt.Println("Are you sure you want to delete database", c.String("database"), "[Y/n]")
 
 			read := bufio.NewReader(os.Stdin)
 
