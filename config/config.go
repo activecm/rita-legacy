@@ -16,12 +16,10 @@ var VERSION = "undefined"
 type (
 	//SystemConfig is the container for other config sections
 	SystemConfig struct {
-		LogType           string          `yaml:"LogType"`
 		BatchSize         int             `yaml:"BatchSize"`
 		DatabaseHost      string          `yaml:"DatabaseHost"`
-		LogLevel          int             `yaml:"LogLevel"`
 		Prefetch          float64         `yaml:"Prefetch"`
-		RitaLogPath       string          `yaml:"RitaLogPath"`
+		LogConfig         LogCfg          `yaml:"LogConfig"`
 		BlacklistedConfig BlacklistedCfg  `yaml:"BlackListed"`
 		DNSConfig         DNSCfg          `yaml:"Dns"`
 		CrossrefConfig    CrossrefCfg     `yaml:"Crossref"`
@@ -32,7 +30,18 @@ type (
 		UserAgentConfig   UserAgentCfg    `yaml:"UserAgent"`
 		BroConfig         BroCfg          `yaml:"Bro"`
 		SafeBrowsing      SafeBrowsingCfg `yaml:"SafeBrowsing"`
+		MetaTables        MetaCfg         `yaml:"MetaTables"`
 		Version           string
+	}
+
+	//LogCfg contains the configuration for logging
+	LogCfg struct {
+		LogType      string `yaml:"LogType"`
+		LogLevel     int    `yaml:"LogLevel"`
+		RitaLogPath  string `yaml:"RitaLogPath"`
+		LogToFile    bool   `yaml:"LogToFile"`
+		RitaLogTable string `yaml:"RitaLogTable"`
+		LogToDB      bool   `yaml:"LogToDB"`
 	}
 
 	//StructureCfg contains the names of the base level collections
@@ -102,6 +111,12 @@ type (
 		DefaultDatabase string            `yaml:"DefaultDatabase"`
 		UseDates        bool              `yaml:"UseDates"`
 		ImportBuffer    int               `yaml:"ImportBuffer"`
+	}
+
+	//MetaCfg contains the meta db collection names
+	MetaCfg struct {
+		FilesTable     string `yaml:"FilesTable"`
+		DatabasesTable string `yaml:"DatabasesTable"`
 	}
 )
 

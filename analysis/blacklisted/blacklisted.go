@@ -28,27 +28,29 @@ import (
 type (
 	// Blacklisted provides a handle for the blacklist module
 	Blacklisted struct {
-		db              string                    // database name (customer)
-		batch_size      int                       // BatchSize
-		prefetch        float64                   // Prefetch
-		resources       *database.Resources       // resources
-		log             *log.Logger               // logger
-		channel_size    int                       // channel size
-		thread_count    int                       // Thread count
-		blacklist_table string                    // Name of blacklist table
-		safeBrowser     *safebrowsing.SafeBrowser // Google safebrowsing api
-		ritaBL          *blacklist.BlackList      // Blacklisted host database
+		db             string                    // database name (customer)
+		batchSize      int                       // BatchSize
+		prefetch       float64                   // Prefetch
+		resources      *database.Resources       // resources
+		log            *log.Logger               // logger
+		channelSize    int                       // channel size
+		threadCount    int                       // Thread count
+		blacklistTable string                    // Name of blacklist table
+		safeBrowser    *safebrowsing.SafeBrowser // Google safebrowsing api
+		ritaBL         *blacklist.BlackList      // Blacklisted host database
 	}
 
-	// UrlShort is a shortened version of the URL datatype that only accounts
+	// URLShort is a shortened version of the URL datatype that only accounts
 	// for the IP and url (hostname)
-	UrlShort struct {
-		Url string `bson:"host"`
+	URLShort struct {
+		URL string `bson:"host"`
 	}
 )
 
+//SetBlacklistSources finds all of the sources which contacted
+//the hosts on the blacklist
 func SetBlacklistSources(res *database.Resources, result *blacklisted.Blacklist) {
-	if result.IsUrl {
+	if result.IsURL {
 		for _, destIP := range dns.GetIPsFromHost(res, result.Host) {
 			result.Sources = append(result.Sources, structure.GetConnSourcesFromDest(res, destIP)...)
 		}
@@ -57,12 +59,13 @@ func SetBlacklistSources(res *database.Resources, result *blacklisted.Blacklist)
 	}
 }
 
+//BuildBlacklistedCollection runs the hosts in the dataset against rita-blacklist
 func BuildBlacklistedCollection(res *database.Resources) {
-	collection_name := res.System.BlacklistedConfig.BlacklistTable
-	collection_keys := []string{"bl_hash", "host"}
-	err := res.DB.CreateCollection(collection_name, collection_keys)
+	collectionName := res.System.BlacklistedConfig.BlacklistTable
+	collectionKeys := []string{"bl_hash", "host"}
+	err := res.DB.CreateCollection(collectionName, collectionKeys)
 	if err != nil {
-		res.Log.Error("Failed: ", collection_name, err.Error())
+		res.Log.Error("Failed: ", collectionName, err.Error())
 		return
 	}
 	newBlacklisted(res).run()
@@ -72,14 +75,14 @@ func BuildBlacklistedCollection(res *database.Resources) {
 func newBlacklisted(res *database.Resources) *Blacklisted {
 
 	ret := Blacklisted{
-		db:              res.DB.GetSelectedDB(),
-		batch_size:      res.System.BatchSize,
-		prefetch:        res.System.Prefetch,
-		resources:       res,
-		log:             res.Log,
-		channel_size:    res.System.BlacklistedConfig.ChannelSize,
-		thread_count:    res.System.BlacklistedConfig.ThreadCount,
-		blacklist_table: res.System.BlacklistedConfig.BlacklistTable,
+		db:             res.DB.GetSelectedDB(),
+		batchSize:      res.System.BatchSize,
+		prefetch:       res.System.Prefetch,
+		resources:      res,
+		log:            res.Log,
+		channelSize:    res.System.BlacklistedConfig.ChannelSize,
+		threadCount:    res.System.BlacklistedConfig.ThreadCount,
+		blacklistTable: res.System.BlacklistedConfig.BlacklistTable,
 	}
 
 	// Check if the config file contains a safe browsing key
@@ -117,7 +120,6 @@ func newBlacklisted(res *database.Resources) *Blacklisted {
 
 // Run runs the module
 func (b *Blacklisted) run() {
-	start := time.Now()
 	ipssn := b.resources.DB.Session.Copy()
 	defer ipssn.Close()
 	urlssn := b.resources.DB.Session.Copy()
@@ -127,12 +129,12 @@ func (b *Blacklisted) run() {
 	ipcur := ipssn.DB(b.db).C(b.resources.System.StructureConfig.HostTable)
 	urlcur := urlssn.DB(b.db).C(b.resources.System.DNSConfig.HostnamesTable)
 
-	ipaddrs := make(chan string, b.channel_size)
-	urls := make(chan UrlShort, b.channel_size)
+	ipaddrs := make(chan string, b.channelSize)
+	urls := make(chan URLShort, b.channelSize)
 	cash := util.NewCache()
 	waitgroup := new(sync.WaitGroup)
-	waitgroup.Add(2 * b.thread_count)
-	for i := 0; i < b.thread_count; i++ {
+	waitgroup.Add(2 * b.threadCount)
+	for i := 0; i < b.threadCount; i++ {
 		go b.processIPs(ipaddrs, waitgroup)
 		go b.processURLs(urls, waitgroup, cash)
 	}
@@ -161,10 +163,10 @@ func (b *Blacklisted) run() {
 		}
 	}(ipit, ipaddrs)
 
-	go func(iter *mgo.Iter, urlchan chan UrlShort, ipchan chan string) {
+	go func(iter *mgo.Iter, urlchan chan URLShort, ipchan chan string) {
 		defer rwg.Done()
 
-		var u UrlShort
+		var u URLShort
 		for iter.Next(&u) {
 			urlchan <- u
 		}
@@ -174,11 +176,7 @@ func (b *Blacklisted) run() {
 	close(ipaddrs)
 	close(urls)
 
-	b.log.Info("Lookups complete waiting on checks to run")
 	waitgroup.Wait()
-	b.log.WithFields(log.Fields{
-		"time_elapsed": time.Since(start),
-	}).Info("Blacklist analysis completed")
 }
 
 // processIPs goes through all of the ips in the ip channel
@@ -201,7 +199,7 @@ func (b *Blacklisted) processIPs(ip chan string, waitgroup *sync.WaitGroup) {
 		result := b.ritaBL.CheckHosts([]string{ip}, b.resources.System.BlacklistedConfig.BlacklistDatabase)
 		if len(result) > 0 {
 			for _, val := range result[0].Results {
-				score += 1
+				score++
 				sourcelist = append(sourcelist, val.HostList)
 			}
 		}
@@ -214,7 +212,7 @@ func (b *Blacklisted) processIPs(ip chan string, waitgroup *sync.WaitGroup) {
 				DateChecked:     time.Now().Unix(),
 				Host:            ip,
 				IsIp:            true,
-				IsUrl:           false,
+				IsURL:           false,
 				BlacklistSource: sourcelist,
 			})
 
@@ -229,22 +227,18 @@ func (b *Blacklisted) processIPs(ip chan string, waitgroup *sync.WaitGroup) {
 }
 
 // processURLs goes through all of the urls in the url channel
-func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup, cash util.Cache) {
+func (b *Blacklisted) processURLs(urls chan URLShort, waitgroup *sync.WaitGroup, cash util.Cache) {
 	defer waitgroup.Done()
 	urlssn := b.resources.DB.Session.Copy()
 	defer urlssn.Close()
 	cur := urlssn.DB(b.db).C(b.resources.System.BlacklistedConfig.BlacklistTable)
 
 	for url := range urls {
-		actualURL := url.Url
+		actualURL := url.URL
 		hsh := fmt.Sprintf("%x", md5.Sum([]byte(actualURL)))
 		if cash.Lookup(hsh) {
 			continue
 		}
-
-		// Append the sources that determined this host
-		// was blacklisted
-		sourcelist := []string{}
 
 		score := 0
 
@@ -254,7 +248,6 @@ func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup,
 			result, _ := b.safeBrowser.LookupURLs(urlList)
 			if len(result) > 0 && len(result[0]) > 0 {
 				score = 1
-				sourcelist = append(sourcelist, "google-safebrowsing-api")
 			}
 		}
 
@@ -266,7 +259,7 @@ func (b *Blacklisted) processURLs(urls chan UrlShort, waitgroup *sync.WaitGroup,
 				DateChecked: time.Now().Unix(),
 				Host:        actualURL,
 				IsIp:        false,
-				IsUrl:       true,
+				IsURL:       true,
 			})
 
 			if err != nil {

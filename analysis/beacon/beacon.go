@@ -94,7 +94,6 @@ func newBeacon(res *database.Resources) *Beacon {
 
 // Run Starts the beacon hunt process
 func (t *Beacon) run() {
-	t.log.Info("Running beacon hunt")
 	session := t.resources.DB.Session.Copy()
 	defer session.Close()
 

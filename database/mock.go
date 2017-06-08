@@ -18,7 +18,7 @@ func InitMockResources(cfgPath string) *Resources {
 	}
 
 	// Fire up the logging system
-	log, err := initLog(conf.LogLevel, conf.LogType)
+	log, err := initLog(conf.LogConfig.LogLevel, conf.LogConfig.LogType)
 	if err != nil {
 		fmt.Printf("Failed to prep logger: %s", err.Error())
 		os.Exit(-1)

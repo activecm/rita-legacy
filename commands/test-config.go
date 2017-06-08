@@ -18,7 +18,7 @@ func init() {
 				Value: "",
 			},
 		},
-		Name:   "testconfig",
+		Name:   "test-config",
 		Usage:  "Check the configuration file for validity",
 		Action: testConfiguration,
 	}

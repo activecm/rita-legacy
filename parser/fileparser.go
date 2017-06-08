@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
 	pt "github.com/ocmdev/rita/parser/parsetypes"
+	log "github.com/sirupsen/logrus"
 )
 
 // getFileScanner returns a buffered file scanner for a bro log file
@@ -53,7 +53,7 @@ func scanHeader(fileScanner *bufio.Scanner) (*fpt.BroHeader, error) {
 		if fileScanner.Text()[0] == '#' {
 			line := strings.Fields(fileScanner.Text())
 			if strings.Contains(line[0], "separator") {
-				//TODO: Verify this works
+				//TODO: Figure out how to escape read in string
 				if line[1] == "\\x09" {
 					toReturn.Separator = "\x09"
 				}

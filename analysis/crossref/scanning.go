@@ -6,13 +6,16 @@ import (
 )
 
 type (
+	//ScanningSelector implements the XRefSelector interface for scanning
 	ScanningSelector struct{}
 )
 
+//GetName returns "scanning"
 func (s ScanningSelector) GetName() string {
 	return "scanning"
 }
 
+//Select selects scanning and scanned hosts for XRef analysis
 func (s ScanningSelector) Select(res *database.Resources) (<-chan string, <-chan string) {
 	// make channels to return
 	internalHosts := make(chan string)
