@@ -4,7 +4,9 @@ import (
 	"os"
 	"sync"
 
+	"github.com/weekface/mgorus"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
+	"github.com/rifflock/lfshook"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -84,8 +86,20 @@ func (m *MetaDBHandle) DeleteDB(name string) error {
 
 	//delete any parsed file records associated
 	_, err = ssn.DB(m.DB).C(m.res.System.MetaTables.FilesTable).RemoveAll(bson.M{"database": name})
-	if err != nil {
-		return err
+	if db.UsingDates {
+		date := name[len(name)-10:]
+		name = name[:len(name)-11]
+		_, err = ssn.DB(m.DB).C("files").RemoveAll(
+			bson.M{"database": name, "dates": date},
+		)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = ssn.DB(m.DB).C("files").RemoveAll(bson.M{"database": name})
+		if err != nil {
+			return err
+		}
 	}
 
 	m.logDebug("DeleteDB", "exiting")
@@ -229,6 +243,9 @@ func (m *MetaDBHandle) AddParsedFiles(files []*fpt.IndexedFile) error {
 	m.logDebug("AddParsedFiles", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
+	if len(files) == 0 {
+		return nil
+	}
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
