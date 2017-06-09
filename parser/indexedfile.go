@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -83,9 +81,6 @@ func newIndexedFile(filePath string, config *config.SystemConfig,
 		fileHandle.Close()
 		return toReturn, errors.New("Could not find a target collection for file")
 	}
-
-	timeVal := reflect.ValueOf(line).Elem().Field(fieldMap["ts"]).Int()
-	toReturn.LogTime = time.Unix(timeVal, 0)
 
 	toReturn.TargetDatabase = getTargetDatabase(filePath, &config.BroConfig)
 	if toReturn.TargetDatabase == "" {
