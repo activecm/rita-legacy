@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -42,7 +43,11 @@ func showBeacons(c *cli.Context) error {
 	}
 
 	ssn := res.DB.Session.Copy()
-	beacon.GetBeaconResultsView(res, ssn, cutoffScore).All(&data)
+	resultsView := beacon.GetBeaconResultsView(res, ssn, cutoffScore)
+	if resultsView == nil {
+		return errors.New("No beacons were found for " + c.String("database"))
+	}
+	resultsView.All(&data)
 	ssn.Close()
 
 	if c.Bool("human-readable") {
