@@ -2,14 +2,18 @@ package database
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"sync"
 	"time"
 
 	mgo "gopkg.in/mgo.v2"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/Zalgo2462/mgorus"
 	"github.com/ocmdev/rita/config"
+	"github.com/ocmdev/rita/util"
+	"github.com/rifflock/lfshook"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -32,10 +36,13 @@ func InitResources(cfgPath string) *Resources {
 	}
 
 	// Fire up the logging system
-	log, err := initLog(conf.LogLevel, conf.LogType)
+	log, err := initLog(conf.LogConfig.LogLevel)
 	if err != nil {
 		fmt.Printf("Failed to prep logger: %s", err.Error())
 		os.Exit(-1)
+	}
+	if conf.LogConfig.LogToFile {
+		addFileLogger(log, conf.LogConfig.RitaLogPath)
 	}
 
 	// Jump into the requested database
@@ -74,27 +81,23 @@ func InitResources(cfgPath string) *Resources {
 
 	//Build Meta collection
 	if !metaDB.isBuilt() {
-		metaDB.newMetaDBHandle()
+		metaDB.createMetaDB()
 	}
-
+	if conf.LogConfig.LogToDB {
+		addMongoLogger(log, conf.DatabaseHost, conf.BroConfig.MetaDB,
+			conf.LogConfig.RitaLogTable)
+	}
 	return r
 }
 
-/*
- * Name:     InitLog
- * Purpose:  Initializes logging utilities
- * comments:
- */
-func initLog(level int, logtype string) (*log.Logger, error) {
+// initLog creates the logger for logging to stdout and file
+func initLog(level int) (*log.Logger, error) {
 	var logs = &log.Logger{}
 
-	if logtype == "production" {
-		logs.Formatter = new(log.JSONFormatter)
-	} else {
-		logs.Formatter = new(log.TextFormatter)
-	}
+	logs.Formatter = new(log.TextFormatter)
 
-	logs.Out = os.Stderr
+	logs.Out = ioutil.Discard
+	logs.Hooks = make(log.LevelHooks)
 
 	switch level {
 	case 3:
@@ -109,6 +112,30 @@ func initLog(level int, logtype string) (*log.Logger, error) {
 	case 0:
 		logs.Level = log.ErrorLevel
 	}
-
 	return logs, nil
+}
+
+func addFileLogger(logger *log.Logger, logPath string) {
+	_, err := os.Stat(logPath)
+	if err != nil && os.IsNotExist(err) {
+		err = os.MkdirAll(logPath, 0755)
+		if err != nil {
+			fmt.Println("[!] Could not initialize file logger. Check RitaLogDir.")
+			return
+		}
+	}
+	logger.Hooks.Add(lfshook.NewHook(lfshook.PathMap{
+		log.DebugLevel: logPath + "/debug-" + time.Now().Format(util.TimeFormat) + ".log",
+		log.InfoLevel:  logPath + "/info-" + time.Now().Format(util.TimeFormat) + ".log",
+		log.WarnLevel:  logPath + "/warn-" + time.Now().Format(util.TimeFormat) + ".log",
+		log.ErrorLevel: logPath + "/error-" + time.Now().Format(util.TimeFormat) + ".log",
+	}))
+}
+
+func addMongoLogger(logger *log.Logger, dbHost, metaDB, logColl string) error {
+	mgoHook, err := mgorus.NewHooker(dbHost, metaDB, logColl)
+	if err == nil {
+		logger.Hooks.Add(mgoHook)
+	}
+	return err
 }

@@ -8,13 +8,16 @@ import (
 )
 
 type (
+	//BlacklistedSelector implements the XRefSelector interface for blacklisted
 	BlacklistedSelector struct{}
 )
 
+//GetName returns "blacklisted"
 func (b BlacklistedSelector) GetName() string {
 	return "blacklisted"
 }
 
+//Select selects blacklisted hosts for XRef analysis
 func (b BlacklistedSelector) Select(res *database.Resources) (<-chan string, <-chan string) {
 	// make channels to return
 	internalHosts := make(chan string)
@@ -39,7 +42,7 @@ func (b BlacklistedSelector) Select(res *database.Resources) (<-chan string, <-c
 			}
 
 			//write the blacklisted site to xref, handle hostname appropriately
-			if data.IsUrl {
+			if data.IsURL {
 				for _, dst := range dns.GetIPsFromHost(res, data.Host) {
 					externalHosts <- dst
 				}

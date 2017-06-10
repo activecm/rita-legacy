@@ -1,20 +1,21 @@
 # Mongo Database to connect to
 DatabaseHost: localhost:27017
 
-# LogLevel
-# 3 = debug
-# 2 = info
-# 1 = warn
-# 0 = error
-LogLevel: 1
+LogConfig:
+    # LogLevel
+    # 3 = debug
+    # 2 = info
+    # 1 = warn
+    # 0 = error
+    LogLevel: 2
 
-# Adjusting batchsize and prefetch may help speed up certain database queries
-BatchSize: 300
-Prefetch: 0.33
+    # LogPath is the path for Rita's logs, generally this just defaults to
+    # $HOME/.rita/logs. Logs will only be written here if LogToFile is true
+    RitaLogPath: $HOME/.rita/logs
+    LogToFile: true
 
-# LogPath is the path for Rita's logs, generally this just defaults to
-# $HOME/.rita/logs
-RitaLogPath: $HOME/.rita/logs
+    RitaLogTable: logs
+    LogToDB: true
 
 # The section Bro configures the bro ingestor
 Bro:
@@ -95,3 +96,12 @@ Urls:
 
 UserAgent:
     UserAgentTable: useragent
+
+MetaTables:
+    FilesTable: files
+    DatabasesTable: databases
+
+
+# Adjusting batchsize and prefetch may help speed up certain database queries
+BatchSize: 300
+Prefetch: 0.33

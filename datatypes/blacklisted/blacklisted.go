@@ -11,7 +11,7 @@ type (
 		Score           int           `bson:"count"`
 		DateChecked     int64         `bson:"date_checked"`
 		BlType          string        `bson:"blacklist_type"`
-		IsUrl           bool          `bson:"is_url"`
+		IsURL           bool          `bson:"is_url"`
 		IsIp            bool          `bson:"is_ip"`
 		BlacklistSource []string      `bson:"blacklist_sources"`
 		Sources         []string      `bson:"sources,omitempty"`

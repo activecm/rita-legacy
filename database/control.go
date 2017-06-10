@@ -57,17 +57,15 @@ func (d *DB) CreateCollection(name string, indeces []string) error {
 	defer session.Close()
 
 	if len(name) < 1 {
-		d.resources.Log.Debug("Error, check the collection name in yaml file and systemConfig: ", name)
 		return errors.New("name error: check collection name in yaml file and config")
 	}
 
 	// Check if ollection already exists
 	if d.CollectionExists(name) {
-		d.resources.Log.Debug("Collection already exists:", name)
 		return errors.New("collection already exists")
 	}
 
-	d.resources.Log.Info("Building collection: ", name)
+	d.resources.Log.Debug("Building collection: ", name)
 
 	// Create new collection by referencing to it, no need to call Create
 	err := session.DB(d.selected).C(name).Create(
@@ -76,7 +74,6 @@ func (d *DB) CreateCollection(name string, indeces []string) error {
 
 	// Make sure it actually got created
 	if err != nil {
-		d.resources.Log.Error("Error, check the collection name in yaml file and systemConfig: ", name)
 		return err
 	}
 
@@ -87,9 +84,6 @@ func (d *DB) CreateCollection(name string, indeces []string) error {
 		}
 		err := collection.EnsureIndex(index)
 		if err != nil {
-			d.resources.Log.WithFields(log.Fields{
-				"error": err.Error(),
-			}).Error("Failed to create indeces")
 			return err
 		}
 	}
@@ -103,7 +97,7 @@ func (d *DB) AggregateCollection(sourceCollection string,
 
 	// Identify the source collection we will aggregate information from into the new collection
 	if !d.CollectionExists(sourceCollection) {
-		d.resources.Log.Info("Failed aggregation: (Source collection: ",
+		d.resources.Log.Warning("Failed aggregation: (Source collection: ",
 			sourceCollection, " doesn't exist)")
 		return nil
 	}
@@ -133,7 +127,7 @@ func (d *DB) MapReduceCollection(sourceCollection string, job mgo.MapReduce) boo
 
 	// Identify the source collection we will aggregate information from into the new collection
 	if !d.CollectionExists(sourceCollection) {
-		d.resources.Log.Info("Failed map reduce: (Source collection: ", sourceCollection, " doesn't exist)")
+		d.resources.Log.Warning("Failed map reduce: (Source collection: ", sourceCollection, " doesn't exist)")
 		return false
 	}
 	collection := session.DB(d.selected).C(sourceCollection)
@@ -144,7 +138,9 @@ func (d *DB) MapReduceCollection(sourceCollection string, job mgo.MapReduce) boo
 	// If error, Throw computer against wall and drink 2 angry beers while
 	// questioning your life, purpose, and relationships.
 	if err != nil {
-		d.resources.Log.Error("Failed map reduce for: ", sourceCollection, err)
+		d.resources.Log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Panic("Failed map reduce")
 		return false
 	}
 

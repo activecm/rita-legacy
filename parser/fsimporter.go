@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -8,10 +9,11 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
+	"github.com/ocmdev/rita/util"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -39,10 +41,11 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 	start := time.Now()
 	fs.res.Log.WithFields(
 		log.Fields{
-			"start_time": start.Format("2006-01-02 15:04:05"),
+			"start_time": start.Format(util.TimeFormat),
 		},
 	).Info("Starting filesystem import. Collecting file details.")
 
+	fmt.Println("\t[-] Finding files to parse")
 	//find all of the bro log paths
 	files := readDir(fs.res.System.BroConfig.LogPath, fs.res.Log)
 
@@ -52,7 +55,7 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 	progTime := time.Now()
 	fs.res.Log.WithFields(
 		log.Fields{
-			"current_time": progTime.Format("2006-01-02 15:04:05"),
+			"current_time": progTime.Format(util.TimeFormat),
 			"total_time":   progTime.Sub(start).String(),
 		},
 	).Info("Finished collecting file details. Starting upload.")
@@ -69,17 +72,17 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 	progTime = time.Now()
 	fs.res.Log.WithFields(
 		log.Fields{
-			"current_time": progTime.Format("2006-01-02 15:04:05"),
+			"current_time": progTime.Format(util.TimeFormat),
 			"total_time":   progTime.Sub(start).String(),
 		},
 	).Info("Finished upload. Starting indexing")
-
+	fmt.Println("\t[-] Indexing log entries. This may take a while.")
 	datastore.finalize()
 
 	progTime = time.Now()
 	fs.res.Log.WithFields(
 		log.Fields{
-			"current_time": progTime.Format("2006-01-02 15:04:05"),
+			"current_time": progTime.Format(util.TimeFormat),
 			"total_time":   progTime.Sub(start).String(),
 		},
 	).Info("Finished importing log files")
@@ -157,8 +160,8 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
 
 		go func(indexedFiles []*fpt.IndexedFile, logger *log.Logger,
 			wg *sync.WaitGroup, start int, jump int, length int) {
-
 			for j := start; j < length; j += jump {
+				fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
 				fileHandle, err := os.Open(indexedFiles[j].Path)
 				if err != nil {
 					logger.WithFields(log.Fields{
@@ -261,6 +264,7 @@ func createNewDatabases(indexedFiles []*fpt.IndexedFile, metaDatabase *database.
 					panic("Attempted to parse file into already analyzed database")
 				} //else parsing new file into unanalyzed database which exists
 			} else { //database doesn't exist
+				fmt.Println("\t[-] Creating new database: " + targetDB)
 				metaDatabase.AddNewDB(targetDB)
 			}
 		}
