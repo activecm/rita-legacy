@@ -21,8 +21,7 @@ func init() {
 		Action: func(c *cli.Context) error {
 			res := database.InitResources("")
 			if c.String("database") == "" {
-				fmt.Println("Resetting all databases")
-				return cleanAnalysisAll(res)
+				return cli.NewExitError("Specify a database with -d", -1)
 			}
 			return cleanAnalysis(c.String("database"), res)
 		},
@@ -91,16 +90,3 @@ func cleanAnalysis(database string, res *database.Resources) error {
 	return nil
 }
 
-// cleanAnalysisAll uses the metadb to walk all databases and clean the analysis
-func cleanAnalysisAll(res *database.Resources) error {
-	var err error
-
-	for _, name := range res.MetaDB.GetDatabases() {
-		e := cleanAnalysis(name, res)
-		//return last error
-		if e != nil {
-			err = e
-		}
-	}
-	return err
-}

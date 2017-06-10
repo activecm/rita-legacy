@@ -4,9 +4,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/weekface/mgorus"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
-	"github.com/rifflock/lfshook"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
