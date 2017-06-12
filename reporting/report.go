@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"os"
+	"strconv"
 
 	"github.com/ocmdev/rita/database"
 	htmlTempl "github.com/ocmdev/rita/reporting/templates"
@@ -15,16 +16,35 @@ import (
 // PrintHTML is the primary html Print function, this command takes in a
 // list of databases and the resource object from the main rita program and
 // will use HTML templating to write out the results of `rita analyze` into
-// a directory `rita-html-report` within the current working directory,
+// a directory named after the selected dataset, or `rita-html-report` if
+// mupltiple were selected, within the current working directory,
 // mongodb must be running to call this command, will exit on any writing error
 func PrintHTML(dbs []string, res *database.Resources) error {
-	err := os.Mkdir("rita-html-report", 0755)
+	//create outFolder as our string builder
+	var outFolder []byte
+	if len(dbs) == 1 {
+		outFolder = []byte(dbs[0])
+	} else {
+		outFolder = []byte("rita-html-report")
+	}
+	outFolderBaseLen := len(outFolder)
+	counter := 1
+
+	//while the file exists, append the next counter
+	for _, err := os.Stat(string(outFolder)); err == nil; _, err = os.Stat(string(outFolder)) {
+		outFolder = outFolder[:outFolderBaseLen]
+		outFolder = append(outFolder, []byte(strconv.Itoa(counter))...)
+		counter++
+	}
+	outFolderString := string(outFolder)
+
+	err := os.Mkdir(outFolderString, 0755)
 
 	if err != nil {
 		return (err)
 	}
 
-	os.Chdir("rita-html-report")
+	os.Chdir(outFolderString)
 
 	session := res.DB.Session.Copy()
 	defer session.Close()
@@ -52,7 +72,7 @@ func PrintHTML(dbs []string, res *database.Resources) error {
 
 	fmt.Println("[-] Wrote outputs, check " + wd + " for files")
 	os.Chdir("..")
-	open.Run("./rita-html-report/index.html")
+	open.Run("./" + outFolderString + "/index.html")
 	// End db iteration
 	return nil
 }
