@@ -84,7 +84,12 @@ func writeHomePage(Dbs []string) error {
 	}
 	defer f.Close()
 
-	err = ioutil.WriteFile("style.css", htmlTempl.CSStempl, 0755)
+	err = ioutil.WriteFile("github.svg", htmlTempl.GithubSVG, 0644)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile("style.css", htmlTempl.CSStempl, 0644)
 	if err != nil {
 		return err
 	}

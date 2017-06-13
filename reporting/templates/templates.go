@@ -8,18 +8,18 @@ type ReportingInfo struct {
 	Writer template.HTML
 }
 
+var ocmdevImg = "<img src=\"data:image/png;base64,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\" alt=\"Offensive Countermeasures\" style=\"width:90px; float:left\" />"
+
 var dbHeader = `
 <head>
 <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 <meta content="utf-8" http-equiv="encoding">
 <link rel="stylesheet" type="text/css" href="../style.css">
-<script src="https://use.fontawesome.com/96648b06fb.js"></script>
 </head>
 
 <ul>
   <a href="http://offensivecountermeasures.com/" target="_blank">
-    <img src="http://45.33.27.128/wp-content/uploads/2016/02/OCM-logo-022416.png" alt="Offensive Countermeasures"
-    style="width:90px; float:left" />
+	` + ocmdevImg + `
   </a>
   <li><a href="../index.html">RITA</a></li>
   <li><a href="index.html">Viewing: {{.DB}}</a></li>
@@ -32,7 +32,7 @@ var dbHeader = `
 	<li><a href="useragents.html">User Agents</a></li>
   <li style="float:right">
     <a href="https://github.com/ocmdev/rita" target="_blank">RITA on
-      <i class="fa fa-github fa-lg" aria-hidden="true" alt="GitHub"></i>
+		<img src="../github.svg" title="Icon made by Dave Gandy from www.flaticon.com" id="github">
     </a>
   </li>
 </ul>
@@ -42,18 +42,16 @@ var homeHeader = `
 <head>
 <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 <meta content="utf-8" http-equiv="encoding">
-<script src="https://use.fontawesome.com/96648b06fb.js"></script>
 <link rel="stylesheet" type="text/css" href="./style.css">
 </head>
 <ul>
     <a href="http://offensivecountermeasures.com/" target="_blank">
-      <img src="http://45.33.27.128/wp-content/uploads/2016/02/OCM-logo-022416.png" alt="Offensive Countermeasures"
-      style="width:90px; float:left" />
+		` + ocmdevImg + `
     </a>
   <li><a href="./index.html">RITA</a></li>
   <li style="float:right">
     <a href="https://github.com/ocmdev/rita" target="_blank">RITA on
-      <i class="fa fa-github fa-lg" aria-hidden="true" alt="GitHub"></i>
+		<img src="./github.svg" title="Icon made by Dave Gandy from www.flaticon.com" id="github">
     </a>
   </li>
 </ul>
