@@ -84,6 +84,9 @@ func (m *MetaDBHandle) DeleteDB(name string) error {
 
 	//delete any parsed file records associated
 	_, err = ssn.DB(m.DB).C(m.res.System.MetaTables.FilesTable).RemoveAll(bson.M{"database": name})
+	if err != nil {
+		return err
+	}
 	if db.UsingDates {
 		date := name[len(name)-10:]
 		name = name[:len(name)-11]
@@ -224,7 +227,7 @@ func (m *MetaDBHandle) GetFiles() ([]fpt.IndexedFile, error) {
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
-	err := ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).
+	err := ssn.DB(m.DB).C(m.res.System.MetaTables.FilesTable).
 		Find(nil).Iter().All(&toReturn)
 	if err != nil {
 		m.res.Log.WithFields(log.Fields{
