@@ -1,27 +1,21 @@
 # Mongo Database to connect to
 DatabaseHost: localhost:27017
 
-# LogLevel
-# 3 = debug
-# 2 = info
-# 1 = warn
-# 0 = error
-LogLevel: 1
+LogConfig:
+    # LogLevel
+    # 3 = debug
+    # 2 = info
+    # 1 = warn
+    # 0 = error
+    LogLevel: 2
 
-# Adjusting batchsize and prefetch may help speed up certain database queries
-BatchSize: 300
-Prefetch: 0.33
+    # LogPath is the path for Rita's logs, generally this just defaults to
+    # $HOME/.rita/logs. Logs will only be written here if LogToFile is true
+    RitaLogPath: $HOME/.rita/logs
+    LogToFile: true
 
-# Whitelisting has been removed, but will return. The option is being left here
-# until it comes back
-WhiteList:
-    - google.com
-    - blackhillsinfosec.com
-
-# Import White List, if true, will import the whitelisted domains/ip addresses,
-# however will not attempt to analyze. If set to false, whitelisted
-# domains won't be imported.
-ImportWhitelist: true
+    RitaLogTable: logs
+    LogToDB: true
 
 # The section Bro configures the bro ingestor
 Bro:
@@ -57,6 +51,11 @@ Bro:
     # around midnight of each day.
     UseDates: false
 
+    # The number of records shipped off to MongoDB at a time. Increasing
+    # the size of the buffer will improve import timings but will leave more
+    # records unimported if there is an error
+    ImportBuffer: 100000
+
 SafeBrowsing:
     APIKey: ""
     Database: $HOME/.rita/safebrowsing
@@ -75,6 +74,10 @@ BlackListed:
     BlackListTable: blacklisted
     Database: rita-blacklist
 
+Dns:
+    ExplodedDnsTable: explodedDns
+    HostnamesTable: hostnames
+
 Crossref:
     InternalTable: internXREF
     ExternalTable: externXREF
@@ -90,7 +93,15 @@ Beacon:
 
 Urls:
     UrlsTable: urls
-    HostnamesTable: hostnames
 
 UserAgent:
     UserAgentTable: useragent
+
+MetaTables:
+    FilesTable: files
+    DatabasesTable: databases
+
+
+# Adjusting batchsize and prefetch may help speed up certain database queries
+BatchSize: 300
+Prefetch: 0.33

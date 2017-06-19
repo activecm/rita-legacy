@@ -1,8 +1,7 @@
-package parser
+package parsetypes
 
 import (
-	"strings"
-
+	"github.com/ocmdev/rita/config"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -52,29 +51,20 @@ type (
 		// RespIpBytes gives the bytecount of response data
 		RespIPBytes int64 `bson:"resp_ip_bytes" bro:"resp_ip_bytes" brotype:"count"`
 		// TunnelParents lists tunnel parents
-		TunnelParents string `bson:"tunnel_parents" bro:"tunnel_parents" brotype:"set[string]"`
+		TunnelParents []string `bson:"tunnel_parents" bro:"tunnel_parents" brotype:"set[string]"`
 	}
 )
 
-func (in *Conn) TargetCollection() string {
-	return "conn"
+//TargetCollection returns the mongo collection this entry should be inserted
+//into
+func (in *Conn) TargetCollection(config *config.StructureCfg) string {
+	return config.ConnTable
 }
 
-// GetHostName is our method for collecting host name
-// Temporary function
-func (in *Conn) IsWhiteListed(whitelist []string) bool {
-	if whitelist == nil {
-		return false
-	}
-
-	if in.Destination == "" {
-		return false
-	}
-
-	for count := range whitelist {
-		if strings.Contains(in.Destination, whitelist[count]) {
-			return true
-		}
-	}
-	return false
+//Indices gives MongoDB indices that should be used with the collection
+func (in *Conn) Indices() []string {
+	return []string{"$hashed:id_origin_h", "$hashed:id_resp_h", "$hashed:uid", "-duration", "ts"}
 }
+
+//Normalize pre processes this type of entry before it is imported by rita
+func (in *Conn) Normalize() {}

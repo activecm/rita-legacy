@@ -28,7 +28,7 @@ var (
 	// configFlag allows users to specify an alternate config file to use
 	configFlag = cli.StringFlag{
 		Name:  "config, c",
-		Usage: "use `CONFIGFILE` when as configuration when running this command",
+		Usage: "use `CONFIGFILE` as configuration when running this command",
 		Value: "",
 	}
 
@@ -37,6 +37,11 @@ var (
 	humanFlag = cli.BoolFlag{
 		Name:  "human-readable, H",
 		Usage: "print a report instead of csv",
+	}
+
+	allFlag = cli.BoolFlag{
+		Name:  "all, a",
+		Usage: "print all available records",
 	}
 )
 

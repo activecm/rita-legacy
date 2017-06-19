@@ -1,8 +1,7 @@
-package parser
+package parsetypes
 
 import (
-	"strings"
-
+	"github.com/ocmdev/rita/config"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -54,32 +53,23 @@ type DNS struct {
 	// Z represents the state of a reseverd field that should be zero in qll queries
 	Z int64 `bson:"Z" bro:"Z" brotype:"count"`
 	// Answers contains the set of resource descriptions in the query answer
-	Answers string `bson:"answers" bro:"answers" brotype:"vector[string]"`
+	Answers []string `bson:"answers" bro:"answers" brotype:"vector[string]"`
 	// TTLs contians a vector of interval type time to live values
-	TTLs string `bson:"TTLs" bro:"TTLs" brotype:"vector[interval]"`
+	TTLs []float64 `bson:"TTLs" bro:"TTLs" brotype:"vector[interval]"`
 	// Rejected indicates if this query was rejected or not
 	Rejected bool `bson:"rejected" bro:"rejected" brotype:"bool"`
 }
 
-func (in *DNS) TargetCollection() string {
-	return "dns"
+//TargetCollection returns the mongo collection this entry should be inserted
+//into
+func (in *DNS) TargetCollection(config *config.StructureCfg) string {
+	return config.DNSTable
 }
 
-// GetHostName is our method for collecting host name
-// This is temporary for the time being
-func (in *DNS) IsWhiteListed(whitelist []string) bool {
-	if whitelist == nil {
-		return false
-	}
-
-	if in.Destination == "" {
-		return false
-	}
-
-	for count := range whitelist {
-		if strings.Contains(in.Destination, whitelist[count]) {
-			return true
-		}
-	}
-	return false
+//Indices gives MongoDB indices that should be used with the collection
+func (in *DNS) Indices() []string {
+	return []string{"$hashed:uid"}
 }
+
+//Normalize pre processes this type of entry before it is imported by rita
+func (in *DNS) Normalize() {}

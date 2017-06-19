@@ -10,19 +10,18 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+//VERSION is filled at compile time with the git version of RITA
 var VERSION = "undefined"
 
 type (
+	//SystemConfig is the container for other config sections
 	SystemConfig struct {
-		LogType           string          `yaml:"LogType"`
-		GNUNetcatPath     string          `yaml:"GNUNetcatPath"`
 		BatchSize         int             `yaml:"BatchSize"`
 		DatabaseHost      string          `yaml:"DatabaseHost"`
-		LogLevel          int             `yaml:"LogLevel"`
 		Prefetch          float64         `yaml:"Prefetch"`
-		Whitelist         []string        `yaml:"WhiteList"`
-		ImportWhitelist   bool            `yaml:"ImportWhitelist"`
+		LogConfig         LogCfg          `yaml:"LogConfig"`
 		BlacklistedConfig BlacklistedCfg  `yaml:"BlackListed"`
+		DNSConfig         DNSCfg          `yaml:"Dns"`
 		CrossrefConfig    CrossrefCfg     `yaml:"Crossref"`
 		ScanningConfig    ScanningCfg     `yaml:"Scanning"`
 		StructureConfig   StructureCfg    `yaml:"Structure"`
@@ -31,17 +30,29 @@ type (
 		UserAgentConfig   UserAgentCfg    `yaml:"UserAgent"`
 		BroConfig         BroCfg          `yaml:"Bro"`
 		SafeBrowsing      SafeBrowsingCfg `yaml:"SafeBrowsing"`
+		MetaTables        MetaCfg         `yaml:"MetaTables"`
 		Version           string
 	}
 
+	//LogCfg contains the configuration for logging
+	LogCfg struct {
+		LogLevel     int    `yaml:"LogLevel"`
+		RitaLogPath  string `yaml:"RitaLogPath"`
+		LogToFile    bool   `yaml:"LogToFile"`
+		RitaLogTable string `yaml:"RitaLogTable"`
+		LogToDB      bool   `yaml:"LogToDB"`
+	}
+
+	//StructureCfg contains the names of the base level collections
 	StructureCfg struct {
 		ConnTable       string `yaml:"ConnectionTable"`
-		HttpTable       string `yaml:"HttpTable"`
-		DnsTable        string `yaml:"DnsTable"`
+		HTTPTable       string `yaml:"HttpTable"`
+		DNSTable        string `yaml:"DnsTable"`
 		UniqueConnTable string `yaml:"UniqueConnectionTable"`
 		HostTable       string `yaml:"HostTable"`
 	}
 
+	//BlacklistedCfg is used to control the blacklisted analysis module
 	BlacklistedCfg struct {
 		ThreadCount       int    `yaml:"ThreadCount"`
 		ChannelSize       int    `yaml:"ChannelSize"`
@@ -49,36 +60,48 @@ type (
 		BlacklistDatabase string `yaml:"Database"`
 	}
 
+	//DNSCfg is used to control the dns analysis module
+	DNSCfg struct {
+		ExplodedDNSTable string `yaml:"ExplodedDnsTable"`
+		HostnamesTable   string `yaml:"HostnamesTable"`
+	}
+
+	//CrossrefCfg is used to control the crossref analysis module
 	CrossrefCfg struct {
 		InternalTable   string  `yaml:"InternalTable"`
 		ExternalTable   string  `yaml:"ExternalTable"`
 		BeaconThreshold float64 `yaml:"BeaconThreshold"`
 	}
 
+	//SafeBrowsingCfg contains the details for contacting Google's safebrowsing api
 	SafeBrowsingCfg struct {
 		APIKey   string `yaml:"APIKey"`
 		Database string `yaml:"Database"`
 	}
 
+	//ScanningCfg is used to control the scanning analysis module
 	ScanningCfg struct {
 		ScanThreshold int    `yaml:"ScanThreshold"`
 		ScanTable     string `yaml:"ScanTable"`
 	}
 
+	//BeaconCfg is used to control the beaconing analysis module
 	BeaconCfg struct {
 		DefaultConnectionThresh int    `yaml:"DefaultConnectionThresh"`
 		BeaconTable             string `yaml:"BeaconTable"`
 	}
 
+	//UrlsCfg is used to control the urls analysis module
 	UrlsCfg struct {
-		UrlsTable      string `yaml:"UrlsTable"`
-		HostnamesTable string `yaml:"HostnamesTable"`
+		UrlsTable string `yaml:"UrlsTable"`
 	}
 
+	//UserAgentCfg is used to control the urls analysis module
 	UserAgentCfg struct {
 		UserAgentTable string `yaml:"UserAgentTable"`
 	}
 
+	//BroCfg controls the file parser
 	BroCfg struct {
 		LogPath         string            `yaml:"LogPath"`
 		DBPrefix        string            `yaml:"DBPrefix"`
@@ -86,6 +109,13 @@ type (
 		DirectoryMap    map[string]string `yaml:"DirectoryMap"`
 		DefaultDatabase string            `yaml:"DefaultDatabase"`
 		UseDates        bool              `yaml:"UseDates"`
+		ImportBuffer    int               `yaml:"ImportBuffer"`
+	}
+
+	//MetaCfg contains the meta db collection names
+	MetaCfg struct {
+		FilesTable     string `yaml:"FilesTable"`
+		DatabasesTable string `yaml:"DatabasesTable"`
 	}
 )
 

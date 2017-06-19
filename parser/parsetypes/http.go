@@ -1,7 +1,12 @@
-package parser
+package parsetypes
 
-import "gopkg.in/mgo.v2/bson"
-import "net/url"
+import (
+	"net/url"
+
+	"github.com/ocmdev/rita/config"
+	"gopkg.in/mgo.v2/bson"
+)
+
 import "strings"
 
 // HTTP provides a data structure for entries in bro's HTTP log file
@@ -50,56 +55,40 @@ type HTTP struct {
 	FileName string `bson:"filename" bro:"filename" brotype:"string"`
 	// Tags contains a set of indicators of various attributes related to a particular req and
 	// response pair
-	Tags string `bson:"tags" bro:"tags" brotype:"set[enum]"`
+	Tags []string `bson:"tags" bro:"tags" brotype:"set[enum]"`
 	// UserName will contain a username in the case of basic auth implementation
 	UserName string `bson:"username" bro:"username" brotype:"string"`
 	// Password will contain a password in the case of basic auth implementation
 	Password string `bson:"password" bro:"password" brotype:"string"`
 	// Proxied contains all headers that indicate a request was proxied
-	Proxied string `bson:"proxied" bro:"proxied" brotype:"set[string]"`
+	Proxied []string `bson:"proxied" bro:"proxied" brotype:"set[string]"`
 	// OrigFuids contains an ordered vector of uniq file IDs
-	OrigFuids string `bson:"orig_fuids" bro:"orig_fuids" brotype:"vector[string]"`
+	OrigFuids []string `bson:"orig_fuids" bro:"orig_fuids" brotype:"vector[string]"`
 	// OrigFilenames contains an ordered vector of filenames from the client
-	OrigFilenames string `bson:"orig_filenames" bro:"orig_filenames" brotype:"vector[string]"`
+	OrigFilenames []string `bson:"orig_filenames" bro:"orig_filenames" brotype:"vector[string]"`
 	// OrigMimeTypes contains an ordered vector of mimetypes
-	OrigMimeTypes string `bson:"orig_mime_types" bro:"orig_mime_types" brotype:"vector[string]"`
+	OrigMimeTypes []string `bson:"orig_mime_types" bro:"orig_mime_types" brotype:"vector[string]"`
 	// RespFuids contains an ordered vector of unique file IDs in the response
-	RespFuids string `bson:"resp_fuids" bro:"resp_fuids" brotype:"vector[string]"`
+	RespFuids []string `bson:"resp_fuids" bro:"resp_fuids" brotype:"vector[string]"`
 	// RespFilenames contains an ordered vector of unique files in the response
-	RespFilenames string `bson:"resp_filenames" bro:"resp_filenames" brotype:"vector[string]"`
+	RespFilenames []string `bson:"resp_filenames" bro:"resp_filenames" brotype:"vector[string]"`
 	// RespMimeTypes contains an ordered vector of unique MIME entities in the HTTP response body
-	RespMimeTypes string `bson:"resp_mime_types" bro:"resp_mime_types" brotype:"vector[string]"`
+	RespMimeTypes []string `bson:"resp_mime_types" bro:"resp_mime_types" brotype:"vector[string]"`
 }
 
-func (in *HTTP) TargetCollection() string {
-	return "http"
+//TargetCollection returns the mongo collection this entry should be inserted
+//into
+func (line *HTTP) TargetCollection(config *config.StructureCfg) string {
+	return config.HTTPTable
 }
 
-// GetHostName is our method for collecting host name
-func (in *HTTP) IsWhiteListed(whitelist []string) bool {
-	if whitelist == nil {
-		return false
-	}
-	if in.Host == "" {
-		return false
-	}
-
-	for count := range whitelist {
-		if strings.Contains(in.Host, whitelist[count]) {
-			return true
-		}
-	}
-	return false
+//Indices gives MongoDB indices that should be used with the collection
+func (line *HTTP) Indices() []string {
+	return []string{"$hashed:uid"}
 }
 
-// processHTTP fixes up absolute uri's as read by bro to be relative
-func processHTTP(in ParsedLine) {
-	line, found := in.(*HTTP)
-	if !found {
-		//this is the equivalent to a compile error
-		panic("An object that is not *HTTP was passed into processHTTP")
-	}
-
+// Normalize fixes up absolute uri's as read by bro to be relative
+func (line *HTTP) Normalize() {
 	//uri is missing the protocol. set uri to ""
 	// ex: Host: 67.217.65.244 URI: 67.217.65.244:443
 	if strings.HasPrefix(line.URI, line.Host) {

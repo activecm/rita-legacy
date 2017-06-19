@@ -7,17 +7,18 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+//BuildUserAgentCollection performs frequency analysis on user agents
 func BuildUserAgentCollection(res *database.Resources) {
 	// Create the aggregate command
-	source_collection_name,
-		new_collection_name,
-		new_collection_keys,
+	sourceCollectionName,
+		newCollectionName,
+		newCollectionKeys,
 		pipeline := getUserAgentCollectionScript(res.System)
 
 	// Create it
-	error_check := res.DB.CreateCollection(new_collection_name, new_collection_keys)
-	if error_check != "" {
-		res.Log.Error("Failed: ", new_collection_name, error_check)
+	err := res.DB.CreateCollection(newCollectionName, newCollectionKeys)
+	if err != nil {
+		res.Log.Error("Failed: ", newCollectionName, err.Error())
 		return
 	}
 
@@ -25,47 +26,41 @@ func BuildUserAgentCollection(res *database.Resources) {
 	defer ssn.Close()
 
 	// Aggregate it!
-	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
+	res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
 }
 
 func getUserAgentCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
-	source_collection_name := sysCfg.StructureConfig.HttpTable
+	sourceCollectionName := sysCfg.StructureConfig.HTTPTable
 
 	// Name of the new collection
-	new_collection_name := sysCfg.UserAgentConfig.UserAgentTable
+	newCollectionName := sysCfg.UserAgentConfig.UserAgentTable
 
 	// Desired indeces
-	keys := []string{"$hashed:user_agent"}
+	keys := []string{"-times_used"}
 
 	// First aggregation script
+	// nolint: vet
 	pipeline := []bson.D{
 		{
 			{"$group", bson.D{
 				{"_id", "$user_agent"},
-				{"uid", bson.D{
-					{"$addToSet", "$uid"},
-				}},
 				{"times_used", bson.D{
 					{"$sum", 1},
 				}},
 			}},
 		},
 		{
-			{"$unwind", "$uid"},
-		},
-		{
 			{"$project", bson.D{
 				{"_id", 0},
 				{"user_agent", "$_id"},
-				{"uid", 1},
 				{"times_used", 1},
 			}},
 		},
 		{
-			{"$out", new_collection_name},
+			{"$out", newCollectionName},
 		},
 	}
 
-	return source_collection_name, new_collection_name, keys, pipeline
+	return sourceCollectionName, newCollectionName, keys, pipeline
 }

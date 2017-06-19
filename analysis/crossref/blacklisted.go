@@ -2,19 +2,22 @@ package crossref
 
 import (
 	"github.com/ocmdev/rita/analysis/blacklisted"
-	"github.com/ocmdev/rita/analysis/urls"
+	"github.com/ocmdev/rita/analysis/dns"
 	"github.com/ocmdev/rita/database"
 	blacklistedData "github.com/ocmdev/rita/datatypes/blacklisted"
 )
 
 type (
+	//BlacklistedSelector implements the XRefSelector interface for blacklisted
 	BlacklistedSelector struct{}
 )
 
+//GetName returns "blacklisted"
 func (b BlacklistedSelector) GetName() string {
 	return "blacklisted"
 }
 
+//Select selects blacklisted hosts for XRef analysis
 func (b BlacklistedSelector) Select(res *database.Resources) (<-chan string, <-chan string) {
 	// make channels to return
 	internalHosts := make(chan string)
@@ -39,8 +42,8 @@ func (b BlacklistedSelector) Select(res *database.Resources) (<-chan string, <-c
 			}
 
 			//write the blacklisted site to xref, handle hostname appropriately
-			if data.IsUrl {
-				for _, dst := range urls.GetIPsFromHost(res, data.Host) {
+			if data.IsURL {
+				for _, dst := range dns.GetIPsFromHost(res, data.Host) {
 					externalHosts <- dst
 				}
 			} else {

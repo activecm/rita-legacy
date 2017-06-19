@@ -16,27 +16,27 @@ import (
 	"github.com/ocmdev/rita/datatypes/structure"
 	"github.com/ocmdev/rita/util"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
 	//Beacon contains methods for conducting a beacon hunt
 	Beacon struct {
-		db                string                          // current database
-		resources         *database.Resources             // holds the global config and DB layer
-		defaultConnThresh int                             // default connections threshold
-		collectChannel    chan string                     // holds ip addresses
-		analysisChannel   chan *beaconAnalysisInput       // holds unanalyzed data
+		db                string                                // current database
+		resources         *database.Resources                   // holds the global config and DB layer
+		defaultConnThresh int                                   // default connections threshold
+		collectChannel    chan string                           // holds ip addresses
+		analysisChannel   chan *beaconAnalysisInput             // holds unanalyzed data
 		writeChannel      chan *dataBeacon.BeaconAnalysisOutput // holds analyzed data
-		collectWg         sync.WaitGroup                  // wait for collection to finish
-		analysisWg        sync.WaitGroup                  // wait for analysis to finish
-		writeWg           sync.WaitGroup                  // wait for writing to finish
-		collectThreads    int                             // the number of read / collection threads
-		analysisThreads   int                             // the number of analysis threads
-		writeThreads      int                             // the number of write threads
-		log               *log.Logger                     // system Logger
-		minTime           int64                           // minimum time
-		maxTime           int64                           // maximum time
+		collectWg         sync.WaitGroup                        // wait for collection to finish
+		analysisWg        sync.WaitGroup                        // wait for analysis to finish
+		writeWg           sync.WaitGroup                        // wait for writing to finish
+		collectThreads    int                                   // the number of read / collection threads
+		analysisThreads   int                                   // the number of analysis threads
+		writeThreads      int                                   // the number of write threads
+		log               *log.Logger                           // system Logger
+		minTime           int64                                 // minimum time
+		maxTime           int64                                 // maximum time
 	}
 
 	//beaconAnalysisInput binds a src, dst pair with their analysis data
@@ -54,9 +54,9 @@ type (
 func BuildBeaconCollection(res *database.Resources) {
 	collection_name := res.System.BeaconConfig.BeaconTable
 	collection_keys := []string{"uconn_id", "ts_score"}
-	error_check := res.DB.CreateCollection(collection_name, collection_keys)
-	if error_check != "" {
-		res.Log.Error("Failed: ", collection_name, error_check)
+	err := res.DB.CreateCollection(collection_name, collection_keys)
+	if err != nil {
+		res.Log.Error("Failed: ", collection_name, err.Error())
 		return
 	}
 	newBeacon(res).run()
@@ -94,7 +94,6 @@ func newBeacon(res *database.Resources) *Beacon {
 
 // Run Starts the beacon hunt process
 func (t *Beacon) run() {
-	t.log.Info("Running beacon hunt")
 	session := t.resources.DB.Session.Copy()
 	defer session.Close()
 
@@ -248,8 +247,9 @@ func (t *Beacon) analyze() {
 		bNum := low + high - 2*mid
 		bDen := high - low
 
-		//bSkew should equal zero if hte denominator equals zero
-		if bDen != 0 {
+		//bSkew should equal zero if the denominator equals zero
+		//bowley skew is unreliable if Q2 = Q1 or Q2 = Q3
+		if bDen != 0 && mid != low && mid != high {
 			bSkew = float64(bNum) / float64(bDen)
 		}
 

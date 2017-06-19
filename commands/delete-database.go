@@ -1,7 +1,11 @@
 package commands
 
 import (
+	"bufio"
 	"fmt"
+	"log"
+	"os"
+	"strings"
 
 	"github.com/ocmdev/rita/database"
 	"github.com/urfave/cli"
@@ -19,8 +23,25 @@ func init() {
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
-			fmt.Println("Deleting database:", c.String("database"))
-			return res.MetaDB.DeleteDB(c.String("database"))
+
+			fmt.Println("Are you sure you want to delete database", c.String("database"), "[Y/n]")
+
+			read := bufio.NewReader(os.Stdin)
+
+			response, err := read.ReadString('\n')
+			if err != nil {
+				log.Fatal(err)
+			}
+			response = strings.ToLower(strings.TrimSpace(response))
+
+			if response == "y" || response == "yes" {
+				fmt.Println("Deleting database:", c.String("database"))
+				return res.MetaDB.DeleteDB(c.String("database"))
+			} else if response == "n" || response == "no" {
+				return cli.NewExitError("Database "+c.String("database")+" was not deleted.", 0)
+			} else {
+				return cli.NewExitError("Aborted, nothing deleted.", -1)
+			}
 		},
 	}
 

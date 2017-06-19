@@ -7,13 +7,16 @@ import (
 )
 
 type (
+	//BeaconingSelector implements the XRefSelector interface for beaconing
 	BeaconingSelector struct{}
 )
 
+//GetName returns "beaconing"
 func (s BeaconingSelector) GetName() string {
 	return "beaconing"
 }
 
+//Select selects beaconing hosts for XRef analysis
 func (s BeaconingSelector) Select(res *database.Resources) (<-chan string, <-chan string) {
 	// make channels to return
 	internalHosts := make(chan string)

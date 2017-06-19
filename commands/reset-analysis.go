@@ -1,8 +1,11 @@
 package commands
 
 import (
+	"bufio"
 	"fmt"
+	"log"
 	"os"
+	"strings"
 
 	"github.com/ocmdev/rita/database"
 	"github.com/urfave/cli"
@@ -18,10 +21,8 @@ func init() {
 		Action: func(c *cli.Context) error {
 			res := database.InitResources("")
 			if c.String("database") == "" {
-				fmt.Println("Resetting all databases")
-				return cleanAnalysisAll(res)
+				return cli.NewExitError("Specify a database with -d", -1)
 			}
-			fmt.Println("Resetting database:", c.String("database"))
 			return cleanAnalysis(c.String("database"), res)
 		},
 	}
@@ -35,8 +36,8 @@ func cleanAnalysis(database string, res *database.Resources) error {
 	//clean database
 
 	conn := res.System.StructureConfig.ConnTable
-	http := res.System.StructureConfig.HttpTable
-	dns := res.System.StructureConfig.DnsTable
+	http := res.System.StructureConfig.HTTPTable
+	dns := res.System.StructureConfig.DNSTable
 
 	names, err := res.DB.Session.DB(database).CollectionNames()
 	if err != nil || len(names) == 0 {
@@ -44,8 +45,24 @@ func cleanAnalysis(database string, res *database.Resources) error {
 		return err
 	}
 
+	fmt.Println("Are you sure you want to reset analysis for", database, "[Y/n]")
+
+	read := bufio.NewReader(os.Stdin)
+
+	response, err := read.ReadString('\n')
+	if err != nil {
+		log.Fatal(err)
+	}
+	response = strings.ToLower(strings.TrimSpace(response))
+	if response == "y" || response == "yes" {
+		fmt.Println("Resetting database:", database)
+	} else {
+		fmt.Println("Aborted, nothing reset")
+		return nil
+	}
+
 	//check if we had an issue dropping a collection
-	var err2Flag error = nil
+	var err2Flag error
 	for _, name := range names {
 		switch name {
 		case conn, http, dns:
@@ -73,16 +90,3 @@ func cleanAnalysis(database string, res *database.Resources) error {
 	return nil
 }
 
-// cleanAnalysisAll uses the metadb to walk all databases and clean the analysis
-func cleanAnalysisAll(res *database.Resources) error {
-	var err error = nil
-
-	for _, name := range res.MetaDB.GetDatabases() {
-		e := cleanAnalysis(name, res)
-		//return last error
-		if e != nil {
-			err = e
-		}
-	}
-	return err
-}

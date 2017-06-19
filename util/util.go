@@ -1,7 +1,6 @@
 package util
 
 import (
-	"fmt"
 	"math"
 	"net"
 	"net/url"
@@ -11,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 )
+
+const TimeFormat string = "2006-01-02-T15:04:05-0700"
 
 const URL string = `^((ftp|https?):\/\/)?(\S+(:\S*)?@)?((([1-9]\d?|1\d\d|2[01]\d|22[0-3])(\.(1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.([0-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(([a-zA-Z0-9]+([-\.][a-zA-Z0-9]+)*)|((www\.)?))?(([a-z\x{00a1}-\x{ffff}0-9]+-?-?)*[a-z\x{00a1}-\x{ffff}0-9]+)(?:\.([a-z\x{00a1}-\x{ffff}]{2,}))?))(:(\d{1,5}))?((\/|\?|#)[^\s]*)?$`
 
@@ -245,7 +246,6 @@ func TypeConvert(m interface{}, desiredType reflect.Kind) (interface{}, int) {
 
 	switch desiredType {
 	default:
-		fmt.Println("fuckface mcgee (add more types to type switcher, asshole)")
 		return m, BAD
 	case reflect.String:
 		if currType == reflect.Int {

@@ -62,7 +62,6 @@ func showBlacklisted(c *cli.Context) error {
 	return showBlacklistedCsv(results)
 }
 
-// TODO: Convert this over to tablewriter
 // showBlacklisted prints all blacklisted for a given database
 func showBlacklistedHuman(results []blacklistedData.Blacklist) error {
 	table := tablewriter.NewWriter(os.Stdout)
@@ -94,7 +93,7 @@ func showBlacklistedCsv(results []blacklistedData.Blacklist) error {
 	}
 	out, err := template.New("bl").Parse(tmpl)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	for _, result := range results {
