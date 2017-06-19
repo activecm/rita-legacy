@@ -32,7 +32,7 @@ type IndexedFile struct {
 	Hash             string        `bson:"hash"`
 	TargetCollection string        `bson:"collection"`
 	TargetDatabase   string        `bson:"database"`
-	LogTime          time.Time     `bson:"date"`
+	Dates            []string      `bson:"dates"`
 	ParseTime        time.Time     `bson:"time_complete"`
 	header           *BroHeader
 	broDataFactory   func() pt.BroData

@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -84,10 +82,7 @@ func newIndexedFile(filePath string, config *config.SystemConfig,
 		return toReturn, errors.New("Could not find a target collection for file")
 	}
 
-	timeVal := reflect.ValueOf(line).Elem().Field(fieldMap["ts"]).Int()
-	toReturn.LogTime = time.Unix(timeVal, 0)
-
-	toReturn.TargetDatabase = getTargetDatabase(filePath, toReturn.LogTime, &config.BroConfig)
+	toReturn.TargetDatabase = getTargetDatabase(filePath, &config.BroConfig)
 	if toReturn.TargetDatabase == "" {
 		fileHandle.Close()
 		return toReturn, errors.New("Could not find a dataset for file")
@@ -116,26 +111,18 @@ func getFileHash(fileHandle *os.File, fInfo os.FileInfo) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(byteset)), nil
 }
 
-//getTargetDatabase assigns a database to a log file based on the path, parse
-//time and the bro config
-func getTargetDatabase(path string, ttim time.Time, broConfig *config.BroCfg) string {
-	toReturn := ""
-
+//getTargetDatabase assigns a database to a log file based on the path,
+//and the bro config
+func getTargetDatabase(path string, broConfig *config.BroCfg) string {
 	// check the directory map
 	for key, val := range broConfig.DirectoryMap {
 		if strings.Contains(path, key) {
-			toReturn = broConfig.DBPrefix + val
-			break
+			return broConfig.DBPrefix + val
 		}
 	}
 	//If a default database is specified put it in there
-	if toReturn == "" && broConfig.DefaultDatabase != "" {
-		toReturn = broConfig.DBPrefix + broConfig.DefaultDatabase
+	if broConfig.DefaultDatabase != "" {
+		return broConfig.DBPrefix + broConfig.DefaultDatabase
 	}
-
-	if toReturn != "" && broConfig.UseDates {
-		toReturn += "-" + fmt.Sprintf("%d-%02d-%02d",
-			ttim.Year(), ttim.Month(), ttim.Day())
-	}
-	return toReturn
+	return ""
 }

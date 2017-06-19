@@ -87,6 +87,21 @@ func (m *MetaDBHandle) DeleteDB(name string) error {
 	if err != nil {
 		return err
 	}
+	if db.UsingDates {
+		date := name[len(name)-10:]
+		name = name[:len(name)-11]
+		_, err = ssn.DB(m.DB).C("files").RemoveAll(
+			bson.M{"database": name, "dates": date},
+		)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = ssn.DB(m.DB).C("files").RemoveAll(bson.M{"database": name})
+		if err != nil {
+			return err
+		}
+	}
 
 	m.logDebug("DeleteDB", "exiting")
 	return nil
@@ -212,7 +227,7 @@ func (m *MetaDBHandle) GetFiles() ([]fpt.IndexedFile, error) {
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
-	err := ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).
+	err := ssn.DB(m.DB).C(m.res.System.MetaTables.FilesTable).
 		Find(nil).Iter().All(&toReturn)
 	if err != nil {
 		m.res.Log.WithFields(log.Fields{
@@ -229,6 +244,9 @@ func (m *MetaDBHandle) AddParsedFiles(files []*fpt.IndexedFile) error {
 	m.logDebug("AddParsedFiles", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
+	if len(files) == 0 {
+		return nil
+	}
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 

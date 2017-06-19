@@ -7,14 +7,16 @@ import (
 
 	mgo "gopkg.in/mgo.v2"
 
+	"github.com/ocmdev/rita/database"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
 	pt "github.com/ocmdev/rita/parser/parsetypes"
 )
 
 //importedData is sent to a datastore to be stored away
 type importedData struct {
-	broData pt.BroData
-	file    *fpt.IndexedFile
+	broData        pt.BroData
+	targetDatabase string
+	file           *fpt.IndexedFile
 }
 
 //collectionStore binds a collection write channel with the target collection
@@ -28,26 +30,30 @@ type collectionStore struct {
 
 //MongoDatastore is a datastore which stores bro data in MongoDB
 type MongoDatastore struct {
-	dbMap      map[string]map[string]collectionStore
-	bufferSize int
-	session    *mgo.Session
-	logger     *log.Logger
-	waitgroup  *sync.WaitGroup
-	mutex1     *sync.Mutex
-	mutex2     *sync.Mutex
+	dbMap       map[string]map[string]collectionStore
+	existingDBs []string
+	metaDB      *database.MetaDBHandle
+	bufferSize  int
+	session     *mgo.Session
+	logger      *log.Logger
+	waitgroup   *sync.WaitGroup
+	mutex1      *sync.Mutex
+	mutex2      *sync.Mutex
 }
 
 //NewMongoDatastore creates a datastore which stores bro data in MongoDB
-func NewMongoDatastore(session *mgo.Session,
+func NewMongoDatastore(session *mgo.Session, metaDB *database.MetaDBHandle,
 	bufferSize int, logger *log.Logger) *MongoDatastore {
 	return &MongoDatastore{
-		dbMap:      make(map[string]map[string]collectionStore),
-		bufferSize: bufferSize,
-		session:    session,
-		logger:     logger,
-		waitgroup:  new(sync.WaitGroup),
-		mutex1:     new(sync.Mutex), //mutex1 syncs the first level of map access
-		mutex2:     new(sync.Mutex), //mutex2 syncs the second level of map access
+		dbMap:       make(map[string]map[string]collectionStore),
+		existingDBs: metaDB.GetDatabases(),
+		metaDB:      metaDB,
+		bufferSize:  bufferSize,
+		session:     session,
+		logger:      logger,
+		waitgroup:   new(sync.WaitGroup),
+		mutex1:      new(sync.Mutex), //mutex1 syncs the first level of map access
+		mutex2:      new(sync.Mutex), //mutex2 syncs the second level of map access
 		//NOTE: Mutex2 may be replaced with a map of mutexes for better performance
 	}
 }
@@ -56,10 +62,11 @@ func NewMongoDatastore(session *mgo.Session,
 func (mongo *MongoDatastore) store(data importedData) {
 	//get the map representing the target database
 	mongo.mutex1.Lock()
-	collectionMap, ok := mongo.dbMap[data.file.TargetDatabase]
+	collectionMap, ok := mongo.dbMap[data.targetDatabase]
 	if !ok {
+		mongo.registerDatabase(data.targetDatabase)
 		collectionMap = make(map[string]collectionStore)
-		mongo.dbMap[data.file.TargetDatabase] = collectionMap
+		mongo.dbMap[data.targetDatabase] = collectionMap
 	}
 	mongo.mutex1.Unlock()
 
@@ -69,7 +76,7 @@ func (mongo *MongoDatastore) store(data importedData) {
 	if !ok {
 		coll = collectionStore{
 			writeChannel: make(chan importedData),
-			database:     data.file.TargetDatabase,
+			database:     data.targetDatabase,
 			collection:   data.file.TargetCollection,
 			indices:      data.broData.Indices(),
 		}
@@ -131,6 +138,22 @@ func (mongo *MongoDatastore) finalize() {
 	}
 	mongo.mutex2.Unlock()
 	mongo.mutex1.Unlock()
+}
+
+func (mongo *MongoDatastore) registerDatabase(db string) {
+	found := false
+	for _, existingDB := range mongo.existingDBs {
+		if db == existingDB {
+			found = true
+			break
+		}
+	}
+	if !found {
+		mongo.metaDB.AddNewDB(db)
+	} else {
+		mongo.logger.Error("Attempted to insert data into existing database.")
+		panic("[!] Attempted to insert data into existing database.")
+	}
 }
 
 func bulkInsertImportedData(coll collectionStore, bufferSize int,

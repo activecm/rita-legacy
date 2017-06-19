@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/ocmdev/rita/database"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
 	"github.com/ocmdev/rita/util"
+	"github.com/ocmdev/rita/parser/parsetypes"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -62,9 +64,8 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
-	createNewDatabases(indexedFiles, fs.res.MetaDB, fs.res.Log)
-
-	parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+	parseFiles(indexedFiles, fs.parseThreads,
+		fs.res.System.BroConfig.UseDates, datastore, fs.res.Log)
 
 	datastore.flush()
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
@@ -147,11 +148,13 @@ func indexFiles(files []string, indexingThreads int,
 }
 
 //parseFiles takes in a list of indexed bro files, the number of
-//threads to use to parse the files, a MogoDB datastore object to store
-//the bro data in, and a logger to report errors and parses the bro files
-//line by line into the database.
+//threads to use to parse the files, whether or not to sort data by date,
+// a MogoDB datastore object to store the bro data in, and a logger to report
+//errors and parses the bro files line by line into the database.
+//NOTE: side effect: this sets the dates field on the indexedFiles
 func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
-	datastore *MongoDatastore, logger *log.Logger) {
+	useDates bool, datastore *MongoDatastore, logger *log.Logger) {
+	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
 
@@ -160,8 +163,10 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
 
 		go func(indexedFiles []*fpt.IndexedFile, logger *log.Logger,
 			wg *sync.WaitGroup, start int, jump int, length int) {
+			//comb over array
 			for j := start; j < length; j += jump {
 				fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
+				//read the file
 				fileHandle, err := os.Open(indexedFiles[j].Path)
 				if err != nil {
 					logger.WithFields(log.Fields{
@@ -181,6 +186,7 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
 					if fileScanner.Err() != nil {
 						break
 					}
+					//parse the line
 					data := parseLine(
 						fileScanner.Text(),
 						indexedFiles[j].GetHeader(),
@@ -190,7 +196,30 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
 					)
 
 					if data != nil {
-						datastore.store(importedData{broData: data, file: indexedFiles[j]})
+						//set the dates this file is represeting
+						date := getDateForLogEntry(data, indexedFiles[j].GetFieldMap())
+						dateFound := false
+						for _, parsedDate := range indexedFiles[j].Dates {
+							if parsedDate == date {
+								dateFound = true
+								break
+							}
+						}
+						if !dateFound {
+							indexedFiles[j].Dates = append(indexedFiles[j].Dates, date)
+						}
+
+						//figure out what database this line is heading for
+						targetDB := indexedFiles[j].TargetDatabase
+						if useDates {
+							targetDB += "-" + date
+						}
+
+						datastore.store(importedData{
+							broData:        data,
+							targetDatabase: targetDB,
+							file:           indexedFiles[j],
+						})
 					}
 				}
 				indexedFiles[j].ParseTime = time.Now()
@@ -239,38 +268,6 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 	}
 	return toReturn
 }
-
-//createNewDatabases updates the metaDB with the new target databases
-func createNewDatabases(indexedFiles []*fpt.IndexedFile, metaDatabase *database.MetaDBHandle,
-	logger *log.Logger) {
-	var seen = make(map[string]bool)
-	for _, file := range indexedFiles {
-		if file == nil {
-			continue
-		}
-		targetDB := file.TargetDatabase
-		_, ok := seen[targetDB]
-		if !ok {
-			seen[targetDB] = true
-			result, err := metaDatabase.GetDBMetaInfo(targetDB)
-			//database already exists
-			if err == nil {
-				//database has already been analyzed
-				if result.Analyzed {
-					logger.WithFields(log.Fields{
-						"path":     file.Path,
-						"database": targetDB,
-					}).Error("cannot parse file into already analyzed database")
-					panic("Attempted to parse file into already analyzed database")
-				} //else parsing new file into unanalyzed database which exists
-			} else { //database doesn't exist
-				fmt.Println("\t[-] Creating new database: " + targetDB)
-				metaDatabase.AddNewDB(targetDB)
-			}
-		}
-	}
-}
-
 //updateFilesIndex updates the files collection in the metaDB with the newly parsed files
 func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.MetaDBHandle,
 	logger *log.Logger) {
@@ -278,4 +275,10 @@ func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.Me
 	if err != nil {
 		logger.Error("Could not update the list of parsed files")
 	}
+}
+
+func getDateForLogEntry(broData parsetypes.BroData, fieldMap fpt.BroHeaderIndexMap) string {
+	data := reflect.ValueOf(broData).Elem()
+	ts := time.Unix(data.Field(fieldMap["ts"]).Int(), 0)
+	return fmt.Sprintf("%d-%02d-%02d", ts.Year(), ts.Month(), ts.Day())
 }
