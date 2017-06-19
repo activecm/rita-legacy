@@ -1,6 +1,7 @@
 package reporting
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -19,7 +20,22 @@ import (
 // a directory named after the selected dataset, or `rita-html-report` if
 // mupltiple were selected, within the current working directory,
 // mongodb must be running to call this command, will exit on any writing error
-func PrintHTML(dbs []string, res *database.Resources) error {
+func PrintHTML(dbsIn []string, res *database.Resources) error {
+	if len(dbsIn) == 0 {
+		return errors.New("no analyzed databases to report on")
+	}
+
+	var dbs []string
+	for _, db := range dbsIn {
+		info, err := res.MetaDB.GetDBMetaInfo(db)
+		if err == nil && info.Analyzed {
+			dbs = append(dbs, db)
+		}
+	}
+	if len(dbs) == 0 {
+		return errors.New("none of the selected databases have been analyzed")
+	}
+
 	//create outFolder as our string builder
 	var outFolder []byte
 	if len(dbs) == 1 {

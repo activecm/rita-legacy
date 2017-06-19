@@ -26,9 +26,13 @@ func init() {
 			if databaseName != "" {
 				databases = append(databases, databaseName)
 			} else {
-				databases = res.MetaDB.GetDatabases()
+				databases = res.MetaDB.GetAnalyzedDatabases()
 			}
-			return reporting.PrintHTML(databases, res)
+			err := reporting.PrintHTML(databases, res)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(command)
