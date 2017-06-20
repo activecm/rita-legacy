@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ocmdev/rita/analysis/beacon"
-	"github.com/ocmdev/rita/analysis/blacklisted"
 	"github.com/ocmdev/rita/analysis/crossref"
 	"github.com/ocmdev/rita/analysis/dns"
 	"github.com/ocmdev/rita/analysis/scanning"
@@ -97,9 +96,6 @@ func analyze(inDb string, configFile string) error {
 		)
 		logAnalysisFunc("Beaconing", td, res,
 			beacon.BuildBeaconCollection,
-		)
-		logAnalysisFunc("Blacklisted", td, res,
-			blacklisted.BuildBlacklistedCollection,
 		)
 		logAnalysisFunc("Scanning", td, res,
 			scanning.BuildScanningCollection,

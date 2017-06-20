@@ -14,9 +14,8 @@ import (
 func getXRefSelectors() []dataXRef.XRefSelector {
 	beaconing := BeaconingSelector{}
 	scanning := ScanningSelector{}
-	blacklisted := BlacklistedSelector{}
 
-	return []dataXRef.XRefSelector{beaconing, scanning, blacklisted}
+	return []dataXRef.XRefSelector{beaconing, scanning}
 }
 
 // BuildXRefCollection runs threaded crossref analysis
