@@ -4,31 +4,59 @@ import (
 	"unsafe"
 
 	"github.com/ocmdev/rita-blacklist2/list"
+	"github.com/ocmdev/rita/database"
+	"github.com/ocmdev/rita/datatypes/dns"
+	"github.com/ocmdev/rita/datatypes/structure"
 
 	bl "github.com/ocmdev/rita-blacklist2"
+	data "github.com/ocmdev/rita/datatypes/blacklist"
+	log "github.com/sirupsen/logrus"
 	mgo "gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type hostnameShort struct {
 	Host string `bson:"host"`
 }
 
-func buildBlacklistedHostnames(hostnames *mgo.Iter, ssnToCopy *mgo.Session,
-	blHandle *bl.Blacklist, destCollection string, bufferSize int) {
+//buildBlacklistedHostnames builds a set of blacklisted hostnames from the
+//iterator provided, the system config, a handle to rita-blacklist,
+//and a buffer of hostnames to check at a time
+func buildBlacklistedHostnames(hostnames *mgo.Iter, res *database.Resources,
+	blHandle *bl.Blacklist, bufferSize int) {
 	//create session to write to
-	ssn := ssnToCopy.Copy()
+	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
+	outputCollection := ssn.DB(res.DB.GetSelectedDB()).C("bl-hostnames")
 	//create type for communicating rita-bl results
 	resultsChannel := make(resultsChan)
 
 	go checkRitaBlacklistHostnames(hostnames, blHandle, bufferSize, resultsChannel)
 
+	//results are maps from ip addresses to arrays of their respective results
 	for results := range resultsChannel {
+		//loop over the map
 		for hostname, individualResults := range results {
+			//if the hostname has blacklist results
 			if len(individualResults) > 0 {
-				_ = hostname
-				//store the results
+				blHostname := data.BlacklistedHostname{Hostname: hostname}
+				err := fillBlacklistedHostname(
+					&blHostname,
+					res.DB.GetSelectedDB(),
+					res.System.DNSConfig.HostnamesTable,
+					res.System.StructureConfig.UniqueConnTable,
+					ssn,
+				)
+				if err != nil {
+					res.Log.WithFields(log.Fields{
+						"err":      err.Error(),
+						"hostname": hostname,
+						"db":       res.DB.GetSelectedDB(),
+					}).Error("could not aggregate info on blacklisted hostname")
+					continue
+				}
+				outputCollection.Insert(&blHostname)
 			}
 		}
 	}
@@ -37,10 +65,10 @@ func buildBlacklistedHostnames(hostnames *mgo.Iter, ssnToCopy *mgo.Session,
 func checkRitaBlacklistHostnames(hostnames *mgo.Iter, blHandle *bl.Blacklist,
 	bufferSize int, resultsChannel resultsChan) {
 	i := 0
-	//read in bufferSize entries and check them. Then ship them off to the writer/
+	//read in bufferSize entries and check them. Then ship them off to the writer
 	var buff = make([]hostnameShort, bufferSize)
 	for hostnames.Next(&buff[i]) {
-		if i == bufferSize {
+		if i == bufferSize-1 {
 			//see comment in checkRitaBlacklistIPs
 			indexesArray := (*[]string)(unsafe.Pointer(&buff))
 			resultsChannel <- blHandle.CheckEntries(list.BlacklistedHostnameType, (*indexesArray)...)
@@ -56,4 +84,32 @@ func checkRitaBlacklistHostnames(hostnames *mgo.Iter, blHandle *bl.Blacklist,
 		resultsChannel <- blHandle.CheckEntries(list.BlacklistedHostnameType, (*indexesArray)...)
 	}
 	close(resultsChannel)
+}
+
+func fillBlacklistedHostname(blHostname *data.BlacklistedHostname, db,
+	hostnamesCollection, uconnCollection string, ssn *mgo.Session) error {
+	hostnameQuery := bson.M{"host": blHostname.Hostname}
+	var blHostnameFull dns.Hostname
+	err := ssn.DB(db).C(hostnamesCollection).Find(hostnameQuery).One(&blHostnameFull)
+	if err != nil {
+		return err
+	}
+
+	connQuery := bson.M{"dst": bson.M{"$in": blHostnameFull.IPs}}
+
+	var totalBytes int
+	var totalConnections int
+	var uniqueConnCount int
+	uniqueConnections := ssn.DB(db).C(uconnCollection).Find(connQuery).Iter()
+	var uconn structure.UniqueConnection
+	for uniqueConnections.Next(&uconn) {
+		totalBytes += uconn.TotalBytes
+		totalConnections += uconn.ConnectionCount
+		uniqueConnCount++
+	}
+	blHostname.Connections = totalConnections
+	blHostname.UniqueConnections = uniqueConnCount
+	blHostname.TotalBytes = totalBytes
+
+	return nil
 }

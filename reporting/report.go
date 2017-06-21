@@ -159,10 +159,7 @@ func writeDB(db string, wd string, res *database.Resources) error {
 	if err != nil {
 		return err
 	}
-	err = printBlacklisted(db, res)
-	if err != nil {
-		return err
-	}
+
 	err = printDNS(db, res)
 	if err != nil {
 		return err

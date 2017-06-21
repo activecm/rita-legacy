@@ -6,6 +6,7 @@ import (
 	"github.com/ocmdev/rita-blacklist2/sources/lists"
 	"github.com/ocmdev/rita-blacklist2/sources/rpc"
 	"github.com/ocmdev/rita/database"
+	log "github.com/sirupsen/logrus"
 )
 
 type resultsChan chan map[string][]blDB.BlacklistResult
@@ -14,16 +15,22 @@ type resultsChan chan map[string][]blDB.BlacklistResult
 //blacklisted destinations, blacklist hostnames, and blacklisted urls
 //collections
 func BuildBlacklistedCollections(res *database.Resources) {
+	//capture the current value for the error closure below
+	currentDB := res.DB.GetSelectedDB()
+
 	//set up rita-blacklist
 	ritaBL := bl.NewBlacklist(
-		blDB.NewMongoDB,
-		res.System.DatabaseHost,
-		"rita-blacklist2",
-		func(err error) {
-			res.Log.Error(err)
+		blDB.NewMongoDB,         //Use MongoDB for data storage
+		res.System.DatabaseHost, //Use the DatabaseHost as the connection
+		"rita-blacklist2",       //database
+		func(err error) { //error handler
+			res.Log.WithFields(log.Fields{
+				"db": currentDB,
+			}).Error(err)
 		},
 	)
 
+	//set up google url checker
 	googleRPC, err := rpc.NewGoogleSafeBrowsingURLsRPC(
 		res.System.SafeBrowsing.APIKey,
 		res.System.SafeBrowsing.Database,
@@ -35,12 +42,14 @@ func BuildBlacklistedCollections(res *database.Resources) {
 		res.Log.Error("could not open up google safebrowsing for blacklist checks")
 	}
 
+	//set up ritaBL to pull from myIP.ms and MDL
 	ritaBL.SetLists(lists.NewMyIPmsList(), lists.NewMdlList())
 	ritaBL.Update()
 
 	//get our data sources
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
+
 	uniqueSourcesAggregation := getUniqueIPFromUconnPipeline("src")
 	uniqueDestAggregation := getUniqueIPFromUconnPipeline("dst")
 	uniqueSourceIter := res.DB.AggregateCollection(
@@ -53,33 +62,21 @@ func BuildBlacklistedCollections(res *database.Resources) {
 		ssn,
 		uniqueDestAggregation,
 	)
-	hostnamesIter := ssn.DB(res.DB.GetSelectedDB()).C(
+	/*hostnamesIter := ssn.DB(res.DB.GetSelectedDB()).C(
 		res.System.DNSConfig.HostnamesTable,
 	).Find(nil).Iter()
 	urlIter := ssn.DB(res.DB.GetSelectedDB()).C(
 		res.System.UrlsConfig.UrlsTable,
-	).Find(nil).Iter()
+	).Find(nil).Iter()*/
 
 	bufferSize := 1000
 
-	buildBlacklistedSourceIPs(
-		uniqueSourceIter, ssn, ritaBL,
-		"blSourceIPs", bufferSize,
-	)
+	buildBlacklistedIPs(uniqueSourceIter, res, ritaBL, bufferSize, true)
 
-	buildBlacklistedDestIPs(
-		uniqueDestIter, ssn, ritaBL,
-		"blDestIPs", bufferSize,
-	)
+	buildBlacklistedIPs(uniqueDestIter, res, ritaBL, bufferSize, false)
 
-	buildBlacklistedHostnames(
-		hostnamesIter, ssn, ritaBL,
-		"blHostnames", bufferSize,
-	)
+	//buildBlacklistedHostnames(hostnamesIter, res, ritaBL, bufferSize)
 
-	buildBlacklistedURLs(
-		urlIter, ssn, ritaBL,
-		"blURLs", bufferSize,
-	)
+	//buildBlacklistedURLs(urlIter, res, ritaBL, bufferSize, "http://")
 
 }
