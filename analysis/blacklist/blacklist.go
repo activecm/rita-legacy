@@ -44,7 +44,10 @@ func BuildBlacklistedCollections(res *database.Resources) {
 	}
 
 	//set up ritaBL to pull from myIP.ms and MDL
-	ritaBL.SetLists(lists.NewMyIPmsList(), lists.NewMdlList())
+	ritaBL.SetLists(
+		lists.NewMyIPmsList(),
+		lists.NewMdlList(),
+	)
 	ritaBL.Update()
 
 	//get our data sources

@@ -75,7 +75,7 @@ func checkRitaBlacklistURLs(urls *mgo.Iter, blHandle *bl.Blacklist,
 	var holder urlShort
 	for urls.Next(&holder) {
 		//assume http url
-		buff[i] = prefix + holder.URI + holder.URL
+		buff[i] = prefix + holder.URL + holder.URI
 
 		if i == bufferSize-1 {
 			resultsChannel <- blHandle.CheckEntries(list.BlacklistedURLType, buff...)
@@ -100,7 +100,7 @@ func fillBlacklistedURL(blURL *data.BlacklistedURL, longURL, db,
 		return errors.New("url does not specify a resource")
 	}
 	host := urlTrimmed[:resourceIdx]
-	resource := urlTrimmed[resourceIdx+1:]
+	resource := urlTrimmed[resourceIdx:]
 
 	urlQuery = bson.M{"url": host, "uri": resource}
 	var blURLFull urls.URL
