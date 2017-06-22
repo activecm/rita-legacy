@@ -7,6 +7,7 @@ import (
 	"github.com/ocmdev/rita-blacklist2/sources/rpc"
 	"github.com/ocmdev/rita/database"
 	log "github.com/sirupsen/logrus"
+	mgo "gopkg.in/mgo.v2"
 )
 
 type resultsChan chan map[string][]blDB.BlacklistResult
@@ -70,7 +71,13 @@ func BuildBlacklistedCollections(res *database.Resources) {
 	).Find(nil).Iter()
 
 	bufferSize := 1000
-
+	collections := []string{"bl-sourceIPs", "bl-destIPs", "bl-hostnames", "bl-urls"}
+	for _, collection := range collections {
+		ssn.DB(currentDB).C(collection).Create(&mgo.CollectionInfo{
+			DisableIdIndex: true,
+		})
+	}
+	//TODO: refactor these into modules
 	buildBlacklistedIPs(uniqueSourceIter, res, ritaBL, bufferSize, true)
 
 	buildBlacklistedIPs(uniqueDestIter, res, ritaBL, bufferSize, false)
@@ -79,4 +86,35 @@ func BuildBlacklistedCollections(res *database.Resources) {
 
 	buildBlacklistedURLs(urlIter, res, ritaBL, bufferSize, "http://")
 
+	ensureBLIndexes(ssn, currentDB, "bl-sourceIPs")
+	ensureBLIndexes(ssn, currentDB, "bl-destIPs")
+	ensureBLIndexes(ssn, currentDB, "bl-hostnames")
+	ensureBLIndexes(ssn, currentDB, "bl-urls")
+
+	ssn.DB(currentDB).C("bl-sourceIPs").EnsureIndex(mgo.Index{
+		Key: []string{"$hashed:ip"},
+	})
+
+	ssn.DB(currentDB).C("bl-destIPs").EnsureIndex(mgo.Index{
+		Key: []string{"$hashed:ip"},
+	})
+	ssn.DB(currentDB).C("bl-hostnames").EnsureIndex(mgo.Index{
+		Key: []string{"$hashed:hostname"},
+	})
+	ssn.DB(currentDB).C("bl-urls").EnsureIndex(mgo.Index{
+		Key: []string{"host", "resource"},
+	})
+
+}
+
+func ensureBLIndexes(ssn *mgo.Session, currentDB, collName string) {
+	ssn.DB(currentDB).C(collName).EnsureIndex(mgo.Index{
+		Key: []string{"conn"},
+	})
+	ssn.DB(currentDB).C(collName).EnsureIndex(mgo.Index{
+		Key: []string{"uconn"},
+	})
+	ssn.DB(currentDB).C(collName).EnsureIndex(mgo.Index{
+		Key: []string{"total_bytes"},
+	})
 }
