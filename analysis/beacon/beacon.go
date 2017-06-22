@@ -46,7 +46,7 @@ type (
 		uconnID bson.ObjectId // Unique Connection ID
 		ts      []int64       // Connection timestamps for this src, dst pair
 		//dur []int64
-		orig_bytes []int64
+		orig_ip_bytes []int64
 		//resp_bytes []int64
 	}
 )
@@ -194,7 +194,7 @@ func (t *Beacon) collect() {
 
 			for connIter.Next(&conn) {
 				newInput.ts = append(newInput.ts, conn.Ts)
-				newInput.orig_bytes = append(newInput.orig_bytes, conn.OriginBytes)
+				newInput.orig_ip_bytes = append(newInput.orig_ip_bytes, conn.OriginIPBytes)
 			}
 			t.analysisChannel <- newInput
 		}
@@ -208,7 +208,7 @@ func (t *Beacon) analyze() {
 	for data := range t.analysisChannel {
 		//sort the size and timestamps since they may have arrived out of order
 		sort.Sort(util.SortableInt64(data.ts))
-		sort.Sort(util.SortableInt64(data.orig_bytes))
+		sort.Sort(util.SortableInt64(data.orig_ip_bytes))
 
 		//remove subsecond communications
 		//these will appear as beacons if we do not remove them
@@ -225,7 +225,7 @@ func (t *Beacon) analyze() {
 		//for timestamps this is one less then the data slice length
 		//since we are calculating the times in between readings
 		length := len(data.ts) - 1
-		ds_length := len(data.orig_bytes)
+		ds_length := len(data.orig_ip_bytes)
 
 		//find the duration of this connection
 		//perfect beacons should fill the observation period
@@ -242,7 +242,7 @@ func (t *Beacon) analyze() {
 		//Bowley's measure of skew is used to check symmetry
 		sort.Sort(util.SortableInt64(diff))
 		bSkew := float64(0)
-		ds_bSkew := float64(0)
+		ds_skew := float64(0)
 
 		//length -1 is used since diff is a zero based slice
 		low := diff[util.Round(.25*float64(length-1))]
@@ -251,9 +251,9 @@ func (t *Beacon) analyze() {
 		bNum := low + high - 2*mid
 		bDen := high - low
 
-		ds_low := data.orig_bytes[util.Round(.25*float64(ds_length-1))]
-		ds_mid := data.orig_bytes[util.Round(.5*float64(ds_length-1))]
-		ds_high := data.orig_bytes[util.Round(.75*float64(ds_length-1))]
+		ds_low := data.orig_ip_bytes[util.Round(.25*float64(ds_length-1))]
+		ds_mid := data.orig_ip_bytes[util.Round(.5*float64(ds_length-1))]
+		ds_high := data.orig_ip_bytes[util.Round(.75*float64(ds_length-1))]
 		ds_bNum := ds_low + ds_high - 2*ds_mid
 		ds_bDen := ds_high - ds_low
 
@@ -263,8 +263,8 @@ func (t *Beacon) analyze() {
 			bSkew = float64(bNum) / float64(bDen)
 		}
 		
-		if ds_bDen != 0 {
-			ds_bSkew = float64(ds_bNum) / float64(ds_bDen)
+		if ds_bDen != 0 && ds_mid != ds_low && ds_mid != ds_high {
+			ds_skew = float64(ds_bNum) / float64(ds_bDen)
 		}
 
 		//perfect beacons should have very low dispersion around the
@@ -278,7 +278,7 @@ func (t *Beacon) analyze() {
 		
 		ds_devs := make([]int64, ds_length)
 		for i := 0; i < ds_length; i++ {
-			ds_devs[i] = util.Abs(data.orig_bytes[i] - ds_mid)
+			ds_devs[i] = util.Abs(data.orig_ip_bytes[i] - ds_mid)
 		}
 
 		sort.Sort(util.SortableInt64(devs))
@@ -289,11 +289,13 @@ func (t *Beacon) analyze() {
 
 		//Store the range for human analysis
 		iRange := diff[length-1] - diff[0]
+		ds_range := data.orig_ip_bytes[ds_length-1] - data.orig_ip_bytes[0]
 
 		//get a list of the intervals found in the data,
 		//the number of times the interval was found,
 		//and the most occurring interval
 		intervals, intervalCounts, mode, modeCount := createCountMap(diff)
+		ds_sizes, ds_counts, ds_mode, ds_modeCount := createCountMap(data.orig_ip_bytes)
 
 		output := dataBeacon.BeaconAnalysisOutput{
 			UconnID:           data.uconnID,
@@ -305,32 +307,40 @@ func (t *Beacon) analyze() {
 			TS_iModeCount:     modeCount,
 			TS_intervals:      intervals,
 			TS_intervalCounts: intervalCounts,
+			DS_skew:           ds_skew,
+			DS_dispersion:     ds_madm,
+			DS_range:          ds_range,
+			DS_sizes:          ds_sizes,
+			DS_counts:         ds_counts,
+			DS_mode:           ds_mode,
+			DS_modeCount:      ds_modeCount,
 		}
 
 		//more skewed distributions recieve a lower score
 		//less skewed distributions recieve a higher score
 		alpha := 1.0 - math.Abs(bSkew)
-		ds_alpha := 1.0 - math.Abs(ds_bSkew)
+		delta := 1.0 - math.Abs(ds_skew)
 
 		//lower dispersion is better, cutoff dispersion scores at 30 seconds
 		beta := 1.0 - float64(madm)/30.0
 		if beta < 0 {
 			beta = 0
 		}
-		ds_beta := 1.0 - float64(ds_madm)
-		if ds_beta < 0 {
-			ds_beta = 0
+		//no cutoff dispersion for data size
+		epsilon := 1.0 - float64(ds_madm)
+		if epsilon < 0 {
+			epsilon = 0
 		}		
 		
 		gamma := duration
+		//smaller data sizes receive a higher score
+		zeta := 1.0 - (float64(ds_mode) / 65535.0)
 
-		//in order of ascending importance: skew, duration, dispersion
-		output.TS_score = (alpha + beta + gamma) / 3.0
-		//in order of ascending importance: skew, dispersion
-		output.DS_score = (ds_alpha + ds_beta) / 2.0
+		//in order of ascending importance: timestamp skew, timestamp duration,
+		//timestamp dispersion, size skew, size duration, size weight
+		output.TS_score = (alpha + beta + gamma + delta + epsilon + zeta) / 6.0
 		t.writeChannel <- &output
 	}
-
 	t.analysisWg.Done()
 }
 
@@ -405,7 +415,6 @@ func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 		{
 			{"$project", bson.D{
 				{"ts_score", 1},
-				{"ds_score", 1},
 				{"src", "$uconn.src"},
 				{"dst", "$uconn.dst"},
 				{"local_src", "$uconn.local_src"},
@@ -417,6 +426,12 @@ func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 				{"ts_iMode_count", 1},
 				{"ts_iSkew", 1},
 				{"ts_duration", 1},
+				{"ts_iDispersion", 1},
+				{"ds_dispersion", 1},
+				{"ds_range", 1},
+				{"ds_mode", 1},
+				{"ds_mode_count", 1},
+				{"ds_skew", 1},
 			}},
 		},
 	}
