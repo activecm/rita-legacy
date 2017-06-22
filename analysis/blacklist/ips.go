@@ -18,6 +18,7 @@ type ipAggregateResult struct {
 }
 
 func getUniqueIPFromUconnPipeline(field string) []bson.D {
+	//nolint: vet
 	return []bson.D{
 		{
 			{"$project", bson.D{

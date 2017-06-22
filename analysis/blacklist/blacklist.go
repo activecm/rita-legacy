@@ -62,12 +62,12 @@ func BuildBlacklistedCollections(res *database.Resources) {
 		ssn,
 		uniqueDestAggregation,
 	)
-	/*hostnamesIter := ssn.DB(res.DB.GetSelectedDB()).C(
+	hostnamesIter := ssn.DB(res.DB.GetSelectedDB()).C(
 		res.System.DNSConfig.HostnamesTable,
 	).Find(nil).Iter()
 	urlIter := ssn.DB(res.DB.GetSelectedDB()).C(
 		res.System.UrlsConfig.UrlsTable,
-	).Find(nil).Iter()*/
+	).Find(nil).Iter()
 
 	bufferSize := 1000
 
@@ -75,8 +75,8 @@ func BuildBlacklistedCollections(res *database.Resources) {
 
 	buildBlacklistedIPs(uniqueDestIter, res, ritaBL, bufferSize, false)
 
-	//buildBlacklistedHostnames(hostnamesIter, res, ritaBL, bufferSize)
+	buildBlacklistedHostnames(hostnamesIter, res, ritaBL, bufferSize)
 
-	//buildBlacklistedURLs(urlIter, res, ritaBL, bufferSize, "http://")
+	buildBlacklistedURLs(urlIter, res, ritaBL, bufferSize, "http://")
 
 }
