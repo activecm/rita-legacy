@@ -76,6 +76,9 @@ func buildBlacklistedIPs(ips *mgo.Iter, res *database.Resources,
 			//if the ip address has blacklist results
 			if len(individualResults) > 0 {
 				blIP := data.BlacklistedIP{IP: ipAddr}
+				for _, result := range individualResults {
+					blIP.Lists = append(blIP.Lists, result.List)
+				}
 				err := fillBlacklistedIP(
 					&blIP,
 					res.DB.GetSelectedDB(),

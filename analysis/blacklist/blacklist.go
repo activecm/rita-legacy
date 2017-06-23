@@ -110,9 +110,10 @@ func BuildBlacklistedCollections(res *database.Resources) {
 	ssn.DB(currentDB).C(urls).EnsureIndex(mgo.Index{
 		Key: []string{"host", "resource"},
 	})
-
 }
 
+//ensureBLIndexes ensures the sortable fields are indexed
+//on the blacklist results
 func ensureBLIndexes(ssn *mgo.Session, currentDB, collName string) {
 	ssn.DB(currentDB).C(collName).EnsureIndex(mgo.Index{
 		Key: []string{"conn"},
@@ -125,6 +126,7 @@ func ensureBLIndexes(ssn *mgo.Session, currentDB, collName string) {
 	})
 }
 
+//buildBlacklists gathers the blacklists to check against
 func buildBlacklists(system *config.SystemConfig) []list.List {
 	//build up the lists
 	var blacklists []list.List
@@ -159,6 +161,7 @@ func buildBlacklists(system *config.SystemConfig) []list.List {
 	return blacklists
 }
 
+//buildCustomBlacklists gathers a custom blacklist from a url or file path
 func buildCustomBlacklists(entryType list.BlacklistedEntryType, paths []string) []list.List {
 	var blacklists []list.List
 	for _, path := range paths {
@@ -192,6 +195,7 @@ func tryOpenFileThenURL(path string) func() (io.ReadCloser, error) {
 	}
 }
 
+//buildBlacklistRPCS gathers the remote procedures to check against
 func buildBlacklistRPCS(res *database.Resources) []rpc.RPC {
 	var rpcs []rpc.RPC
 	//set up google url checker

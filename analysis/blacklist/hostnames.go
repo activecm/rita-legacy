@@ -43,6 +43,9 @@ func buildBlacklistedHostnames(hostnames *mgo.Iter, res *database.Resources,
 			//if the hostname has blacklist results
 			if len(individualResults) > 0 {
 				blHostname := data.BlacklistedHostname{Hostname: hostname}
+				for _, result := range individualResults {
+					blHostname.Lists = append(blHostname.Lists, result.List)
+				}
 				err := fillBlacklistedHostname(
 					&blHostname,
 					res.DB.GetSelectedDB(),

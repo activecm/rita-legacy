@@ -46,6 +46,9 @@ func buildBlacklistedURLs(urls *mgo.Iter, res *database.Resources,
 			//if the ip address has blacklist results
 			if len(individualResults) > 0 {
 				blURL := data.BlacklistedURL{}
+				for _, result := range individualResults {
+					blURL.Lists = append(blURL.Lists, result.List)
+				}
 				err := fillBlacklistedURL(
 					&blURL,
 					url,
