@@ -54,9 +54,13 @@ func buildBlacklistedIPs(ips *mgo.Iter, res *database.Resources,
 	//choose the output collection
 	var outputCollection *mgo.Collection
 	if source {
-		outputCollection = ssn.DB(res.DB.GetSelectedDB()).C("bl-sourceIPs")
+		outputCollection = ssn.DB(res.DB.GetSelectedDB()).C(
+			res.System.BlacklistedConfig.SourceIPsTable,
+		)
 	} else {
-		outputCollection = ssn.DB(res.DB.GetSelectedDB()).C("bl-destIPs")
+		outputCollection = ssn.DB(res.DB.GetSelectedDB()).C(
+			res.System.BlacklistedConfig.DestIPsTable,
+		)
 	}
 
 	//create type for communicating rita-bl results
@@ -109,7 +113,9 @@ func checkRitaBlacklistIPs(ips *mgo.Iter, blHandle *bl.Blacklist,
 			//reinterpret cast. Then, we can dereference the pointer to the array
 			//and use the variadic syntax to pass the array to CheckEntries.
 			indexesArray := (*[]string)(unsafe.Pointer(&buff))
-			resultsChannel <- blHandle.CheckEntries(list.BlacklistedIPType, (*indexesArray)...)
+			resultsChannel <- blHandle.CheckEntries(
+				list.BlacklistedIPType, (*indexesArray)...,
+			)
 			//reset the buffer
 			i = 0
 		}
@@ -119,7 +125,9 @@ func checkRitaBlacklistIPs(ips *mgo.Iter, blHandle *bl.Blacklist,
 	if i != 0 {
 		buffSlice := buff[:i]
 		indexesArray := (*[]string)(unsafe.Pointer(&buffSlice))
-		resultsChannel <- blHandle.CheckEntries(list.BlacklistedIPType, (*indexesArray)...)
+		resultsChannel <- blHandle.CheckEntries(
+			list.BlacklistedIPType, (*indexesArray)...,
+		)
 	}
 	close(resultsChannel)
 }

@@ -28,7 +28,9 @@ func buildBlacklistedHostnames(hostnames *mgo.Iter, res *database.Resources,
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	outputCollection := ssn.DB(res.DB.GetSelectedDB()).C("bl-hostnames")
+	outputCollection := ssn.DB(res.DB.GetSelectedDB()).C(
+		res.System.BlacklistedConfig.HostnamesTable,
+	)
 	//create type for communicating rita-bl results
 	resultsChannel := make(resultsChan)
 
@@ -71,7 +73,9 @@ func checkRitaBlacklistHostnames(hostnames *mgo.Iter, blHandle *bl.Blacklist,
 		if i == bufferSize-1 {
 			//see comment in checkRitaBlacklistIPs
 			indexesArray := (*[]string)(unsafe.Pointer(&buff))
-			resultsChannel <- blHandle.CheckEntries(list.BlacklistedHostnameType, (*indexesArray)...)
+			resultsChannel <- blHandle.CheckEntries(
+				list.BlacklistedHostnameType, (*indexesArray)...,
+			)
 			//reset the buffer
 			i = 0
 		}
@@ -81,7 +85,9 @@ func checkRitaBlacklistHostnames(hostnames *mgo.Iter, blHandle *bl.Blacklist,
 	if i != 0 {
 		buffSlice := buff[:i]
 		indexesArray := (*[]string)(unsafe.Pointer(&buffSlice))
-		resultsChannel <- blHandle.CheckEntries(list.BlacklistedHostnameType, (*indexesArray)...)
+		resultsChannel <- blHandle.CheckEntries(
+			list.BlacklistedHostnameType, (*indexesArray)...,
+		)
 	}
 	close(resultsChannel)
 }

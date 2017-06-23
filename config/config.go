@@ -16,21 +16,20 @@ var VERSION = "undefined"
 type (
 	//SystemConfig is the container for other config sections
 	SystemConfig struct {
-		BatchSize         int             `yaml:"BatchSize"`
-		DatabaseHost      string          `yaml:"DatabaseHost"`
-		Prefetch          float64         `yaml:"Prefetch"`
-		LogConfig         LogCfg          `yaml:"LogConfig"`
-		BlacklistedConfig BlacklistedCfg  `yaml:"BlackListed"`
-		DNSConfig         DNSCfg          `yaml:"Dns"`
-		CrossrefConfig    CrossrefCfg     `yaml:"Crossref"`
-		ScanningConfig    ScanningCfg     `yaml:"Scanning"`
-		StructureConfig   StructureCfg    `yaml:"Structure"`
-		BeaconConfig      BeaconCfg       `yaml:"Beacon"`
-		UrlsConfig        UrlsCfg         `yaml:"Urls"`
-		UserAgentConfig   UserAgentCfg    `yaml:"UserAgent"`
-		BroConfig         BroCfg          `yaml:"Bro"`
-		SafeBrowsing      SafeBrowsingCfg `yaml:"SafeBrowsing"`
-		MetaTables        MetaCfg         `yaml:"MetaTables"`
+		BatchSize         int            `yaml:"BatchSize"`
+		DatabaseHost      string         `yaml:"DatabaseHost"`
+		Prefetch          float64        `yaml:"Prefetch"`
+		LogConfig         LogCfg         `yaml:"LogConfig"`
+		BlacklistedConfig BlacklistedCfg `yaml:"BlackListed"`
+		DNSConfig         DNSCfg         `yaml:"Dns"`
+		CrossrefConfig    CrossrefCfg    `yaml:"Crossref"`
+		ScanningConfig    ScanningCfg    `yaml:"Scanning"`
+		StructureConfig   StructureCfg   `yaml:"Structure"`
+		BeaconConfig      BeaconCfg      `yaml:"Beacon"`
+		UrlsConfig        UrlsCfg        `yaml:"Urls"`
+		UserAgentConfig   UserAgentCfg   `yaml:"UserAgent"`
+		BroConfig         BroCfg         `yaml:"Bro"`
+		MetaTables        MetaCfg        `yaml:"MetaTables"`
 		Version           string
 	}
 
@@ -54,10 +53,18 @@ type (
 
 	//BlacklistedCfg is used to control the blacklisted analysis module
 	BlacklistedCfg struct {
-		ThreadCount       int    `yaml:"ThreadCount"`
-		ChannelSize       int    `yaml:"ChannelSize"`
-		BlacklistTable    string `yaml:"BlackListTable"`
-		BlacklistDatabase string `yaml:"Database"`
+		BlacklistDatabase  string          `yaml:"Database"`
+		UseIPms            bool            `yaml:"myIP.ms"`
+		UseDNSBH           bool            `yaml:"MalwareDomains.com"`
+		UseMDL             bool            `yaml:"MalwareDomainList.com"`
+		SafeBrowsing       SafeBrowsingCfg `yaml:"SafeBrowsing"`
+		IPBlacklists       []string        `yaml:"CustomIPBlacklists"`
+		HostnameBlacklists []string        `yaml:"CustomHostnameBlacklists"`
+		URLBlacklists      []string        `yaml:"CustomURLBlacklists"`
+		SourceIPsTable     string          `yaml:"SourceIPsTable"`
+		DestIPsTable       string          `yaml:"DestIPsTable"`
+		HostnamesTable     string          `yaml:"HostnamesTable"`
+		UrlsTable          string          `yaml:"UrlsTable"`
 	}
 
 	//DNSCfg is used to control the dns analysis module
@@ -176,6 +183,12 @@ func expandConfig(reflected reflect.Value) {
 			expandConfig(f)
 		} else if f.Kind() == reflect.String {
 			f.SetString(os.ExpandEnv(f.String()))
+		} else if f.Kind() == reflect.Slice && f.Type().Elem().Kind() == reflect.String {
+			strs := f.Interface().([]string)
+			for i, str := range strs {
+				strs[i] = os.ExpandEnv(str)
+			}
+			f.Set(reflect.ValueOf(strs))
 		}
 	}
 }
