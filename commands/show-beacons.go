@@ -21,7 +21,7 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			allFlag,
+			configFlag,
 		},
 		Action: showBeacons,
 	}
@@ -33,17 +33,13 @@ func showBeacons(c *cli.Context) error {
 	if c.String("database") == "" {
 		return cli.NewExitError("Specify a database with -d", -1)
 	}
-	res := database.InitResources("")
+	res := database.InitResources(c.String("config"))
 	res.DB.SelectDB(c.String("database"))
 
 	var data []beaconData.BeaconAnalysisView
-	cutoffScore := .7
-	if c.Bool("all") {
-		cutoffScore = 0
-	}
 
 	ssn := res.DB.Session.Copy()
-	resultsView := beacon.GetBeaconResultsView(res, ssn, cutoffScore)
+	resultsView := beacon.GetBeaconResultsView(res, ssn, 0)
 	if resultsView == nil {
 		return errors.New("No beacons were found for " + c.String("database"))
 	}

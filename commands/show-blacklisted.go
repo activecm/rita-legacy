@@ -28,6 +28,7 @@ func init() {
 				Usage:       "Show sources with results",
 				Destination: &sourcesFlag,
 			},
+			configFlag,
 		},
 		Action: showBlacklisted,
 	}
@@ -40,7 +41,7 @@ func showBlacklisted(c *cli.Context) error {
 		return cli.NewExitError("Specify a database with -d", -1)
 	}
 
-	res := database.InitResources("")
+	res := database.InitResources(c.String("config"))
 	res.DB.SelectDB(c.String("database"))
 
 	var result blacklistedData.Blacklist

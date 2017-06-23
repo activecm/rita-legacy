@@ -17,9 +17,10 @@ func init() {
 		Usage: "Reset analysis of one or more databases",
 		Flags: []cli.Flag{
 			databaseFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
@@ -89,4 +90,3 @@ func cleanAnalysis(database string, res *database.Resources) error {
 	}
 	return nil
 }
-

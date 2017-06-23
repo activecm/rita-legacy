@@ -20,23 +20,19 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			allFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var urls []urls.URL
 			coll := res.DB.Session.DB(c.String("database")).C(res.System.UrlsConfig.UrlsTable)
 
-			query := coll.Find(nil).Sort("-length")
-			if !c.Bool("all") {
-				query.Limit(15)
-			}
-			query.All(&urls)
+			coll.Find(nil).Sort("-length").All(&urls)
 
 			if c.Bool("human-readable") {
 				return showURLsHuman(urls)
@@ -51,7 +47,6 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			allFlag,
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
@@ -63,11 +58,7 @@ func init() {
 			var urls []urls.URL
 			coll := res.DB.Session.DB(c.String("database")).C(res.System.UrlsConfig.UrlsTable)
 
-			query := coll.Find(nil).Sort("-count")
-			if !c.Bool("all") {
-				query.Limit(10)
-			}
-			query.All(&urls)
+			coll.Find(nil).Sort("-count").All(&urls)
 
 			if c.Bool("human-readable") {
 				return showURLsHuman(urls)

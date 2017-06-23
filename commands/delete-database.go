@@ -17,9 +17,10 @@ func init() {
 		Usage: "Delete an imported database",
 		Flags: []cli.Flag{
 			databaseFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}

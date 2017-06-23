@@ -20,25 +20,21 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			allFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var longConns []data.Conn
 			coll := res.DB.Session.DB(c.String("database")).C(res.System.StructureConfig.ConnTable)
 
 			sortStr := "-duration"
 
-			query := coll.Find(nil).Sort(sortStr)
-			if !c.Bool("all") {
-				query.Limit(15)
-			}
-			query.All(&longConns)
+			coll.Find(nil).Sort(sortStr).All(&longConns)
 
 			if c.Bool("human-readable") {
 				return showConnsHuman(longConns)

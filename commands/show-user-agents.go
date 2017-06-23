@@ -20,18 +20,18 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			allFlag,
 			cli.BoolFlag{
 				Name:  "least-used, l",
-				Usage: "Print the least used user agent strings",
+				Usage: "Sort the user agents from least used to most used.",
 			},
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var agents []useragent.UserAgent
 			coll := res.DB.Session.DB(c.String("database")).C(res.System.UserAgentConfig.UserAgentTable)
@@ -43,11 +43,7 @@ func init() {
 				sortStr = "-times_used"
 			}
 
-			query := coll.Find(nil).Sort(sortStr)
-			if !c.Bool("all") {
-				query.Limit(15)
-			}
-			query.All(&agents)
+			coll.Find(nil).Sort(sortStr).All(&agents)
 
 			if c.Bool("human-readable") {
 				return showAgentsHuman(agents)

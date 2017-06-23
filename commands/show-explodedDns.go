@@ -20,24 +20,19 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			allFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var explodedResults []dns.ExplodedDNS
 			iter := res.DB.Session.DB(c.String("database")).C(res.System.DNSConfig.ExplodedDNSTable).Find(nil)
-			count, _ := iter.Count()
 
-			if !c.Bool("all") {
-				count = 15
-			}
-
-			iter.Sort("-subdomains").Limit(count).All(&explodedResults)
+			iter.Sort("-subdomains").All(&explodedResults)
 
 			if c.Bool("human-readable") {
 				return showResultsHuman(explodedResults)

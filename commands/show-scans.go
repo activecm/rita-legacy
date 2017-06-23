@@ -21,13 +21,14 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var scans []scanning.Scan
 			coll := res.DB.Session.DB(c.String("database")).C(res.System.ScanningConfig.ScanTable)
