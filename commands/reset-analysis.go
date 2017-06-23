@@ -42,8 +42,7 @@ func cleanAnalysis(database string, res *database.Resources) error {
 
 	names, err := res.DB.Session.DB(database).CollectionNames()
 	if err != nil || len(names) == 0 {
-		fmt.Fprintf(os.Stderr, "Failed to find analysis results\n")
-		return err
+		return cli.NewExitError("Failed to find analysis results", -1)
 	}
 
 	fmt.Println("Are you sure you want to reset analysis for", database, "[Y/n]")
@@ -81,8 +80,7 @@ func cleanAnalysis(database string, res *database.Resources) error {
 	err3 := res.MetaDB.MarkDBAnalyzed(database, false)
 
 	if err3 != nil {
-		fmt.Fprintf(os.Stderr, "Failed to update metadb\n")
-		return err3
+		return cli.NewExitError("Failed to update metadb", -1)
 	}
 
 	if err == nil && err2Flag == nil && err3 == nil {

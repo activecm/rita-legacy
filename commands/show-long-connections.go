@@ -36,10 +36,21 @@ func init() {
 
 			coll.Find(nil).Sort(sortStr).All(&longConns)
 
-			if c.Bool("human-readable") {
-				return showConnsHuman(longConns)
+			if len(longConns) == 0 {
+				return cli.NewExitError("No results were found for "+c.String("database"), -1)
 			}
-			return showConns(longConns)
+
+			if c.Bool("human-readable") {
+				err := showConnsHuman(longConns)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
+			}
+			err := showConns(longConns)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(command)
@@ -53,15 +64,13 @@ func showConns(connResults []data.Conn) error {
 		return err
 	}
 
-	var error error
 	for _, result := range connResults {
 		err := out.Execute(os.Stdout, result)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
 		}
 	}
-	return error
+	return nil
 }
 
 func showConnsHuman(connResults []data.Conn) error {

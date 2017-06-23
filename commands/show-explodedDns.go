@@ -34,10 +34,21 @@ func init() {
 
 			iter.Sort("-subdomains").All(&explodedResults)
 
-			if c.Bool("human-readable") {
-				return showResultsHuman(explodedResults)
+			if len(explodedResults) == 0 {
+				return cli.NewExitError("No results were found for "+c.String("database"), -1)
 			}
-			return showResults(explodedResults)
+
+			if c.Bool("human-readable") {
+				err := showResultsHuman(explodedResults)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
+			}
+			err := showResults(explodedResults)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(command)
@@ -51,15 +62,13 @@ func showResults(dnsResults []dns.ExplodedDNS) error {
 		return err
 	}
 
-	var error error
 	for _, result := range dnsResults {
 		err := out.Execute(os.Stdout, result)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
 		}
 	}
-	return error
+	return nil
 }
 
 func showResultsHuman(dnsResults []dns.ExplodedDNS) error {

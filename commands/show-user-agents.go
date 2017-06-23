@@ -45,10 +45,21 @@ func init() {
 
 			coll.Find(nil).Sort(sortStr).All(&agents)
 
-			if c.Bool("human-readable") {
-				return showAgentsHuman(agents)
+			if len(agents) == 0 {
+				return cli.NewExitError("No results were found for "+c.String("database"), -1)
 			}
-			return showAgents(agents)
+
+			if c.Bool("human-readable") {
+				err := showAgentsHuman(agents)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
+			}
+			err := showAgents(agents)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(command)
@@ -62,15 +73,13 @@ func showAgents(agents []useragent.UserAgent) error {
 		return err
 	}
 
-	var error error
 	for _, agent := range agents {
 		err := out.Execute(os.Stdout, agent)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
 		}
 	}
-	return error
+	return nil
 }
 
 func showAgentsHuman(agents []useragent.UserAgent) error {

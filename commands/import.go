@@ -42,10 +42,10 @@ func doImport(c *cli.Context) error {
 
 	//one flag was set
 	if importDir != "" && databaseName == "" || importDir == "" && databaseName != "" {
-		fmt.Println("Import failed.\nUse 'rita import' to import the directories " +
-			"specified in the config file or 'rita import -i [import-dir] -d [database-name]' " +
-			"to import bro logs from a given directory.")
-		return nil
+		return cli.NewExitError(
+			"Import failed.\nUse 'rita import' to import the directories "+
+				"specified in the config file or 'rita import -i [import-dir] -d [database-name]' "+
+				"to import bro logs from a given directory.", -1)
 	}
 
 	//both flags were set

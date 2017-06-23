@@ -34,10 +34,21 @@ func init() {
 
 			coll.Find(nil).Sort("-length").All(&urls)
 
-			if c.Bool("human-readable") {
-				return showURLsHuman(urls)
+			if len(urls) == 0 {
+				return cli.NewExitError("No results were found for "+c.String("database"), -1)
 			}
-			return showURLs(urls)
+
+			if c.Bool("human-readable") {
+				err := showURLsHuman(urls)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
+			}
+			err := showURLs(urls)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	vistedURLs := cli.Command{
@@ -60,10 +71,21 @@ func init() {
 
 			coll.Find(nil).Sort("-count").All(&urls)
 
-			if c.Bool("human-readable") {
-				return showURLsHuman(urls)
+			if len(urls) == 0 {
+				return cli.NewExitError("No results were found for "+c.String("database"), -1)
 			}
-			return showURLs(urls)
+
+			if c.Bool("human-readable") {
+				err := showURLsHuman(urls)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
+			}
+			err := showURLs(urls)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(longURLs, vistedURLs)
@@ -77,15 +99,13 @@ func showURLs(urls []urls.URL) error {
 		return err
 	}
 
-	var error error
 	for _, url := range urls {
 		err := out.Execute(os.Stdout, url)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
 		}
 	}
-	return error
+	return nil
 }
 
 func showURLsHuman(urls []urls.URL) error {

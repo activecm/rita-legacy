@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -41,16 +40,23 @@ func showBeacons(c *cli.Context) error {
 	ssn := res.DB.Session.Copy()
 	resultsView := beacon.GetBeaconResultsView(res, ssn, 0)
 	if resultsView == nil {
-		return errors.New("No beacons were found for " + c.String("database"))
+		return cli.NewExitError("No results were found for "+c.String("database"), -1)
 	}
 	resultsView.All(&data)
 	ssn.Close()
 
 	if c.Bool("human-readable") {
-		return showBeaconReport(data)
+		err := showBeaconReport(data)
+		if err != nil {
+			return cli.NewExitError(err.Error(), -1)
+		}
 	}
 
-	return showBeaconCsv(data)
+	err := showBeaconCsv(data)
+	if err != nil {
+		return cli.NewExitError(err.Error(), -1)
+	}
+	return nil
 }
 
 func showBeaconReport(data []beaconData.BeaconAnalysisView) error {

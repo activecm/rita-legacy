@@ -50,6 +50,10 @@ func showBlacklisted(c *cli.Context) error {
 	coll := res.DB.Session.DB(c.String("database")).C(res.System.BlacklistedConfig.BlacklistTable)
 	iter := coll.Find(nil).Sort("-count").Iter()
 
+	if iter.Done() {
+		return cli.NewExitError("No results were found for "+c.String("database"), -1)
+	}
+
 	for iter.Next(&result) {
 		if sourcesFlag {
 			blacklisted.SetBlacklistSources(res, &result)
@@ -58,9 +62,16 @@ func showBlacklisted(c *cli.Context) error {
 	}
 
 	if c.Bool("human-readable") {
-		return showBlacklistedHuman(results)
+		err := showBlacklistedHuman(results)
+		if err != nil {
+			return cli.NewExitError(err.Error(), -1)
+		}
 	}
-	return showBlacklistedCsv(results)
+	err := showBlacklistedCsv(results)
+	if err != nil {
+		return cli.NewExitError(err.Error(), -1)
+	}
+	return nil
 }
 
 // showBlacklisted prints all blacklisted for a given database
