@@ -8,6 +8,7 @@ type BlacklistedIP struct {
 	UniqueConnections int      `bson:"uconn"`
 	TotalBytes        int      `bson:"total_bytes"`
 	Lists             []string `bson:"lists"`
+	ConnectedHosts    []string `bson:",omitempty"`
 }
 
 //BlacklistedHostname holds information on a blacklisted hostname and
@@ -18,6 +19,7 @@ type BlacklistedHostname struct {
 	UniqueConnections int      `bson:"uconn"`
 	TotalBytes        int      `bson:"total_bytes"`
 	Lists             []string `bson:"lists"`
+	ConnectedHosts    []string `bson:",omitempty"`
 }
 
 //BlacklistedURL holds information on a blacklisted URL and the
@@ -29,4 +31,5 @@ type BlacklistedURL struct {
 	UniqueConnections int      `bson:"uconn"`
 	TotalBytes        int      `bson:"total_bytes"`
 	Lists             []string `bson:"lists"`
+	ConnectedHosts    []string `bson:",omitempty"`
 }
