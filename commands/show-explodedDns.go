@@ -39,12 +39,12 @@ func init() {
 			}
 
 			if c.Bool("human-readable") {
-				err := showResultsHuman(explodedResults)
+				err := showDNSResultsHuman(explodedResults)
 				if err != nil {
 					return cli.NewExitError(err.Error(), -1)
 				}
 			}
-			err := showResults(explodedResults)
+			err := showDNSResults(explodedResults)
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -54,7 +54,7 @@ func init() {
 	bootstrapCommands(command)
 }
 
-func showResults(dnsResults []dns.ExplodedDNS) error {
+func showDNSResults(dnsResults []dns.ExplodedDNS) error {
 	tmpl := "{{.Domain}},{{.Subdomains}},{{.Visited}}\n"
 
 	out, err := template.New("exploded-dns").Parse(tmpl)
@@ -71,7 +71,7 @@ func showResults(dnsResults []dns.ExplodedDNS) error {
 	return nil
 }
 
-func showResultsHuman(dnsResults []dns.ExplodedDNS) error {
+func showDNSResultsHuman(dnsResults []dns.ExplodedDNS) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Domain", "Unique Subdomains", "Times Looked Up"})
 	for _, result := range dnsResults {

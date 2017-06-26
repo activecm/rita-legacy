@@ -38,6 +38,17 @@ var (
 		Name:  "human-readable, H",
 		Usage: "print a report instead of csv",
 	}
+
+	blSortFlag = cli.StringFlag{
+		Name:  "sort, s",
+		Usage: "Sort by conn (# of connections), uconn (# of unique connections), total_bytes (# of bytes)",
+		Value: "conn",
+	}
+
+	blConnFlag = cli.BoolFlag{
+		Name:  "connected, C",
+		Usage: "Show hosts which were connected to this blacklisted entry",
+	}
 )
 
 // bootstrapCommands simply adds a given command to the allCommands array
