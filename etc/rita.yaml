@@ -108,8 +108,8 @@ Dns:
     HostnamesTable: hostnames
 
 Crossref:
-    InternalTable: internXREF
-    ExternalTable: externXREF
+    SourceTable: sourceXREF
+    DestinationTable: destXREF
     BeaconThreshold: .7
 
 Scanning:

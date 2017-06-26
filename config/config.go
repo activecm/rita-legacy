@@ -75,8 +75,8 @@ type (
 
 	//CrossrefCfg is used to control the crossref analysis module
 	CrossrefCfg struct {
-		InternalTable   string  `yaml:"InternalTable"`
-		ExternalTable   string  `yaml:"ExternalTable"`
+		SourceTable     string  `yaml:"SourceTable"`
+		DestTable       string  `yaml:"DestinationTable"`
 		BeaconThreshold float64 `yaml:"BeaconThreshold"`
 	}
 

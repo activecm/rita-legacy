@@ -19,8 +19,8 @@ func (s BeaconingSelector) GetName() string {
 //Select selects beaconing hosts for XRef analysis
 func (s BeaconingSelector) Select(res *database.Resources) (<-chan string, <-chan string) {
 	// make channels to return
-	internalHosts := make(chan string)
-	externalHosts := make(chan string)
+	sourceHosts := make(chan string)
+	destHosts := make(chan string)
 	// run the read code async and return the channels immediately
 	go func() {
 		ssn := res.DB.Session.Copy()
@@ -31,19 +31,11 @@ func (s BeaconingSelector) Select(res *database.Resources) (<-chan string, <-cha
 		//however, this is accounted for in the finalizing step of xref
 		var data dataBeacon.BeaconAnalysisView
 		for iter.Next(&data) {
-			if data.LocalSrc {
-				internalHosts <- data.Src
-			} else {
-				externalHosts <- data.Src
-			}
-			if data.LocalDst {
-				internalHosts <- data.Dst
-			} else {
-				externalHosts <- data.Dst
-			}
+			sourceHosts <- data.Src
+			destHosts <- data.Dst
 		}
-		close(internalHosts)
-		close(externalHosts)
+		close(sourceHosts)
+		close(destHosts)
 	}()
-	return internalHosts, externalHosts
+	return sourceHosts, destHosts
 }
