@@ -90,11 +90,11 @@ func printBLHostnames(c *cli.Context) error {
 
 func showBLHostnames(hostnames []blacklist.BlacklistedHostname, connectedHosts bool) error {
 	tmpl := "{{.Hostname}},{{.Connections}},{{.UniqueConnections}},{{.TotalBytes}},"
-	tmpl += "{{range $idx, $list := .Lists}}{{if $idx}} {{end}}{{ $list }}{{end}}"
+	tmpl += blacklistListsTemplate
 	if connectedHosts {
 		tmpl += ",{{range $idx, $host := .ConnectedHosts}}{{if $idx}} {{end}}{{ $host }}{{end}}"
 	}
-	tmpl += "\r\n"
+	tmpl += endl
 
 	out, err := template.New("blhostname").Parse(tmpl)
 	if err != nil {

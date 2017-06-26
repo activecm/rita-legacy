@@ -90,11 +90,11 @@ func printBLURLs(c *cli.Context) error {
 
 func showBLURLs(urls []blacklist.BlacklistedURL, connectedHosts bool) error {
 	tmpl := "{{.Host}},{{.Resource}},{{.Connections}},{{.UniqueConnections}},{{.TotalBytes}},"
-	tmpl += "{{range $idx, $list := .Lists}}{{if $idx}} {{end}}{{ $list }}{{end}}"
+	tmpl += blacklistListsTemplate
 	if connectedHosts {
 		tmpl += ",{{range $idx, $url := .ConnectedHosts}}{{if $idx}} {{end}}{{ $url }}{{end}}"
 	}
-	tmpl += "\r\n"
+	tmpl += endl
 
 	out, err := template.New("blurl").Parse(tmpl)
 	if err != nil {

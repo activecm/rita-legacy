@@ -16,6 +16,9 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+const blacklistListsTemplate = "{{range $idx, $list := .Lists}}{{if $idx}} {{end}}{{ $list }}{{end}}"
+const endl = "\r\n"
+
 func init() {
 	blSourceIPs := cli.Command{
 		Name: "show-bl-source-ips",
@@ -149,11 +152,11 @@ func printBLDestIPs(c *cli.Context) error {
 func showBLIPs(ips []blacklist.BlacklistedIP, connectedHosts, source bool) error {
 	//source is unused until we add column headers
 	tmpl := "{{.IP}},{{.Connections}},{{.UniqueConnections}},{{.TotalBytes}},"
-	tmpl += "{{range $idx, $list := .Lists}}{{if $idx}} {{end}}{{ $list }}{{end}}"
+	tmpl += blacklistListsTemplate
 	if connectedHosts {
 		tmpl += ",{{range $idx, $host := .ConnectedHosts}}{{if $idx}} {{end}}{{ $host }}{{end}}"
 	}
-	tmpl += "\r\n"
+	tmpl += endl
 
 	out, err := template.New("blip").Parse(tmpl)
 	if err != nil {
