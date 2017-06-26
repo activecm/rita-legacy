@@ -4,9 +4,9 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/ocmdev/rita-blacklist2/list"
+	"github.com/ocmdev/rita-bl/list"
 
-	bl "github.com/ocmdev/rita-blacklist2"
+	bl "github.com/ocmdev/rita-bl"
 	"github.com/ocmdev/rita/database"
 	data "github.com/ocmdev/rita/datatypes/blacklist"
 	"github.com/ocmdev/rita/datatypes/structure"

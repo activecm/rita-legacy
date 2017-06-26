@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"os"
 
-	bl "github.com/ocmdev/rita-blacklist2"
-	blDB "github.com/ocmdev/rita-blacklist2/database"
-	"github.com/ocmdev/rita-blacklist2/list"
-	"github.com/ocmdev/rita-blacklist2/sources/lists"
-	"github.com/ocmdev/rita-blacklist2/sources/rpc"
+	bl "github.com/ocmdev/rita-bl"
+	blDB "github.com/ocmdev/rita-bl/database"
+	"github.com/ocmdev/rita-bl/list"
+	"github.com/ocmdev/rita-bl/sources/lists"
+	"github.com/ocmdev/rita-bl/sources/rpc"
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 	log "github.com/sirupsen/logrus"
@@ -29,7 +29,7 @@ func BuildBlacklistedCollections(res *database.Resources) {
 	ritaBL := bl.NewBlacklist(
 		blDB.NewMongoDB,         //Use MongoDB for data storage
 		res.System.DatabaseHost, //Use the DatabaseHost as the connection
-		"rita-blacklist2",       //database
+		"rita-bl",       //database
 		func(err error) { //error handler
 			res.Log.WithFields(log.Fields{
 				"db": currentDB,

@@ -3,8 +3,8 @@ package blacklist
 import (
 	"unsafe"
 
-	bl "github.com/ocmdev/rita-blacklist2"
-	"github.com/ocmdev/rita-blacklist2/list"
+	bl "github.com/ocmdev/rita-bl"
+	"github.com/ocmdev/rita-bl/list"
 	"github.com/ocmdev/rita/database"
 	data "github.com/ocmdev/rita/datatypes/blacklist"
 	"github.com/ocmdev/rita/datatypes/structure"

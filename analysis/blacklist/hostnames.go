@@ -3,12 +3,12 @@ package blacklist
 import (
 	"unsafe"
 
-	"github.com/ocmdev/rita-blacklist2/list"
+	"github.com/ocmdev/rita-bl/list"
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/datatypes/dns"
 	"github.com/ocmdev/rita/datatypes/structure"
 
-	bl "github.com/ocmdev/rita-blacklist2"
+	bl "github.com/ocmdev/rita-bl"
 	data "github.com/ocmdev/rita/datatypes/blacklist"
 	log "github.com/sirupsen/logrus"
 	mgo "gopkg.in/mgo.v2"
