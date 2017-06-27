@@ -18,7 +18,7 @@ func BuildUrlsCollection(res *database.Resources) {
 		pipeline := getURLCollectionScript(res.System)
 
 	// Create it
-	err := res.DB.CreateCollection(newCollectionName, newCollectionKeys)
+	err := res.DB.CreateCollection(newCollectionName, false, []mgo.Index{})
 	if err != nil {
 		res.Log.Error("Failed: ", newCollectionName, err.Error())
 		return
@@ -33,9 +33,13 @@ func BuildUrlsCollection(res *database.Resources) {
 	defer ssn.Close()
 	// Aggregate it
 	res.DB.AggregateCollection(newCollectionName, ssn, pipeline)
+	for _, index := range newCollectionKeys {
+		ssn.DB(res.DB.GetSelectedDB()).C(res.System.UrlsConfig.UrlsTable).
+			EnsureIndex(index)
+	}
 }
 
-func getURLCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, mgo.MapReduce, []bson.D) {
+func getURLCollectionScript(sysCfg *config.SystemConfig) (string, string, []mgo.Index, mgo.MapReduce, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
 	sourceCollectionName := sysCfg.StructureConfig.HTTPTable
 
@@ -43,7 +47,11 @@ func getURLCollectionScript(sysCfg *config.SystemConfig) (string, string, []stri
 	newCollectionName := sysCfg.UrlsConfig.UrlsTable
 
 	// Desired indeces
-	keys := []string{"$hashed:url", "-length"}
+	keys := []mgo.Index{
+		{Key: []string{"url", "uri"}, Unique: true},
+		{Key: []string{"length"}},
+	}
+
 	// mgo passed MapReduce javascript function code
 	job := mgo.MapReduce{
 		Map: `function(){

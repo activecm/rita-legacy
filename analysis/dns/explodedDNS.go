@@ -52,7 +52,11 @@ func buildExplodedDNSUniqSubdomains(res *database.Resources) {
 func zipExplodedDNSResults(res *database.Resources) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
-	res.DB.CreateCollection(res.System.DNSConfig.ExplodedDNSTable, []string{"domain", "subdomains"})
+	indexes := []mgo.Index{
+		{Key: []string{"domain"}, Unique: true},
+		{Key: []string{"subdomains"}},
+	}
+	res.DB.CreateCollection(res.System.DNSConfig.ExplodedDNSTable, false, indexes)
 	res.DB.AggregateCollection(tempVistedCountCollName, ssn,
 		// nolint: vet
 		[]bson.D{

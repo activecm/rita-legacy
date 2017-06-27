@@ -3,42 +3,44 @@ package structure
 import (
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // BuildHostsCollection builds the 'host' collection for this timeframe.
 // Runs via mongodb aggregation. Sourced from the 'conn' table.
-// TODO: Confirm that this section of code is not faster than an aggregation from
-// the 'uconn' table which should have less repeated data.
 func BuildHostsCollection(res *database.Resources) {
 	// Create the aggregate command
-	source_collection_name,
-		new_collection_name,
-		new_collection_keys,
+	sourceCollectionName,
+		newCollectionName,
+		newCollectionKeys,
 		pipeline := getHosts(res.System)
 
 	// Aggregate it!
-	error_check := res.DB.CreateCollection(new_collection_name, new_collection_keys)
-	if error_check != nil {
-		res.Log.Error("Failed: ", new_collection_name, error_check)
+	errorCheck := res.DB.CreateCollection(newCollectionName, false, newCollectionKeys)
+	if errorCheck != nil {
+		res.Log.Error("Failed: ", newCollectionName, errorCheck)
 		return
 	}
 
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
+	res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
 }
 
-func getHosts(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
+func getHosts(sysCfg *config.SystemConfig) (string, string, []mgo.Index, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
-	source_collection_name := sysCfg.StructureConfig.ConnTable
+	sourceCollectionName := sysCfg.StructureConfig.ConnTable
 
 	// Name of the new collection
-	new_collection_name := sysCfg.StructureConfig.HostTable
+	newCollectionName := sysCfg.StructureConfig.HostTable
 
 	// Desired indeces
-	keys := []string{"$hashed:ip", "local"}
+	keys := []mgo.Index{
+		{Key: []string{"ip"}, Unique: true},
+		{Key: []string{"local"}},
+	}
 
 	// Aggregation script
 	// nolint: vet
@@ -76,9 +78,9 @@ func getHosts(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) 
 			}},
 		},
 		{
-			{"$out", new_collection_name},
+			{"$out", newCollectionName},
 		},
 	}
 
-	return source_collection_name, new_collection_name, keys, pipeline
+	return sourceCollectionName, newCollectionName, keys, pipeline
 }

@@ -53,8 +53,11 @@ type (
 
 func BuildBeaconCollection(res *database.Resources) {
 	collection_name := res.System.BeaconConfig.BeaconTable
-	collection_keys := []string{"uconn_id", "score"}
-	err := res.DB.CreateCollection(collection_name, collection_keys)
+	collection_keys := []mgo.Index{
+		{Key: []string{"uconn_id"}, Unique: true},
+		{Key: []string{"ts_score"}},
+	}
+	err := res.DB.CreateCollection(collection_name, false, collection_keys)
 	if err != nil {
 		res.Log.Error("Failed: ", collection_name, err.Error())
 		return
@@ -262,7 +265,7 @@ func (t *Beacon) analyze() {
 		if bDen != 0 && mid != low && mid != high {
 			bSkew = float64(bNum) / float64(bDen)
 		}
-		
+
 		if ds_bDen != 0 && ds_mid != ds_low && ds_mid != ds_high {
 			ds_skew = float64(ds_bNum) / float64(ds_bDen)
 		}
@@ -275,7 +278,7 @@ func (t *Beacon) analyze() {
 		for i := 0; i < length; i++ {
 			devs[i] = util.Abs(diff[i] - mid)
 		}
-		
+
 		ds_devs := make([]int64, ds_length)
 		for i := 0; i < ds_length; i++ {
 			ds_devs[i] = util.Abs(data.orig_ip_bytes[i] - ds_mid)
@@ -283,7 +286,7 @@ func (t *Beacon) analyze() {
 
 		sort.Sort(util.SortableInt64(devs))
 		sort.Sort(util.SortableInt64(ds_devs))
-		
+
 		madm := devs[util.Round(.5*float64(length-1))]
 		ds_madm := ds_devs[util.Round(.5*float64(ds_length-1))]
 
@@ -330,8 +333,8 @@ func (t *Beacon) analyze() {
 		epsilon := 1.0 - float64(ds_madm)
 		if epsilon < 0 {
 			epsilon = 0
-		}		
-		
+		}
+
 		gamma := duration
 		//smaller data sizes receive a higher score
 		zeta := 1.0 - (float64(ds_mode) / 65535.0)
@@ -387,7 +390,7 @@ func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
 
 // GetViewPipeline creates an aggregation for user views since the beacon collection
 // stores uconn uid's rather than src, dest pairs. cuttoff is the lowest overall
-// score to report on. Setting cuttoff to 0 retrieves all the records from the 
+// score to report on. Setting cuttoff to 0 retrieves all the records from the
 // beaconing collection. Setting cuttoff to 1 will prevent the aggregation from
 // returning any records.
 func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
