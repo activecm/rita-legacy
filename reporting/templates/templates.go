@@ -100,9 +100,10 @@ var DBhometempl = dbHeader + `
 var BeaconsTempl = dbHeader + `
 <div class="container">
   <table>
-  <tr><th>TS score</th><th>Source</th><th>Destination</th><th>Connections</th><th>Avg. Bytes</th><th>
-	Intvl. Range</th><th>Intvl. Mode</th><th>Intvl. Mode Count</th><th>
-	Intvl. Skew</th><th>Intvl. Dispersion</th><th>TS Duration</tr>
+  <tr><th>Score</th><th>Source</th><th>Destination</th><th>Connections</th><th>Avg. Bytes</th><th>
+	Intvl. Range</th><th>Size Range</th><th>Intvl. Mode</th><th><Size Mode</th><th>Intvl. Mode Count</th>
+	<th>Size Mode Count</th><th>Intvl. Skew</th><th>Size Skew</th><th>Intvl. Dispersion</th><th>Size Dispersion
+	</th><th>TS Duration</tr>
       {{.Writer}}
   </table>
 </div>

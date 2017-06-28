@@ -73,7 +73,7 @@ func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
 	for _, d := range data {
 		table.Append(
 			[]string{
-				f(d.TS_score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
 				i(d.TS_iRange), i(d.DS_range), i(d.TS_iMode), i(d.DS_mode),
 				i(d.TS_iModeCount), i(d.DS_modeCount), f(d.TS_iSkew), f(d.DS_skew),
 				i(d.TS_iDispersion), i(d.DS_dispersion), f(d.TS_duration)})
@@ -83,7 +83,7 @@ func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
 }
 
 func showBeaconCsv(data []beaconData.BeaconAnalysisView) error {
-	tmpl := "{{.TS_score}},{{.Src}},{{.Dst}},{{.Connections}},{{.AvgBytes}},"
+	tmpl := "{{.Score}},{{.Src}},{{.Dst}},{{.Connections}},{{.AvgBytes}},"
 	tmpl += "{{.TS_iRange}},{{.DS_range}},{{.TS_iMode}},{{.DS_mode}},{{.TS_iModeCount}},"
 	tmpl += "{{.DS_modeCount}},{{.TS_iSkew}},{{.DS_skew}},{{.TS_iDispersion}},"
 	tmpl += "{{.DS_dispersion}},{{.TS_duration}}\n"

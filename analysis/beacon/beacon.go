@@ -53,7 +53,7 @@ type (
 
 func BuildBeaconCollection(res *database.Resources) {
 	collection_name := res.System.BeaconConfig.BeaconTable
-	collection_keys := []string{"uconn_id", "ts_score"}
+	collection_keys := []string{"uconn_id", "score"}
 	err := res.DB.CreateCollection(collection_name, collection_keys)
 	if err != nil {
 		res.Log.Error("Failed: ", collection_name, err.Error())
@@ -338,7 +338,7 @@ func (t *Beacon) analyze() {
 
 		//in order of ascending importance: timestamp skew, timestamp duration,
 		//timestamp dispersion, size skew, size duration, size weight
-		output.TS_score = (alpha + beta + gamma + delta + epsilon + zeta) / 6.0
+		output.Score = (alpha + beta + gamma + delta + epsilon + zeta) / 6.0
 		t.writeChannel <- &output
 	}
 	t.analysisWg.Done()
@@ -391,7 +391,7 @@ func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 	return []bson.D{
 		{
 			{"$match", bson.D{
-				{"ts_score", bson.D{
+				{"score", bson.D{
 					{"$gt", cuttoff},
 				}},
 			}},
@@ -409,12 +409,12 @@ func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 		},
 		{
 			{"$sort", bson.D{
-				{"ts_score", -1},
+				{"score", -1},
 			}},
 		},
 		{
 			{"$project", bson.D{
-				{"ts_score", 1},
+				{"score", 1},
 				{"src", "$uconn.src"},
 				{"dst", "$uconn.dst"},
 				{"local_src", "$uconn.local_src"},
