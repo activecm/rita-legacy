@@ -17,7 +17,7 @@ type (
 	//SystemConfig is the container for other config sections
 	SystemConfig struct {
 		BatchSize         int            `yaml:"BatchSize"`
-		DatabaseHost      string         `yaml:"DatabaseHost"`
+		MongoDBConfig     MongoDBCfg     `yaml:"MongoDB"`
 		Prefetch          float64        `yaml:"Prefetch"`
 		LogConfig         LogCfg         `yaml:"LogConfig"`
 		BlacklistedConfig BlacklistedCfg `yaml:"BlackListed"`
@@ -31,6 +31,19 @@ type (
 		BroConfig         BroCfg         `yaml:"Bro"`
 		MetaTables        MetaCfg        `yaml:"MetaTables"`
 		Version           string
+	}
+
+	//MongoDBCfg contains the means for connecting to MongoDB
+	MongoDBCfg struct {
+		ConnectionString string `yaml:"ConnectionString"`
+		AuthMechanism    string `yaml:"AuthenticationMechanism"`
+		TLS              TLSCfg `yaml:"TLS"`
+	}
+
+	//TLSCfg contains the means for connecting to MongoDB over TLS
+	TLSCfg struct {
+		Enabled bool   `yaml:"Enable"`
+		CAFile  string `yaml:"CAFile"`
 	}
 
 	//LogCfg contains the configuration for logging

@@ -1,5 +1,14 @@
-# Mongo Database to connect to
-DatabaseHost: localhost:27017
+MongoDB:
+  # See https://docs.mongodb.com/manual/reference/connection-string/
+  ConnectionString: mongodb://localhost:27017
+  # How to authenticate to MongoDB
+  # Accepted Values: null, "SCRAM-SHA-1", "MONGODB-CR", "PLAIN"
+  AuthenticationMechanism: null
+  # For encrypting data on the wire between RITA and MongoDB
+  TLS:
+    Enable: false
+    #If set, RITA will use the provided CA file instead of the system's CA's
+    CAFile: null
 
 LogConfig:
     # LogLevel
