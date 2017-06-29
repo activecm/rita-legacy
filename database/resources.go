@@ -102,16 +102,16 @@ func InitResources(cfgPath string) *Resources {
 
 //connectToMongoDB connects to MongoDB possibly with authentication and TLS
 func connectToMongoDB(conf *config.MongoDBCfg, logger *log.Logger) (*mgo.Session, error) {
-	if conf.TLS.Enabled {
-		authMechanism, err := mgosec.ParseMongoAuthMechanism(conf.AuthMechanism)
-		if err != nil {
-			authMechanism = mgosec.None
-			logger.WithFields(log.Fields{
-				"authMechanism": conf.AuthMechanism,
-			}).Error(err.Error())
-			fmt.Println("[!] Could not parse MongoDB authentication mechanism")
-		}
+	authMechanism, err := mgosec.ParseAuthMechanism(conf.AuthMechanism)
+	if err != nil {
+		authMechanism = mgosec.None
+		logger.WithFields(log.Fields{
+			"authMechanism": conf.AuthMechanism,
+		}).Error(err.Error())
+		fmt.Println("[!] Could not parse MongoDB authentication mechanism")
+	}
 
+	if conf.TLS.Enabled {
 		tlsConf := &tls.Config{}
 		if len(conf.TLS.CAFile) > 0 {
 			pem, err := ioutil.ReadFile(conf.TLS.CAFile)
@@ -127,7 +127,7 @@ func connectToMongoDB(conf *config.MongoDBCfg, logger *log.Logger) (*mgo.Session
 		}
 		return mgosec.Dial(conf.ConnectionString, authMechanism, tlsConf)
 	}
-	return mgo.Dial(conf.ConnectionString)
+	return mgosec.DialInsecure(conf.ConnectionString, authMechanism)
 }
 
 // initLog creates the logger for logging to stdout and file
