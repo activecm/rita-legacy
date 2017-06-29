@@ -6,7 +6,6 @@ import (
 
 type (
 	Host struct {
-		ID    bson.ObjectId `bson:"_id,omitempty"`
 		Ip    string        `bson:"ip"`
 		Local bool          `bson:"local"`
 	}
