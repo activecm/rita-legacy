@@ -345,8 +345,11 @@ func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
 	return distinct, counts, mode, max
 }
 
-// GetViewPipeline creates an aggregation for user views since the beacon table
-// stores uconn uid's rather than src, dest pairs
+// GetViewPipeline creates an aggregation for user views since the beacon collection
+// stores uconn uid's rather than src, dest pairs. cuttoff is the lowest overall
+// score to report on. Setting cuttoff to 0 retrieves all the records from the 
+// beaconing collection. Setting cuttoff to 1 will prevent the aggregation from
+// returning any records.
 func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 	return []bson.D{
 		{
