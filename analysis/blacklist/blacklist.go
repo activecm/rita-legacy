@@ -1,10 +1,12 @@
 package blacklist
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 
+	"github.com/ocmdev/mgosec"
 	bl "github.com/ocmdev/rita-bl"
 	blDB "github.com/ocmdev/rita-bl/database"
 	"github.com/ocmdev/rita-bl/list"
@@ -25,11 +27,16 @@ func BuildBlacklistedCollections(res *database.Resources) {
 	//capture the current value for the error closure below
 	currentDB := res.DB.GetSelectedDB()
 
+	blDB, err := blDB.NewMongoDB(res.System.DatabaseHost, mgosec.None, "rita-bl")
+	if err != nil {
+		res.Log.Error(err)
+		fmt.Println("\t[!] Could not connect to blacklist database")
+		return
+	}
+
 	//set up rita-blacklist
 	ritaBL := bl.NewBlacklist(
-		blDB.NewMongoDB,         //Use MongoDB for data storage
-		res.System.DatabaseHost, //Use the DatabaseHost as the connection
-		"rita-bl",       //database
+		blDB,
 		func(err error) { //error handler
 			res.Log.WithFields(log.Fields{
 				"db": currentDB,
@@ -181,9 +188,9 @@ func tryOpenFileThenURL(path string) func() (io.ReadCloser, error) {
 	return func() (io.ReadCloser, error) {
 		_, err := os.Stat(path)
 		if err == nil {
-			file, err := os.Open(path)
-			if err != nil {
-				return nil, err
+			file, err2 := os.Open(path)
+			if err2 != nil {
+				return nil, err2
 			}
 			return file, nil
 		}
