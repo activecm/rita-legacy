@@ -60,8 +60,10 @@ func showBeacons(c *cli.Context) error {
 func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
-		"Connections", "Avg. Bytes", "Intvl Range", "Top Intvl",
-		"Top Intvl Count", "Intvl Skew", "Intvl Dispersion", "Intvl Duration"})
+		"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
+		"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
+		"Size Skew", "Intvl Dispersion", "Size Dispersion", "Intvl Duration"})
+
 	f := func(f float64) string {
 		return strconv.FormatFloat(f, 'g', 6, 64)
 	}
@@ -71,18 +73,20 @@ func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
 	for _, d := range data {
 		table.Append(
 			[]string{
-				f(d.TS_score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
-				i(d.TS_iRange), i(d.TS_iMode), i(d.TS_iModeCount), f(d.TS_iSkew),
-				i(d.TS_iDispersion), f(d.TS_duration)})
+				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				i(d.TS_iRange), i(d.DS_range), i(d.TS_iMode), i(d.DS_mode),
+				i(d.TS_iModeCount), i(d.DS_modeCount), f(d.TS_iSkew), f(d.DS_skew),
+				i(d.TS_iDispersion), i(d.DS_dispersion), f(d.TS_duration)})
 	}
 	table.Render()
 	return nil
 }
 
 func showBeaconCsv(data []beaconData.BeaconAnalysisView) error {
-	tmpl := "{{.TS_score}},{{.Src}},{{.Dst}},{{.Connections}},{{.AvgBytes}},"
-	tmpl += "{{.TS_iRange}},{{.TS_iMode}},{{.TS_iModeCount}},"
-	tmpl += "{{.TS_iSkew}},{{.TS_iDispersion}},{{.TS_duration}}\n"
+	tmpl := "{{.Score}},{{.Src}},{{.Dst}},{{.Connections}},{{.AvgBytes}},"
+	tmpl += "{{.TS_iRange}},{{.DS_range}},{{.TS_iMode}},{{.DS_mode}},{{.TS_iModeCount}},"
+	tmpl += "{{.DS_modeCount}},{{.TS_iSkew}},{{.DS_skew}},{{.TS_iDispersion}},"
+	tmpl += "{{.DS_dispersion}},{{.TS_duration}}\n"
 
 	out, err := template.New("beacon").Parse(tmpl)
 	if err != nil {

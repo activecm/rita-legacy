@@ -15,9 +15,16 @@ type (
 		TS_iSkew          float64       `bson:"ts_iSkew"`
 		TS_iDispersion    int64         `bson:"ts_iDispersion"`
 		TS_duration       float64       `bson:"ts_duration"`
-		TS_score          float64       `bson:"ts_score"`
+		Score             float64       `bson:"score"`
 		TS_intervals      []int64       `bson:"ts_intervals"`
 		TS_intervalCounts []int64       `bson:"ts_interval_counts"`
+		DS_skew           float64       `bson:"ds_skew"`
+		DS_dispersion     int64         `bson:"ds_dispersion"`
+		DS_range          int64         `bson:"ds_range"`
+		DS_sizes          []int64       `bson:"ds_sizes"`
+		DS_counts         []int64       `bson:"ds_counts"`
+		DS_mode           int64         `bson:"ds_mode"`
+		DS_modeCount      int64         `bson:"ds_mode_count"`
 	}
 
 	//Used in order to join the uconn and beacon tables
@@ -35,6 +42,11 @@ type (
 		TS_iSkew       float64       `bson:"ts_iSkew"`
 		TS_iDispersion int64         `bson:"ts_iDispersion"`
 		TS_duration    float64       `bson:"ts_duration"`
-		TS_score       float64       `bson:"ts_score"`
+		Score          float64       `bson:"score"`
+		DS_skew        float64       `bson:"ds_skew"`
+		DS_dispersion  int64         `bson:"ds_dispersion"`
+		DS_range       int64         `bson:"ds_range"`
+		DS_mode        int64         `bson:"ds_mode"`
+		DS_modeCount   int64         `bson:"ds_mode_count"`
 	}
 )
