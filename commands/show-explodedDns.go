@@ -20,29 +20,35 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			allFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var explodedResults []dns.ExplodedDNS
 			iter := res.DB.Session.DB(c.String("database")).C(res.System.DNSConfig.ExplodedDNSTable).Find(nil)
-			count, _ := iter.Count()
 
-			if !c.Bool("all") {
-				count = 15
+			iter.Sort("-subdomains").All(&explodedResults)
+
+			if len(explodedResults) == 0 {
+				return cli.NewExitError("No results were found for "+c.String("database"), -1)
 			}
-
-			iter.Sort("-subdomains").Limit(count).All(&explodedResults)
 
 			if c.Bool("human-readable") {
-				return showResultsHuman(explodedResults)
+				err := showResultsHuman(explodedResults)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
 			}
-			return showResults(explodedResults)
+			err := showResults(explodedResults)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(command)
@@ -56,15 +62,13 @@ func showResults(dnsResults []dns.ExplodedDNS) error {
 		return err
 	}
 
-	var error error
 	for _, result := range dnsResults {
 		err := out.Execute(os.Stdout, result)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
 		}
 	}
-	return error
+	return nil
 }
 
 func showResultsHuman(dnsResults []dns.ExplodedDNS) error {

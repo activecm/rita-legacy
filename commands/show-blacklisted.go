@@ -28,6 +28,7 @@ func init() {
 				Usage:       "Show sources with results",
 				Destination: &sourcesFlag,
 			},
+			configFlag,
 		},
 		Action: showBlacklisted,
 	}
@@ -40,7 +41,7 @@ func showBlacklisted(c *cli.Context) error {
 		return cli.NewExitError("Specify a database with -d", -1)
 	}
 
-	res := database.InitResources("")
+	res := database.InitResources(c.String("config"))
 	res.DB.SelectDB(c.String("database"))
 
 	var result blacklistedData.Blacklist
@@ -48,6 +49,10 @@ func showBlacklisted(c *cli.Context) error {
 
 	coll := res.DB.Session.DB(c.String("database")).C(res.System.BlacklistedConfig.BlacklistTable)
 	iter := coll.Find(nil).Sort("-count").Iter()
+
+	if iter.Done() {
+		return cli.NewExitError("No results were found for "+c.String("database"), -1)
+	}
 
 	for iter.Next(&result) {
 		if sourcesFlag {
@@ -57,9 +62,16 @@ func showBlacklisted(c *cli.Context) error {
 	}
 
 	if c.Bool("human-readable") {
-		return showBlacklistedHuman(results)
+		err := showBlacklistedHuman(results)
+		if err != nil {
+			return cli.NewExitError(err.Error(), -1)
+		}
 	}
-	return showBlacklistedCsv(results)
+	err := showBlacklistedCsv(results)
+	if err != nil {
+		return cli.NewExitError(err.Error(), -1)
+	}
+	return nil
 }
 
 // showBlacklisted prints all blacklisted for a given database

@@ -27,15 +27,14 @@ func init() {
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			analyze(c.String("database"), c.String("config"))
-			return nil
+			return analyze(c.String("database"), c.String("config"))
 		},
 	}
 
 	bootstrapCommands(analyzeCommand)
 }
 
-func analyze(inDb string, configFile string) {
+func analyze(inDb string, configFile string) error {
 	res := database.InitResources(configFile)
 	var toRun []string
 
@@ -46,12 +45,14 @@ func analyze(inDb string, configFile string) {
 	} else {
 		info, err := res.MetaDB.GetDBMetaInfo(inDb)
 		if err != nil {
-			res.Log.Errorf("Error: %s not found.\n", inDb)
-			return
+			errStr := fmt.Sprintf("Error: %s not found.", inDb)
+			res.Log.Errorf(errStr)
+			return cli.NewExitError(errStr, -1)
 		}
 		if info.Analyzed {
-			res.Log.Errorf("Error: %s is already analyzed.\n", inDb)
-			return
+			errStr := fmt.Sprintf("Error: %s is already analyzed.", inDb)
+			res.Log.Errorf(errStr)
+			return cli.NewExitError(errStr, -1)
 		}
 
 		toRun = append(toRun, inDb)
@@ -120,6 +121,7 @@ func analyze(inDb string, configFile string) {
 		"end_time": endAll.Format(util.TimeFormat),
 		"duration": endAll.Sub(startAll),
 	}).Info("Analysis complete")
+	return nil
 }
 
 func logAnalysisFunc(analysisName string, databaseName string,

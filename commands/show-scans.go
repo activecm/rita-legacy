@@ -21,22 +21,34 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var scans []scanning.Scan
 			coll := res.DB.Session.DB(c.String("database")).C(res.System.ScanningConfig.ScanTable)
 			coll.Find(nil).All(&scans)
 
-			if c.Bool("human-readable") {
-				return showScansHuman(scans)
+			if len(scans) == 0 {
+				return cli.NewExitError("No results were found for "+c.String("database"), -1)
 			}
-			return showScans(scans)
+
+			if c.Bool("human-readable") {
+				err := showScansHuman(scans)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
+			}
+			err := showScans(scans)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(command)
@@ -50,16 +62,14 @@ func showScans(scans []scanning.Scan) error {
 		return err
 	}
 
-	var error error
 	for _, scan := range scans {
 		sort.Ints(scan.PortSet)
 		err := out.Execute(os.Stdout, scan)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
 		}
 	}
-	return error
+	return nil
 }
 
 // showScans prints all scans for a given database

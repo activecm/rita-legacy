@@ -20,30 +20,37 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			allFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var longConns []data.Conn
 			coll := res.DB.Session.DB(c.String("database")).C(res.System.StructureConfig.ConnTable)
 
 			sortStr := "-duration"
 
-			query := coll.Find(nil).Sort(sortStr)
-			if !c.Bool("all") {
-				query.Limit(15)
+			coll.Find(nil).Sort(sortStr).All(&longConns)
+
+			if len(longConns) == 0 {
+				return cli.NewExitError("No results were found for "+c.String("database"), -1)
 			}
-			query.All(&longConns)
 
 			if c.Bool("human-readable") {
-				return showConnsHuman(longConns)
+				err := showConnsHuman(longConns)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
 			}
-			return showConns(longConns)
+			err := showConns(longConns)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(command)
@@ -57,15 +64,13 @@ func showConns(connResults []data.Conn) error {
 		return err
 	}
 
-	var error error
 	for _, result := range connResults {
 		err := out.Execute(os.Stdout, result)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
 		}
 	}
-	return error
+	return nil
 }
 
 func showConnsHuman(connResults []data.Conn) error {

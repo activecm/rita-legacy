@@ -20,28 +20,35 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			allFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var urls []urls.URL
 			coll := res.DB.Session.DB(c.String("database")).C(res.System.UrlsConfig.UrlsTable)
 
-			query := coll.Find(nil).Sort("-length")
-			if !c.Bool("all") {
-				query.Limit(15)
+			coll.Find(nil).Sort("-length").All(&urls)
+
+			if len(urls) == 0 {
+				return cli.NewExitError("No results were found for "+c.String("database"), -1)
 			}
-			query.All(&urls)
 
 			if c.Bool("human-readable") {
-				return showURLsHuman(urls)
+				err := showURLsHuman(urls)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
 			}
-			return showURLs(urls)
+			err := showURLs(urls)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	vistedURLs := cli.Command{
@@ -51,7 +58,6 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			allFlag,
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
@@ -63,16 +69,23 @@ func init() {
 			var urls []urls.URL
 			coll := res.DB.Session.DB(c.String("database")).C(res.System.UrlsConfig.UrlsTable)
 
-			query := coll.Find(nil).Sort("-count")
-			if !c.Bool("all") {
-				query.Limit(10)
+			coll.Find(nil).Sort("-count").All(&urls)
+
+			if len(urls) == 0 {
+				return cli.NewExitError("No results were found for "+c.String("database"), -1)
 			}
-			query.All(&urls)
 
 			if c.Bool("human-readable") {
-				return showURLsHuman(urls)
+				err := showURLsHuman(urls)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
 			}
-			return showURLs(urls)
+			err := showURLs(urls)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(longURLs, vistedURLs)
@@ -86,15 +99,13 @@ func showURLs(urls []urls.URL) error {
 		return err
 	}
 
-	var error error
 	for _, url := range urls {
 		err := out.Execute(os.Stdout, url)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
 		}
 	}
-	return error
+	return nil
 }
 
 func showURLsHuman(urls []urls.URL) error {

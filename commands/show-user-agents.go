@@ -20,18 +20,18 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			allFlag,
 			cli.BoolFlag{
 				Name:  "least-used, l",
-				Usage: "Print the least used user agent strings",
+				Usage: "Sort the user agents from least used to most used.",
 			},
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
 			if c.String("database") == "" {
 				return cli.NewExitError("Specify a database with -d", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var agents []useragent.UserAgent
 			coll := res.DB.Session.DB(c.String("database")).C(res.System.UserAgentConfig.UserAgentTable)
@@ -43,16 +43,23 @@ func init() {
 				sortStr = "-times_used"
 			}
 
-			query := coll.Find(nil).Sort(sortStr)
-			if !c.Bool("all") {
-				query.Limit(15)
+			coll.Find(nil).Sort(sortStr).All(&agents)
+
+			if len(agents) == 0 {
+				return cli.NewExitError("No results were found for "+c.String("database"), -1)
 			}
-			query.All(&agents)
 
 			if c.Bool("human-readable") {
-				return showAgentsHuman(agents)
+				err := showAgentsHuman(agents)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
 			}
-			return showAgents(agents)
+			err := showAgents(agents)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(command)
@@ -66,15 +73,13 @@ func showAgents(agents []useragent.UserAgent) error {
 		return err
 	}
 
-	var error error
 	for _, agent := range agents {
 		err := out.Execute(os.Stdout, agent)
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
 		}
 	}
-	return error
+	return nil
 }
 
 func showAgentsHuman(agents []useragent.UserAgent) error {

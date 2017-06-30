@@ -38,11 +38,6 @@ var (
 		Name:  "human-readable, H",
 		Usage: "print a report instead of csv",
 	}
-
-	allFlag = cli.BoolFlag{
-		Name:  "all, a",
-		Usage: "print all available records",
-	}
 )
 
 // bootstrapCommands simply adds a given command to the allCommands array

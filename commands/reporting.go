@@ -20,7 +20,7 @@ func init() {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 			databaseName := c.String("database")
 			var databases []string
 			if databaseName != "" {
