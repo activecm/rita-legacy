@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -116,6 +117,8 @@ func initLog(level int) (*log.Logger, error) {
 }
 
 func addFileLogger(logger *log.Logger, logPath string) {
+	time := time.Now().Format(util.TimeFormat)
+	logPath = path.Join(logPath, time)
 	_, err := os.Stat(logPath)
 	if err != nil && os.IsNotExist(err) {
 		err = os.MkdirAll(logPath, 0755)
@@ -124,11 +127,14 @@ func addFileLogger(logger *log.Logger, logPath string) {
 			return
 		}
 	}
+
 	logger.Hooks.Add(lfshook.NewHook(lfshook.PathMap{
-		log.DebugLevel: logPath + "/debug-" + time.Now().Format(util.TimeFormat) + ".log",
-		log.InfoLevel:  logPath + "/info-" + time.Now().Format(util.TimeFormat) + ".log",
-		log.WarnLevel:  logPath + "/warn-" + time.Now().Format(util.TimeFormat) + ".log",
-		log.ErrorLevel: logPath + "/error-" + time.Now().Format(util.TimeFormat) + ".log",
+		log.DebugLevel: path.Join(logPath, "debug.log"),
+		log.InfoLevel:  path.Join(logPath, "info.log"),
+		log.WarnLevel:  path.Join(logPath, "warn.log"),
+		log.ErrorLevel: path.Join(logPath, "error.log"),
+		log.FatalLevel: path.Join(logPath, "fatal.log"),
+		log.PanicLevel: path.Join(logPath, "panic.log"),
 	}))
 }
 
