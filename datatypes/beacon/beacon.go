@@ -7,7 +7,6 @@ import (
 type (
 	//straight output from the beacon analysis
 	BeaconAnalysisOutput struct {
-		ID                bson.ObjectId `bson:"_id,omitempty"`
 		UconnID           bson.ObjectId `bson:"uconn_id"`
 		TS_iRange         int64         `bson:"ts_iRange"`
 		TS_iMode          int64         `bson:"ts_iMode"`
@@ -29,7 +28,6 @@ type (
 
 	//Used in order to join the uconn and beacon tables
 	BeaconAnalysisView struct {
-		ID             bson.ObjectId `bson:"_id,omitempty"`
 		Src            string        `bson:"src"`
 		Dst            string        `bson:"dst"`
 		LocalSrc       bool          `bson:"local_src"`

@@ -62,8 +62,12 @@ func SetBlacklistSources(res *database.Resources, result *blacklisted.Blacklist)
 //BuildBlacklistedCollection runs the hosts in the dataset against rita-blacklist
 func BuildBlacklistedCollection(res *database.Resources) {
 	collectionName := res.System.BlacklistedConfig.BlacklistTable
-	collectionKeys := []string{"bl_hash", "host"}
-	err := res.DB.CreateCollection(collectionName, collectionKeys)
+	//this wil go away in the new blacklist update
+	collectionKeys := []mgo.Index{
+		{Key: []string{"bl_hash"}},
+		{Key: []string{"host"}},
+	}
+	err := res.DB.CreateCollection(collectionName, false, collectionKeys)
 	if err != nil {
 		res.Log.Error("Failed: ", collectionName, err.Error())
 		return

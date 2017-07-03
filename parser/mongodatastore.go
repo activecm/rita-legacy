@@ -80,6 +80,8 @@ func (mongo *MongoDatastore) store(data importedData) {
 			collection:   data.file.TargetCollection,
 			indices:      data.broData.Indices(),
 		}
+		mongo.session.DB(coll.database).C(coll.collection).
+			Create(&mgo.CollectionInfo{DisableIdIndex: true})
 		collectionMap[data.file.TargetCollection] = coll
 		//start the goroutine for this writer
 		mongo.waitgroup.Add(1)

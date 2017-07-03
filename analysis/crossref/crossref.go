@@ -3,6 +3,7 @@ package crossref
 import (
 	"sync"
 
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/ocmdev/rita/database"
@@ -20,8 +21,9 @@ func getXRefSelectors() []dataXRef.XRefSelector {
 
 // BuildXRefCollection runs threaded crossref analysis
 func BuildXRefCollection(res *database.Resources) {
-	res.DB.CreateCollection(res.System.CrossrefConfig.InternalTable, []string{"host"})
-	res.DB.CreateCollection(res.System.CrossrefConfig.ExternalTable, []string{"host"})
+	indexes := []mgo.Index{{Key: []string{"host"}, Unique: true}}
+	res.DB.CreateCollection(res.System.CrossrefConfig.InternalTable, false, indexes)
+	res.DB.CreateCollection(res.System.CrossrefConfig.ExternalTable, false, indexes)
 
 	//maps from analysis types to channels of hosts found
 	internal := make(map[string]<-chan string)

@@ -4,6 +4,7 @@ import (
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -16,7 +17,7 @@ func BuildUserAgentCollection(res *database.Resources) {
 		pipeline := getUserAgentCollectionScript(res.System)
 
 	// Create it
-	err := res.DB.CreateCollection(newCollectionName, newCollectionKeys)
+	err := res.DB.CreateCollection(newCollectionName, false, newCollectionKeys)
 	if err != nil {
 		res.Log.Error("Failed: ", newCollectionName, err.Error())
 		return
@@ -29,7 +30,7 @@ func BuildUserAgentCollection(res *database.Resources) {
 	res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
 }
 
-func getUserAgentCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
+func getUserAgentCollectionScript(sysCfg *config.SystemConfig) (string, string, []mgo.Index, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
 	sourceCollectionName := sysCfg.StructureConfig.HTTPTable
 
@@ -37,7 +38,12 @@ func getUserAgentCollectionScript(sysCfg *config.SystemConfig) (string, string, 
 	newCollectionName := sysCfg.UserAgentConfig.UserAgentTable
 
 	// Desired indeces
-	keys := []string{"-times_used"}
+	keys := []mgo.Index{
+		{Key: []string{"user_agent"}, Unique: true},
+		{Key: []string{"times_used"}},
+	}
+
+	//[]string{"-times_used"}
 
 	// First aggregation script
 	// nolint: vet

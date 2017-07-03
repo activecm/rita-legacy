@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/ocmdev/rita/database"
 	datatype_beacon "github.com/ocmdev/rita/datatypes/beacon"
+	log "github.com/sirupsen/logrus"
 )
 
 func printAnalysis(res *datatype_beacon.BeaconAnalysisOutput) string {
@@ -35,9 +35,10 @@ func TestAnalysis(t *testing.T) {
 		beaconing.minTime = val.ts[0]
 		beaconing.maxTime = val.ts[len(val.ts)-1]
 		data := &beaconAnalysisInput{
-			src: "0.0.0.0",
-			dst: "0.0.0.0",
-			ts:  val.ts,
+			src:           "0.0.0.0",
+			dst:           "0.0.0.0",
+			ts:            val.ts,
+			orig_ip_bytes: []int64{5, 5, 5},
 		}
 
 		beaconing.analysisWg.Add(1)
@@ -48,7 +49,7 @@ func TestAnalysis(t *testing.T) {
 		beaconing.analysisWg.Wait()
 
 		status := "PASS"
-		if res.TS_score < val.minScore || res.TS_score > val.maxScore {
+		if res.Score < val.minScore || res.Score > val.maxScore {
 			fail = true
 			status = "FAIL"
 		}
