@@ -58,7 +58,6 @@ func getURLCollectionScript(sysCfg *config.SystemConfig) (string, string, []mgo.
 					var result = {
 						host: this.host,
 						uri: this.uri,
-						uid: this.uid,
 						ip: this.id_resp_h,
 						length: new NumberLong(this.host.length+this.uri.length)
 					};
@@ -78,7 +77,6 @@ func getURLCollectionScript(sysCfg *config.SystemConfig) (string, string, []mgo.
 				{"uri", "$value.uri"},
 				{"ip", "$value.ip"},
 				{"length", "$value.length"},
-				{"uid", "$value.uid"},
 			}},
 		},
 		{

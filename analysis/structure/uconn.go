@@ -119,7 +119,6 @@ func getUniqueConnectionsScript(sysCfg *config.SystemConfig) (string, string, []
 				{"total_bytes", 1},
 				{"avg_bytes", 1},
 				{"total_duration", 1},
-				{"uid", 1},
 			}},
 		},
 		{

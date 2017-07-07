@@ -68,7 +68,7 @@ func (in *DNS) TargetCollection(config *config.StructureCfg) string {
 
 //Indices gives MongoDB indices that should be used with the collection
 func (in *DNS) Indices() []string {
-	return []string{"$hashed:uid"}
+	return []string{"$hashed:id_origin_h", "$hashed:id_resp_h", "$hashed:query"}
 }
 
 //Normalize pre processes this type of entry before it is imported by rita
