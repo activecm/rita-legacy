@@ -14,38 +14,39 @@ import (
 func getXRefSelectors() []dataXRef.XRefSelector {
 	beaconing := BeaconingSelector{}
 	scanning := ScanningSelector{}
-	blacklisted := BlacklistedSelector{}
+	blSourceIPs := BLSourceIPSelector{}
+	blDestIPs := BLDestIPSelector{}
 
-	return []dataXRef.XRefSelector{beaconing, scanning, blacklisted}
+	return []dataXRef.XRefSelector{beaconing, scanning, blSourceIPs, blDestIPs}
 }
 
 // BuildXRefCollection runs threaded crossref analysis
 func BuildXRefCollection(res *database.Resources) {
 	indexes := []mgo.Index{{Key: []string{"host"}, Unique: true}}
-	res.DB.CreateCollection(res.System.CrossrefConfig.InternalTable, false, indexes)
-	res.DB.CreateCollection(res.System.CrossrefConfig.ExternalTable, false, indexes)
+	res.DB.CreateCollection(res.System.CrossrefConfig.SourceTable, false, indexes)
+	res.DB.CreateCollection(res.System.CrossrefConfig.DestTable, false, indexes)
 
 	//maps from analysis types to channels of hosts found
-	internal := make(map[string]<-chan string)
-	external := make(map[string]<-chan string)
+	sources := make(map[string]<-chan string)
+	destinations := make(map[string]<-chan string)
 
 	//kick off reads
 	for _, selector := range getXRefSelectors() {
-		internalHosts, externalHosts := selector.Select(res)
-		internal[selector.GetName()] = internalHosts
-		external[selector.GetName()] = externalHosts
+		sourceHosts, destinationHosts := selector.Select(res)
+		sources[selector.GetName()] = sourceHosts
+		destinations[selector.GetName()] = destinationHosts
 	}
 
 	xRefWG := new(sync.WaitGroup)
 	xRefWG.Add(2)
 	//kick off writes
-	go multiplexXRef(res, res.System.CrossrefConfig.InternalTable, internal, xRefWG)
-	go multiplexXRef(res, res.System.CrossrefConfig.ExternalTable, external, xRefWG)
+	go multiplexXRef(res, res.System.CrossrefConfig.SourceTable, sources, xRefWG)
+	go multiplexXRef(res, res.System.CrossrefConfig.DestTable, destinations, xRefWG)
 	xRefWG.Wait()
 
 	//group by host ip and put module findings into an array
-	finalizeXRef(res, res.System.CrossrefConfig.InternalTable)
-	finalizeXRef(res, res.System.CrossrefConfig.ExternalTable)
+	finalizeXRef(res, res.System.CrossrefConfig.SourceTable)
+	finalizeXRef(res, res.System.CrossrefConfig.DestTable)
 }
 
 //multiplexXRef takes a target colllection, and a map from
@@ -89,9 +90,6 @@ func finalizeXRef(res *database.Resources, collection string) {
 				{"_id", bson.D{
 					{"host", "$host"},
 				}},
-				{"host", bson.D{
-					{"$first", "$host"},
-				}},
 				{"modules", bson.D{
 					{"$addToSet", "$module"},
 				}},
@@ -100,7 +98,7 @@ func finalizeXRef(res *database.Resources, collection string) {
 		{
 			{"$project", bson.D{
 				{"_id", 0},
-				{"host", 1},
+				{"host", "$_id.host"},
 				{"modules", 1},
 			}},
 		},

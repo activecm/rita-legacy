@@ -24,13 +24,16 @@ var dbHeader = `
   <li><a href="../index.html">RITA</a></li>
   <li><a href="index.html">Viewing: {{.DB}}</a></li>
   <li><a href="beacons.html">Beacons</a></li>
-  <li><a href="blacklisted.html">Blacklisted</a></li>
-  <li><a href="dns.html">DNS</a></li>
-  <li><a href="scans.html">Scans</a></li>
-  <li><a href="long-conns.html">Long Connections</a></li>
+	<li><a href="dns.html">DNS</a></li>
+  <li><a href="bl-source-ips.html">BL Source IPs</a></li>
+	<li><a href="bl-dest-ips.html">BL Dest. IPs</a></li>
+	<li><a href="bl-hostnames.html">BL Hostnames</a></li>
+	<li><a href="bl-urls.html">BL URLs</a></li>
+	<li><a href="scans.html">Scans</a></li>
+	<li><a href="long-conns.html">Long Connections</a></li>
 	<li><a href="long-urls.html">Long URLs</a></li>
 	<li><a href="useragents.html">User Agents</a></li>
-  <li style="float:right">
+	<li style="float:right">
     <a href="https://github.com/ocmdev/rita" target="_blank">RITA on
 		<img src="../github.svg" title="Icon made by Dave Gandy from www.flaticon.com" id="github">
     </a>
@@ -109,11 +112,41 @@ var BeaconsTempl = dbHeader + `
 </div>
 `
 
-// BlacklistedTempl is our beacons html template
-var BlacklistedTempl = dbHeader + `
+// BLSourceIPTempl is our blacklisted source ip html template
+var BLSourceIPTempl = dbHeader + `
 <div class="container">
   <table>
-  <tr><th>Destination</th><th>Score</th><th>Source(s)</th><tr>
+  <tr><th>IP</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Lists</th><th>Destinations</th><tr>
+    {{.Writer}}
+  </table>
+</div>
+`
+
+// BLDestIPTempl is our blacklisted destination ip html template
+var BLDestIPTempl = dbHeader + `
+<div class="container">
+  <table>
+  <tr><th>IP</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Lists</th><th>Sources</th><tr>
+    {{.Writer}}
+  </table>
+</div>
+`
+
+// BLHostnameTempl is our blacklisted hostname html template
+var BLHostnameTempl = dbHeader + `
+<div class="container">
+  <table>
+  <tr><th>Hostname</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Lists</th><th>Sources</th><tr>
+    {{.Writer}}
+  </table>
+</div>
+`
+
+// BLURLTempl is our blacklisted url html template
+var BLURLTempl = dbHeader + `
+<div class="container">
+  <table>
+  <tr><th>Host</th><th>Resource</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Lists</th><th>Sources</th><tr>
     {{.Writer}}
   </table>
 </div>
