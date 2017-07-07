@@ -102,15 +102,6 @@ func InitResources(cfgPath string) *Resources {
 
 //connectToMongoDB connects to MongoDB possibly with authentication and TLS
 func connectToMongoDB(conf *config.MongoDBCfg, logger *log.Logger) (*mgo.Session, error) {
-	authMechanism, err := mgosec.ParseAuthMechanism(conf.AuthMechanism)
-	if err != nil {
-		authMechanism = mgosec.None
-		logger.WithFields(log.Fields{
-			"authMechanism": conf.AuthMechanism,
-		}).Error(err.Error())
-		fmt.Println("[!] Could not parse MongoDB authentication mechanism")
-	}
-
 	if conf.TLS.Enabled {
 		tlsConf := &tls.Config{}
 		if len(conf.TLS.CAFile) > 0 {
@@ -125,9 +116,9 @@ func connectToMongoDB(conf *config.MongoDBCfg, logger *log.Logger) (*mgo.Session
 				tlsConf.RootCAs.AppendCertsFromPEM(pem)
 			}
 		}
-		return mgosec.Dial(conf.ConnectionString, authMechanism, tlsConf)
+		return mgosec.Dial(conf.ConnectionString, conf.AuthMechanismParsed, tlsConf)
 	}
-	return mgosec.DialInsecure(conf.ConnectionString, authMechanism)
+	return mgosec.DialInsecure(conf.ConnectionString, conf.AuthMechanismParsed)
 }
 
 // initLog creates the logger for logging to stdout and file

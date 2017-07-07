@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ocmdev/mgosec"
 	bl "github.com/ocmdev/rita-bl"
 	blDB "github.com/ocmdev/rita-bl/database"
 	"github.com/ocmdev/rita-bl/list"
@@ -28,8 +27,22 @@ const ritaBLBufferSize = 1000
 func BuildBlacklistedCollections(res *database.Resources) {
 	//capture the current value for the error closure below
 	currentDB := res.DB.GetSelectedDB()
-
-	blDB, err := blDB.NewMongoDB(res.System.DatabaseHost, mgosec.None, "rita-bl")
+	var err error
+	var blDatabase blDB.Handle
+	if res.System.MongoDBConfig.TLS.Enabled {
+		blDatabase, err = blDB.NewSecureMongoDB(
+			res.System.MongoDBConfig.ConnectionString,
+			res.System.MongoDBConfig.AuthMechanismParsed,
+			"rita-bl",
+			res.System.MongoDBConfig.TLS.CAFile,
+		)
+	} else {
+		blDatabase, err = blDB.NewMongoDB(
+			res.System.MongoDBConfig.ConnectionString,
+			res.System.MongoDBConfig.AuthMechanismParsed,
+			"rita-bl",
+		)
+	}
 	if err != nil {
 		res.Log.Error(err)
 		fmt.Println("\t[!] Could not connect to blacklist database")
@@ -38,7 +51,7 @@ func BuildBlacklistedCollections(res *database.Resources) {
 
 	//set up rita-blacklist
 	ritaBL := bl.NewBlacklist(
-		blDB,
+		blDatabase,
 		func(err error) { //error handler
 			res.Log.WithFields(log.Fields{
 				"db": currentDB,
