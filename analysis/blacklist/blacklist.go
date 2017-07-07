@@ -20,6 +20,8 @@ import (
 
 type resultsChan chan map[string][]blDB.BlacklistResult
 
+const ritaBLBufferSize = 1000
+
 //BuildBlacklistedCollections builds the blacklisted sources,
 //blacklisted destinations, blacklist hostnames, and blacklisted urls
 //collections
@@ -90,14 +92,13 @@ func BuildBlacklistedCollections(res *database.Resources) {
 
 	//create the data
 	//TODO: refactor these into modules
-	bufferSize := 1000
-	buildBlacklistedIPs(uniqueSourceIter, res, ritaBL, bufferSize, true)
+	buildBlacklistedIPs(uniqueSourceIter, res, ritaBL, ritaBLBufferSize, true)
 
-	buildBlacklistedIPs(uniqueDestIter, res, ritaBL, bufferSize, false)
+	buildBlacklistedIPs(uniqueDestIter, res, ritaBL, ritaBLBufferSize, false)
 
-	buildBlacklistedHostnames(hostnamesIter, res, ritaBL, bufferSize)
+	buildBlacklistedHostnames(hostnamesIter, res, ritaBL, ritaBLBufferSize)
 
-	buildBlacklistedURLs(urlIter, res, ritaBL, bufferSize, "http://")
+	buildBlacklistedURLs(urlIter, res, ritaBL, ritaBLBufferSize, "http://")
 
 	//index the data
 	for _, collection := range collections {
@@ -175,7 +176,7 @@ func buildCustomBlacklists(entryType list.BlacklistedEntryType, paths []string) 
 		newList := lists.NewLineSeperatedList(
 			entryType,
 			path,
-			86400,
+			86400, // default cache time of 1 day
 			tryOpenFileThenURL(path),
 		)
 		blacklists = append(blacklists, newList)
