@@ -7,6 +7,8 @@ import (
 	"os/user"
 	"reflect"
 
+	"github.com/ocmdev/mgosec"
+
 	"gopkg.in/yaml.v2"
 )
 
@@ -17,7 +19,7 @@ type (
 	//SystemConfig is the container for other config sections
 	SystemConfig struct {
 		BatchSize         int            `yaml:"BatchSize"`
-		DatabaseHost      string         `yaml:"DatabaseHost"`
+		MongoDBConfig     MongoDBCfg     `yaml:"MongoDB"`
 		Prefetch          float64        `yaml:"Prefetch"`
 		LogConfig         LogCfg         `yaml:"LogConfig"`
 		BlacklistedConfig BlacklistedCfg `yaml:"BlackListed"`
@@ -31,6 +33,20 @@ type (
 		BroConfig         BroCfg         `yaml:"Bro"`
 		MetaTables        MetaCfg        `yaml:"MetaTables"`
 		Version           string
+	}
+
+	//MongoDBCfg contains the means for connecting to MongoDB
+	MongoDBCfg struct {
+		ConnectionString    string               `yaml:"ConnectionString"`
+		AuthMechanism       string               `yaml:"AuthenticationMechanism"`
+		AuthMechanismParsed mgosec.AuthMechanism `yaml:"AuthenticationMechanismParsed,omitempty"`
+		TLS                 TLSCfg               `yaml:"TLS"`
+	}
+
+	//TLSCfg contains the means for connecting to MongoDB over TLS
+	TLSCfg struct {
+		Enabled bool   `yaml:"Enable"`
+		CAFile  string `yaml:"CAFile"`
 	}
 
 	//LogCfg contains the configuration for logging
@@ -161,14 +177,25 @@ func loadSystemConfig(cfgPath string) (*SystemConfig, bool) {
 		}
 		err = yaml.Unmarshal(cfgFile, config)
 
-		// expand env variables, config is a pointer
-		// so we have to call elem on the reflect value
-		expandConfig(reflect.ValueOf(config).Elem())
-
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to read config: %s\n", err.Error())
 			return config, false
 		}
+
+		// expand env variables, config is a pointer
+		// so we have to call elem on the reflect value
+		expandConfig(reflect.ValueOf(config).Elem())
+
+		//parse out the mongo authentication mechanism
+		authMechanism, err := mgosec.ParseAuthMechanism(
+			config.MongoDBConfig.AuthMechanism,
+		)
+		if err != nil {
+			authMechanism = mgosec.None
+			fmt.Println("[!] Could not parse MongoDB authentication mechanism")
+		}
+		config.MongoDBConfig.AuthMechanismParsed = authMechanism
+
 		return config, true
 	}
 	return config, false

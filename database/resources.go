@@ -1,6 +1,8 @@
 package database
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,7 +12,8 @@ import (
 
 	mgo "gopkg.in/mgo.v2"
 
-	"github.com/Zalgo2462/mgorus"
+	"github.com/ocmdev/mgorus"
+	"github.com/ocmdev/mgosec"
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/util"
 	"github.com/rifflock/lfshook"
@@ -47,7 +50,7 @@ func InitResources(cfgPath string) *Resources {
 	}
 
 	// Jump into the requested database
-	session, err := mgo.Dial(conf.DatabaseHost)
+	session, err := connectToMongoDB(&conf.MongoDBConfig, log)
 	if err != nil {
 		fmt.Printf("Failed to connect to database: %s", err.Error())
 		os.Exit(-1)
@@ -67,6 +70,7 @@ func InitResources(cfgPath string) *Resources {
 		lock: new(sync.Mutex),
 	}
 
+	//bundle up the system resources
 	r := &Resources{
 		Log:    log,
 		System: conf,
@@ -84,11 +88,37 @@ func InitResources(cfgPath string) *Resources {
 	if !metaDB.isBuilt() {
 		metaDB.createMetaDB()
 	}
+
+	//Begin logging to the metadatabase
 	if conf.LogConfig.LogToDB {
-		addMongoLogger(log, conf.DatabaseHost, conf.BroConfig.MetaDB,
-			conf.LogConfig.RitaLogTable)
+		log.Hooks.Add(
+			mgorus.NewHookerFromSession(
+				session, conf.BroConfig.MetaDB, conf.LogConfig.RitaLogTable,
+			),
+		)
 	}
 	return r
+}
+
+//connectToMongoDB connects to MongoDB possibly with authentication and TLS
+func connectToMongoDB(conf *config.MongoDBCfg, logger *log.Logger) (*mgo.Session, error) {
+	if conf.TLS.Enabled {
+		tlsConf := &tls.Config{}
+		if len(conf.TLS.CAFile) > 0 {
+			pem, err := ioutil.ReadFile(conf.TLS.CAFile)
+			if err != nil {
+				logger.WithFields(log.Fields{
+					"CAFile": conf.TLS.CAFile,
+				}).Error(err.Error())
+				fmt.Println("[!] Could not read MongoDB CA file")
+			} else {
+				tlsConf.RootCAs = x509.NewCertPool()
+				tlsConf.RootCAs.AppendCertsFromPEM(pem)
+			}
+		}
+		return mgosec.Dial(conf.ConnectionString, conf.AuthMechanismParsed, tlsConf)
+	}
+	return mgosec.DialInsecure(conf.ConnectionString, conf.AuthMechanismParsed)
 }
 
 // initLog creates the logger for logging to stdout and file
@@ -136,12 +166,4 @@ func addFileLogger(logger *log.Logger, logPath string) {
 		log.FatalLevel: path.Join(logPath, "fatal.log"),
 		log.PanicLevel: path.Join(logPath, "panic.log"),
 	}))
-}
-
-func addMongoLogger(logger *log.Logger, dbHost, metaDB, logColl string) error {
-	mgoHook, err := mgorus.NewHooker(dbHost, metaDB, logColl)
-	if err == nil {
-		logger.Hooks.Add(mgoHook)
-	}
-	return err
 }
