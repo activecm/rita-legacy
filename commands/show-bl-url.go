@@ -1,8 +1,7 @@
 package commands
 
 import (
-	"fmt"
-	"html/template"
+	"encoding/csv"
 	"os"
 	"sort"
 	"strconv"
@@ -89,28 +88,29 @@ func printBLURLs(c *cli.Context) error {
 }
 
 func showBLURLs(urls []blacklist.BlacklistedURL, connectedHosts bool) error {
-	tmpl := "{{.Host}},{{.Resource}},{{.Connections}},{{.UniqueConnections}},{{.TotalBytes}},"
-	tmpl += blacklistListsTemplate
+	csvWriter := csv.NewWriter(os.Stdout)
+	headers := []string{"Host", "Resource", "Connections", "Unique Connections", "Total Bytes", "Lists"}
 	if connectedHosts {
-		tmpl += ",{{range $idx, $url := .ConnectedHosts}}{{if $idx}} {{end}}{{ $url }}{{end}}"
+		headers = append(headers, "Sources")
 	}
-	tmpl += endl
-
-	out, err := template.New("blurl").Parse(tmpl)
-	if err != nil {
-		return err
-	}
-
+	csvWriter.Write(headers)
 	for _, url := range urls {
 		sort.Strings(url.Lists)
+		serialized := []string{
+			url.Host,
+			url.Resource,
+			strconv.Itoa(url.Connections),
+			strconv.Itoa(url.UniqueConnections),
+			strconv.Itoa(url.TotalBytes),
+			strings.Join(url.Lists, " "),
+		}
 		if connectedHosts {
 			sort.Strings(url.ConnectedHosts)
+			serialized = append(serialized, strings.Join(url.ConnectedHosts, " "))
 		}
-		err := out.Execute(os.Stdout, url)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-		}
+		csvWriter.Write(serialized)
 	}
+	csvWriter.Flush()
 	return nil
 }
 

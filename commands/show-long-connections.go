@@ -1,10 +1,9 @@
 package commands
 
 import (
-	"fmt"
+	"encoding/csv"
 	"os"
 	"strconv"
-	"text/template"
 
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/datatypes/data"
@@ -57,19 +56,20 @@ func init() {
 }
 
 func showConns(connResults []data.Conn) error {
-	tmpl := "{{.Src}},{{.Spt}},{{.Dst}},{{.Dpt}},{{.Dur}},{{.Proto}}\n"
-
-	out, err := template.New("Conn").Parse(tmpl)
-	if err != nil {
-		return err
-	}
-
+	csvWriter := csv.NewWriter(os.Stdout)
+	csvWriter.Write([]string{"Source IP", "Source Port", "Destination IP",
+		"Destination Port", "Duration", "Protocol"})
 	for _, result := range connResults {
-		err := out.Execute(os.Stdout, result)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-		}
+		csvWriter.Write([]string{
+			result.Src,
+			strconv.Itoa(result.Spt),
+			result.Dst,
+			strconv.Itoa(result.Dpt),
+			f(result.Dur),
+			result.Proto,
+		})
 	}
+	csvWriter.Flush()
 	return nil
 }
 
@@ -83,7 +83,7 @@ func showConnsHuman(connResults []data.Conn) error {
 			strconv.Itoa(result.Spt),
 			result.Dst,
 			strconv.Itoa(result.Dpt),
-			strconv.FormatFloat(result.Dur, 'f', 2, 64),
+			f(result.Dur),
 			result.Proto,
 		})
 	}

@@ -1,10 +1,8 @@
 package commands
 
 import (
-	"fmt"
+	"encoding/csv"
 	"os"
-	"strconv"
-	"text/template"
 
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/datatypes/useragent"
@@ -66,19 +64,12 @@ func init() {
 }
 
 func showAgents(agents []useragent.UserAgent) error {
-	tmpl := "{{.UserAgent}},{{.TimesUsed}}\n"
-
-	out, err := template.New("ua").Parse(tmpl)
-	if err != nil {
-		return err
-	}
-
+	csvWriter := csv.NewWriter(os.Stdout)
+	csvWriter.Write([]string{"User Agent", "Times Used"})
 	for _, agent := range agents {
-		err := out.Execute(os.Stdout, agent)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-		}
+		csvWriter.Write([]string{agent.UserAgent, i(agent.TimesUsed)})
 	}
+	csvWriter.Flush()
 	return nil
 }
 
@@ -87,7 +78,7 @@ func showAgentsHuman(agents []useragent.UserAgent) error {
 	table.SetColWidth(100)
 	table.SetHeader([]string{"User Agent", "Times Used"})
 	for _, agent := range agents {
-		table.Append([]string{agent.UserAgent, strconv.FormatInt(agent.TimesUsed, 10)})
+		table.Append([]string{agent.UserAgent, i(agent.TimesUsed)})
 	}
 	table.Render()
 	return nil

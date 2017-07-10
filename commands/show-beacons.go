@@ -1,10 +1,8 @@
 package commands
 
 import (
-	"fmt"
+	"encoding/csv"
 	"os"
-	"strconv"
-	"text/template"
 
 	"github.com/ocmdev/rita/analysis/beacon"
 	"github.com/ocmdev/rita/database"
@@ -66,39 +64,40 @@ func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
 		"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
 		"Size Skew", "Intvl Dispersion", "Size Dispersion", "Intvl Duration"})
 
-	f := func(f float64) string {
-		return strconv.FormatFloat(f, 'g', 6, 64)
-	}
-	i := func(i int64) string {
-		return strconv.FormatInt(i, 10)
-	}
 	for _, d := range data {
 		table.Append(
 			[]string{
 				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
 				i(d.TS_iRange), i(d.DS_range), i(d.TS_iMode), i(d.DS_mode),
 				i(d.TS_iModeCount), i(d.DS_modeCount), f(d.TS_iSkew), f(d.DS_skew),
-				i(d.TS_iDispersion), i(d.DS_dispersion), f(d.TS_duration)})
+				i(d.TS_iDispersion), i(d.DS_dispersion), f(d.TS_duration),
+			},
+		)
 	}
 	table.Render()
 	return nil
 }
 
 func showBeaconCsv(data []beaconData.BeaconAnalysisView) error {
-	tmpl := "{{.Score}},{{.Src}},{{.Dst}},{{.Connections}},{{.AvgBytes}},"
-	tmpl += "{{.TS_iRange}},{{.DS_range}},{{.TS_iMode}},{{.DS_mode}},{{.TS_iModeCount}},"
-	tmpl += "{{.DS_modeCount}},{{.TS_iSkew}},{{.DS_skew}},{{.TS_iDispersion}},"
-	tmpl += "{{.DS_dispersion}},{{.TS_duration}}\n"
+	csvWriter := csv.NewWriter(os.Stdout)
+	headers := []string{
+		"Score", "Source", "Destination", "Connections",
+		"Avg Bytes", "TS Range", "DS Range", "TS Mode", "DS Mode", "TS Mode Count",
+		"DS Mode Count", "TS Skew", "DS Skew", "TS Dispersion", "DS Dispersion",
+		"TS Duration",
+	}
+	csvWriter.Write(headers)
 
-	out, err := template.New("beacon").Parse(tmpl)
-	if err != nil {
-		return err
-	}
 	for _, d := range data {
-		err := out.Execute(os.Stdout, d)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-		}
+		csvWriter.Write(
+			[]string{
+				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				i(d.TS_iRange), i(d.DS_range), i(d.TS_iMode), i(d.DS_mode),
+				i(d.TS_iModeCount), i(d.DS_modeCount), f(d.TS_iSkew), f(d.DS_skew),
+				i(d.TS_iDispersion), i(d.DS_dispersion), f(d.TS_duration),
+			},
+		)
 	}
+	csvWriter.Flush()
 	return nil
 }

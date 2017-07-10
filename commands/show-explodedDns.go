@@ -1,10 +1,8 @@
 package commands
 
 import (
-	"fmt"
+	"encoding/csv"
 	"os"
-	"strconv"
-	"text/template"
 
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/datatypes/dns"
@@ -55,19 +53,14 @@ func init() {
 }
 
 func showDNSResults(dnsResults []dns.ExplodedDNS) error {
-	tmpl := "{{.Domain}},{{.Subdomains}},{{.Visited}}\n"
-
-	out, err := template.New("exploded-dns").Parse(tmpl)
-	if err != nil {
-		return err
-	}
-
+	csvWriter := csv.NewWriter(os.Stdout)
+	csvWriter.Write([]string{"Domain", "Unique Subdomains", "Times Looked Up"})
 	for _, result := range dnsResults {
-		err := out.Execute(os.Stdout, result)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-		}
+		csvWriter.Write([]string{
+			result.Domain, i(result.Subdomains), i(result.Visited),
+		})
 	}
+	csvWriter.Flush()
 	return nil
 }
 
@@ -76,9 +69,7 @@ func showDNSResultsHuman(dnsResults []dns.ExplodedDNS) error {
 	table.SetHeader([]string{"Domain", "Unique Subdomains", "Times Looked Up"})
 	for _, result := range dnsResults {
 		table.Append([]string{
-			result.Domain,
-			strconv.FormatInt(result.Subdomains, 10),
-			strconv.FormatInt(result.Visited, 10),
+			result.Domain, i(result.Subdomains), i(result.Visited),
 		})
 	}
 	table.Render()

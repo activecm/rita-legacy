@@ -2,6 +2,7 @@ package commands
 
 import (
 	"runtime"
+	"strconv"
 
 	"github.com/urfave/cli"
 )
@@ -61,4 +62,12 @@ func bootstrapCommands(commands ...cli.Command) {
 // Commands provides all of the defined commands to the front end
 func Commands() []cli.Command {
 	return allCommands
+}
+
+//helper functions for formatting floats and integers
+func f(f float64) string {
+	return strconv.FormatFloat(f, 'g', 6, 64)
+}
+func i(i int64) string {
+	return strconv.FormatInt(i, 10)
 }
