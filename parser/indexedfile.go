@@ -17,7 +17,7 @@ import (
 
 //newIndexedFile takes in a file path and the bro config and opens up the
 //file path and parses out some metadata
-func newIndexedFile(filePath string, config *config.SystemConfig,
+func newIndexedFile(filePath string, config *config.Config,
 	logger *log.Logger) (*fpt.IndexedFile, error) {
 	toReturn := new(fpt.IndexedFile)
 	toReturn.Path = filePath
@@ -76,13 +76,13 @@ func newIndexedFile(filePath string, config *config.SystemConfig,
 		return toReturn, errors.New("Could not parse first line of file for time")
 	}
 
-	toReturn.TargetCollection = line.TargetCollection(&config.StructureConfig)
+	toReturn.TargetCollection = line.TargetCollection(&config.T.Structure)
 	if toReturn.TargetCollection == "" {
 		fileHandle.Close()
 		return toReturn, errors.New("Could not find a target collection for file")
 	}
 
-	toReturn.TargetDatabase = getTargetDatabase(filePath, &config.BroConfig)
+	toReturn.TargetDatabase = getTargetDatabase(filePath, &config.S.Bro)
 	if toReturn.TargetDatabase == "" {
 		fileHandle.Close()
 		return toReturn, errors.New("Could not find a dataset for file")
@@ -113,7 +113,7 @@ func getFileHash(fileHandle *os.File, fInfo os.FileInfo) (string, error) {
 
 //getTargetDatabase assigns a database to a log file based on the path,
 //and the bro config
-func getTargetDatabase(path string, broConfig *config.BroCfg) string {
+func getTargetDatabase(path string, broConfig *config.BroStaticCfg) string {
 	// check the directory map
 	for key, val := range broConfig.DirectoryMap {
 		if strings.Contains(path, key) {

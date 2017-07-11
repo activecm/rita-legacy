@@ -57,7 +57,7 @@ type (
 
 //TargetCollection returns the mongo collection this entry should be inserted
 //into
-func (in *Conn) TargetCollection(config *config.StructureCfg) string {
+func (in *Conn) TargetCollection(config *config.StructureTableCfg) string {
 	return config.ConnTable
 }
 

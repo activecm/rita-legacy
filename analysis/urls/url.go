@@ -15,7 +15,7 @@ func BuildUrlsCollection(res *database.Resources) {
 		newCollectionName,
 		newCollectionKeys,
 		job,
-		pipeline := getURLCollectionScript(res.System)
+		pipeline := getURLCollectionScript(res.Config)
 
 	// Create it
 	err := res.DB.CreateCollection(newCollectionName, false, []mgo.Index{})
@@ -34,17 +34,17 @@ func BuildUrlsCollection(res *database.Resources) {
 	// Aggregate it
 	res.DB.AggregateCollection(newCollectionName, ssn, pipeline)
 	for _, index := range newCollectionKeys {
-		ssn.DB(res.DB.GetSelectedDB()).C(res.System.UrlsConfig.UrlsTable).
+		ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Urls.UrlsTable).
 			EnsureIndex(index)
 	}
 }
 
-func getURLCollectionScript(sysCfg *config.SystemConfig) (string, string, []mgo.Index, mgo.MapReduce, []bson.D) {
+func getURLCollectionScript(conf *config.Config) (string, string, []mgo.Index, mgo.MapReduce, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
-	sourceCollectionName := sysCfg.StructureConfig.HTTPTable
+	sourceCollectionName := conf.T.Structure.HTTPTable
 
 	// Name of the new collection
-	newCollectionName := sysCfg.UrlsConfig.UrlsTable
+	newCollectionName := conf.T.Urls.UrlsTable
 
 	// Desired indeces
 	keys := []mgo.Index{

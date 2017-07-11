@@ -14,7 +14,7 @@ func GetConnSourcesFromDest(res *database.Resources, ip string) []string {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	cons := ssn.DB(res.DB.GetSelectedDB()).C(res.System.StructureConfig.UniqueConnTable)
+	cons := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable)
 	srcIter := cons.Find(bson.M{"dst": ip}).Iter()
 
 	var srcStruct struct {
@@ -35,7 +35,7 @@ func BuildUniqueConnectionsCollection(res *database.Resources) {
 	sourceCollectionName,
 		newCollectionName,
 		newCollectionKeys,
-		pipeline := getUniqueConnectionsScript(res.System)
+		pipeline := getUniqueConnectionsScript(res.Config)
 
 	err := res.DB.CreateCollection(newCollectionName, true, newCollectionKeys)
 	if err != nil {
@@ -49,12 +49,12 @@ func BuildUniqueConnectionsCollection(res *database.Resources) {
 	res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
 }
 
-func getUniqueConnectionsScript(sysCfg *config.SystemConfig) (string, string, []mgo.Index, []bson.D) {
+func getUniqueConnectionsScript(conf *config.Config) (string, string, []mgo.Index, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
-	sourceCollectionName := sysCfg.StructureConfig.ConnTable
+	sourceCollectionName := conf.T.Structure.ConnTable
 
 	// Name of the new collection
-	newCollectionName := sysCfg.StructureConfig.UniqueConnTable
+	newCollectionName := conf.T.Structure.UniqueConnTable
 
 	// Desired Indeces
 	keys := []mgo.Index{

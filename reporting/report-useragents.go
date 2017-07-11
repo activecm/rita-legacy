@@ -22,7 +22,7 @@ func printUserAgents(db string, res *database.Resources) error {
 	}
 
 	var agents []useragent.UserAgent
-	coll := res.DB.Session.DB(db).C(res.System.UserAgentConfig.UserAgentTable)
+	coll := res.DB.Session.DB(db).C(res.Config.T.UserAgent.UserAgentTable)
 	coll.Find(nil).Sort("times_used").Limit(1000).All(&agents)
 
 	w, err := getUserAgentsWriter(agents)

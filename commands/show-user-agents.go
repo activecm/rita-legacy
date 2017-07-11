@@ -34,7 +34,7 @@ func init() {
 			res := database.InitResources(c.String("config"))
 
 			var agents []useragent.UserAgent
-			coll := res.DB.Session.DB(c.String("database")).C(res.System.UserAgentConfig.UserAgentTable)
+			coll := res.DB.Session.DB(c.String("database")).C(res.Config.T.UserAgent.UserAgentTable)
 
 			var sortStr string
 			if c.Bool("least-used") {

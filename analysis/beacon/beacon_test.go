@@ -24,13 +24,13 @@ func printAnalysis(res *datatype_beacon.BeaconAnalysisOutput) string {
 }
 
 func TestAnalysis(t *testing.T) {
-	resources := database.InitMockResources("")
-	resources.Log.Level = log.DebugLevel
-	resources.System.BeaconConfig.DefaultConnectionThresh = 2
+	res := database.InitMockResources("")
+	res.Log.Level = log.DebugLevel
+	res.Config.S.Beacon.DefaultConnectionThresh = 2
 
 	fail := false
 	for i, val := range testDataList {
-		beaconing := newBeacon(resources)
+		beaconing := newBeacon(res)
 		//set first and last connection times
 		beaconing.minTime = val.ts[0]
 		beaconing.maxTime = val.ts[len(val.ts)-1]

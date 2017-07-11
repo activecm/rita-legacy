@@ -55,11 +55,11 @@ func buildBlacklistedIPs(ips *mgo.Iter, res *database.Resources,
 	var outputCollection *mgo.Collection
 	if source {
 		outputCollection = ssn.DB(res.DB.GetSelectedDB()).C(
-			res.System.BlacklistedConfig.SourceIPsTable,
+			res.Config.T.Blacklisted.SourceIPsTable,
 		)
 	} else {
 		outputCollection = ssn.DB(res.DB.GetSelectedDB()).C(
-			res.System.BlacklistedConfig.DestIPsTable,
+			res.Config.T.Blacklisted.DestIPsTable,
 		)
 	}
 
@@ -82,7 +82,7 @@ func buildBlacklistedIPs(ips *mgo.Iter, res *database.Resources,
 				err := fillBlacklistedIP(
 					&blIP,
 					res.DB.GetSelectedDB(),
-					res.System.StructureConfig.UniqueConnTable,
+					res.Config.T.Structure.UniqueConnTable,
 					ssn,
 					source,
 				)

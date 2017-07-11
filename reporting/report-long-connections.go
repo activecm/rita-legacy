@@ -22,7 +22,7 @@ func printLongConns(db string, res *database.Resources) error {
 	}
 
 	var conns []data.Conn
-	coll := res.DB.Session.DB(db).C(res.System.StructureConfig.ConnTable)
+	coll := res.DB.Session.DB(db).C(res.Config.T.Structure.ConnTable)
 	coll.Find(nil).Sort("-duration").Limit(1000).All(&conns)
 
 	w, err := getLongConnWriter(conns)

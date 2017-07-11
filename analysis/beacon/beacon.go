@@ -23,7 +23,7 @@ type (
 	//Beacon contains methods for conducting a beacon hunt
 	Beacon struct {
 		db                string                                // current database
-		resources         *database.Resources                   // holds the global config and DB layer
+		res               *database.Resources                   // holds the global config and DB layer
 		defaultConnThresh int                                   // default connections threshold
 		collectChannel    chan string                           // holds ip addresses
 		analysisChannel   chan *beaconAnalysisInput             // holds unanalyzed data
@@ -52,7 +52,7 @@ type (
 )
 
 func BuildBeaconCollection(res *database.Resources) {
-	collection_name := res.System.BeaconConfig.BeaconTable
+	collection_name := res.Config.T.Beacon.BeaconTable
 	collection_keys := []mgo.Index{
 		{Key: []string{"uconn_id"}, Unique: true},
 		{Key: []string{"ts_score"}},
@@ -67,7 +67,7 @@ func BuildBeaconCollection(res *database.Resources) {
 
 func GetBeaconResultsView(res *database.Resources, ssn *mgo.Session, cutoffScore float64) *mgo.Iter {
 	pipeline := getViewPipeline(res, cutoffScore)
-	return res.DB.AggregateCollection(res.System.BeaconConfig.BeaconTable, ssn, pipeline)
+	return res.DB.AggregateCollection(res.Config.T.Beacon.BeaconTable, ssn, pipeline)
 }
 
 // New creates a new beacon module
@@ -76,14 +76,14 @@ func newBeacon(res *database.Resources) *Beacon {
 	// If the threshold is incorrectly specified, fix it up.
 	// We require at least four delta times to analyze
 	// (Q1, Q2, Q3, Q4). So we need at least 5 connections
-	thresh := res.System.BeaconConfig.DefaultConnectionThresh
+	thresh := res.Config.S.Beacon.DefaultConnectionThresh
 	if thresh < 5 {
 		thresh = 5
 	}
 
 	return &Beacon{
 		db:                res.DB.GetSelectedDB(),
-		resources:         res,
+		res:               res,
 		defaultConnThresh: thresh,
 		log:               res.Log,
 		collectChannel:    make(chan string),
@@ -97,7 +97,7 @@ func newBeacon(res *database.Resources) *Beacon {
 
 // Run Starts the beacon hunt process
 func (t *Beacon) run() {
-	session := t.resources.DB.Session.Copy()
+	session := t.res.DB.Session.Copy()
 	defer session.Close()
 
 	//Find first time
@@ -109,14 +109,14 @@ func (t *Beacon) run() {
 	//This could be optimized with an aggregation
 	var conn data.Conn
 	session.DB(t.db).
-		C(t.resources.System.StructureConfig.ConnTable).
+		C(t.res.Config.T.Structure.ConnTable).
 		Find(nil).Limit(1).Sort("ts").Iter().Next(&conn)
 
 	t.minTime = conn.Ts
 
 	t.log.Debug("Looking for last connection timestamp")
 	session.DB(t.db).
-		C(t.resources.System.StructureConfig.ConnTable).
+		C(t.res.Config.T.Structure.ConnTable).
 		Find(nil).Limit(1).Sort("-ts").Iter().Next(&conn)
 
 	t.maxTime = conn.Ts
@@ -130,7 +130,7 @@ func (t *Beacon) run() {
 	// add local addresses to collect channel
 	var host structure.Host
 	localIter := session.DB(t.db).
-		C(t.resources.System.StructureConfig.HostTable).
+		C(t.res.Config.T.Structure.HostTable).
 		Find(bson.M{"local": true}).Iter()
 
 	//kick off the threaded goroutines
@@ -165,14 +165,14 @@ func (t *Beacon) run() {
 
 // collect grabs all src, dst pairs and their connection data
 func (t *Beacon) collect() {
-	session := t.resources.DB.Session.Copy()
+	session := t.res.DB.Session.Copy()
 	defer session.Close()
 	host, more := <-t.collectChannel
 	for more {
 		//grab all destinations related with this host
 		var uconn structure.UniqueConnection
 		destIter := session.DB(t.db).
-			C(t.resources.System.StructureConfig.UniqueConnTable).
+			C(t.res.Config.T.Structure.UniqueConnTable).
 			Find(bson.M{"src": host}).Iter()
 
 		for destIter.Next(&uconn) {
@@ -191,7 +191,7 @@ func (t *Beacon) collect() {
 			//Grab connection data
 			var conn data.Conn
 			connIter := session.DB(t.db).
-				C(t.resources.System.StructureConfig.ConnTable).
+				C(t.res.Config.T.Structure.ConnTable).
 				Find(bson.M{"id_origin_h": uconn.Src, "id_resp_h": uconn.Dst}).
 				Iter()
 
@@ -220,7 +220,7 @@ func (t *Beacon) analyze() {
 
 		//If removing duplicates lowered the conn count under the threshold,
 		//remove this data from the analysis
-		if len(data.ts) < t.resources.System.BeaconConfig.DefaultConnectionThresh {
+		if len(data.ts) < t.res.Config.S.Beacon.DefaultConnectionThresh {
 			continue
 		}
 
@@ -349,11 +349,11 @@ func (t *Beacon) analyze() {
 
 // write writes the beacon analysis results to the database
 func (t *Beacon) write() {
-	session := t.resources.DB.Session.Copy()
+	session := t.res.DB.Session.Copy()
 	defer session.Close()
 
 	for data := range t.writeChannel {
-		session.DB(t.db).C(t.resources.System.BeaconConfig.BeaconTable).Insert(data)
+		session.DB(t.db).C(t.res.Config.T.Beacon.BeaconTable).Insert(data)
 	}
 	t.writeWg.Done()
 }
@@ -393,7 +393,7 @@ func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
 // score to report on. Setting cuttoff to 0 retrieves all the records from the
 // beaconing collection. Setting cuttoff to 1 will prevent the aggregation from
 // returning any records.
-func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
+func getViewPipeline(res *database.Resources, cuttoff float64) []bson.D {
 	return []bson.D{
 		{
 			{"$match", bson.D{
@@ -404,7 +404,7 @@ func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 		},
 		{
 			{"$lookup", bson.D{
-				{"from", r.System.StructureConfig.UniqueConnTable},
+				{"from", res.Config.T.Structure.UniqueConnTable},
 				{"localField", "uconn_id"},
 				{"foreignField", "_id"},
 				{"as", "uconn"},

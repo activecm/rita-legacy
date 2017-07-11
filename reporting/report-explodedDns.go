@@ -18,7 +18,7 @@ func printDNS(db string, res *database.Resources) error {
 	defer f.Close()
 
 	var results []dns.ExplodedDNS
-	iter := res.DB.Session.DB(db).C(res.System.DNSConfig.ExplodedDNSTable).Find(nil)
+	iter := res.DB.Session.DB(db).C(res.Config.T.DNS.ExplodedDNSTable).Find(nil)
 	iter.Sort("-subdomains").Limit(1000).All(&results)
 
 	out, err := template.New("dns.html").Parse(templates.DNStempl)

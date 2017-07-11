@@ -25,7 +25,7 @@ func (s BeaconingSelector) Select(res *database.Resources) (<-chan string, <-cha
 	go func() {
 		ssn := res.DB.Session.Copy()
 		defer ssn.Close()
-		iter := beacon.GetBeaconResultsView(res, ssn, res.System.CrossrefConfig.BeaconThreshold)
+		iter := beacon.GetBeaconResultsView(res, ssn, res.Config.S.Crossref.BeaconThreshold)
 
 		//this will produce duplicates if multiple sources beaconed to the same dest
 		//however, this is accounted for in the finalizing step of xref

@@ -24,14 +24,14 @@ func printBLURLs(db string, res *database.Resources) error {
 
 	var blURLs []blacklist.BlacklistedURL
 	res.DB.Session.DB(db).
-		C(res.System.BlacklistedConfig.UrlsTable).
+		C(res.Config.T.Blacklisted.UrlsTable).
 		Find(nil).Sort("-conn").All(&blURLs)
 
 	//for each blacklisted url
 	for i, blURL := range blURLs {
 		//get the ips associated with the url
 		var urlEntry urls.URL
-		res.DB.Session.DB(db).C(res.System.UrlsConfig.UrlsTable).
+		res.DB.Session.DB(db).C(res.Config.T.Urls.UrlsTable).
 			Find(bson.M{"url": blURL.Host, "uri": blURL.Resource}).One(&urlEntry)
 		ips := urlEntry.IPs
 		//and loop over the ips
@@ -39,7 +39,7 @@ func printBLURLs(db string, res *database.Resources) error {
 			//then find all of the hosts which talked to the ip
 			var connected []structure.UniqueConnection
 			res.DB.Session.DB(db).
-				C(res.System.StructureConfig.UniqueConnTable).Find(
+				C(res.Config.T.Structure.UniqueConnTable).Find(
 				bson.M{"dst": ip},
 			).All(&connected)
 			//and aggregate the source ip addresses

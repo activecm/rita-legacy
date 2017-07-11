@@ -9,6 +9,8 @@ MongoDB:
   # For encrypting data on the wire between RITA and MongoDB
   TLS:
     Enable: false
+    #If set, RITA will verify the MongoDB certificate's hostname and validity
+    VerifyCertificate: false
     #If set, RITA will use the provided CA file instead of the system's CA's
     CAFile: null
 

@@ -25,7 +25,7 @@ func (s ScanningSelector) Select(res *database.Resources) (<-chan string, <-chan
 		ssn := res.DB.Session.Copy()
 		defer ssn.Close()
 		iter := ssn.DB(res.DB.GetSelectedDB()).
-			C(res.System.ScanningConfig.ScanTable).Find(nil).Iter()
+			C(res.Config.T.Scanning.ScanTable).Find(nil).Iter()
 
 		var data scanning.Scan
 		for iter.Next(&data) {

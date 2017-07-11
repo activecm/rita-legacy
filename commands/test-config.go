@@ -30,11 +30,18 @@ func init() {
 func testConfiguration(c *cli.Context) error {
 	res := database.InitResources(c.String("config"))
 
-	yml, err := yaml.Marshal(res.System)
+	staticConfig, err := yaml.Marshal(res.Config.S)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(os.Stdout, "\n%s\n", string(yml))
+	tableConfig, err := yaml.Marshal(res.Config.T)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(os.Stdout, "\n%s\n", string(staticConfig))
+	fmt.Fprintf(os.Stdout, "\n%s\n", string(tableConfig))
+
 	return nil
 }

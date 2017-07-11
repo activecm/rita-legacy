@@ -30,7 +30,7 @@ func init() {
 			res := database.InitResources(c.String("config"))
 
 			var longConns []data.Conn
-			coll := res.DB.Session.DB(c.String("database")).C(res.System.StructureConfig.ConnTable)
+			coll := res.DB.Session.DB(c.String("database")).C(res.Config.T.Structure.ConnTable)
 
 			sortStr := "-duration"
 

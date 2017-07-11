@@ -29,13 +29,13 @@ func (s BLSourceIPSelector) Select(res *database.Resources) (<-chan string, <-ch
 
 		var blIPs []blacklist.BlacklistedIP
 		ssn.DB(res.DB.GetSelectedDB()).
-			C(res.System.BlacklistedConfig.SourceIPsTable).
+			C(res.Config.T.Blacklisted.SourceIPsTable).
 			Find(nil).All(&blIPs)
 
 		for _, ip := range blIPs {
 			var connected []structure.UniqueConnection
 			ssn.DB(res.DB.GetSelectedDB()).
-				C(res.System.StructureConfig.UniqueConnTable).Find(
+				C(res.Config.T.Structure.UniqueConnTable).Find(
 				bson.M{"src": ip.IP},
 			).All(&connected)
 			for _, uconn := range connected {
