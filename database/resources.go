@@ -53,8 +53,8 @@ func InitResources(cfgPath string) *Resources {
 		fmt.Printf("Failed to connect to database: %s", err.Error())
 		os.Exit(-1)
 	}
-	session.SetSocketTimeout(conf.MongoDBConfig.SocketTimeout)
-	session.SetSyncTimeout(conf.MongoDBConfig.SocketTimeout)
+	session.SetSocketTimeout(conf.S.MongoDB.SocketTimeout)
+	session.SetSyncTimeout(conf.S.MongoDB.SocketTimeout)
 	session.SetCursorTimeout(0)
 
 	// Allows code to interact with the database

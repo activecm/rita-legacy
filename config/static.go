@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
-
+	"time"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -23,9 +23,10 @@ type (
 
 	//MongoDBStaticCfg contains the means for connecting to MongoDB
 	MongoDBStaticCfg struct {
-		ConnectionString string       `yaml:"ConnectionString"`
-		AuthMechanism    string       `yaml:"AuthenticationMechanism"`
-		TLS              TLSStaticCfg `yaml:"TLS"`
+		ConnectionString string        `yaml:"ConnectionString"`
+		AuthMechanism    string        `yaml:"AuthenticationMechanism"`
+		SocketTimeout    time.Duration `yaml:"SocketTimeout"`
+		TLS              TLSStaticCfg  `yaml:"TLS"`
 	}
 
 	//TLSStaticCfg contains the means for connecting to MongoDB over TLS
@@ -111,6 +112,9 @@ func loadStaticConfig(cfgPath string) (*StaticCfg, error) {
 	// expand env variables, config is a pointer
 	// so we have to call elem on the reflect value
 	expandConfig(reflect.ValueOf(config).Elem())
+
+	// set the socket time out in hours
+	config.MongoDB.SocketTimeout *= time.Hour
 
 	return config, nil
 }
