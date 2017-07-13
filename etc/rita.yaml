@@ -4,6 +4,8 @@ MongoDB:
   # How to authenticate to MongoDB
   # Accepted Values: null, "SCRAM-SHA-1", "MONGODB-CR", "PLAIN"
   AuthenticationMechanism: null
+  # The time in hours before RITA's connection to MongoDB times out. 0 waits indefinitely.
+  SocketTimeout: 2
   # For encrypting data on the wire between RITA and MongoDB
   TLS:
     Enable: false

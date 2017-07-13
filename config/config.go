@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/user"
 	"reflect"
+	"time"
 
 	"github.com/ocmdev/mgosec"
 
@@ -38,6 +39,7 @@ type (
 	//MongoDBCfg contains the means for connecting to MongoDB
 	MongoDBCfg struct {
 		ConnectionString    string               `yaml:"ConnectionString"`
+		SocketTimeout       time.Duration        `yaml:"SocketTimeout"`
 		AuthMechanism       string               `yaml:"AuthenticationMechanism"`
 		AuthMechanismParsed mgosec.AuthMechanism `yaml:"AuthenticationMechanismParsed,omitempty"`
 		TLS                 TLSCfg               `yaml:"TLS"`
@@ -196,6 +198,8 @@ func loadSystemConfig(cfgPath string) (*SystemConfig, bool) {
 		}
 		config.MongoDBConfig.AuthMechanismParsed = authMechanism
 
+		//set the timeout time in hours
+		config.MongoDBConfig.SocketTimeout *= time.Hour
 		return config, true
 	}
 	return config, false
