@@ -10,7 +10,7 @@
 #RITA works best with docker-compose. Docker-compose lets you set these mounts
 #and additionally connect it to MongoDB with ease.
 FROM golang:1.8-alpine as rita-builder
-RUN apk update && apk upgrade && apk add --no-cache git && apk add --no-cache make
+RUN apk update && apk upgrade && apk add --no-cache git && apk add --no-cache make && apk add --no-cache ca-certificates
 RUN mkdir /logs
 RUN mkdir $HOME/.rita/
 WORKDIR /go/src/github.com/ocmdev/rita
