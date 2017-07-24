@@ -1,10 +1,9 @@
 package commands
 
 import (
-	"fmt"
+	"encoding/csv"
 	"os"
-	"strconv"
-	"text/template"
+	"strings"
 
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/datatypes/urls"
@@ -92,26 +91,21 @@ func init() {
 }
 
 func showURLs(urls []urls.URL) error {
-	tmpl := "{{.URL}},{{.URI}},{{.Length}},{{.Count}},{{range $idx, $ip := .IPs}}{{if $idx}} {{end}}{{ $ip }}{{end}}\n"
-
-	out, err := template.New("urls").Parse(tmpl)
-	if err != nil {
-		return err
-	}
-
+	csvWriter := csv.NewWriter(os.Stdout)
+	csvWriter.Write([]string{"URL", "URI", "Length", "Times Visted", "IPs"})
 	for _, url := range urls {
-		err := out.Execute(os.Stdout, url)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-		}
+		csvWriter.Write([]string{
+			url.URL, url.URI, i(url.Length), i(url.Count), strings.Join(url.IPs, " "),
+		})
 	}
+	csvWriter.Flush()
 	return nil
 }
 
 func showURLsHuman(urls []urls.URL) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetColWidth(50)
-	table.SetHeader([]string{"URL", "URI", "Length", "Times Visted"})
+	table.SetHeader([]string{"URL", "URI", "Length", "Times Visted", "IPs"})
 	for _, url := range urls {
 		if len(url.URL) > 50 {
 			url.URL = url.URL[0:47] + "..."
@@ -120,7 +114,7 @@ func showURLsHuman(urls []urls.URL) error {
 			url.URI = url.URI[0:47] + "..."
 		}
 		table.Append([]string{
-			url.URL, url.URI, strconv.FormatInt(url.Length, 10), strconv.FormatInt(url.Count, 10),
+			url.URL, url.URI, i(url.Length), i(url.Count), strings.Join(url.IPs, " "),
 		})
 	}
 	table.Render()

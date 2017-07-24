@@ -1,8 +1,7 @@
 package commands
 
 import (
-	"fmt"
-	"html/template"
+	"encoding/csv"
 	"os"
 	"sort"
 	"strconv"
@@ -150,29 +149,32 @@ func printBLDestIPs(c *cli.Context) error {
 }
 
 func showBLIPs(ips []blacklist.BlacklistedIP, connectedHosts, source bool) error {
-	//source is unused until we add column headers
-	tmpl := "{{.IP}},{{.Connections}},{{.UniqueConnections}},{{.TotalBytes}},"
-	tmpl += blacklistListsTemplate
+	csvWriter := csv.NewWriter(os.Stdout)
+	headers := []string{"IP", "Connections", "Unique Connections", "Total Bytes", "Lists"}
 	if connectedHosts {
-		tmpl += ",{{range $idx, $host := .ConnectedHosts}}{{if $idx}} {{end}}{{ $host }}{{end}}"
+		if source {
+			headers = append(headers, "Destinations")
+		} else {
+			headers = append(headers, "Sources")
+		}
 	}
-	tmpl += endl
-
-	out, err := template.New("blip").Parse(tmpl)
-	if err != nil {
-		return err
-	}
-
+	csvWriter.Write(headers)
 	for _, ip := range ips {
 		sort.Strings(ip.Lists)
+		serialized := []string{
+			ip.IP,
+			strconv.Itoa(ip.Connections),
+			strconv.Itoa(ip.UniqueConnections),
+			strconv.Itoa(ip.TotalBytes),
+			strings.Join(ip.Lists, " "),
+		}
 		if connectedHosts {
 			sort.Strings(ip.ConnectedHosts)
+			serialized = append(serialized, strings.Join(ip.ConnectedHosts, " "))
 		}
-		err := out.Execute(os.Stdout, ip)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-		}
+		csvWriter.Write(serialized)
 	}
+	csvWriter.Flush()
 	return nil
 }
 
