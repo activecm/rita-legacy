@@ -29,17 +29,17 @@ func BuildBlacklistedCollections(res *database.Resources) {
 	currentDB := res.DB.GetSelectedDB()
 	var err error
 	var blDatabase blDB.Handle
-	if res.System.MongoDBConfig.TLS.Enabled {
+	if res.Config.S.MongoDB.TLS.Enabled {
 		blDatabase, err = blDB.NewSecureMongoDB(
-			res.System.MongoDBConfig.ConnectionString,
-			res.System.MongoDBConfig.AuthMechanismParsed,
+			res.Config.S.MongoDB.ConnectionString,
+			res.Config.R.MongoDB.AuthMechanismParsed,
 			"rita-bl",
-			res.System.MongoDBConfig.TLS.CAFile,
+			res.Config.R.MongoDB.TLS.TLSConfig,
 		)
 	} else {
 		blDatabase, err = blDB.NewMongoDB(
-			res.System.MongoDBConfig.ConnectionString,
-			res.System.MongoDBConfig.AuthMechanismParsed,
+			res.Config.S.MongoDB.ConnectionString,
+			res.Config.R.MongoDB.AuthMechanismParsed,
 			"rita-bl",
 		)
 	}
@@ -60,7 +60,7 @@ func BuildBlacklistedCollections(res *database.Resources) {
 	)
 
 	//set up the lists to check against
-	ritaBL.SetLists(buildBlacklists(res.System)...)
+	ritaBL.SetLists(buildBlacklists(res.Config)...)
 
 	//set up remote calls to check against
 	ritaBL.SetRPCs(buildBlacklistRPCS(res)...)
@@ -76,25 +76,25 @@ func BuildBlacklistedCollections(res *database.Resources) {
 	uniqueDestAggregation := getUniqueIPFromUconnPipeline("dst")
 
 	uniqueSourceIter := res.DB.AggregateCollection(
-		res.System.StructureConfig.UniqueConnTable,
+		res.Config.T.Structure.UniqueConnTable,
 		ssn,
 		uniqueSourcesAggregation,
 	)
 	uniqueDestIter := res.DB.AggregateCollection(
-		res.System.StructureConfig.UniqueConnTable,
+		res.Config.T.Structure.UniqueConnTable,
 		ssn,
 		uniqueDestAggregation,
 	)
-	hostnamesIter := ssn.DB(currentDB).C(res.System.DNSConfig.HostnamesTable).
+	hostnamesIter := ssn.DB(currentDB).C(res.Config.T.DNS.HostnamesTable).
 		Find(nil).Iter()
-	urlIter := ssn.DB(currentDB).C(res.System.UrlsConfig.UrlsTable).
+	urlIter := ssn.DB(currentDB).C(res.Config.T.Urls.UrlsTable).
 		Find(nil).Iter()
 
 	//create the collections
-	sourceIPs := res.System.BlacklistedConfig.SourceIPsTable
-	destIPs := res.System.BlacklistedConfig.DestIPsTable
-	hostnames := res.System.BlacklistedConfig.HostnamesTable
-	urls := res.System.BlacklistedConfig.UrlsTable
+	sourceIPs := res.Config.T.Blacklisted.SourceIPsTable
+	destIPs := res.Config.T.Blacklisted.DestIPsTable
+	hostnames := res.Config.T.Blacklisted.HostnamesTable
+	urls := res.Config.T.Blacklisted.UrlsTable
 
 	collections := []string{sourceIPs, destIPs, hostnames, urls}
 	for _, collection := range collections {
@@ -148,33 +148,33 @@ func ensureBLIndexes(ssn *mgo.Session, currentDB, collName string) {
 }
 
 //buildBlacklists gathers the blacklists to check against
-func buildBlacklists(system *config.SystemConfig) []list.List {
+func buildBlacklists(conf *config.Config) []list.List {
 	//build up the lists
 	var blacklists []list.List
 	//use prebuilt lists
-	if system.BlacklistedConfig.UseIPms {
+	if conf.S.Blacklisted.UseIPms {
 		blacklists = append(blacklists, lists.NewMyIPmsList())
 	}
-	if system.BlacklistedConfig.UseDNSBH {
+	if conf.S.Blacklisted.UseDNSBH {
 		blacklists = append(blacklists, lists.NewDNSBHList())
 	}
-	if system.BlacklistedConfig.UseMDL {
+	if conf.S.Blacklisted.UseMDL {
 		blacklists = append(blacklists, lists.NewMdlList())
 	}
 	//use custom lists
 	ipLists := buildCustomBlacklists(
 		list.BlacklistedIPType,
-		system.BlacklistedConfig.IPBlacklists,
+		conf.S.Blacklisted.IPBlacklists,
 	)
 
 	hostLists := buildCustomBlacklists(
 		list.BlacklistedHostnameType,
-		system.BlacklistedConfig.HostnameBlacklists,
+		conf.S.Blacklisted.HostnameBlacklists,
 	)
 
 	urlLists := buildCustomBlacklists(
 		list.BlacklistedURLType,
-		system.BlacklistedConfig.URLBlacklists,
+		conf.S.Blacklisted.URLBlacklists,
 	)
 	blacklists = append(blacklists, ipLists...)
 	blacklists = append(blacklists, hostLists...)
@@ -220,11 +220,11 @@ func tryOpenFileThenURL(path string) func() (io.ReadCloser, error) {
 func buildBlacklistRPCS(res *database.Resources) []rpc.RPC {
 	var rpcs []rpc.RPC
 	//set up google url checker
-	if len(res.System.BlacklistedConfig.SafeBrowsing.APIKey) > 0 &&
-		len(res.System.BlacklistedConfig.SafeBrowsing.Database) > 0 {
+	if len(res.Config.S.Blacklisted.SafeBrowsing.APIKey) > 0 &&
+		len(res.Config.S.Blacklisted.SafeBrowsing.Database) > 0 {
 		googleRPC, err := rpc.NewGoogleSafeBrowsingURLsRPC(
-			res.System.BlacklistedConfig.SafeBrowsing.APIKey,
-			res.System.BlacklistedConfig.SafeBrowsing.Database,
+			res.Config.S.Blacklisted.SafeBrowsing.APIKey,
+			res.Config.S.Blacklisted.SafeBrowsing.Database,
 			res.Log.Writer(),
 		)
 		if err == nil {

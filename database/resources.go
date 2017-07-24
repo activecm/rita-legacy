@@ -1,8 +1,6 @@
 package database
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -23,7 +21,7 @@ import (
 type (
 	// Resources provides a data structure for passing system Resources
 	Resources struct {
-		System *config.SystemConfig
+		Config *config.Config
 		Log    *log.Logger
 		DB     *DB
 		MetaDB *MetaDBHandle
@@ -33,30 +31,30 @@ type (
 // InitResources grabs the configuration file and intitializes the configuration data
 // returning a *Resources object which has all of the necessary configuration information
 func InitResources(cfgPath string) *Resources {
-	conf, ok := config.GetConfig(cfgPath)
-	if !ok {
+	conf, err := config.GetConfig(cfgPath)
+	if err != nil {
 		fmt.Fprintf(os.Stdout, "Failed to config, exiting")
-		os.Exit(-1)
+		panic(err)
 	}
 
 	// Fire up the logging system
-	log, err := initLog(conf.LogConfig.LogLevel)
+	log, err := initLog(conf.S.Log.LogLevel)
 	if err != nil {
 		fmt.Printf("Failed to prep logger: %s", err.Error())
 		os.Exit(-1)
 	}
-	if conf.LogConfig.LogToFile {
-		addFileLogger(log, conf.LogConfig.RitaLogPath)
+	if conf.S.Log.LogToFile {
+		addFileLogger(log, conf.S.Log.RitaLogPath)
 	}
 
 	// Jump into the requested database
-	session, err := connectToMongoDB(&conf.MongoDBConfig, log)
+	session, err := connectToMongoDB(&conf.S.MongoDB, &conf.R.MongoDB, log)
 	if err != nil {
 		fmt.Printf("Failed to connect to database: %s", err.Error())
 		os.Exit(-1)
 	}
-	session.SetSocketTimeout(conf.MongoDBConfig.SocketTimeout)
-	session.SetSyncTimeout(conf.MongoDBConfig.SocketTimeout)
+	session.SetSocketTimeout(conf.S.MongoDB.SocketTimeout)
+	session.SetSyncTimeout(conf.S.MongoDB.SocketTimeout)
 	session.SetCursorTimeout(0)
 
 	// Allows code to interact with the database
@@ -66,14 +64,14 @@ func InitResources(cfgPath string) *Resources {
 
 	// Allows code to create and remove tracked databases
 	metaDB := &MetaDBHandle{
-		DB:   conf.BroConfig.MetaDB,
+		DB:   conf.S.Bro.MetaDB,
 		lock: new(sync.Mutex),
 	}
 
 	//bundle up the system resources
 	r := &Resources{
 		Log:    log,
-		System: conf,
+		Config: conf,
 	}
 
 	// db and resources have cyclic pointers
@@ -90,10 +88,10 @@ func InitResources(cfgPath string) *Resources {
 	}
 
 	//Begin logging to the metadatabase
-	if conf.LogConfig.LogToDB {
+	if conf.S.Log.LogToDB {
 		log.Hooks.Add(
 			mgorus.NewHookerFromSession(
-				session, conf.BroConfig.MetaDB, conf.LogConfig.RitaLogTable,
+				session, conf.S.Bro.MetaDB, conf.T.Log.RitaLogTable,
 			),
 		)
 	}
@@ -101,24 +99,13 @@ func InitResources(cfgPath string) *Resources {
 }
 
 //connectToMongoDB connects to MongoDB possibly with authentication and TLS
-func connectToMongoDB(conf *config.MongoDBCfg, logger *log.Logger) (*mgo.Session, error) {
-	if conf.TLS.Enabled {
-		tlsConf := &tls.Config{}
-		if len(conf.TLS.CAFile) > 0 {
-			pem, err := ioutil.ReadFile(conf.TLS.CAFile)
-			if err != nil {
-				logger.WithFields(log.Fields{
-					"CAFile": conf.TLS.CAFile,
-				}).Error(err.Error())
-				fmt.Println("[!] Could not read MongoDB CA file")
-			} else {
-				tlsConf.RootCAs = x509.NewCertPool()
-				tlsConf.RootCAs.AppendCertsFromPEM(pem)
-			}
-		}
-		return mgosec.Dial(conf.ConnectionString, conf.AuthMechanismParsed, tlsConf)
+func connectToMongoDB(static *config.MongoDBStaticCfg,
+	running *config.MongoDBRunningCfg,
+	logger *log.Logger) (*mgo.Session, error) {
+	if static.TLS.Enabled {
+		return mgosec.Dial(static.ConnectionString, running.AuthMechanismParsed, running.TLS.TLSConfig)
 	}
-	return mgosec.DialInsecure(conf.ConnectionString, conf.AuthMechanismParsed)
+	return mgosec.DialInsecure(static.ConnectionString, running.AuthMechanismParsed)
 }
 
 // initLog creates the logger for logging to stdout and file

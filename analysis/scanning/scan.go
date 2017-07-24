@@ -14,7 +14,7 @@ func BuildScanningCollection(res *database.Resources) {
 	sourceCollectionName,
 		newCollectionName,
 		newCollectionKeys,
-		pipeline := getScanningCollectionScript(res.System)
+		pipeline := getScanningCollectionScript(res.Config)
 
 	// Create it
 	err := res.DB.CreateCollection(newCollectionName, false, newCollectionKeys)
@@ -28,15 +28,15 @@ func BuildScanningCollection(res *database.Resources) {
 	res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
 }
 
-func getScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, []mgo.Index, []bson.D) {
+func getScanningCollectionScript(conf *config.Config) (string, string, []mgo.Index, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
-	sourceCollectionName := sysCfg.StructureConfig.ConnTable
+	sourceCollectionName := conf.T.Structure.ConnTable
 
 	// Name of the new collection
-	newCollectionName := sysCfg.ScanningConfig.ScanTable
+	newCollectionName := conf.T.Scanning.ScanTable
 
 	// Get scan threshold
-	scanThresh := sysCfg.ScanningConfig.ScanThreshold
+	scanThresh := conf.S.Scanning.ScanThreshold
 
 	// Desired indeces
 	keys := []mgo.Index{

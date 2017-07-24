@@ -25,7 +25,7 @@ func BuildExplodedDNSCollection(res *database.Resources) {
 // times each super domain was visited
 func buildExplodedDNSVistedCounts(res *database.Resources) {
 	res.DB.MapReduceCollection(
-		res.System.StructureConfig.DNSTable,
+		res.Config.T.Structure.DNSTable,
 		mgo.MapReduce{
 			Map:      getExplodedDNSMapper("query"),
 			Reduce:   getExplodedDNSReducer(),
@@ -56,7 +56,7 @@ func zipExplodedDNSResults(res *database.Resources) {
 		{Key: []string{"domain"}, Unique: true},
 		{Key: []string{"subdomains"}},
 	}
-	res.DB.CreateCollection(res.System.DNSConfig.ExplodedDNSTable, false, indexes)
+	res.DB.CreateCollection(res.Config.T.DNS.ExplodedDNSTable, false, indexes)
 	res.DB.AggregateCollection(tempVistedCountCollName, ssn,
 		// nolint: vet
 		[]bson.D{
@@ -80,7 +80,7 @@ func zipExplodedDNSResults(res *database.Resources) {
 				}},
 			},
 			{
-				{"$out", res.System.DNSConfig.ExplodedDNSTable},
+				{"$out", res.Config.T.DNS.ExplodedDNSTable},
 			},
 		},
 	)

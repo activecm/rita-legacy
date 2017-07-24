@@ -30,7 +30,7 @@ func init() {
 			res := database.InitResources(c.String("config"))
 
 			var urls []urls.URL
-			coll := res.DB.Session.DB(c.String("database")).C(res.System.UrlsConfig.UrlsTable)
+			coll := res.DB.Session.DB(c.String("database")).C(res.Config.T.Urls.UrlsTable)
 
 			coll.Find(nil).Sort("-length").All(&urls)
 
@@ -67,7 +67,7 @@ func init() {
 			res := database.InitResources("")
 
 			var urls []urls.URL
-			coll := res.DB.Session.DB(c.String("database")).C(res.System.UrlsConfig.UrlsTable)
+			coll := res.DB.Session.DB(c.String("database")).C(res.Config.T.Urls.UrlsTable)
 
 			coll.Find(nil).Sort("-count").All(&urls)
 

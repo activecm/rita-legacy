@@ -14,7 +14,7 @@ func BuildUserAgentCollection(res *database.Resources) {
 	sourceCollectionName,
 		newCollectionName,
 		newCollectionKeys,
-		pipeline := getUserAgentCollectionScript(res.System)
+		pipeline := getUserAgentCollectionScript(res.Config)
 
 	// Create it
 	err := res.DB.CreateCollection(newCollectionName, false, newCollectionKeys)
@@ -30,12 +30,12 @@ func BuildUserAgentCollection(res *database.Resources) {
 	res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
 }
 
-func getUserAgentCollectionScript(sysCfg *config.SystemConfig) (string, string, []mgo.Index, []bson.D) {
+func getUserAgentCollectionScript(conf *config.Config) (string, string, []mgo.Index, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
-	sourceCollectionName := sysCfg.StructureConfig.HTTPTable
+	sourceCollectionName := conf.T.Structure.HTTPTable
 
 	// Name of the new collection
-	newCollectionName := sysCfg.UserAgentConfig.UserAgentTable
+	newCollectionName := conf.T.UserAgent.UserAgentTable
 
 	// Desired indeces
 	keys := []mgo.Index{

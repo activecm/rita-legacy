@@ -23,13 +23,13 @@ func printBLSourceIPs(db string, res *database.Resources) error {
 
 	var blIPs []blacklist.BlacklistedIP
 	res.DB.Session.DB(db).
-		C(res.System.BlacklistedConfig.SourceIPsTable).
+		C(res.Config.T.Blacklisted.SourceIPsTable).
 		Find(nil).Sort("-conn").All(&blIPs)
 
 	for i, ip := range blIPs {
 		var connected []structure.UniqueConnection
 		res.DB.Session.DB(db).
-			C(res.System.StructureConfig.UniqueConnTable).Find(
+			C(res.Config.T.Structure.UniqueConnTable).Find(
 			bson.M{"src": ip.IP},
 		).All(&connected)
 		for _, uconn := range connected {

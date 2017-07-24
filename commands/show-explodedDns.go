@@ -30,7 +30,7 @@ func init() {
 			res := database.InitResources(c.String("config"))
 
 			var explodedResults []dns.ExplodedDNS
-			iter := res.DB.Session.DB(c.String("database")).C(res.System.DNSConfig.ExplodedDNSTable).Find(nil)
+			iter := res.DB.Session.DB(c.String("database")).C(res.Config.T.DNS.ExplodedDNSTable).Find(nil)
 
 			iter.Sort("-subdomains").All(&explodedResults)
 

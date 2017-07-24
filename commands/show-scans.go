@@ -31,7 +31,7 @@ func init() {
 			res := database.InitResources(c.String("config"))
 
 			var scans []scanning.Scan
-			coll := res.DB.Session.DB(c.String("database")).C(res.System.ScanningConfig.ScanTable)
+			coll := res.DB.Session.DB(c.String("database")).C(res.Config.T.Scanning.ScanTable)
 			coll.Find(nil).All(&scans)
 
 			if len(scans) == 0 {

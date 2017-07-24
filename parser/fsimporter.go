@@ -13,8 +13,8 @@ import (
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
-	"github.com/ocmdev/rita/util"
 	"github.com/ocmdev/rita/parser/parsetypes"
+	"github.com/ocmdev/rita/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -49,10 +49,10 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 
 	fmt.Println("\t[-] Finding files to parse")
 	//find all of the bro log paths
-	files := readDir(fs.res.System.BroConfig.LogPath, fs.res.Log)
+	files := readDir(fs.res.Config.S.Bro.LogPath, fs.res.Log)
 
 	//hash the files and get their stats
-	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res.System, fs.res.Log)
+	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res.Config, fs.res.Log)
 
 	progTime := time.Now()
 	fs.res.Log.WithFields(
@@ -65,7 +65,7 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
 	parseFiles(indexedFiles, fs.parseThreads,
-		fs.res.System.BroConfig.UseDates, datastore, fs.res.Log)
+		fs.res.Config.S.Bro.UseDates, datastore, fs.res.Log)
 
 	datastore.flush()
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
@@ -115,7 +115,7 @@ func readDir(cpath string, logger *log.Logger) []string {
 //indexFiles takes in a list of bro files, a number of threads, and parses
 //some metadata out of the files
 func indexFiles(files []string, indexingThreads int,
-	cfg *config.SystemConfig, logger *log.Logger) []*fpt.IndexedFile {
+	cfg *config.Config, logger *log.Logger) []*fpt.IndexedFile {
 	n := len(files)
 	output := make([]*fpt.IndexedFile, n)
 	indexingWG := new(sync.WaitGroup)
@@ -124,7 +124,7 @@ func indexFiles(files []string, indexingThreads int,
 		indexingWG.Add(1)
 
 		go func(files []string, indexedFiles []*fpt.IndexedFile,
-			sysConf *config.SystemConfig, logger *log.Logger,
+			sysConf *config.Config, logger *log.Logger,
 			wg *sync.WaitGroup, start int, jump int, length int) {
 
 			for j := start; j < length; j += jump {
@@ -268,6 +268,7 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 	}
 	return toReturn
 }
+
 //updateFilesIndex updates the files collection in the metaDB with the newly parsed files
 func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.MetaDBHandle,
 	logger *log.Logger) {

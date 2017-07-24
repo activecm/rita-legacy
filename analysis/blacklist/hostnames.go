@@ -29,7 +29,7 @@ func buildBlacklistedHostnames(hostnames *mgo.Iter, res *database.Resources,
 	defer ssn.Close()
 
 	outputCollection := ssn.DB(res.DB.GetSelectedDB()).C(
-		res.System.BlacklistedConfig.HostnamesTable,
+		res.Config.T.Blacklisted.HostnamesTable,
 	)
 	//create type for communicating rita-bl results
 	resultsChannel := make(resultsChan)
@@ -49,8 +49,8 @@ func buildBlacklistedHostnames(hostnames *mgo.Iter, res *database.Resources,
 				err := fillBlacklistedHostname(
 					&blHostname,
 					res.DB.GetSelectedDB(),
-					res.System.DNSConfig.HostnamesTable,
-					res.System.StructureConfig.UniqueConnTable,
+					res.Config.T.DNS.HostnamesTable,
+					res.Config.T.Structure.UniqueConnTable,
 					ssn,
 				)
 				if err != nil {

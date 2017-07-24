@@ -78,7 +78,7 @@ type HTTP struct {
 
 //TargetCollection returns the mongo collection this entry should be inserted
 //into
-func (line *HTTP) TargetCollection(config *config.StructureCfg) string {
+func (line *HTTP) TargetCollection(config *config.StructureTableCfg) string {
 	return config.HTTPTable
 }
 

@@ -24,7 +24,7 @@ func printBLHostnames(db string, res *database.Resources) error {
 
 	var blHosts []blacklist.BlacklistedHostname
 	res.DB.Session.DB(db).
-		C(res.System.BlacklistedConfig.HostnamesTable).
+		C(res.Config.T.Blacklisted.HostnamesTable).
 		Find(nil).Sort("-conn").All(&blHosts)
 
 	//for each blacklisted host
@@ -36,7 +36,7 @@ func printBLHostnames(db string, res *database.Resources) error {
 			//then find all of the hosts which talked to the ip
 			var connected []structure.UniqueConnection
 			res.DB.Session.DB(db).
-				C(res.System.StructureConfig.UniqueConnTable).Find(
+				C(res.Config.T.Structure.UniqueConnTable).Find(
 				bson.M{"dst": ip},
 			).All(&connected)
 			//and aggregate the source ip addresses

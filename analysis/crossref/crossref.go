@@ -23,8 +23,8 @@ func getXRefSelectors() []dataXRef.XRefSelector {
 // BuildXRefCollection runs threaded crossref analysis
 func BuildXRefCollection(res *database.Resources) {
 	indexes := []mgo.Index{{Key: []string{"host"}, Unique: true}}
-	res.DB.CreateCollection(res.System.CrossrefConfig.SourceTable, false, indexes)
-	res.DB.CreateCollection(res.System.CrossrefConfig.DestTable, false, indexes)
+	res.DB.CreateCollection(res.Config.T.Crossref.SourceTable, false, indexes)
+	res.DB.CreateCollection(res.Config.T.Crossref.DestTable, false, indexes)
 
 	//maps from analysis types to channels of hosts found
 	sources := make(map[string]<-chan string)
@@ -40,13 +40,13 @@ func BuildXRefCollection(res *database.Resources) {
 	xRefWG := new(sync.WaitGroup)
 	xRefWG.Add(2)
 	//kick off writes
-	go multiplexXRef(res, res.System.CrossrefConfig.SourceTable, sources, xRefWG)
-	go multiplexXRef(res, res.System.CrossrefConfig.DestTable, destinations, xRefWG)
+	go multiplexXRef(res, res.Config.T.Crossref.SourceTable, sources, xRefWG)
+	go multiplexXRef(res, res.Config.T.Crossref.DestTable, destinations, xRefWG)
 	xRefWG.Wait()
 
 	//group by host ip and put module findings into an array
-	finalizeXRef(res, res.System.CrossrefConfig.SourceTable)
-	finalizeXRef(res, res.System.CrossrefConfig.DestTable)
+	finalizeXRef(res, res.Config.T.Crossref.SourceTable)
+	finalizeXRef(res, res.Config.T.Crossref.DestTable)
 }
 
 //multiplexXRef takes a target colllection, and a map from

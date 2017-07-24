@@ -24,7 +24,7 @@ func printScans(db string, res *database.Resources) error {
 	}
 
 	var scans []scanning.Scan
-	coll := res.DB.Session.DB(db).C(res.System.ScanningConfig.ScanTable)
+	coll := res.DB.Session.DB(db).C(res.Config.T.Scanning.ScanTable)
 	coll.Find(nil).All(&scans)
 
 	w, err := getScanWriter(scans)

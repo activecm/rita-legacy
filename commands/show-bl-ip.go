@@ -72,7 +72,7 @@ func printBLSourceIPs(c *cli.Context) error {
 
 	var blIPs []blacklist.BlacklistedIP
 	res.DB.Session.DB(db).
-		C(res.System.BlacklistedConfig.SourceIPsTable).
+		C(res.Config.T.Blacklisted.SourceIPsTable).
 		Find(nil).Sort("-" + sort).All(&blIPs)
 
 	if len(blIPs) == 0 {
@@ -83,7 +83,7 @@ func printBLSourceIPs(c *cli.Context) error {
 		for i, ip := range blIPs {
 			var connected []structure.UniqueConnection
 			res.DB.Session.DB(db).
-				C(res.System.StructureConfig.UniqueConnTable).Find(
+				C(res.Config.T.Structure.UniqueConnTable).Find(
 				bson.M{"src": ip.IP},
 			).All(&connected)
 			for _, uconn := range connected {
@@ -115,7 +115,7 @@ func printBLDestIPs(c *cli.Context) error {
 
 	var blIPs []blacklist.BlacklistedIP
 	res.DB.Session.DB(db).
-		C(res.System.BlacklistedConfig.DestIPsTable).
+		C(res.Config.T.Blacklisted.DestIPsTable).
 		Find(nil).Sort("-" + sort).All(&blIPs)
 
 	if len(blIPs) == 0 {
@@ -126,7 +126,7 @@ func printBLDestIPs(c *cli.Context) error {
 		for i, ip := range blIPs {
 			var connected []structure.UniqueConnection
 			res.DB.Session.DB(db).
-				C(res.System.StructureConfig.UniqueConnTable).Find(
+				C(res.Config.T.Structure.UniqueConnTable).Find(
 				bson.M{"dst": ip.IP},
 			).All(&connected)
 			for _, uconn := range connected {

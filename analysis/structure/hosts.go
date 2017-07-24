@@ -14,7 +14,7 @@ func BuildHostsCollection(res *database.Resources) {
 	sourceCollectionName,
 		newCollectionName,
 		newCollectionKeys,
-		pipeline := getHosts(res.System)
+		pipeline := getHosts(res.Config)
 
 	// Aggregate it!
 	errorCheck := res.DB.CreateCollection(newCollectionName, false, newCollectionKeys)
@@ -29,12 +29,12 @@ func BuildHostsCollection(res *database.Resources) {
 	res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
 }
 
-func getHosts(sysCfg *config.SystemConfig) (string, string, []mgo.Index, []bson.D) {
+func getHosts(conf *config.Config) (string, string, []mgo.Index, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
-	sourceCollectionName := sysCfg.StructureConfig.ConnTable
+	sourceCollectionName := conf.T.Structure.ConnTable
 
 	// Name of the new collection
-	newCollectionName := sysCfg.StructureConfig.HostTable
+	newCollectionName := conf.T.Structure.HostTable
 
 	// Desired indeces
 	keys := []mgo.Index{

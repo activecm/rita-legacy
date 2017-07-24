@@ -4,7 +4,7 @@ import "github.com/ocmdev/rita/config"
 
 //BroData holds a line of a bro log
 type BroData interface {
-	TargetCollection(*config.StructureCfg) string
+	TargetCollection(*config.StructureTableCfg) string
 	Indices() []string
 	Normalize()
 }

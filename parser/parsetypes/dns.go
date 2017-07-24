@@ -62,7 +62,7 @@ type DNS struct {
 
 //TargetCollection returns the mongo collection this entry should be inserted
 //into
-func (in *DNS) TargetCollection(config *config.StructureCfg) string {
+func (in *DNS) TargetCollection(config *config.StructureTableCfg) string {
 	return config.DNSTable
 }
 

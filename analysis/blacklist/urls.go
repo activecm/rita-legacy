@@ -32,7 +32,7 @@ func buildBlacklistedURLs(urls *mgo.Iter, res *database.Resources,
 	defer ssn.Close()
 
 	outputCollection := ssn.DB(res.DB.GetSelectedDB()).C(
-		res.System.BlacklistedConfig.UrlsTable,
+		res.Config.T.Blacklisted.UrlsTable,
 	)
 	//create type for communicating rita-bl results
 	resultsChannel := make(resultsChan)
@@ -53,8 +53,8 @@ func buildBlacklistedURLs(urls *mgo.Iter, res *database.Resources,
 					&blURL,
 					url,
 					res.DB.GetSelectedDB(),
-					res.System.UrlsConfig.UrlsTable,
-					res.System.StructureConfig.UniqueConnTable,
+					res.Config.T.Urls.UrlsTable,
+					res.Config.T.Structure.UniqueConnTable,
 					ssn,
 					prefix,
 				)
