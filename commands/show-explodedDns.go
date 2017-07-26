@@ -41,6 +41,7 @@ func init() {
 				if err != nil {
 					return cli.NewExitError(err.Error(), -1)
 				}
+				return nil
 			}
 			err := showDNSResults(explodedResults)
 			if err != nil {

@@ -46,6 +46,7 @@ func init() {
 				if err != nil {
 					return cli.NewExitError(err.Error(), -1)
 				}
+				return nil
 			}
 			err := showScans(scans, showPorts)
 			if err != nil {
