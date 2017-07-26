@@ -227,121 +227,133 @@ func (t *Beacon) analyze() {
 		//store the diff slice length since we use it a lot
 		//for timestamps this is one less then the data slice length
 		//since we are calculating the times in between readings
-		length := len(data.ts) - 1
-		ds_length := len(data.orig_ip_bytes)
+		tsLength := len(data.ts) - 1
+		dsLength := len(data.orig_ip_bytes)
 
 		//find the duration of this connection
 		//perfect beacons should fill the observation period
-		duration := float64(data.ts[length]-data.ts[0]) /
+		duration := float64(data.ts[tsLength]-data.ts[0]) /
 			float64(t.maxTime-t.minTime)
 
 		//find the delta times between the timestamps
-		diff := make([]int64, length)
-		for i := 0; i < length; i++ {
+		diff := make([]int64, tsLength)
+		for i := 0; i < tsLength; i++ {
 			diff[i] = data.ts[i+1] - data.ts[i]
 		}
 
 		//perfect beacons should have symmetric delta time and size distributions
 		//Bowley's measure of skew is used to check symmetry
 		sort.Sort(util.SortableInt64(diff))
-		bSkew := float64(0)
-		ds_skew := float64(0)
+		tsSkew := float64(0)
+		dsSkew := float64(0)
 
-		//length -1 is used since diff is a zero based slice
-		low := diff[util.Round(.25*float64(length-1))]
-		mid := diff[util.Round(.5*float64(length-1))]
-		high := diff[util.Round(.75*float64(length-1))]
-		bNum := low + high - 2*mid
-		bDen := high - low
+		//tsLength -1 is used since diff is a zero based slice
+		tsLow := diff[util.Round(.25*float64(tsLength-1))]
+		tsMid := diff[util.Round(.5*float64(tsLength-1))]
+		tsHigh := diff[util.Round(.75*float64(tsLength-1))]
+		tsBowleyNum := tsLow + tsHigh - 2*tsMid
+		tsBowleyDen := tsHigh - tsLow
 
-		ds_low := data.orig_ip_bytes[util.Round(.25*float64(ds_length-1))]
-		ds_mid := data.orig_ip_bytes[util.Round(.5*float64(ds_length-1))]
-		ds_high := data.orig_ip_bytes[util.Round(.75*float64(ds_length-1))]
-		ds_bNum := ds_low + ds_high - 2*ds_mid
-		ds_bDen := ds_high - ds_low
+		//we do the same for datasizes
+		dsLow := data.orig_ip_bytes[util.Round(.25*float64(dsLength-1))]
+		dsMid := data.orig_ip_bytes[util.Round(.5*float64(dsLength-1))]
+		dsHigh := data.orig_ip_bytes[util.Round(.75*float64(dsLength-1))]
+		dsBowleyNum := dsLow + dsHigh - 2*dsMid
+		dsBowleyDen := dsHigh - dsLow
 
-		//bSkew should equal zero if the denominator equals zero
+		//tsSkew should equal zero if the denominator equals zero
 		//bowley skew is unreliable if Q2 = Q1 or Q2 = Q3
-		if bDen != 0 && mid != low && mid != high {
-			bSkew = float64(bNum) / float64(bDen)
+		if tsBowleyDen != 0 && tsMid != tsLow && tsMid != tsHigh {
+			tsSkew = float64(tsBowleyNum) / float64(tsBowleyDen)
 		}
 
-		if ds_bDen != 0 && ds_mid != ds_low && ds_mid != ds_high {
-			ds_skew = float64(ds_bNum) / float64(ds_bDen)
+		if dsBowleyDen != 0 && dsMid != dsLow && dsMid != dsHigh {
+			dsSkew = float64(dsBowleyNum) / float64(dsBowleyDen)
 		}
 
 		//perfect beacons should have very low dispersion around the
 		//median of their delta times
 		//Median Absolute Deviation About the Median
 		//is used to check dispersion
-		devs := make([]int64, length)
-		for i := 0; i < length; i++ {
-			devs[i] = util.Abs(diff[i] - mid)
+		devs := make([]int64, tsLength)
+		for i := 0; i < tsLength; i++ {
+			devs[i] = util.Abs(diff[i] - tsMid)
 		}
 
-		ds_devs := make([]int64, ds_length)
-		for i := 0; i < ds_length; i++ {
-			ds_devs[i] = util.Abs(data.orig_ip_bytes[i] - ds_mid)
+		ds_devs := make([]int64, dsLength)
+		for i := 0; i < dsLength; i++ {
+			ds_devs[i] = util.Abs(data.orig_ip_bytes[i] - dsMid)
 		}
 
 		sort.Sort(util.SortableInt64(devs))
 		sort.Sort(util.SortableInt64(ds_devs))
 
-		madm := devs[util.Round(.5*float64(length-1))]
-		ds_madm := ds_devs[util.Round(.5*float64(ds_length-1))]
+		tsMadm := devs[util.Round(.5*float64(tsLength-1))]
+		dsMadm := ds_devs[util.Round(.5*float64(dsLength-1))]
 
 		//Store the range for human analysis
-		iRange := diff[length-1] - diff[0]
-		ds_range := data.orig_ip_bytes[ds_length-1] - data.orig_ip_bytes[0]
+		tsIntervalRange := diff[tsLength-1] - diff[0]
+		dsRange := data.orig_ip_bytes[dsLength-1] - data.orig_ip_bytes[0]
 
 		//get a list of the intervals found in the data,
 		//the number of times the interval was found,
 		//and the most occurring interval
-		intervals, intervalCounts, mode, modeCount := createCountMap(diff)
-		ds_sizes, ds_counts, ds_mode, ds_modeCount := createCountMap(data.orig_ip_bytes)
-
-		output := dataBeacon.BeaconAnalysisOutput{
-			UconnID:           data.uconnID,
-			TS_iSkew:          bSkew,
-			TS_iDispersion:    madm,
-			TS_duration:       duration,
-			TS_iRange:         iRange,
-			TS_iMode:          mode,
-			TS_iModeCount:     modeCount,
-			TS_intervals:      intervals,
-			TS_intervalCounts: intervalCounts,
-			DS_skew:           ds_skew,
-			DS_dispersion:     ds_madm,
-			DS_range:          ds_range,
-			DS_sizes:          ds_sizes,
-			DS_counts:         ds_counts,
-			DS_mode:           ds_mode,
-			DS_modeCount:      ds_modeCount,
-		}
+		intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
+		dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(data.orig_ip_bytes)
 
 		//more skewed distributions recieve a lower score
 		//less skewed distributions recieve a higher score
-		alpha := 1.0 - math.Abs(bSkew)
-		delta := 1.0 - math.Abs(ds_skew)
+		tsSkewScore := 1.0 - math.Abs(tsSkew) //smush tsSkew
+		dsSkewScore := 1.0 - math.Abs(dsSkew) //smush dsSkew
 
 		//lower dispersion is better, cutoff dispersion scores at 30 seconds
-		beta := 1.0 - float64(madm)/30.0
-		if beta < 0 {
-			beta = 0
-		}
-		//no cutoff dispersion for data size
-		epsilon := 1.0 - float64(ds_madm)
-		if epsilon < 0 {
-			epsilon = 0
+		tsMadmScore := 1.0 - float64(tsMadm)/30.0
+		if tsMadmScore < 0 {
+			tsMadmScore = 0
 		}
 
-		gamma := duration
+		//lower dispersion is better, cutoff dispersion scores at 32 bytes
+		dsMadmScore := 1.0 - float64(dsMadm)/32.0
+		if dsMadmScore < 0 {
+			dsMadmScore = 0
+		}
+
+		tsDurationScore := duration
+
 		//smaller data sizes receive a higher score
-		zeta := 1.0 - (float64(ds_mode) / 65535.0)
+		dsSmallnessScore := 1.0 - (float64(dsMode) / 65535.0)
+		if dsSmallnessScore < 0 {
+			dsSmallnessScore = 0
+		}
 
-		//in order of ascending importance: timestamp skew, timestamp duration,
-		//timestamp dispersion, size skew, size duration, size weight
-		output.Score = (alpha + beta + gamma + delta + epsilon + zeta) / 6.0
+		output := dataBeacon.BeaconAnalysisOutput{
+			UconnID:           data.uconnID,
+			TS_iSkew:          tsSkew,
+			TS_iDispersion:    tsMadm,
+			TS_duration:       duration,
+			TS_iRange:         tsIntervalRange,
+			TS_iMode:          tsMode,
+			TS_iModeCount:     tsModeCount,
+			TS_intervals:      intervals,
+			TS_intervalCounts: intervalCounts,
+			DS_skew:           dsSkew,
+			DS_dispersion:     dsMadm,
+			DS_range:          dsRange,
+			DS_sizes:          dsSizes,
+			DS_sizeCounts:     dsCounts,
+			DS_mode:           dsMode,
+			DS_modeCount:      dsModeCount,
+		}
+
+		//score numerators
+		tsSum := (tsSkewScore + tsMadmScore + tsDurationScore)
+		dsSum := (dsSkewScore + dsMadmScore + dsSmallnessScore)
+
+		//score averages
+		output.TS_score = tsSum / 3.0
+		output.DS_score = dsSum / 3.0
+		output.Score = (tsSum + dsSum) / 6.0
+
 		t.writeChannel <- &output
 	}
 	t.analysisWg.Done()
