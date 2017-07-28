@@ -52,6 +52,7 @@ func init() {
 				if err != nil {
 					return cli.NewExitError(err.Error(), -1)
 				}
+				return nil
 			}
 			err := showAgents(agents)
 			if err != nil {

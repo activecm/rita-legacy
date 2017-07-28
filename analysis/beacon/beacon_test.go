@@ -38,7 +38,7 @@ func TestAnalysis(t *testing.T) {
 			src:           "0.0.0.0",
 			dst:           "0.0.0.0",
 			ts:            val.ts,
-			orig_ip_bytes: []int64{5, 5, 5},
+			orig_ip_bytes: val.ds,
 		}
 
 		beaconing.analysisWg.Add(1)
