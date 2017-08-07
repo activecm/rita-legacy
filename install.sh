@@ -90,8 +90,8 @@ __install() {
 	echo "
 [+] Ensuring bro is installed...
 "
-	if [ ! $(dpkg-query -W -f='${Status}' bro 2>/dev/null | grep -c "ok installed") ] &&
-	[ ! $(dpkg-query -W -f='${Status}' securityonion-bro 2>/dev/null | grep -c "ok installed") ]
+	if [ $(dpkg-query -W -f='${Status}' bro 2>/dev/null | grep -c "ok installed") -eq 0 ] &&
+	[ $(dpkg-query -W -f='${Status}' securityonion-bro 2>/dev/null | grep -c "ok installed") -eq 0 ]
 	then
 		apt install -y bro
 		apt install -y broctl
