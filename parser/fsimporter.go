@@ -101,7 +101,10 @@ func readDir(cpath string, logger *log.Logger) []string {
 	}
 
 	for _, file := range files {
-		if file.IsDir() {
+		// Stop RITA from following symlinks
+		// In the case that RITA is pointed directly at Bro, it should not
+		// parse the "current" symlink which points to the spool.
+		if file.IsDir() && file.Mode() != os.ModeSymlink {
 			toReturn = append(toReturn, readDir(path.Join(cpath, file.Name()), logger)...)
 		}
 		if strings.HasSuffix(file.Name(), "gz") ||
