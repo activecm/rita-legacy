@@ -38,7 +38,7 @@ func NewFSImporter(resources *database.Resources,
 }
 
 //Run starts importing a given path into a datastore
-func (fs *FSImporter) Run(datastore *MongoDatastore) {
+func (fs *FSImporter) Run(datastore Datastore) {
 	// track the time spent parsing
 	start := time.Now()
 	fs.res.Log.WithFields(
@@ -67,7 +67,7 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 	parseFiles(indexedFiles, fs.parseThreads,
 		fs.res.Config.S.Bro.UseDates, datastore, fs.res.Log)
 
-	datastore.flush()
+	datastore.Flush()
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
 	progTime = time.Now()
@@ -78,7 +78,7 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 		},
 	).Info("Finished upload. Starting indexing")
 	fmt.Println("\t[-] Indexing log entries. This may take a while.")
-	datastore.finalize()
+	datastore.Index()
 
 	progTime = time.Now()
 	fs.res.Log.WithFields(
@@ -156,7 +156,7 @@ func indexFiles(files []string, indexingThreads int,
 //errors and parses the bro files line by line into the database.
 //NOTE: side effect: this sets the dates field on the indexedFiles
 func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
-	useDates bool, datastore *MongoDatastore, logger *log.Logger) {
+	useDates bool, datastore Datastore, logger *log.Logger) {
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
@@ -213,15 +213,16 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
 						}
 
 						//figure out what database this line is heading for
+						targetCollection := indexedFiles[j].TargetCollection
 						targetDB := indexedFiles[j].TargetDatabase
 						if useDates {
 							targetDB += "-" + date
 						}
 
-						datastore.store(importedData{
-							broData:        data,
-							targetDatabase: targetDB,
-							file:           indexedFiles[j],
+						datastore.Store(&ImportedData{
+							BroData:          data,
+							TargetDatabase:   targetDB,
+							TargetCollection: targetCollection,
 						})
 					}
 				}
