@@ -30,8 +30,10 @@ type (
 
 // InitResources grabs the configuration file and intitializes the configuration data
 // returning a *Resources object which has all of the necessary configuration information
-func InitResources(cfgPath string) *Resources {
-	conf, err := config.GetConfig(cfgPath)
+func InitResources(userConfig string) *Resources {
+	//GetConfig requires a table config. "" tells the configuration manager
+	//to use the default table config.
+	conf, err := config.GetConfig(userConfig, "")
 	if err != nil {
 		fmt.Fprintf(os.Stdout, "Failed to config, exiting")
 		panic(err)

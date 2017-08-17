@@ -1,0 +1,42 @@
+# NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
+LogConfig:
+    RitaLogTable: logs
+
+Structure:
+    ConnectionTable: conn
+    HttpTable: http
+    DnsTable: dns
+    UniqueConnectionTable: uconn
+    HostTable: host
+
+BlackListed:
+    Database: rita-blacklist
+    SourceIPsTable: blSourceIPs
+    DestIPsTable: blDestIPs
+    HostnamesTable: blHostnames
+    UrlsTable: blUrls
+
+Dns:
+    ExplodedDnsTable: explodedDns
+    HostnamesTable: hostnames
+
+Crossref:
+    SourceTable: sourceXREF
+    DestinationTable: destXREF
+
+Scanning:
+    ScanTable: scan
+
+Beacon:
+    BeaconTable: beacon
+
+Urls:
+    UrlsTable: urls
+
+UserAgent:
+    UserAgentTable: useragent
+
+MetaTables:
+    FilesTable: files
+    DatabasesTable: databases
+

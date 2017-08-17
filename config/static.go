@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"time"
+
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -46,7 +47,6 @@ type (
 
 	//BlacklistedStaticCfg is used to control the blacklisted analysis module
 	BlacklistedStaticCfg struct {
-		BlacklistDatabase  string                `yaml:"Database"`
 		UseIPms            bool                  `yaml:"myIP.ms"`
 		UseDNSBH           bool                  `yaml:"MalwareDomains.com"`
 		UseMDL             bool                  `yaml:"MalwareDomainList.com"`
