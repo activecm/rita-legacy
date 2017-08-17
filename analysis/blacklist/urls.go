@@ -3,6 +3,7 @@ package blacklist
 import (
 	"errors"
 	"strings"
+	"fmt"
 
 	"github.com/ocmdev/rita-bl/list"
 
@@ -55,6 +56,7 @@ func buildBlacklistedURLs(urls *mgo.Iter, res *database.Resources,
 					res.DB.GetSelectedDB(),
 					res.Config.T.Urls.UrlsTable,
 					res.Config.T.Structure.UniqueConnTable,
+					res.Config.T.Structure.HTTPTable,
 					ssn,
 					prefix,
 				)
@@ -97,7 +99,8 @@ func checkRitaBlacklistURLs(urls *mgo.Iter, blHandle *bl.Blacklist,
 }
 
 func fillBlacklistedURL(blURL *data.BlacklistedURL, longURL, db,
-	urlCollection, uconnCollection string, ssn *mgo.Session, prefix string) error {
+	urlCollection, uconnCollection string, httpCollection string,
+	ssn *mgo.Session, prefix string) error {
 	var urlQuery bson.M
 	urlTrimmed := strings.TrimPrefix(longURL, prefix)
 	resourceIdx := strings.Index(urlTrimmed, "/")
@@ -115,18 +118,76 @@ func fillBlacklistedURL(blURL *data.BlacklistedURL, longURL, db,
 	}
 	blURL.Host = host
 	blURL.Resource = resource
-
-	connQuery := bson.M{"dst": bson.M{"$in": blURLFull.IPs}}
+	httpPipeline := []bson.D{
+		{
+			{ "$match", bson.M{"host": host, "uri": resource} },
+		},
+		{
+			{ "$group", bson.M{
+					"_id": bson.D{
+						{ "h", "$host" },
+						{ "u", "$uri" },
+						{ "s", "$id_origin_h" },
+						{ "d", "$id_resp_h" },
+					},
+					"host": bson.M{ "$first": "$host" },
+					"uri": bson.M{ "$first": "$uri" },
+					"src": bson.M{ "$first": "$id_origin_h" },
+					"dst": bson.M{ "$first": "$id_resp_h" },
+			}},
+		},
+		{
+			{ "$lookup", bson.M{
+					"from": uconnCollection,
+					"localField": "dst",
+					"foreignField": "dst",
+					"as": "uconn",
+			}},
+		},
+		{
+			{ "$unwind", "$uconn" },
+		},
+		{
+			{ "$redact", bson.M{
+					"$cond": bson.M{
+						"if": bson.M{
+							"$eq": []interface{}{
+								"$src",
+								"$uconn.src",
+							},
+						},
+						"then": "$$KEEP",
+						"else": "$$PRUNE",
+					},
+			}},
+		},
+		{
+			{ "$project", bson.M{
+					"id": 1,
+					"connection_count": "$uconn.connection_count",
+					"src": 1,
+					"dst": 1,
+					"local_src": "$uconn.local_src",
+					"local_dst": "$uconn.local_dst",
+					"total_bytes": "$uconn.total_bytes",
+					"average_bytes": "$uconn.average_bytes",
+					"total_duration": "$uconn.total_duration",
+			}},
+		},
+	}
 
 	var totalBytes int
 	var totalConnections int
 	var uniqueConnCount int
-	uniqueConnections := ssn.DB(db).C(uconnCollection).Find(connQuery).Iter()
+	uniqueConnections := ssn.DB(db).C(httpCollection).Pipe(httpPipeline).Iter()
 	var uconn structure.UniqueConnection
 	for uniqueConnections.Next(&uconn) {
 		totalBytes += uconn.TotalBytes
 		totalConnections += uconn.ConnectionCount
 		uniqueConnCount++
+	}
+	if uniqueConnections.Err() != nil {
+		fmt.Println(uniqueConnections.Err())
 	}
 	blURL.Connections = totalConnections
 	blURL.UniqueConnections = uniqueConnCount
