@@ -3,7 +3,6 @@ package blacklist
 import (
 	"errors"
 	"strings"
-	"fmt"
 
 	"github.com/ocmdev/rita-bl/list"
 
@@ -55,7 +54,7 @@ func buildBlacklistedURLs(urls *mgo.Iter, res *database.Resources,
 					url,
 					res.DB.GetSelectedDB(),
 					res.Config.T.Urls.UrlsTable,
-					res.Config.T.Structure.UniqueConnTable,
+					res.Config.T.Structure.ConnTable,
 					res.Config.T.Structure.HTTPTable,
 					ssn,
 					prefix,
@@ -99,98 +98,98 @@ func checkRitaBlacklistURLs(urls *mgo.Iter, blHandle *bl.Blacklist,
 }
 
 func fillBlacklistedURL(blURL *data.BlacklistedURL, longURL, db,
-	urlCollection, uconnCollection string, httpCollection string,
+	urlCollection, connCollection string, httpCollection string,
 	ssn *mgo.Session, prefix string) error {
 	var urlQuery bson.M
 	urlTrimmed := strings.TrimPrefix(longURL, prefix)
 	resourceIdx := strings.Index(urlTrimmed, "/")
+
 	if resourceIdx == -1 {
 		return errors.New("url does not specify a resource")
 	}
+
 	host := urlTrimmed[:resourceIdx]
 	resource := urlTrimmed[resourceIdx:]
 
 	urlQuery = bson.M{"url": host, "uri": resource}
 	var blURLFull urls.URL
 	err := ssn.DB(db).C(urlCollection).Find(urlQuery).One(&blURLFull)
+
 	if err != nil {
 		return err
 	}
+
 	blURL.Host = host
 	blURL.Resource = resource
+
+	// Find source ips that connected to this full url, and join with the conn table
+	//	on the uid
 	httpPipeline := []bson.D{
 		{
-			{ "$match", bson.M{"host": host, "uri": resource} },
+			{"$match", bson.M{"host": host, "uri": resource}},
 		},
 		{
-			{ "$group", bson.M{
-					"_id": bson.D{
-						{ "h", "$host" },
-						{ "u", "$uri" },
-						{ "s", "$id_origin_h" },
-						{ "d", "$id_resp_h" },
-					},
-					"host": bson.M{ "$first": "$host" },
-					"uri": bson.M{ "$first": "$uri" },
-					"src": bson.M{ "$first": "$id_origin_h" },
-					"dst": bson.M{ "$first": "$id_resp_h" },
+			{"$project", bson.M{
+				"_id": 0,
+				"uid": 1,
 			}},
 		},
 		{
-			{ "$lookup", bson.M{
-					"from": uconnCollection,
-					"localField": "dst",
-					"foreignField": "dst",
-					"as": "uconn",
+			{"$lookup", bson.M{
+				"from":         connCollection,
+				"localField":   "uid",
+				"foreignField": "uid",
+				"as":           "conn",
 			}},
 		},
 		{
-			{ "$unwind", "$uconn" },
+			{"$unwind", "$conn"},
 		},
 		{
-			{ "$redact", bson.M{
-					"$cond": bson.M{
-						"if": bson.M{
-							"$eq": []interface{}{
-								"$src",
-								"$uconn.src",
-							},
-						},
-						"then": "$$KEEP",
-						"else": "$$PRUNE",
-					},
+			{"$project", bson.M{
+				"orig_bytes": "$conn.orig_bytes",
+				"resp_bytes": "$conn.resp_bytes",
+				"src":        "$conn.id_origin_h",
 			}},
 		},
 		{
-			{ "$project", bson.M{
-					"id": 1,
-					"connection_count": "$uconn.connection_count",
-					"src": 1,
-					"dst": 1,
-					"local_src": "$uconn.local_src",
-					"local_dst": "$uconn.local_dst",
-					"total_bytes": "$uconn.total_bytes",
-					"average_bytes": "$uconn.average_bytes",
-					"total_duration": "$uconn.total_duration",
+			{"$group", bson.M{
+				"_id": "src",
+				"total_bytes": bson.D{
+					{"$sum", bson.D{
+						{"$add", []interface{}{
+							"$orig_bytes",
+							"$resp_bytes",
+						}},
+					}},
+				},
+				"total_conn": bson.D{
+					{"$sum", bson.M{
+						"$add": 1,
+					}},
+				},
 			}},
 		},
 	}
 
 	var totalBytes int
 	var totalConnections int
-	var uniqueConnCount int
-	uniqueConnections := ssn.DB(db).C(httpCollection).Pipe(httpPipeline).Iter()
-	var uconn structure.UniqueConnection
-	for uniqueConnections.Next(&uconn) {
-		totalBytes += uconn.TotalBytes
-		totalConnections += uconn.ConnectionCount
-		uniqueConnCount++
+	var uConnCount int
+	connIter := ssn.DB(db).C(httpCollection).Pipe(httpPipeline).Iter()
+	var srcGroup structure.SrcIPGroup
+
+	for connIter.Next(&srcGroup) {
+		totalBytes += srcGroup.TotalBytes
+		totalConnections += srcGroup.TotalConns
+		uConnCount++
 	}
-	if uniqueConnections.Err() != nil {
-		fmt.Println(uniqueConnections.Err())
+
+	if connIter.Err() != nil {
+		return connIter.Err()
 	}
+
 	blURL.Connections = totalConnections
-	blURL.UniqueConnections = uniqueConnCount
+	blURL.UniqueConnections = uConnCount
 	blURL.TotalBytes = totalBytes
 
 	return nil
