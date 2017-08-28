@@ -6,8 +6,8 @@ import (
 
 type (
 	Host struct {
-		Ip    string        `bson:"ip"`
-		Local bool          `bson:"local"`
+		Ip    string `bson:"ip"`
+		Local bool   `bson:"local"`
 	}
 
 	UniqueConnection struct {
@@ -20,5 +20,14 @@ type (
 		TotalBytes      int           `bson:"total_bytes"`
 		AverageBytes    float32       `bson:"average_bytes"`
 		TotalDuration   float32       `bson:"total_duration"`
+	}
+
+	//srcIPGroup holds information used to find the number of unique connections,
+	//total connections, and total bytes for a blacklisted url, but are grouped by
+	//the ip that connected to the blacklisted url
+	SrcIPGroup struct {
+		ID         bson.ObjectId `bson:"_id,omitempty"`
+		TotalBytes int           `bson:"total_bytes"`
+		TotalConns int           `bson:"total_conn"`
 	}
 )
