@@ -84,7 +84,7 @@ func (line *HTTP) TargetCollection(config *config.StructureTableCfg) string {
 
 //Indices gives MongoDB indices that should be used with the collection
 func (line *HTTP) Indices() []string {
-	return []string{"$hashed:id_origin_h", "$hashed:id_resp_h", "$hashed:user_agent"}
+	return []string{"$hashed:id_origin_h", "$hashed:id_resp_h", "$hashed:user_agent", "uid"}
 }
 
 // Normalize fixes up absolute uri's as read by bro to be relative
