@@ -13,8 +13,8 @@ import (
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
-	"github.com/ocmdev/rita/util"
 	"github.com/ocmdev/rita/parser/parsetypes"
+	"github.com/ocmdev/rita/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -38,7 +38,7 @@ func NewFSImporter(resources *database.Resources,
 }
 
 //Run starts importing a given path into a datastore
-func (fs *FSImporter) Run(datastore *MongoDatastore) {
+func (fs *FSImporter) Run(datastore Datastore) {
 	// track the time spent parsing
 	start := time.Now()
 	fs.res.Log.WithFields(
@@ -49,10 +49,10 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 
 	fmt.Println("\t[-] Finding files to parse")
 	//find all of the bro log paths
-	files := readDir(fs.res.System.BroConfig.LogPath, fs.res.Log)
+	files := readDir(fs.res.Config.S.Bro.LogPath, fs.res.Log)
 
 	//hash the files and get their stats
-	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res.System, fs.res.Log)
+	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res.Config, fs.res.Log)
 
 	progTime := time.Now()
 	fs.res.Log.WithFields(
@@ -65,9 +65,9 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
 	parseFiles(indexedFiles, fs.parseThreads,
-		fs.res.System.BroConfig.UseDates, datastore, fs.res.Log)
+		fs.res.Config.S.Bro.UseDates, datastore, fs.res.Log)
 
-	datastore.flush()
+	datastore.Flush()
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
 	progTime = time.Now()
@@ -78,7 +78,7 @@ func (fs *FSImporter) Run(datastore *MongoDatastore) {
 		},
 	).Info("Finished upload. Starting indexing")
 	fmt.Println("\t[-] Indexing log entries. This may take a while.")
-	datastore.finalize()
+	datastore.Index()
 
 	progTime = time.Now()
 	fs.res.Log.WithFields(
@@ -101,7 +101,10 @@ func readDir(cpath string, logger *log.Logger) []string {
 	}
 
 	for _, file := range files {
-		if file.IsDir() {
+		// Stop RITA from following symlinks
+		// In the case that RITA is pointed directly at Bro, it should not
+		// parse the "current" symlink which points to the spool.
+		if file.IsDir() && file.Mode() != os.ModeSymlink {
 			toReturn = append(toReturn, readDir(path.Join(cpath, file.Name()), logger)...)
 		}
 		if strings.HasSuffix(file.Name(), "gz") ||
@@ -115,7 +118,7 @@ func readDir(cpath string, logger *log.Logger) []string {
 //indexFiles takes in a list of bro files, a number of threads, and parses
 //some metadata out of the files
 func indexFiles(files []string, indexingThreads int,
-	cfg *config.SystemConfig, logger *log.Logger) []*fpt.IndexedFile {
+	cfg *config.Config, logger *log.Logger) []*fpt.IndexedFile {
 	n := len(files)
 	output := make([]*fpt.IndexedFile, n)
 	indexingWG := new(sync.WaitGroup)
@@ -124,7 +127,7 @@ func indexFiles(files []string, indexingThreads int,
 		indexingWG.Add(1)
 
 		go func(files []string, indexedFiles []*fpt.IndexedFile,
-			sysConf *config.SystemConfig, logger *log.Logger,
+			sysConf *config.Config, logger *log.Logger,
 			wg *sync.WaitGroup, start int, jump int, length int) {
 
 			for j := start; j < length; j += jump {
@@ -153,7 +156,7 @@ func indexFiles(files []string, indexingThreads int,
 //errors and parses the bro files line by line into the database.
 //NOTE: side effect: this sets the dates field on the indexedFiles
 func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
-	useDates bool, datastore *MongoDatastore, logger *log.Logger) {
+	useDates bool, datastore Datastore, logger *log.Logger) {
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
@@ -210,15 +213,16 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
 						}
 
 						//figure out what database this line is heading for
+						targetCollection := indexedFiles[j].TargetCollection
 						targetDB := indexedFiles[j].TargetDatabase
 						if useDates {
 							targetDB += "-" + date
 						}
 
-						datastore.store(importedData{
-							broData:        data,
-							targetDatabase: targetDB,
-							file:           indexedFiles[j],
+						datastore.Store(&ImportedData{
+							BroData:          data,
+							TargetDatabase:   targetDB,
+							TargetCollection: targetCollection,
 						})
 					}
 				}
@@ -268,6 +272,7 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 	}
 	return toReturn
 }
+
 //updateFilesIndex updates the files collection in the metaDB with the newly parsed files
 func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.MetaDBHandle,
 	logger *log.Logger) {

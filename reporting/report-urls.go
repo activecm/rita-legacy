@@ -22,7 +22,7 @@ func printLongURLs(db string, res *database.Resources) error {
 	}
 
 	var urls []urls.URL
-	coll := res.DB.Session.DB(db).C(res.System.UrlsConfig.UrlsTable)
+	coll := res.DB.Session.DB(db).C(res.Config.T.Urls.UrlsTable)
 	coll.Find(nil).Sort("-length").Limit(1000).All(&urls)
 
 	w, err := getLongURLWriter(urls)

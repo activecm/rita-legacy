@@ -51,7 +51,7 @@ func (d *DB) CollectionExists(table string) bool {
 
 //CreateCollection creates a new collection in the currently selected
 //database with the required indeces
-func (d *DB) CreateCollection(name string, indeces []string) error {
+func (d *DB) CreateCollection(name string, id bool, indeces []mgo.Index) error {
 	// Make a copy of the current session
 	session := d.Session.Copy()
 	defer session.Close()
@@ -69,7 +69,9 @@ func (d *DB) CreateCollection(name string, indeces []string) error {
 
 	// Create new collection by referencing to it, no need to call Create
 	err := session.DB(d.selected).C(name).Create(
-		&mgo.CollectionInfo{},
+		&mgo.CollectionInfo{
+			DisableIdIndex: !id,
+		},
 	)
 
 	// Make sure it actually got created
@@ -78,10 +80,7 @@ func (d *DB) CreateCollection(name string, indeces []string) error {
 	}
 
 	collection := session.DB(d.selected).C(name)
-	for _, val := range indeces {
-		index := mgo.Index{
-			Key: []string{val},
-		}
+	for _, index := range indeces {
 		err := collection.EnsureIndex(index)
 		if err != nil {
 			return err
@@ -113,7 +112,7 @@ func (d *DB) AggregateCollection(sourceCollection string,
 	if iter.Err() != nil {
 		d.resources.Log.WithFields(log.Fields{
 			"error": iter.Err().Error(),
-		}).Panic("Failed aggregate operation")
+		}).Error("Failed aggregate operation")
 		return nil
 	}
 	return iter
@@ -140,7 +139,7 @@ func (d *DB) MapReduceCollection(sourceCollection string, job mgo.MapReduce) boo
 	if err != nil {
 		d.resources.Log.WithFields(log.Fields{
 			"error": err.Error(),
-		}).Panic("Failed map reduce")
+		}).Error("Failed map reduce")
 		return false
 	}
 

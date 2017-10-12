@@ -1,11 +1,8 @@
 package commands
 
 import (
-	"errors"
-	"fmt"
+	"encoding/csv"
 	"os"
-	"strconv"
-	"text/template"
 
 	"github.com/ocmdev/rita/analysis/beacon"
 	"github.com/ocmdev/rita/database"
@@ -21,7 +18,7 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			databaseFlag,
-			allFlag,
+			configFlag,
 		},
 		Action: showBeacons,
 	}
@@ -33,66 +30,75 @@ func showBeacons(c *cli.Context) error {
 	if c.String("database") == "" {
 		return cli.NewExitError("Specify a database with -d", -1)
 	}
-	res := database.InitResources("")
+	res := database.InitResources(c.String("config"))
 	res.DB.SelectDB(c.String("database"))
 
 	var data []beaconData.BeaconAnalysisView
-	cutoffScore := .7
-	if c.Bool("all") {
-		cutoffScore = 0
-	}
 
 	ssn := res.DB.Session.Copy()
-	resultsView := beacon.GetBeaconResultsView(res, ssn, cutoffScore)
+	resultsView := beacon.GetBeaconResultsView(res, ssn, 0)
 	if resultsView == nil {
-		return errors.New("No beacons were found for " + c.String("database"))
+		return cli.NewExitError("No results were found for "+c.String("database"), -1)
 	}
 	resultsView.All(&data)
 	ssn.Close()
 
 	if c.Bool("human-readable") {
-		return showBeaconReport(data)
+		err := showBeaconReport(data)
+		if err != nil {
+			return cli.NewExitError(err.Error(), -1)
+		}
+		return nil
 	}
 
-	return showBeaconCsv(data)
+	err := showBeaconCsv(data)
+	if err != nil {
+		return cli.NewExitError(err.Error(), -1)
+	}
+	return nil
 }
 
 func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
-		"Connections", "Avg. Bytes", "Intvl Range", "Top Intvl",
-		"Top Intvl Count", "Intvl Skew", "Intvl Dispersion", "Intvl Duration"})
-	f := func(f float64) string {
-		return strconv.FormatFloat(f, 'g', 6, 64)
-	}
-	i := func(i int64) string {
-		return strconv.FormatInt(i, 10)
-	}
+		"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
+		"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
+		"Size Skew", "Intvl Dispersion", "Size Dispersion", "Intvl Duration"})
+
 	for _, d := range data {
 		table.Append(
 			[]string{
-				f(d.TS_score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
-				i(d.TS_iRange), i(d.TS_iMode), i(d.TS_iModeCount), f(d.TS_iSkew),
-				i(d.TS_iDispersion), f(d.TS_duration)})
+				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				i(d.TS_iRange), i(d.DS_range), i(d.TS_iMode), i(d.DS_mode),
+				i(d.TS_iModeCount), i(d.DS_modeCount), f(d.TS_iSkew), f(d.DS_skew),
+				i(d.TS_iDispersion), i(d.DS_dispersion), f(d.TS_duration),
+			},
+		)
 	}
 	table.Render()
 	return nil
 }
 
 func showBeaconCsv(data []beaconData.BeaconAnalysisView) error {
-	tmpl := "{{.TS_score}},{{.Src}},{{.Dst}},{{.Connections}},{{.AvgBytes}},"
-	tmpl += "{{.TS_iRange}},{{.TS_iMode}},{{.TS_iModeCount}},"
-	tmpl += "{{.TS_iSkew}},{{.TS_iDispersion}},{{.TS_duration}}\n"
+	csvWriter := csv.NewWriter(os.Stdout)
+	headers := []string{
+		"Score", "Source", "Destination", "Connections",
+		"Avg Bytes", "TS Range", "DS Range", "TS Mode", "DS Mode", "TS Mode Count",
+		"DS Mode Count", "TS Skew", "DS Skew", "TS Dispersion", "DS Dispersion",
+		"TS Duration",
+	}
+	csvWriter.Write(headers)
 
-	out, err := template.New("beacon").Parse(tmpl)
-	if err != nil {
-		return err
-	}
 	for _, d := range data {
-		err := out.Execute(os.Stdout, d)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-		}
+		csvWriter.Write(
+			[]string{
+				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				i(d.TS_iRange), i(d.DS_range), i(d.TS_iMode), i(d.DS_mode),
+				i(d.TS_iModeCount), i(d.DS_modeCount), f(d.TS_iSkew), f(d.DS_skew),
+				i(d.TS_iDispersion), i(d.DS_dispersion), f(d.TS_duration),
+			},
+		)
 	}
+	csvWriter.Flush()
 	return nil
 }

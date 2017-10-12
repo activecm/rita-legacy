@@ -42,27 +42,27 @@ func doImport(c *cli.Context) error {
 
 	//one flag was set
 	if importDir != "" && databaseName == "" || importDir == "" && databaseName != "" {
-		fmt.Println("Import failed.\nUse 'rita import' to import the directories " +
-			"specified in the config file or 'rita import -i [import-dir] -d [database-name]' " +
-			"to import bro logs from a given directory.")
-		return nil
+		return cli.NewExitError(
+			"Import failed.\nUse 'rita import' to import the directories "+
+				"specified in the config file or 'rita import -i [import-dir] -d [database-name]' "+
+				"to import bro logs from a given directory.", -1)
 	}
 
 	//both flags were set
 	if importDir != "" && databaseName != "" {
-		res.System.BroConfig.LogPath = importDir
-		res.System.BroConfig.DBPrefix = ""
+		res.Config.S.Bro.LogPath = importDir
+		res.Config.S.Bro.DBPrefix = ""
 		//Clear out the directory map and set the default database
-		res.System.BroConfig.DirectoryMap = make(map[string]string)
-		res.System.BroConfig.DefaultDatabase = databaseName
+		res.Config.S.Bro.DirectoryMap = make(map[string]string)
+		res.Config.S.Bro.DefaultDatabase = databaseName
 	}
 
-	res.Log.Infof("Importing %s\n", res.System.BroConfig.LogPath)
-	fmt.Println("[+] Importing " + res.System.BroConfig.LogPath)
+	res.Log.Infof("Importing %s\n", res.Config.S.Bro.LogPath)
+	fmt.Println("[+] Importing " + res.Config.S.Bro.LogPath)
 	importer := parser.NewFSImporter(res, threads, threads)
 	datastore := parser.NewMongoDatastore(res.DB.Session, res.MetaDB,
-		res.System.BroConfig.ImportBuffer, res.Log)
+		res.Config.S.Bro.ImportBuffer, res.Log)
 	importer.Run(datastore)
-	res.Log.Infof("Finished importing %s\n", res.System.BroConfig.LogPath)
+	res.Log.Infof("Finished importing %s\n", res.Config.S.Bro.LogPath)
 	return nil
 }

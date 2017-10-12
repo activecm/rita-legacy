@@ -27,6 +27,9 @@ Additional functionality is being developed and will be included soon.
 * Source your .bashrc (the installer added RITA to the PATH): `source ~/.bashrc`
 * Start MongoDB: `sudo service mongod start`
 
+### Docker Installation
+RITA is available as a Docker image at ocmdev/rita, [check out the instructions in the wiki](https://github.com/ocmdev/rita/wiki/Docker-Installation).
+
 ### Manual Installation
 To install each component of RITA by hand, [check out the instructions in the wiki](https://github.com/ocmdev/rita/wiki/Installation).
 

@@ -150,6 +150,7 @@ func writeDB(db string, wd string, res *database.Resources) error {
 			return err
 		}
 	}
+	res.DB.SelectDB(db)
 
 	err = writeDBHomePage(db)
 	if err != nil {
@@ -159,11 +160,24 @@ func writeDB(db string, wd string, res *database.Resources) error {
 	if err != nil {
 		return err
 	}
-	err = printBlacklisted(db, res)
+
+	err = printDNS(db, res)
 	if err != nil {
 		return err
 	}
-	err = printDNS(db, res)
+	err = printBLSourceIPs(db, res)
+	if err != nil {
+		return err
+	}
+	err = printBLDestIPs(db, res)
+	if err != nil {
+		return err
+	}
+	err = printBLHostnames(db, res)
+	if err != nil {
+		return err
+	}
+	err = printBLURLs(db, res)
 	if err != nil {
 		return err
 	}

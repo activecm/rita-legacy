@@ -5,12 +5,17 @@ import (
 )
 
 type (
+	//Host describes a computer interface found in the
+	//network traffic being analyzed
 	Host struct {
 		ID    bson.ObjectId `bson:"_id,omitempty"`
 		Ip    string        `bson:"ip"`
 		Local bool          `bson:"local"`
+		IPv4  bool          `bson:"ipv6"`
 	}
 
+	//UniqueConnection describes a pair of computer interfaces which contacted
+	//each other over the observation period
 	UniqueConnection struct {
 		ID              bson.ObjectId `bson:"_id,omitempty"`
 		ConnectionCount int           `bson:"connection_count"`

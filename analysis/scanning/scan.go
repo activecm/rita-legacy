@@ -4,40 +4,45 @@ import (
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
+//BuildScanningCollection detects port scans
 func BuildScanningCollection(res *database.Resources) {
 	// Create the aggregate command
-	source_collection_name,
-		new_collection_name,
-		new_collection_keys,
-		pipeline := getScanningCollectionScript(res.System)
+	sourceCollectionName,
+		newCollectionName,
+		newCollectionKeys,
+		pipeline := getScanningCollectionScript(res.Config)
 
 	// Create it
-	err := res.DB.CreateCollection(new_collection_name, new_collection_keys)
+	err := res.DB.CreateCollection(newCollectionName, false, newCollectionKeys)
 	if err != nil {
-		res.Log.Error("Failed: ", new_collection_name, err.Error())
+		res.Log.Error("Failed: ", newCollectionName, err.Error())
 		return
 	}
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 	// Aggregate it!
-	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
+	res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
 }
 
-func getScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
+func getScanningCollectionScript(conf *config.Config) (string, string, []mgo.Index, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
-	source_collection_name := sysCfg.StructureConfig.ConnTable
+	sourceCollectionName := conf.T.Structure.ConnTable
 
 	// Name of the new collection
-	new_collection_name := sysCfg.ScanningConfig.ScanTable
+	newCollectionName := conf.T.Scanning.ScanTable
 
 	// Get scan threshold
-	scan_thresh := sysCfg.ScanningConfig.ScanThreshold
+	scanThresh := conf.S.Scanning.ScanThreshold
 
 	// Desired indeces
-	keys := []string{"-port_count", "$hashed:src", "$hashed:dst"}
+	keys := []mgo.Index{
+		{Key: []string{"-port_count"}},
+		{Key: []string{"src", "dst"}, Unique: true},
+	}
 
 	// Aggregation script
 	// nolint: vet
@@ -107,7 +112,7 @@ func getScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, [
 		{
 			{"$match", bson.D{
 				{"port_count", bson.D{
-					{"$gt", scan_thresh},
+					{"$gt", scanThresh},
 				}},
 			}},
 		},
@@ -117,9 +122,9 @@ func getScanningCollectionScript(sysCfg *config.SystemConfig) (string, string, [
 			}},
 		},
 		{
-			{"$out", new_collection_name},
+			{"$out", newCollectionName},
 		},
 	}
 
-	return source_collection_name, new_collection_name, keys, pipeline
+	return sourceCollectionName, newCollectionName, keys, pipeline
 }

@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/ocmdev/rita/database"
 	datatype_beacon "github.com/ocmdev/rita/datatypes/beacon"
+	log "github.com/sirupsen/logrus"
 )
 
 func printAnalysis(res *datatype_beacon.BeaconAnalysisOutput) string {
@@ -24,20 +24,21 @@ func printAnalysis(res *datatype_beacon.BeaconAnalysisOutput) string {
 }
 
 func TestAnalysis(t *testing.T) {
-	resources := database.InitMockResources("")
-	resources.Log.Level = log.DebugLevel
-	resources.System.BeaconConfig.DefaultConnectionThresh = 2
+	res := database.InitMockResources("")
+	res.Log.Level = log.DebugLevel
+	res.Config.S.Beacon.DefaultConnectionThresh = 2
 
 	fail := false
 	for i, val := range testDataList {
-		beaconing := newBeacon(resources)
+		beaconing := newBeacon(res)
 		//set first and last connection times
 		beaconing.minTime = val.ts[0]
 		beaconing.maxTime = val.ts[len(val.ts)-1]
 		data := &beaconAnalysisInput{
-			src: "0.0.0.0",
-			dst: "0.0.0.0",
-			ts:  val.ts,
+			src:           "0.0.0.0",
+			dst:           "0.0.0.0",
+			ts:            val.ts,
+			orig_ip_bytes: val.ds,
 		}
 
 		beaconing.analysisWg.Add(1)
@@ -48,7 +49,7 @@ func TestAnalysis(t *testing.T) {
 		beaconing.analysisWg.Wait()
 
 		status := "PASS"
-		if res.TS_score < val.minScore || res.TS_score > val.maxScore {
+		if res.Score < val.minScore || res.Score > val.maxScore {
 			fail = true
 			status = "FAIL"
 		}

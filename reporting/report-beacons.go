@@ -38,9 +38,10 @@ func printBeacons(db string, res *database.Resources) error {
 }
 
 func getBeaconWriter(beacons []beaconData.BeaconAnalysisView) (string, error) {
-	tmpl := "<tr><td>{{printf \"%.3f\" .TS_score}}</td><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.Connections}}</td><td>{{printf \"%.3f\" .AvgBytes}}</td><td>"
-	tmpl += "{{.TS_iRange}}</td><td>{{.TS_iMode}}</td><td>{{.TS_iModeCount}}</td><td>"
-	tmpl += "{{printf \"%.3f\" .TS_iSkew}}</td><td>{{.TS_iDispersion}}</td><td>{{printf \"%.3f\" .TS_duration}}</tr>\n"
+	tmpl := "<tr><td>{{printf \"%.3f\" .Score}}</td><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.Connections}}</td><td>{{printf \"%.3f\" .AvgBytes}}</td><td>"
+	tmpl += "{{.TS_iRange}}</td><td>{{.DS_range}}</td><td>{{.TS_iMode}}</td><td>{{.DS_mode}}</td><td>{{.TS_iModeCount}}</td><td>{{.DS_modeCount}}<td>"
+	tmpl += "{{printf \"%.3f\" .TS_iSkew}}</td><td>{{printf \"%.3f\" .DS_skew}}</td><td>{{.TS_iDispersion}}</td><td>{{.DS_dispersion}}</td><td>"
+	tmpl += "{{printf \"%.3f\" .TS_duration}}</tr>\n"
 
 	out, err := template.New("beacon").Parse(tmpl)
 	if err != nil {

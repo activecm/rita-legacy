@@ -38,12 +38,12 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
-	err := ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).Insert(
+	err := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Insert(
 		DBMetaInfo{
 			Name:       name,
 			Analyzed:   false,
-			UsingDates: m.res.System.BroConfig.UseDates,
-			Version:    m.res.System.Version,
+			UsingDates: m.res.Config.S.Bro.UseDates,
+			Version:    m.res.Config.R.Version,
 		},
 	)
 	if err != nil {
@@ -68,13 +68,13 @@ func (m *MetaDBHandle) DeleteDB(name string) error {
 
 	//get the record
 	var db DBMetaInfo
-	err := ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).Find(bson.M{"name": name}).One(&db)
+	err := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Find(bson.M{"name": name}).One(&db)
 	if err != nil {
 		return err
 	}
 
 	//delete the record
-	err = ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).Remove(bson.M{"name": name})
+	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Remove(bson.M{"name": name})
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (m *MetaDBHandle) DeleteDB(name string) error {
 	ssn.DB(name).DropDatabase()
 
 	//delete any parsed file records associated
-	_, err = ssn.DB(m.DB).C(m.res.System.MetaTables.FilesTable).RemoveAll(bson.M{"database": name})
+	_, err = ssn.DB(m.DB).C(m.res.Config.T.Meta.FilesTable).RemoveAll(bson.M{"database": name})
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (m *MetaDBHandle) MarkDBAnalyzed(name string, complete bool) error {
 	defer ssn.Close()
 
 	dbr := DBMetaInfo{}
-	err := ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).
+	err := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).
 		Find(bson.M{"name": name}).One(&dbr)
 
 	if err != nil {
@@ -128,7 +128,7 @@ func (m *MetaDBHandle) MarkDBAnalyzed(name string, complete bool) error {
 		return err
 	}
 
-	err = ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).
+	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).
 		Update(bson.M{"_id": dbr.ID}, bson.M{"$set": bson.M{"analyzed": complete}})
 
 	if err != nil {
@@ -151,7 +151,7 @@ func (m *MetaDBHandle) GetDBMetaInfo(name string) (DBMetaInfo, error) {
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 	var result DBMetaInfo
-	err := ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).Find(bson.M{"name": name}).One(&result)
+	err := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Find(bson.M{"name": name}).One(&result)
 	return result, err
 }
 
@@ -164,7 +164,7 @@ func (m *MetaDBHandle) GetDatabases() []string {
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
-	iter := ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).Find(nil).Iter()
+	iter := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Find(nil).Iter()
 
 	var results []string
 	var db DBMetaInfo
@@ -185,7 +185,7 @@ func (m *MetaDBHandle) GetUnAnalyzedDatabases() []string {
 
 	var results []string
 	var cur DBMetaInfo
-	iter := ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).Find(bson.M{"analyzed": false}).Iter()
+	iter := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Find(bson.M{"analyzed": false}).Iter()
 	for iter.Next(&cur) {
 		results = append(results, cur.Name)
 	}
@@ -203,7 +203,7 @@ func (m *MetaDBHandle) GetAnalyzedDatabases() []string {
 
 	var results []string
 	var cur DBMetaInfo
-	iter := ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).Find(bson.M{"analyzed": true}).Iter()
+	iter := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Find(bson.M{"analyzed": true}).Iter()
 	for iter.Next(&cur) {
 		results = append(results, cur.Name)
 	}
@@ -227,7 +227,7 @@ func (m *MetaDBHandle) GetFiles() ([]fpt.IndexedFile, error) {
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
-	err := ssn.DB(m.DB).C(m.res.System.MetaTables.FilesTable).
+	err := ssn.DB(m.DB).C(m.res.Config.T.Meta.FilesTable).
 		Find(nil).Iter().All(&toReturn)
 	if err != nil {
 		m.res.Log.WithFields(log.Fields{
@@ -250,7 +250,7 @@ func (m *MetaDBHandle) AddParsedFiles(files []*fpt.IndexedFile) error {
 	ssn := m.res.DB.Session.Copy()
 	defer ssn.Close()
 
-	bulk := ssn.DB(m.DB).C(m.res.System.MetaTables.FilesTable).Bulk()
+	bulk := ssn.DB(m.DB).C(m.res.Config.T.Meta.FilesTable).Bulk()
 	bulk.Unordered()
 
 	//construct the interface slice for bulk
@@ -290,7 +290,7 @@ func (m *MetaDBHandle) isBuilt() bool {
 	}
 
 	for _, name := range coll {
-		if name == m.res.System.MetaTables.FilesTable {
+		if name == m.res.Config.T.Meta.FilesTable {
 			return true
 		}
 	}
@@ -325,10 +325,10 @@ func (m *MetaDBHandle) createMetaDB() {
 		Capped:         false,
 	}
 
-	err := ssn.DB(m.DB).C(m.res.System.LogConfig.RitaLogTable).Create(&myCol)
+	err := ssn.DB(m.DB).C(m.res.Config.T.Log.RitaLogTable).Create(&myCol)
 	errchk(err)
 
-	err = ssn.DB(m.DB).C(m.res.System.MetaTables.FilesTable).Create(&myCol)
+	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.FilesTable).Create(&myCol)
 	errchk(err)
 
 	idx := mgo.Index{
@@ -339,11 +339,11 @@ func (m *MetaDBHandle) createMetaDB() {
 		Name:       "hashindex",
 	}
 
-	err = ssn.DB(m.DB).C(m.res.System.MetaTables.FilesTable).EnsureIndex(idx)
+	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.FilesTable).EnsureIndex(idx)
 	errchk(err)
 
 	// Create the database collection
-	err = ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).Create(&myCol)
+	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Create(&myCol)
 	errchk(err)
 
 	idx = mgo.Index{
@@ -354,7 +354,7 @@ func (m *MetaDBHandle) createMetaDB() {
 		Name:       "nameindex",
 	}
 
-	err = ssn.DB(m.DB).C(m.res.System.MetaTables.DatabasesTable).EnsureIndex(idx)
+	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).EnsureIndex(idx)
 	errchk(err)
 
 	m.logDebug("newMetaDBHandle", "exiting")

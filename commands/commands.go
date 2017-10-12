@@ -2,6 +2,7 @@ package commands
 
 import (
 	"runtime"
+	"strconv"
 
 	"github.com/urfave/cli"
 )
@@ -39,9 +40,15 @@ var (
 		Usage: "print a report instead of csv",
 	}
 
-	allFlag = cli.BoolFlag{
-		Name:  "all, a",
-		Usage: "print all available records",
+	blSortFlag = cli.StringFlag{
+		Name:  "sort, s",
+		Usage: "Sort by conn (# of connections), uconn (# of unique connections), total_bytes (# of bytes)",
+		Value: "conn",
+	}
+
+	blConnFlag = cli.BoolFlag{
+		Name:  "connected, C",
+		Usage: "Show hosts which were connected to this blacklisted entry",
 	}
 )
 
@@ -55,4 +62,12 @@ func bootstrapCommands(commands ...cli.Command) {
 // Commands provides all of the defined commands to the front end
 func Commands() []cli.Command {
 	return allCommands
+}
+
+//helper functions for formatting floats and integers
+func f(f float64) string {
+	return strconv.FormatFloat(f, 'g', 6, 64)
+}
+func i(i int64) string {
+	return strconv.FormatInt(i, 10)
 }

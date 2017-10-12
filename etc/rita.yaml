@@ -1,5 +1,18 @@
-# Mongo Database to connect to
-DatabaseHost: localhost:27017
+MongoDB:
+  # See https://docs.mongodb.com/manual/reference/connection-string/
+  ConnectionString: mongodb://localhost:27017
+  # How to authenticate to MongoDB
+  # Accepted Values: null, "SCRAM-SHA-1", "MONGODB-CR", "PLAIN"
+  AuthenticationMechanism: null
+  # The time in hours before RITA's connection to MongoDB times out. 0 waits indefinitely.
+  SocketTimeout: 2
+  # For encrypting data on the wire between RITA and MongoDB
+  TLS:
+    Enable: false
+    #If set, RITA will verify the MongoDB certificate's hostname and validity
+    VerifyCertificate: false
+    #If set, RITA will use the provided CA file instead of the system's CA's
+    CAFile: null
 
 LogConfig:
     # LogLevel
@@ -44,11 +57,11 @@ Bro:
     # separation is handled by the metadatabase.
     MetaDB: MetaDatabase
 
-    # If use dates is true the logs will be split into databases by date, this is
-    # best for if you have multiple days worth of log files in the logpath and wish
-    # to treat each day as a separate test. 24hours worth of data is the ideal for
-    # analysis, and using dates will ensure that tests are broken into 24hour periods
-    # around midnight of each day.
+    # If use dates is true the logs will be split into databases by date using the
+    # current system's timezone. This is best for if you have multiple days worth
+    # of log files in the logpath and wish to treat each day as a separate test.
+    # 24 hours worth of data is the ideal for analysis, and using dates will ensure
+    # that tests are broken into 24 hour periods on midnight in the current timezone.
     UseDates: false
 
     # The number of records shipped off to MongoDB at a time. Increasing
@@ -56,9 +69,44 @@ Bro:
     # records unimported if there is an error
     ImportBuffer: 100000
 
-SafeBrowsing:
-    APIKey: ""
-    Database: $HOME/.rita/safebrowsing
+BlackListed:
+    Database: rita-blacklist
+    # These are blacklists built into rita-blacklist. Set these to false
+    # to disable checks against them.
+    myIP.ms: true
+    MalwareDomains.com: true
+    MalwareDomainList.com: true
+
+    # Google SafeBrowsing requires an api key and a file to cache the results in.
+    # If either APIKey or Database is an empty string, Google SafeBrowsing will
+    # not be queried.
+    SafeBrowsing:
+        APIKey: ""
+        Database: $HOME/.rita/safebrowsing
+
+    # These are custom blacklists that you may define. They are lists of either
+    # file paths or urls. These custom blacklists are expected to be simple,
+    # line separated text documents containing a list of blacklisted entries.
+
+    # Example: CustomIPBlacklists: ["$HOME/.rita/myIPBlacklist.txt"]
+    # myIPBlacklist.txt would look like this:
+    # 192.168.0.1
+    # 10.10.174.1
+
+    # Lists containing both IPv4 and IPv6 addresses are acceptable
+    CustomIPBlacklists: []
+    # Lists containing hostnames, domain names, and FQDNs are acceptable
+    CustomHostnameBlacklists: []
+    # URLs must each contain a protocol, a host, and a resource
+    # Ex: http://google.com/
+    # Ex: ftp://myftpserver.com/a/file/over/here.txt
+    CustomURLBlacklists: []
+
+    # Table names
+    SourceIPsTable: blSourceIPs
+    DestIPsTable: blDestIPs
+    HostnamesTable: blHostnames
+    UrlsTable: blUrls
 
 # NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
 Structure:
@@ -68,19 +116,13 @@ Structure:
     UniqueConnectionTable: uconn
     HostTable: host
 
-BlackListed:
-    ThreadCount: 2
-    ChannelSize: 1000
-    BlackListTable: blacklisted
-    Database: rita-blacklist
-
 Dns:
     ExplodedDnsTable: explodedDns
     HostnamesTable: hostnames
 
 Crossref:
-    InternalTable: internXREF
-    ExternalTable: externXREF
+    SourceTable: sourceXREF
+    DestinationTable: destXREF
     BeaconThreshold: .7
 
 Scanning:

@@ -4,6 +4,7 @@ import (
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -13,7 +14,7 @@ func GetConnSourcesFromDest(res *database.Resources, ip string) []string {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	cons := ssn.DB(res.DB.GetSelectedDB()).C(res.System.StructureConfig.UniqueConnTable)
+	cons := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable)
 	srcIter := cons.Find(bson.M{"dst": ip}).Iter()
 
 	var srcStruct struct {
@@ -27,34 +28,40 @@ func GetConnSourcesFromDest(res *database.Resources, ip string) []string {
 	return sources
 }
 
+//BuildUniqueConnectionsCollection finds the unique connection pairs
+//between sources and destinations
 func BuildUniqueConnectionsCollection(res *database.Resources) {
 	// Create the aggregate command
-	source_collection_name,
-		new_collection_name,
-		new_collection_keys,
-		pipeline := getUniqueConnectionsScript(res.System)
+	sourceCollectionName,
+		newCollectionName,
+		newCollectionKeys,
+		pipeline := getUniqueConnectionsScript(res.Config)
 
-	err := res.DB.CreateCollection(new_collection_name, new_collection_keys)
+	err := res.DB.CreateCollection(newCollectionName, true, newCollectionKeys)
 	if err != nil {
-		res.Log.Error("Failed: ", new_collection_name, err.Error())
+		res.Log.Error("Failed: ", newCollectionName, err.Error())
 		return
 	}
 
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	res.DB.AggregateCollection(source_collection_name, ssn, pipeline)
+	res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
 }
 
-func getUniqueConnectionsScript(sysCfg *config.SystemConfig) (string, string, []string, []bson.D) {
+func getUniqueConnectionsScript(conf *config.Config) (string, string, []mgo.Index, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
-	source_collection_name := sysCfg.StructureConfig.ConnTable
+	sourceCollectionName := conf.T.Structure.ConnTable
 
 	// Name of the new collection
-	new_collection_name := sysCfg.StructureConfig.UniqueConnTable
+	newCollectionName := conf.T.Structure.UniqueConnTable
 
 	// Desired Indeces
-	keys := []string{"$hashed:src", "$hashed:dst"}
+	keys := []mgo.Index{
+		{Key: []string{"src", "dst"}, Unique: true},
+		{Key: []string{"$hashed:src"}},
+		{Key: []string{"$hashed:dst"}},
+	}
 
 	// Aggregation script
 	// nolint: vet
@@ -115,9 +122,9 @@ func getUniqueConnectionsScript(sysCfg *config.SystemConfig) (string, string, []
 			}},
 		},
 		{
-			{"$out", new_collection_name},
+			{"$out", newCollectionName},
 		},
 	}
 
-	return source_collection_name, new_collection_name, keys, pipeline
+	return sourceCollectionName, newCollectionName, keys, pipeline
 }
