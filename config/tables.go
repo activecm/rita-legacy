@@ -36,6 +36,8 @@ type (
 		DNSTable        string `yaml:"DnsTable"`
 		UniqueConnTable string `yaml:"UniqueConnectionTable"`
 		HostTable       string `yaml:"HostTable"`
+		IPv4Table       string `yaml:"IPv4Table"`
+		IPv6Table       string `yaml:"IPv6Table"`
 	}
 
 	//BlacklistedTableCfg is used to control the blacklisted analysis module
