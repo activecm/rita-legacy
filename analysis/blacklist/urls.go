@@ -9,17 +9,27 @@ import (
 	bl "github.com/ocmdev/rita-bl"
 	"github.com/ocmdev/rita/database"
 	data "github.com/ocmdev/rita/datatypes/blacklist"
-	"github.com/ocmdev/rita/datatypes/structure"
 	"github.com/ocmdev/rita/datatypes/urls"
 	log "github.com/sirupsen/logrus"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
-type urlShort struct {
-	URL string `bson:"url"`
-	URI string `bson:"uri"`
-}
+type (
+	urlShort struct {
+		URL string `bson:"url"`
+		URI string `bson:"uri"`
+	}
+
+	//srcIPGroup holds information used to find the number of unique connections,
+	//total connections, and total bytes for a blacklisted url, but are grouped by
+	//the ip that connected to the blacklisted url
+	SrcIPGroup struct {
+		ID         bson.ObjectId `bson:"_id,omitempty"`
+		TotalBytes int           `bson:"total_bytes"`
+		TotalConns int           `bson:"total_conn"`
+	}
+)
 
 //buildBlacklistedURLs builds a set of blacklsited urls from the
 //iterator provided, the system config, a handle to rita-blacklist,
@@ -176,7 +186,7 @@ func fillBlacklistedURL(blURL *data.BlacklistedURL, longURL, db,
 	var totalConnections int
 	var uConnCount int
 	connIter := ssn.DB(db).C(httpCollection).Pipe(httpPipeline).Iter()
-	var srcGroup structure.SrcIPGroup
+	var srcGroup SrcIPGroup
 
 	for connIter.Next(&srcGroup) {
 		totalBytes += srcGroup.TotalBytes
