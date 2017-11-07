@@ -9,7 +9,7 @@ type (
 	//network traffic being analyzed
 	Host struct {
 		ID    bson.ObjectId `bson:"_id,omitempty"`
-		Ip    string        `bson:"ip"`
+		IP    string        `bson:"ip"`
 		Local bool          `bson:"local"`
 		IPv4  bool          `bson:"ipv6"`
 	}
