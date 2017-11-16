@@ -19,12 +19,12 @@ set -o pipefail
 OLD_PS1=$PS1
 PS1=" "
 # Hack the interactive flag to get around other .bashrc's
-set -i
+set +i
 
 source $HOME/.bashrc
 
 # Clean up our hacks
-set +i
+set -i
 PS1=$OLD_PS1
 unset OLD_PS1
 
@@ -109,7 +109,7 @@ __install() {
 
 	# Check if RITA is already installed, if so ask if this is a re-install
 	if [ ! -z $(command -v rita) ] ||
-	[ -f $GOPATH/bin/rita ]
+	[ -d $HOME/.rita ]
 	then
 		printf "[+] RITA is already installed.\n"
 		read -p "[-] Would you like to erase it and re-install? [y/n] " -r
@@ -213,7 +213,7 @@ __install() {
 
 
 	# If the user is using sudo, give ownership to the sudo user
-	if [ -z ${SUDO_USER+x} ]
+	if [ ! -z ${SUDO_USER+x} ]
 	then
 		chown -R $SUDO_USER:$SUDO_USER $HOME/go
 		chown -R $SUDO_USER:$SUDO_USER $HOME/.rita
