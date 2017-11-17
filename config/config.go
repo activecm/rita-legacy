@@ -19,34 +19,45 @@ type (
 	}
 )
 
+const userConfigPath = "/.rita/config.yaml"
+const tableConfigPath = "/.rita/tables.yaml"
+
+//NOTE: If go ever gets default parameters, default the config options to ""
+
 // GetConfig retrieves a configuration in order of precedence
-func GetConfig(cfgPath string) (*Config, error) {
-	if cfgPath != "" {
-		return loadSystemConfig(cfgPath)
+func GetConfig(userConfig string, tableConfig string) (*Config, error) {
+	//var user string
+	var currUser *user.User
+	if userConfig == "" || tableConfig == "" {
+		// Get the user's homedir
+		var err error
+		currUser, err = user.Current()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Could not get user info: %s\n", err.Error())
+			return nil, err
+		}
 	}
 
-	// Get the user's homedir
-	user, err := user.Current()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not get user info: %s\n", err.Error())
-	} else {
-		return loadSystemConfig(user.HomeDir + "/.rita/config.yaml")
+	if userConfig == "" {
+		userConfig = currUser.HomeDir + userConfigPath
+	}
+	if tableConfig == "" {
+		tableConfig = currUser.HomeDir + tableConfigPath
 	}
 
-	// If none of the other configs have worked, go for the global config
-	return loadSystemConfig("/etc/rita/config.yaml")
+	return loadSystemConfig(userConfig, tableConfig)
 }
 
 // loadSystemConfig attempts to parse a config file
-func loadSystemConfig(cfgPath string) (*Config, error) {
+func loadSystemConfig(userConfig string, tableConfig string) (*Config, error) {
 	var config = new(Config)
-	static, err := loadStaticConfig(cfgPath)
+	static, err := loadStaticConfig(userConfig)
 	if err != nil {
 		return config, err
 	}
 	config.S = *static
 
-	tables, err := loadTableConfig(cfgPath)
+	tables, err := loadTableConfig(tableConfig)
 	if err != nil {
 		return config, err
 	}

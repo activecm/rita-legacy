@@ -25,9 +25,8 @@ LogConfig:
     # LogPath is the path for Rita's logs, generally this just defaults to
     # $HOME/.rita/logs. Logs will only be written here if LogToFile is true
     RitaLogPath: $HOME/.rita/logs
-    LogToFile: true
 
-    RitaLogTable: logs
+    LogToFile: true
     LogToDB: true
 
 # The section Bro configures the bro ingestor
@@ -70,7 +69,6 @@ Bro:
     ImportBuffer: 100000
 
 BlackListed:
-    Database: rita-blacklist
     # These are blacklists built into rita-blacklist. Set these to false
     # to disable checks against them.
     myIP.ms: true
@@ -102,47 +100,14 @@ BlackListed:
     # Ex: ftp://myftpserver.com/a/file/over/here.txt
     CustomURLBlacklists: []
 
-    # Table names
-    SourceIPsTable: blSourceIPs
-    DestIPsTable: blDestIPs
-    HostnamesTable: blHostnames
-    UrlsTable: blUrls
-
-# NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
-Structure:
-    ConnectionTable: conn
-    HttpTable: http
-    DnsTable: dns
-    UniqueConnectionTable: uconn
-    HostTable: host
-
-Dns:
-    ExplodedDnsTable: explodedDns
-    HostnamesTable: hostnames
-
 Crossref:
-    SourceTable: sourceXREF
-    DestinationTable: destXREF
     BeaconThreshold: .7
 
 Scanning:
     ScanThreshold: 50
-    ScanTable: scan
 
 Beacon:
     DefaultConnectionThresh: 24
-    BeaconTable: beacon
-
-Urls:
-    UrlsTable: urls
-
-UserAgent:
-    UserAgentTable: useragent
-
-MetaTables:
-    FilesTable: files
-    DatabasesTable: databases
-
 
 # Adjusting batchsize and prefetch may help speed up certain database queries
 BatchSize: 300
