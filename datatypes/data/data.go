@@ -7,8 +7,8 @@ type (
 	Conn struct {
 		Ts            int64   `bson:"ts,omitempty"`
 		UID           string  `bson:"uid"`
-		Src           string  `bson:"id_origin_h,omitempty"`
-		Spt           int     `bson:"id_origin_p,omitempty"`
+		Src           string  `bson:"id_orig_h,omitempty"`
+		Spt           int     `bson:"id_orig_p,omitempty"`
 		Dst           string  `bson:"id_resp_h,omitempty"`
 		Dpt           int     `bson:"id_resp_p,omitempty"`
 		Dur           float64 `bson:"duration,omitempty"`
@@ -24,8 +24,8 @@ type (
 	DNS struct {
 		Ts      int64    `bson:"ts"`
 		UID     string   `bson:"uid"`
-		Src     string   `bson:"id_origin_h"`
-		Spt     int      `bson:"id_origin_p"`
+		Src     string   `bson:"id_orig_h"`
+		Spt     int      `bson:"id_orig_p"`
 		Dst     string   `bson:"id_resp_h"`
 		Dpt     int      `bson:"id_resp_p"`
 		Proto   string   `bson:"proto"`

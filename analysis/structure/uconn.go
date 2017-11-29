@@ -69,14 +69,14 @@ func getUniqueConnectionsScript(conf *config.Config) (string, string, []mgo.Inde
 		{
 			{"$group", bson.D{
 				{"_id", bson.D{
-					{"src", "$id_origin_h"},
+					{"src", "$id_orig_h"},
 					{"dst", "$id_resp_h"},
 				}},
 				{"connection_count", bson.D{
 					{"$sum", 1},
 				}},
 				{"src", bson.D{
-					{"$first", "$id_origin_h"},
+					{"$first", "$id_orig_h"},
 				}},
 				{"dst", bson.D{
 					{"$first", "$id_resp_h"},
