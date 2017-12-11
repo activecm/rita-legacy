@@ -129,7 +129,7 @@ func addFileLogger(logger *log.Logger, logPath string) {
 		log.InfoLevel:  logPath + "/info-" + time.Now().Format(util.TimeFormat) + ".log",
 		log.WarnLevel:  logPath + "/warn-" + time.Now().Format(util.TimeFormat) + ".log",
 		log.ErrorLevel: logPath + "/error-" + time.Now().Format(util.TimeFormat) + ".log",
-	}))
+	}, nil))
 }
 
 func addMongoLogger(logger *log.Logger, dbHost, metaDB, logColl string) error {
