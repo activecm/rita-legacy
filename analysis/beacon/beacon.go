@@ -150,7 +150,7 @@ func (t *Beacon) run() {
 	}
 
 	for localIter.Next(&host) {
-		t.collectChannel <- host.Ip
+		t.collectChannel <- host.IP
 	}
 	t.log.Debug("Finding all source / destination pairs for analysis")
 	close(t.collectChannel)

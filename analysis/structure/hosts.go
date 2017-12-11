@@ -143,7 +143,7 @@ func setIPv4Binary(selectedDB string, collectionName string,
 			i = 0
 		}
 
-		ipv4 := net.ParseIP(host.Ip)
+		ipv4 := net.ParseIP(host.IP)
 		ipv4Binary := uint64(binary.BigEndian.Uint32(ipv4[12:16]))
 
 		//nolint: vet
@@ -197,7 +197,7 @@ func setIPv6Binary(selectedDB string, collectionName string,
 			i = 0
 		}
 
-		ipv6 := net.ParseIP(host.Ip)
+		ipv6 := net.ParseIP(host.IP)
 		ipv6Binary1 := uint64(binary.BigEndian.Uint32(ipv6[0:4]))
 		ipv6Binary2 := uint64(binary.BigEndian.Uint32(ipv6[4:8]))
 		ipv6Binary3 := uint64(binary.BigEndian.Uint32(ipv6[8:12]))

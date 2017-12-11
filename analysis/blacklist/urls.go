@@ -9,17 +9,27 @@ import (
 	bl "github.com/ocmdev/rita-bl"
 	"github.com/ocmdev/rita/database"
 	data "github.com/ocmdev/rita/datatypes/blacklist"
-	"github.com/ocmdev/rita/datatypes/structure"
 	"github.com/ocmdev/rita/datatypes/urls"
 	log "github.com/sirupsen/logrus"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
-type urlShort struct {
-	URL string `bson:"url"`
-	URI string `bson:"uri"`
-}
+type (
+	urlShort struct {
+		URL string `bson:"url"`
+		URI string `bson:"uri"`
+	}
+
+	//srcIPGroup holds information used to find the number of unique connections,
+	//total connections, and total bytes for a blacklisted url, but are grouped by
+	//the ip that connected to the blacklisted url
+	SrcIPGroup struct {
+		ID         bson.ObjectId `bson:"_id,omitempty"`
+		TotalBytes int           `bson:"total_bytes"`
+		TotalConns int           `bson:"total_conn"`
+	}
+)
 
 //buildBlacklistedURLs builds a set of blacklsited urls from the
 //iterator provided, the system config, a handle to rita-blacklist,
@@ -54,7 +64,8 @@ func buildBlacklistedURLs(urls *mgo.Iter, res *database.Resources,
 					url,
 					res.DB.GetSelectedDB(),
 					res.Config.T.Urls.UrlsTable,
-					res.Config.T.Structure.UniqueConnTable,
+					res.Config.T.Structure.ConnTable,
+					res.Config.T.Structure.HTTPTable,
 					ssn,
 					prefix,
 				)
@@ -97,39 +108,98 @@ func checkRitaBlacklistURLs(urls *mgo.Iter, blHandle *bl.Blacklist,
 }
 
 func fillBlacklistedURL(blURL *data.BlacklistedURL, longURL, db,
-	urlCollection, uconnCollection string, ssn *mgo.Session, prefix string) error {
+	urlCollection, connCollection string, httpCollection string,
+	ssn *mgo.Session, prefix string) error {
 	var urlQuery bson.M
 	urlTrimmed := strings.TrimPrefix(longURL, prefix)
 	resourceIdx := strings.Index(urlTrimmed, "/")
+
 	if resourceIdx == -1 {
 		return errors.New("url does not specify a resource")
 	}
+
 	host := urlTrimmed[:resourceIdx]
 	resource := urlTrimmed[resourceIdx:]
 
 	urlQuery = bson.M{"url": host, "uri": resource}
 	var blURLFull urls.URL
 	err := ssn.DB(db).C(urlCollection).Find(urlQuery).One(&blURLFull)
+
 	if err != nil {
 		return err
 	}
+
 	blURL.Host = host
 	blURL.Resource = resource
 
-	connQuery := bson.M{"dst": bson.M{"$in": blURLFull.IPs}}
+	// Find source ips that connected to this full url, and join with the conn table
+	//	on the uid
+	httpPipeline := []bson.D{
+		{
+			{"$match", bson.M{"host": host, "uri": resource}},
+		},
+		{
+			{"$project", bson.M{
+				"_id": 0,
+				"uid": 1,
+			}},
+		},
+		{
+			{"$lookup", bson.M{
+				"from":         connCollection,
+				"localField":   "uid",
+				"foreignField": "uid",
+				"as":           "conn",
+			}},
+		},
+		{
+			{"$unwind", "$conn"},
+		},
+		{
+			{"$project", bson.M{
+				"orig_bytes": "$conn.orig_bytes",
+				"resp_bytes": "$conn.resp_bytes",
+				"src":        "$conn.id_origin_h",
+			}},
+		},
+		{
+			{"$group", bson.M{
+				"_id": "src",
+				"total_bytes": bson.D{
+					{"$sum", bson.D{
+						{"$add", []interface{}{
+							"$orig_bytes",
+							"$resp_bytes",
+						}},
+					}},
+				},
+				"total_conn": bson.D{
+					{"$sum", bson.M{
+						"$add": 1,
+					}},
+				},
+			}},
+		},
+	}
 
 	var totalBytes int
 	var totalConnections int
-	var uniqueConnCount int
-	uniqueConnections := ssn.DB(db).C(uconnCollection).Find(connQuery).Iter()
-	var uconn structure.UniqueConnection
-	for uniqueConnections.Next(&uconn) {
-		totalBytes += uconn.TotalBytes
-		totalConnections += uconn.ConnectionCount
-		uniqueConnCount++
+	var uConnCount int
+	connIter := ssn.DB(db).C(httpCollection).Pipe(httpPipeline).Iter()
+	var srcGroup SrcIPGroup
+
+	for connIter.Next(&srcGroup) {
+		totalBytes += srcGroup.TotalBytes
+		totalConnections += srcGroup.TotalConns
+		uConnCount++
 	}
+
+	if connIter.Err() != nil {
+		return connIter.Err()
+	}
+
 	blURL.Connections = totalConnections
-	blURL.UniqueConnections = uniqueConnCount
+	blURL.UniqueConnections = uConnCount
 	blURL.TotalBytes = totalBytes
 
 	return nil
