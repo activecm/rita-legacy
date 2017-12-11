@@ -154,5 +154,5 @@ func addFileLogger(logger *log.Logger, logPath string) {
 		log.ErrorLevel: path.Join(logPath, "error.log"),
 		log.FatalLevel: path.Join(logPath, "fatal.log"),
 		log.PanicLevel: path.Join(logPath, "panic.log"),
-	}))
+	}, nil))
 }
