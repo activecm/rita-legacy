@@ -124,10 +124,11 @@ __install() {
 	__prep
 
 	# Install installation dependencies
-	apt-get update > /dev/null & __load "[+] Updating apt"
+	apt-get update > /dev/null 2>&1 & __load "[+] Updating apt"
 
-	apt-get install -y git wget make lsb-release > /dev/null & \
-	__load "[+] Installing git, wget, make, and lsb-release"
+	#Extracting templates from packages made it through...
+	apt-get install -y git wget make realpath lsb-release > /dev/null 2>&1 & \
+	__load "[+] Installing git, wget, make, realpath, and lsb-release"
 
   # Install Bro IDS
 	printf "[+] Checking if Bro IDS is installed... "
@@ -136,8 +137,14 @@ __install() {
 	[ $(dpkg-query -W -f='${Status}' securityonion-bro 2>/dev/null | grep -c "ok installed") -eq 0 ]
 	then
 		printf "\n"
-		apt-get install -y bro broctl bro-aux > /dev/null & \
-		__load "\t[+] Installing Bro IDS"
+		(
+			echo "deb http://download.opensuse.org/repositories/network:/bro/xUbuntu_$(lsb_release -rs)/ /" >> /etc/apt/sources.list.d/bro.list
+			wget -nv --quiet "http://download.opensuse.org/repositories/network:bro/xUbuntu_$(lsb_release -rs)/Release.key" -O Release.key
+			apt-key add - < Release.key > /dev/null 2>&1
+			rm Release.key
+			apt-get update > /dev/null 2>&1
+			apt-get install -y bro broctl> /dev/null 2>&1
+		) & __load "\t[+] Installing Bro IDS"
 	else
 		printf "$_SUCCESS\n"
 	fi
@@ -192,8 +199,8 @@ __install() {
 
 	echo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/3.4 multiverse" > /etc/apt/sources.list.d/mongodb-org-3.4.list
 
-	apt-get update > /dev/null & __load "[+] Updating apt"
-	apt-get install -y mongodb-org > /dev/null & __load "[+] Installing MongoDB"
+	apt-get update > /dev/null 2>&1 & __load "[+] Updating apt"
+	apt-get install -y mongodb-org > /dev/null 2>&1 & __load "[+] Installing MongoDB"
 
 	( # Build RITA
 		mkdir -p $GOPATH/src/github.com/ocmdev/rita
