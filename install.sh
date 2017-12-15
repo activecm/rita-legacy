@@ -3,24 +3,41 @@
 # RITA is brought to you by Offensive CounterMeasures.
 # offensivecountermeasures.com
 
+_NAME=$(basename "${0}")
+_FAILED="\e[91mFAILED\e[0m"
+_SUCCESS="\e[92mSUCCESS\e[0m"
+
+#Error handling
+#Kill 0 to kill subshells as well
+trap "printf '\n[!] Installation $_FAILED!\n'; kill 0" ERR INT
 set -o errexit
+set -o errtrace
 set -o pipefail
 
-_NAME=$(basename "${0}")
-_INSDIR="/usr/local"
+# Make sure to source the latest .bashrc
+# Hack the PS1 variable to get around ubuntu .bashrc
+OLD_PS1=$PS1
+PS1=" "
+# Hack the interactive flag to get around other .bashrc's
+set -i
+
+source $HOME/.bashrc
+
+# Clean up our hacks
+set +i
+PS1=$OLD_PS1
+unset OLD_PS1
+
 
 __help() {
+	__title
+
 	cat <<HEREDOC
-
-Welcome to the RITA installer.
-
 Usage:
 	${_NAME} [<arguments>]
-	${_NAME} -h | --help
 
 Options:
 	-h --help			Show this help message.
-	-i --install-dir		Directory to install to.
 	-u --uninstall			Remove RITA.
 
 HEREDOC
@@ -28,48 +45,74 @@ HEREDOC
 
 __prep() {
 	cat <<HEREDOC
-So here's what this script will need to do to prepare for RITA:
+This script will:
 
-1) Download and install Bro, Golang, and the latest version of MongoDB.
+1) Download and install Bro IDS, Go, and MongoDB.
 
-2) Set up a Golang development enviornment in order to 'go get' and 'build' RITA.
+2) Set up a Go development enviornment in order to 'go get'
+and 'build' RITA. This requires us to create a directory "go"
+in your home folder and add new PATH and GOPATH entries
+to your .bashrc.
 
-This requires us to create directory "go" in your home folder and add a new PATH and GOPATH entry to your .bashrc
-
-3) Create a configuration directory for RITA under your home folder called .rita
+3) Create a configuration directory for RITA in your home folder called .rita
 
 HEREDOC
+
+	sleep 5s
 }
 
 __title() {
-	cat <<HEREDOC
- _ \ _ _| __ __|  \ 
-   /   |     |   _ \ 
-_|_\ ___|   _| _/  _\ 
+	echo \
+"
+ _ \ _ _| __ __|  \\
+   /   |     |   _ \\
+_|_\ ___|   _| _/  _\\
 
-Brought to you by the Offensive CounterMeasures
+Brought to you by Offensive CounterMeasures
+"
 
-HEREDOC
+}
+
+__load() {
+  local pid=$!
+  local loadingText=$1
+
+  while kill -0 $pid 2>/dev/null; do
+    echo -ne "$loadingText.\r"
+    sleep 0.5
+    echo -ne "$loadingText..\r"
+    sleep 0.5
+    echo -ne "$loadingText...\r"
+    sleep 0.5
+    echo -ne "\r\033[K"
+    echo -ne "$loadingText\r"
+    sleep 0.5
+  done
+	wait $pid
+  echo -e "$loadingText... $_SUCCESS"
+}
+
+__checkPermissions() {
+	[ `id -u` -eq 0 ]
 }
 
 __uninstall() {
-	printf "Removing $_RITADIR \n"
-	rm -rf $_RITADIR
-	printf "Removing $GOPATH/bin/rita \n"
+	printf "\t[!] Removing $GOPATH/bin/rita \n"
 	rm -rf $GOPATH/bin/rita
-	printf "Removing $GOPATH/src/github.com/ocmdev \n"
+	printf "\t[!] Removing $GOPATH/src/github.com/ocmdev \n"
 	rm -rf $GOPATH/src/github.com/ocmdev
-	printf "Removing $HOME/.rita \n"
+	printf "\t[!] Removing $HOME/.rita \n"
 	rm -rf $HOME/.rita
 }
 
 __install() {
 
 	# Check if RITA is already installed, if so ask if this is a re-install
-	if [ -e $_RITADIR ]
+	if [ ! -z $(command -v rita) ] ||
+	[ -d $HOME/.rita ]
 	then
-		printf "[+] $_RITADIR already exists.\n"
-		read -p "[-] Would you like to erase it and re-install? [y/n] " -n 1 -r
+		printf "[+] RITA is already installed.\n"
+		read -p "[-] Would you like to erase it and re-install? [y/n] " -r
 		if [[ $REPLY =~ ^[Yy]$ ]]
 		then
 			__uninstall
@@ -78,151 +121,138 @@ __install() {
 		fi
 	fi
 
-	echo "[+] Updating apt...
-"
+	__prep
 
-	apt update -qq
+	# Install installation dependencies
+	apt-get update > /dev/null 2>&1 & __load "[+] Updating apt"
 
-	echo "
-[+] Ensuring git is installed...
-"
-	apt install -y git
-	echo "
-[+] Ensuring bro is installed...
-"
+	#Extracting templates from packages made it through...
+	apt-get install -y git wget make realpath lsb-release > /dev/null 2>&1 & \
+	__load "[+] Installing git, wget, make, realpath, and lsb-release"
+
+  # Install Bro IDS
+	printf "[+] Checking if Bro IDS is installed... "
+
 	if [ $(dpkg-query -W -f='${Status}' bro 2>/dev/null | grep -c "ok installed") -eq 0 ] &&
 	[ $(dpkg-query -W -f='${Status}' securityonion-bro 2>/dev/null | grep -c "ok installed") -eq 0 ]
 	then
-		apt install -y bro
-		apt install -y broctl
+		printf "\n"
+		(
+			echo "deb http://download.opensuse.org/repositories/network:/bro/xUbuntu_$(lsb_release -rs)/ /" >> /etc/apt/sources.list.d/bro.list
+			wget -nv --quiet "http://download.opensuse.org/repositories/network:bro/xUbuntu_$(lsb_release -rs)/Release.key" -O Release.key
+			apt-key add - < Release.key > /dev/null 2>&1
+			rm Release.key
+			apt-get update > /dev/null 2>&1
+			apt-get install -y bro broctl> /dev/null 2>&1
+		) & __load "\t[+] Installing Bro IDS"
+	else
+		printf "$_SUCCESS\n"
 	fi
 
-	echo "
-[+] Ensuring go is installed...
-"
-
+  # Install Go
+	printf "[+] Checking if Go is installed...\n"
 
 	# Check if go is not available in the path
-	if [ ! $(command -v go) ]
+	if [ -z $(command -v go) ]
 	then
 		# Check if go is available in the standard location
 		if [ ! -e "/usr/local/go" ]
 		then
-			# golang most recent update
-			wget https://storage.googleapis.com/golang/go1.7.1.linux-amd64.tar.gz
-			tar -zxf go1.7.1.linux-amd64.tar.gz -C /usr/local/
-			echo 'export PATH=$PATH:/usr/local/go/bin' >> $HOME/.bashrc
-			rm go1.7.1.linux-amd64.tar.gz
+			( # golang most recent update
+				wget -q https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz
+				tar -zxf go1.8.3.linux-amd64.tar.gz -C /usr/local/
+				rm go1.8.3.linux-amd64.tar.gz
+				echo 'export PATH=$PATH:/usr/local/go/bin' >> $HOME/.bashrc
+			) &	__load "\t[+] Installing Go"
 		fi
+
 		# Add go to the path
 		export PATH="$PATH:/usr/local/go/bin"
 	else
-		echo -e "\e[31m[-] WARNING: Go has been detected on this system,\e[37m if you
-installed with apt, RITA has only been tested with golang 1.7 which is currently not the
-version in the Ubuntu apt repositories, make sure your golang is up to date
-with 'go version'. Otherwise you can remove with 'sudo apt remove golang' and let this script
-install the correct version for you!
+		echo -e "\e[93m\t[!] WARNING: Go has been detected on this system.\e[0m
+\tIf you installed Go with apt, make sure your Go installation is up
+\tto date with 'go version'. RITA has only been tested with golang
+\t1.7 and 1.8 which are currently not the versions in the Ubuntu
+\tapt repositories. You may remove the old version with
+\t'sudo apt remove golang' and let this script install the correct
+\tversion for you!
 "
-
 		sleep 10s
 	fi
 
-
-	echo -e "[+] Configuring Go dev environment...
-\e[0m"
-
-	sleep 3s
-
 	# Check if the GOPATH isn't set
-	if [ -z "${GOPATH}" ]
+	if [ -z ${GOPATH+x} ]
 	then
-		mkdir -p $HOME/go/{src,pkg,bin}
-		echo 'export GOPATH=$HOME/go' >> $HOME/.bashrc
+		( # Set up the GOPATH
+			mkdir -p $HOME/go/{src,pkg,bin}
+			echo 'export GOPATH=$HOME/go' >> $HOME/.bashrc
+			echo 'export PATH=$PATH:$GOPATH/bin' >> $HOME/.bashrc
+		) & __load "[+] Configuring Go dev environment"
 		export GOPATH=$HOME/go
-		echo 'export PATH=$PATH:$GOPATH/bin' >> $HOME/.bashrc
 		export PATH=$PATH:$GOPATH/bin
-	else
-		echo -e "[-] GOPATH seems to be set, we'll skip this part then for now
-		"
 	fi
 
-	echo -e "[+] Getting the package key and install package for MongoDB...
-"
+	# Install MongoDB
+	apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 \
+	--recv 0C49F3730359A14518585931BC711F9BA15703C6 > /dev/null 2>&1 & \
+	__load "[+] Obtaining the package key for MongoDB"
 
-	sleep 3s
+	echo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/3.4 multiverse" > /etc/apt/sources.list.d/mongodb-org-3.4.list
 
-	apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14518585931BC711F9BA15703C6
+	apt-get update > /dev/null 2>&1 & __load "[+] Updating apt"
+	apt-get install -y mongodb-org > /dev/null 2>&1 & __load "[+] Installing MongoDB"
 
-	echo "deb [ arch=amd64 ] http://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/3.4 multiverse" > /etc/apt/sources.list.d/mongodb-org-3.4.list
-
-	apt update -qq
-	apt install -y mongodb-org
-
-	printf "\n[+] Running 'go get github.com/ocmdev/rita...'\n\n"
-
-	# Build RITA
-
-	apt install -y build-essential
-	go get github.com/ocmdev/rita
-	printf "[+] Installing RITA...\n\n"
-	cd $GOPATH/src/github.com/ocmdev/rita
-	make install
-
-	printf "[+] Transferring files...\n\n"
-	mkdir $_RITADIR
-
-	cp -r etc $_RITADIR/etc
-	cp LICENSE $_RITADIR/LICENSE
-
-	# Install the base configuration file
-	printf "[+] Installing config to $HOME/.rita/config.yaml\n\n"
-	mkdir -p $HOME/.rita/logs
-	cp etc/rita.yaml $HOME/.rita/config.yaml
+	( # Build RITA
+		mkdir -p $GOPATH/src/github.com/ocmdev/rita
+		# Get the install script's directory in case it's run from elsewhere
+		RITASRC="$(dirname "$(realpath ${0})")"
+		cp -R $RITASRC/. $GOPATH/src/github.com/ocmdev/rita/
+		cd $GOPATH/src/github.com/ocmdev/rita
+		make install > /dev/null
+	)	& __load "[+] Installing RITA"
 
 
-	# Give ownership of ~/go to the user
-	sudo chown -R $SUDO_USER:$SUDO_USER $HOME/go
-	sudo chown -R $SUDO_USER:$SUDO_USER $HOME/.rita
+	( # Install the base configuration files
+		mkdir $HOME/.rita
+		mkdir $HOME/.rita/logs
+		cd $GOPATH/src/github.com/ocmdev/rita
+		cp ./LICENSE $HOME/.rita/LICENSE
+		cp ./etc/rita.yaml $HOME/.rita/config.yaml
+	) & __load "[+] Installing config files to $HOME/.rita"
 
-	echo "[+] Make sure you also configure Bro and run with 'sudo broctl deploy' and make sure MongoDB is running with the command 'mongo' or 'sudo mongo'.
-"
 
-	echo -e "[+] If you need to stop Mongo at any time, run 'sudo service mongod stop'
-[+] In order to finish the installation, reload bash config with 'source ~/.bashrc'.
-[+] Also make sure to start the mongoDB service with 'sudo service mongod start' before running RITA.
-[+] You can access the mongo shell with 'sudo mongo'
-"
+	# If the user is using sudo, give ownership to the sudo user
+	if [ ! -z ${SUDO_USER+x} ]
+	then
+		chown -R $SUDO_USER:$SUDO_USER $HOME/go
+		chown -R $SUDO_USER:$SUDO_USER $HOME/.rita
+	fi
 
-	echo -e "[+] You may need to source your .bashrc before you call RITA!
-"
+	echo -e "
+In order to finish the installation, reload your bash config
+with 'source ~/.bashrc'. Make sure to configure Bro and run
+'sudo broctl deploy'. Also, make sure to start the MongoDB
+service with 'sudo service mongod start'. You can access
+the MongoDB shell with 'mongo'. If, at any time, you need
+to stop MongoDB, run 'sudo service mongod stop'."
 
-	printf "Thank you for installing RITA!\n"
-	printf "OCMDev Group projects IRC #ocmdev on OFTC\n"
+	__title
+	printf "Thank you for installing RITA! "
 	printf "Happy hunting\n"
-
 }
 
 # start point for installer
 __entry() {
 
-	# Check for help or other install dir
+	# Check for help
 	if [[ "${1:-}" =~ ^-h|--help$ ]]
 	then
 		__help
 		exit 0
 	fi
 
-	if [[ "${1:-}" =~ ^-i|--install-dir ]]
-	then
-		_INSDIR=$( echo "${@}" | cut -d' ' -f2 )
-	fi
-
-	# Set the rita directory
-	_RITADIR="$_INSDIR/rita"
-
-
-	# Check to see if the user has permission to install to this directory
-	if [ -w $_INSDIR ]
+	# Check to see if the user has permission to install RITA
+	if __checkPermissions
 	then
 		# Check if we are uninstalling
 		if [[ "${1:-}" =~ ^-u|--uninstall ]]
@@ -232,8 +262,7 @@ __entry() {
 			__install
 		fi
 	else
-		printf "You do NOT have permission to write to $_INSDIR\n\n"
-		__help
+		printf "You do NOT have permission install RITA\n\n"
 	fi
 }
 
