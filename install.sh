@@ -19,12 +19,12 @@ set -o pipefail
 OLD_PS1=$PS1
 PS1=" "
 # Hack the interactive flag to get around other .bashrc's
-set +i
+set -i
 
 source $HOME/.bashrc
 
 # Clean up our hacks
-set -i
+set +i
 PS1=$OLD_PS1
 unset OLD_PS1
 
@@ -196,7 +196,10 @@ __install() {
 	apt-get install -y mongodb-org > /dev/null & __load "[+] Installing MongoDB"
 
 	( # Build RITA
-		go get github.com/ocmdev/rita
+		mkdir -p $GOPATH/src/github.com/ocmdev/rita
+		# Get the install script's directory in case it's run from elsewhere
+		RITASRC="$(dirname "$(realpath ${0})")"
+		cp -R $RITASRC/. $GOPATH/src/github.com/ocmdev/rita/
 		cd $GOPATH/src/github.com/ocmdev/rita
 		make install > /dev/null
 	)	& __load "[+] Installing RITA"
