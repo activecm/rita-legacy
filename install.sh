@@ -29,10 +29,13 @@ _OLD_PS1=$PS1
 PS1=" "
 # Hack the interactive flag to get around other .bashrc's
 set -i
+# Make sure weirdness doesn't happen with autocomplete/ etc
+set -o posix
 
 source $HOME/.bashrc
 
 # Clean up our hacks
+set +o posix
 set +i
 PS1=$_OLD_PS1
 unset _OLD_PS1
