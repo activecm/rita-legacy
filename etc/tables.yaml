@@ -8,6 +8,8 @@ Structure:
     DnsTable: dns
     UniqueConnectionTable: uconn
     HostTable: host
+    IPv4Table: ipv4
+    IPv6Table: ipv6
 
 BlackListed:
     Database: rita-blacklist
@@ -39,4 +41,3 @@ UserAgent:
 MetaTables:
     FilesTable: files
     DatabasesTable: databases
-

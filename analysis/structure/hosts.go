@@ -14,7 +14,7 @@ func BuildHostsCollection(res *database.Resources) {
 	sourceCollectionName,
 		newCollectionName,
 		newCollectionKeys,
-		pipseline := getHosts(res.Config)
+		pipeline := getHosts(res.Config)
 
 	// Aggregate it!
 	errorCheck := res.DB.CreateCollection(newCollectionName, false, newCollectionKeys)

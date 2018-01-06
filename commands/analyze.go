@@ -81,13 +81,11 @@ func analyze(inDb string, configFile string) error {
 			structure.BuildUniqueConnectionsCollection,
 		)
 		logAnalysisFunc("Unique Hosts", td, res,
-			structure.BuildHostsCollection,
-		)
-		logAnalysisFunc("IPv4 Conversion", td, res,
-			structure.BuildIPv4Collection,
-		)
-		logAnalysisFunc("IPv6 Conversion", td, res,
-			structure.BuildIPv6Collection,
+			func(innerRes *database.Resources) {
+				structure.BuildHostsCollection(innerRes)
+				structure.BuildIPv4Collection(innerRes)
+				structure.BuildIPv6Collection(innerRes)
+			},
 		)
 		logAnalysisFunc("Unique Hostnames", td, res,
 			dns.BuildHostnamesCollection,
