@@ -17,7 +17,7 @@ The framework ingests [Bro Logs](https://www.bro.org/), and currently supports t
 Additional functionality is being developed and will be included soon.
 
 ### Automatic Installation
-**The automatic  installer is officially supported on Ubuntu 14.04 LTS (Security Onion) and Ubuntu 16.04 LTS**
+**The automatic  installer is officially supported on Ubuntu 14.04, 16.04 LTS, Security Onion, and CentOS 7**
 
 * Clone the package:
 `git clone https://github.com/ocmdev/rita.git`
@@ -69,7 +69,7 @@ To obtain an API key:
   * After installing, `rita` should be in your `PATH`
   * **Option 1**: Import directly from the terminal (one time import)
     * `rita import -i path/to/your/bro_logs/ -d dataset_name`
-  * **Option 2**: Set up the Bro configuration in config.yaml for repeated imports
+  * **Option 2**: Set up the Bro configuration in `~/.rita/config.yaml` for repeated imports
     * Set `LogPath` to the `path/to/your/bro_logs`
     * Set `DBPrefix` to an identifier common to your set of logs
     * Set up the `DirectoryMap`
