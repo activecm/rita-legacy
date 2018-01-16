@@ -320,6 +320,9 @@ __install() {
 	__install_mongodb & __load "[+] Installing MongoDB"
 
 	( # Build RITA
+		# Ensure go dep is installed
+		go get -u github.com/golang/dep/cmd/dep
+		
 		mkdir -p $GOPATH/src/github.com/ocmdev/rita
 		# Get the install script's directory in case it's run from elsewhere
 		cp -R "$(dirname "$(realpath ${0})")/." $GOPATH/src/github.com/ocmdev/rita/

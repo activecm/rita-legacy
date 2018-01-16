@@ -6,3 +6,4 @@
 *.exe
 rita
 debug
+vendor/
