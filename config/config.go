@@ -7,8 +7,13 @@ import (
 	"reflect"
 )
 
-//VERSION is filled at compile time with the git version of RITA
-var VERSION = "undefined"
+//Version is filled at compile time with the git version of RITA
+//Version is filled by "git describe --abbrev=0 --tags"
+var Version = "undefined"
+
+//ExactVersion is filled at compile time with the git version of RITA
+//ExactVersion is filled by "git describe --always --long --dirty --tags"
+var ExactVersion = "undefined"
 
 type (
 	//Config holds the configuration for the running system
@@ -19,7 +24,12 @@ type (
 	}
 )
 
+//userConfigPath specifies the path of RITA's static config file
+//relative to the user's home directory
 const userConfigPath = "/.rita/config.yaml"
+
+//tableConfigPath specifies teh path of RITA's table config file
+//relative to the user's home directory
 const tableConfigPath = "/.rita/tables.yaml"
 
 //NOTE: If go ever gets default parameters, default the config options to ""

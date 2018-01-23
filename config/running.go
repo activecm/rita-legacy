@@ -13,7 +13,6 @@ type (
 	//RunningCfg holds configuration options that are parsed at run time
 	RunningCfg struct {
 		MongoDB MongoDBRunningCfg
-		Version string
 	}
 
 	//MongoDBRunningCfg holds parsed information for connecting to MongoDB
@@ -29,8 +28,6 @@ type (
 func loadRunningConfig(config *StaticCfg) (*RunningCfg, error) {
 	var outConfig = new(RunningCfg)
 	var err error
-
-	outConfig.Version = VERSION
 
 	//parse the tls configuration
 	if config.MongoDB.TLS.Enabled {

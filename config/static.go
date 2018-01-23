@@ -13,13 +13,15 @@ import (
 type (
 	//StaticCfg is the container for other static config sections
 	StaticCfg struct {
-		MongoDB     MongoDBStaticCfg     `yaml:"MongoDB"`
-		Log         LogStaticCfg         `yaml:"LogConfig"`
-		Blacklisted BlacklistedStaticCfg `yaml:"BlackListed"`
-		Crossref    CrossrefStaticCfg    `yaml:"Crossref"`
-		Scanning    ScanningStaticCfg    `yaml:"Scanning"`
-		Beacon      BeaconStaticCfg      `yaml:"Beacon"`
-		Bro         BroStaticCfg         `yaml:"Bro"`
+		MongoDB      MongoDBStaticCfg     `yaml:"MongoDB"`
+		Log          LogStaticCfg         `yaml:"LogConfig"`
+		Blacklisted  BlacklistedStaticCfg `yaml:"BlackListed"`
+		Crossref     CrossrefStaticCfg    `yaml:"Crossref"`
+		Scanning     ScanningStaticCfg    `yaml:"Scanning"`
+		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
+		Bro          BroStaticCfg         `yaml:"Bro"`
+		Version      string
+		ExactVersion string
 	}
 
 	//MongoDBStaticCfg contains the means for connecting to MongoDB
@@ -115,6 +117,10 @@ func loadStaticConfig(cfgPath string) (*StaticCfg, error) {
 
 	// set the socket time out in hours
 	config.MongoDB.SocketTimeout *= time.Hour
+
+	// grab the version constants set by the build process
+	config.Version = Version
+	config.ExactVersion = ExactVersion
 
 	return config, nil
 }

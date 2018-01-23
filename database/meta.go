@@ -22,11 +22,12 @@ type (
 
 	// DBMetaInfo defines some information about the database
 	DBMetaInfo struct {
-		ID         bson.ObjectId `bson:"_id,omitempty"` // Ident
-		Name       string        `bson:"name"`          // Top level name of the database
-		Analyzed   bool          `bson:"analyzed"`      // Has this database been analyzed
-		UsingDates bool          `bson:"dates"`         // Whether this db was created with dates enabled
-		Version    string        `bson:"version"`       // Rita version at import
+		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
+		Name           string        `bson:"name"`            // Top level name of the database
+		Analyzed       bool          `bson:"analyzed"`        // Has this database been analyzed
+		UsingDates     bool          `bson:"dates"`           // Whether this db was created with dates enabled
+		ImportVersion  string        `bson:"import_version"`  // Rita version at import
+		AnalyzeVersion string        `bson:"analyze_version"` // Rita version at analyze
 	}
 )
 
@@ -40,10 +41,10 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 
 	err := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Insert(
 		DBMetaInfo{
-			Name:       name,
-			Analyzed:   false,
-			UsingDates: m.res.Config.S.Bro.UseDates,
-			Version:    m.res.Config.R.Version,
+			Name:          name,
+			Analyzed:      false,
+			UsingDates:    m.res.Config.S.Bro.UseDates,
+			ImportVersion: m.res.Config.S.Version,
 		},
 	)
 	if err != nil {
@@ -129,7 +130,12 @@ func (m *MetaDBHandle) MarkDBAnalyzed(name string, complete bool) error {
 	}
 
 	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).
-		Update(bson.M{"_id": dbr.ID}, bson.M{"$set": bson.M{"analyzed": complete}})
+		Update(bson.M{"_id": dbr.ID}, bson.M{
+			"$set": bson.D{
+				{"analyzed", complete},
+				{"analyze_version", m.res.Config.S.Version},
+			},
+		})
 
 	if err != nil {
 		m.res.Log.WithFields(log.Fields{
