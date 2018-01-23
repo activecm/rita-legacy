@@ -4,6 +4,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/blang/semver"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
@@ -129,11 +130,18 @@ func (m *MetaDBHandle) MarkDBAnalyzed(name string, complete bool) error {
 		return err
 	}
 
+	var versionTag string
+	if complete {
+		versionTag = m.res.Config.S.Version
+	} else {
+		versionTag = ""
+	}
+
 	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).
 		Update(bson.M{"_id": dbr.ID}, bson.M{
 			"$set": bson.D{
 				{"analyzed", complete},
-				{"analyze_version", m.res.Config.S.Version},
+				{"analyze_version", versionTag},
 			},
 		})
 
@@ -179,6 +187,34 @@ func (m *MetaDBHandle) GetDatabases() []string {
 	}
 	m.logDebug("GetDatabases", "exiting")
 	return results
+}
+
+//CheckCompatibleImport checks if a database was imported with a version of
+//RITA which is compatible with the running version
+func (m *MetaDBHandle) CheckCompatibleImport(targetDatabase string) (bool, error) {
+	dbData, err := m.GetDBMetaInfo(targetDatabase)
+	if err != nil {
+		return false, err
+	}
+	existingVer, err := semver.ParseTolerant(dbData.ImportVersion)
+	if err != nil {
+		return false, err
+	}
+	return m.res.Config.R.Version.Major == existingVer.Major, nil
+}
+
+//CheckCompatibleAnalyze checks if a database was analyzed with a version of
+//RITA which is compatible with the running version
+func (m *MetaDBHandle) CheckCompatibleAnalyze(targetDatabase string) (bool, error) {
+	dbData, err := m.GetDBMetaInfo(targetDatabase)
+	if err != nil {
+		return false, err
+	}
+	existingVer, err := semver.ParseTolerant(dbData.AnalyzeVersion)
+	if err != nil {
+		return false, err
+	}
+	return m.res.Config.R.Version.Major == existingVer.Major, nil
 }
 
 // GetUnAnalyzedDatabases builds a list of database names which have yet to be analyzed

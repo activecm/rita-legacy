@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/blang/semver"
 	"github.com/ocmdev/mgosec"
 )
 
@@ -13,6 +14,7 @@ type (
 	//RunningCfg holds configuration options that are parsed at run time
 	RunningCfg struct {
 		MongoDB MongoDBRunningCfg
+		Version semver.Version
 	}
 
 	//MongoDBRunningCfg holds parsed information for connecting to MongoDB
@@ -58,5 +60,6 @@ func loadRunningConfig(config *StaticCfg) (*RunningCfg, error) {
 	}
 	outConfig.MongoDB.AuthMechanismParsed = authMechanism
 
+	outConfig.Version, err = semver.ParseTolerant(config.Version)
 	return outConfig, err
 }
