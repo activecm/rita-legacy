@@ -34,6 +34,12 @@ There are several ways to contribute code to the RITA project.
   * All too often code is developed to meet milestones which only undergoes
   empirical, human testing
   * We would love to see unit tests throughout RITA
+  * Currently we only have unit tests for Beacon check under analysis/beacon to
+  see how tests can be written neatly and easily
+  * Also when writing tests it is advisable to work backwards, start with what
+  result you want to get and then work backwards through the code
+  * When you're ready to test code run `go test ./...` from the root directory
+  of the project
   * Feel free to refactor code to increase our ability to test it
   * Join our [IRC](https://github.com/ocmdev/rita/wiki/RITA-Gittiquette) to
   learn more

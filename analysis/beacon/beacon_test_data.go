@@ -45,8 +45,8 @@ var testDataList = []testData{
 	{
 		ts:          []int64{181, 3644, 7104, 10741, 14406, 17867, 21589, 25263, 28954, 32633, 36026, 39460, 43114, 46766, 50476, 54078, 57504, 61127, 64850, 68408, 71829, 75698, 79208, 82702, 84500},
 		ds:          []int64{4, 4, 4, 6, 6, 6, 4, 4, 4},
-		minScore:    0.90,
-		maxScore:    1.0,
+		minScore:    0.7,
+		maxScore:    0.8,
 		description: "Beacon every 1 hour... Starts at 0 (midnight) ends at 86400 (+24 hours)... Noise added to each timestamp: Gaussian Mu=0 Sigma=100",
 	},
 
@@ -61,8 +61,8 @@ var testDataList = []testData{
 	{
 		ts:          []int64{0, 1, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 4, 5, 6, 7, 9, 10, 10, 10, 11, 13},
 		ds:          []int64{4, 100, 2, 43, 3},
-		minScore:    0.0,
-		maxScore:    0.7,
+		minScore:    0.8,
+		maxScore:    0.9,
 		description: "Connection happens a lot... but not a beacon",
 	},
 
