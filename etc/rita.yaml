@@ -1,7 +1,7 @@
 MongoDB:
     # See https://docs.mongodb.com/manual/reference/connection-string/
     ConnectionString: mongodb://localhost:27017
-    # Example with authentication. Be sure to change the AuthenticationMechanism as well. 
+    # Example with authentication. Be sure to change the AuthenticationMechanism as well.
     # ConnectionString: mongodb://username:password@localhost:27017
 
     # Accepted Values: null, "SCRAM-SHA-1", "MONGODB-CR", "PLAIN"

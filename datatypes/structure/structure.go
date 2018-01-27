@@ -14,6 +14,33 @@ type (
 		IPv4  bool          `bson:"ipv6"`
 	}
 
+	//IPv4Binary provides a way to store a binary representation of an
+	//IPv4 address in MongoDB
+	IPv4Binary struct {
+		ID         bson.ObjectId `bson:"_id,omitempty"`
+		IP         string        `bson:"ip"`
+		IPv4Binary int64         `bson:"ipv4_binary"`
+	}
+
+	//IPv6Integers provides a way to store a binary representation of an
+	//IPv6 address in MongoDB. The 128 bit address is split into four 32 bit
+	//values. However, MongoDB cannot store unsigned numbers, so we use 64 bit
+	//integers to hold the values.
+	IPv6Integers struct {
+		I1 int64 `bson:"1"`
+		I2 int64 `bson:"2"`
+		I3 int64 `bson:"3"`
+		I4 int64 `bson:"4"`
+	}
+
+	//IPv6Binary provides a way to store a binary representation of an
+	//IPv6 address in MongoDB.
+	IPv6Binary struct {
+		ID         bson.ObjectId `bson:"_id,omitempty"`
+		IP         string        `bson:"ip"`
+		IPv6Binary IPv6Integers  `bson:"ipv6_binary"`
+	}
+
 	//UniqueConnection describes a pair of computer interfaces which contacted
 	//each other over the observation period
 	UniqueConnection struct {
