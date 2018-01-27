@@ -159,7 +159,7 @@ func fillBlacklistedURL(blURL *data.BlacklistedURL, longURL, db,
 			{"$project", bson.M{
 				"orig_bytes": "$conn.orig_bytes",
 				"resp_bytes": "$conn.resp_bytes",
-				"src":        "$conn.id_origin_h",
+				"src":        "$conn.id_orig_h",
 			}},
 		},
 		{

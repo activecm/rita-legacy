@@ -53,7 +53,7 @@ func getHosts(conf *config.Config) (string, string, []mgo.Index, []bson.D) {
 			{"$project", bson.D{
 				{"hosts", []interface{}{
 					bson.D{
-						{"ip", "$id_origin_h"},
+						{"ip", "$id_orig_h"},
 						{"local", "$local_orig"},
 					},
 					bson.D{

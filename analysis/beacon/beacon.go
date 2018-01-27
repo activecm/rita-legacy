@@ -192,7 +192,7 @@ func (t *Beacon) collect() {
 			var conn data.Conn
 			connIter := session.DB(t.db).
 				C(t.res.Config.T.Structure.ConnTable).
-				Find(bson.M{"id_origin_h": uconn.Src, "id_resp_h": uconn.Dst}).
+				Find(bson.M{"id_orig_h": uconn.Src, "id_resp_h": uconn.Dst}).
 				Iter()
 
 			for connIter.Next(&conn) {
