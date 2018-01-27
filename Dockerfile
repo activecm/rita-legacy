@@ -18,7 +18,8 @@ RUN make
 
 FROM alpine:latest
 
-RUN mkdir /root/.rita
-COPY --from=rita-builder /go/src/github.com/ocmdev/rita/etc/tables.yaml /root/.rita/
+WORKDIR /root
+RUN mkdir .rita
+COPY --from=rita-builder /go/src/github.com/ocmdev/rita/etc/tables.yaml .rita/
 COPY --from=rita-builder /go/src/github.com/ocmdev/rita/rita .
 ENTRYPOINT ["./rita"]
