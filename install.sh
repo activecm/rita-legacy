@@ -321,8 +321,9 @@ __install() {
 
 	( # Build RITA
 		# Ensure go dep is installed
-		go get -u github.com/golang/dep/cmd/dep
-		
+		wget -q -O $GOPATH/bin/dep https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64
+		chmod +x $GOPATH/bin/dep
+
 		mkdir -p $GOPATH/src/github.com/ocmdev/rita
 		# Get the install script's directory in case it's run from elsewhere
 		cp -R "$(dirname "$(realpath ${0})")/." $GOPATH/src/github.com/ocmdev/rita/
