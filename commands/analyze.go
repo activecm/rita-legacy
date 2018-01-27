@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/blang/semver"
 	"github.com/ocmdev/rita/analysis/beacon"
 	"github.com/ocmdev/rita/analysis/blacklist"
 	"github.com/ocmdev/rita/analysis/crossref"
@@ -36,26 +37,46 @@ func init() {
 
 func analyze(inDb string, configFile string) error {
 	res := database.InitResources(configFile)
+	var toRunDirty []string
 	var toRun []string
 
 	// Check to see if we want to run a full database or just one off the command line
 	if inDb == "" {
 		res.Log.Info("Running analysis against all databases")
-		toRun = append(toRun, res.MetaDB.GetUnAnalyzedDatabases()...)
+		toRunDirty = append(toRun, res.MetaDB.GetUnAnalyzedDatabases()...)
 	} else {
-		info, err := res.MetaDB.GetDBMetaInfo(inDb)
+		toRunDirty = append(toRun, inDb)
+	}
+
+	// Check for problems
+	for _, possDB := range toRunDirty {
+		info, err := res.MetaDB.GetDBMetaInfo(possDB)
 		if err != nil {
-			errStr := fmt.Sprintf("Error: %s not found.", inDb)
+			errStr := fmt.Sprintf("Error: %s not found.", possDB)
 			res.Log.Errorf(errStr)
-			return cli.NewExitError(errStr, -1)
+			fmt.Println(errStr)
+			continue
 		}
 		if info.Analyzed {
-			errStr := fmt.Sprintf("Error: %s is already analyzed.", inDb)
+			errStr := fmt.Sprintf("Error: %s is already analyzed.", possDB)
 			res.Log.Errorf(errStr)
-			return cli.NewExitError(errStr, -1)
+			fmt.Println(errStr)
+			continue
 		}
-
-		toRun = append(toRun, inDb)
+		semVer, err := semver.ParseTolerant(info.ImportVersion)
+		if err != nil {
+			errStr := fmt.Sprintf("Error: %s is labelled with an incorrect version tag", possDB)
+			res.Log.Errorf(errStr)
+			fmt.Println(errStr)
+			continue
+		}
+		if semVer.Major != res.Config.R.Version.Major {
+			errStr := fmt.Sprintf("Error: %s was parsed by an incompatible version of RITA", possDB)
+			res.Log.Errorf(errStr)
+			fmt.Println(errStr)
+			continue
+		}
+		toRun = append(toRun, possDB)
 	}
 
 	startAll := time.Now()

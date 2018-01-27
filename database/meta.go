@@ -4,6 +4,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/blang/semver"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
@@ -22,11 +23,12 @@ type (
 
 	// DBMetaInfo defines some information about the database
 	DBMetaInfo struct {
-		ID         bson.ObjectId `bson:"_id,omitempty"` // Ident
-		Name       string        `bson:"name"`          // Top level name of the database
-		Analyzed   bool          `bson:"analyzed"`      // Has this database been analyzed
-		UsingDates bool          `bson:"dates"`         // Whether this db was created with dates enabled
-		Version    string        `bson:"version"`       // Rita version at import
+		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
+		Name           string        `bson:"name"`            // Top level name of the database
+		Analyzed       bool          `bson:"analyzed"`        // Has this database been analyzed
+		UsingDates     bool          `bson:"dates"`           // Whether this db was created with dates enabled
+		ImportVersion  string        `bson:"import_version"`  // Rita version at import
+		AnalyzeVersion string        `bson:"analyze_version"` // Rita version at analyze
 	}
 )
 
@@ -40,10 +42,10 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 
 	err := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Insert(
 		DBMetaInfo{
-			Name:       name,
-			Analyzed:   false,
-			UsingDates: m.res.Config.S.Bro.UseDates,
-			Version:    m.res.Config.R.Version,
+			Name:          name,
+			Analyzed:      false,
+			UsingDates:    m.res.Config.S.Bro.UseDates,
+			ImportVersion: m.res.Config.S.Version,
 		},
 	)
 	if err != nil {
@@ -128,8 +130,20 @@ func (m *MetaDBHandle) MarkDBAnalyzed(name string, complete bool) error {
 		return err
 	}
 
+	var versionTag string
+	if complete {
+		versionTag = m.res.Config.S.Version
+	} else {
+		versionTag = ""
+	}
+
 	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).
-		Update(bson.M{"_id": dbr.ID}, bson.M{"$set": bson.M{"analyzed": complete}})
+		Update(bson.M{"_id": dbr.ID}, bson.M{
+			"$set": bson.D{
+				{"analyzed", complete},
+				{"analyze_version", versionTag},
+			},
+		})
 
 	if err != nil {
 		m.res.Log.WithFields(log.Fields{
@@ -173,6 +187,34 @@ func (m *MetaDBHandle) GetDatabases() []string {
 	}
 	m.logDebug("GetDatabases", "exiting")
 	return results
+}
+
+//CheckCompatibleImport checks if a database was imported with a version of
+//RITA which is compatible with the running version
+func (m *MetaDBHandle) CheckCompatibleImport(targetDatabase string) (bool, error) {
+	dbData, err := m.GetDBMetaInfo(targetDatabase)
+	if err != nil {
+		return false, err
+	}
+	existingVer, err := semver.ParseTolerant(dbData.ImportVersion)
+	if err != nil {
+		return false, err
+	}
+	return m.res.Config.R.Version.Major == existingVer.Major, nil
+}
+
+//CheckCompatibleAnalyze checks if a database was analyzed with a version of
+//RITA which is compatible with the running version
+func (m *MetaDBHandle) CheckCompatibleAnalyze(targetDatabase string) (bool, error) {
+	dbData, err := m.GetDBMetaInfo(targetDatabase)
+	if err != nil {
+		return false, err
+	}
+	existingVer, err := semver.ParseTolerant(dbData.AnalyzeVersion)
+	if err != nil {
+		return false, err
+	}
+	return m.res.Config.R.Version.Major == existingVer.Major, nil
 }
 
 // GetUnAnalyzedDatabases builds a list of database names which have yet to be analyzed

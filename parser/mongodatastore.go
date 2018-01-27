@@ -136,22 +136,34 @@ func (mongo *MongoDatastore) getCollectionMap(data *ImportedData) (*collectionMa
 	}
 
 	//check if the database is already analyzed
-	for _, analyzedDB := range mongo.analyzedDBs {
-		if analyzedDB == data.TargetDatabase {
+
+	//iterate over indices to save RAM
+	//nolint: golint
+	for i, _ := range mongo.analyzedDBs {
+		if mongo.analyzedDBs[i] == data.TargetDatabase {
 			return nil, errors.New("cannot import bro data into already analyzed database")
 		}
 	}
 
 	//check if the database was created in an earlier parse
 	targetDBExists := false
-	for _, unanalyzedDB := range mongo.unanalyzedDBs {
-		if unanalyzedDB == data.TargetDatabase {
+	//nolint: golint
+	for i, _ := range mongo.unanalyzedDBs {
+		if mongo.unanalyzedDBs[i] == data.TargetDatabase {
 			targetDBExists = true
 		}
 	}
 
-	//create the database if it doesn't exist
-	if !targetDBExists {
+	if targetDBExists {
+		compatible, err := mongo.metaDB.CheckCompatibleImport(data.TargetDatabase)
+		if err != nil {
+			return nil, err
+		}
+		if !compatible {
+			return nil, errors.New("cannot import bro data into already populated, incompatible database")
+		}
+	} else {
+		//create the database if it doesn't exist
 		err := mongo.metaDB.AddNewDB(data.TargetDatabase)
 		if err != nil {
 			return nil, err
