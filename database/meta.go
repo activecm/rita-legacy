@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/blang/semver"
+	"github.com/ocmdev/rita/config"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
@@ -44,7 +45,7 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 		DBMetaInfo{
 			Name:          name,
 			Analyzed:      false,
-			UsingDates:    m.res.Config.S.Bro.UseDates,
+			UsingDates:    m.res.Config.R.Bro.SplitStrategy == config.SplitDate,
 			ImportVersion: m.res.Config.S.Version,
 		},
 	)

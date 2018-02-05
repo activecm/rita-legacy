@@ -12,24 +12,17 @@ var (
 
 	// below are some prebuilt flags that get used often in various commands
 
-	// databaseFlag allows users to specify which database they'd like to use
-	databaseFlag = cli.StringFlag{
-		Name:  "database, d",
-		Usage: "execute this command against the database named `NAME`",
-		Value: "",
-	}
-
 	// threadFlag allows users to specify how many threads should be used
 	threadFlag = cli.IntFlag{
 		Name:  "threads, t",
-		Usage: "use `N` threads when executing this command",
+		Usage: "Use `N` threads when executing this command",
 		Value: runtime.NumCPU(),
 	}
 
 	// configFlag allows users to specify an alternate config file to use
 	configFlag = cli.StringFlag{
 		Name:  "config, c",
-		Usage: "use `CONFIGFILE` as configuration when running this command",
+		Usage: "Use a given `CONFIG_FILE` when running this command",
 		Value: "",
 	}
 
@@ -37,7 +30,7 @@ var (
 	// report instead of the simple csv style output
 	humanFlag = cli.BoolFlag{
 		Name:  "human-readable, H",
-		Usage: "print a report instead of csv",
+		Usage: "Print a report instead of csv",
 	}
 
 	blSortFlag = cli.StringFlag{

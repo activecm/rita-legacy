@@ -9,19 +9,16 @@ import (
 func init() {
 	command := cli.Command{
 
-		Name:  "html-report",
-		Usage: "Write analysis information to html output",
+		Name: "html-report",
+		Usage: "Create an html report for an analyzed database. " +
+			"If no database is specified, a report will be created for every database.",
+		ArgsUsage: "[database]",
 		Flags: []cli.Flag{
 			configFlag,
-			cli.StringFlag{
-				Name:  "database, d",
-				Usage: "Specify which databases to export, otherwise will export all databases",
-				Value: "",
-			},
 		},
 		Action: func(c *cli.Context) error {
 			res := database.InitResources(c.String("config"))
-			databaseName := c.String("database")
+			databaseName := c.Args().Get(0)
 			var databases []string
 			if databaseName != "" {
 				databases = append(databases, databaseName)

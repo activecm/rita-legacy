@@ -13,11 +13,11 @@ import (
 func init() {
 	command := cli.Command{
 
-		Name:  "show-user-agents",
-		Usage: "Print user agent information",
+		Name:      "show-user-agents",
+		Usage:     "Print user agent information",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			databaseFlag,
 			cli.BoolFlag{
 				Name:  "least-used, l",
 				Usage: "Sort the user agents from least used to most used.",
@@ -25,14 +25,15 @@ func init() {
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			if c.String("database") == "" {
-				return cli.NewExitError("Specify a database with -d", -1)
+			db := c.Args().Get(0)
+			if db == "" {
+				return cli.NewExitError("Specify a database", -1)
 			}
 
 			res := database.InitResources(c.String("config"))
 
 			var agents []useragent.UserAgent
-			coll := res.DB.Session.DB(c.String("database")).C(res.Config.T.UserAgent.UserAgentTable)
+			coll := res.DB.Session.DB(db).C(res.Config.T.UserAgent.UserAgentTable)
 
 			var sortStr string
 			if c.Bool("least-used") {
@@ -44,7 +45,7 @@ func init() {
 			coll.Find(nil).Sort(sortStr).All(&agents)
 
 			if len(agents) == 0 {
-				return cli.NewExitError("No results were found for "+c.String("database"), -1)
+				return cli.NewExitError("No results were found for "+db, -1)
 			}
 
 			if c.Bool("human-readable") {

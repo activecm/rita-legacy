@@ -21,14 +21,14 @@ import (
 
 func init() {
 	analyzeCommand := cli.Command{
-		Name:  "analyze",
-		Usage: "Analyze imported databases, if no [database,d] flag is specified will attempt all",
+		Name:      "analyze",
+		Usage:     "Analyze imported databases. If no database is specified, every database will be analyzed.",
+		ArgsUsage: "[database]",
 		Flags: []cli.Flag{
-			databaseFlag,
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			return analyze(c.String("database"), c.String("config"))
+			return analyze(c.Args().Get(0), c.String("config"))
 		},
 	}
 

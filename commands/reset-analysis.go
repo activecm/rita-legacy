@@ -13,18 +13,19 @@ import (
 
 func init() {
 	reset := cli.Command{
-		Name:  "reset-analysis",
-		Usage: "Reset analysis of one or more databases",
+		Name:      "reset-analysis",
+		Usage:     "Reset analysis of a database",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			databaseFlag,
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
 			res := database.InitResources(c.String("config"))
-			if c.String("database") == "" {
-				return cli.NewExitError("Specify a database with -d", -1)
+			db := c.Args().Get(0)
+			if db == "" {
+				return cli.NewExitError("Specify a database", -1)
 			}
-			return cleanAnalysis(c.String("database"), res)
+			return cleanAnalysis(db, res)
 		},
 	}
 

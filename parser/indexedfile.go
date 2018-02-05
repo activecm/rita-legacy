@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"bytes"
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -82,7 +83,7 @@ func newIndexedFile(filePath string, config *config.Config,
 		return toReturn, errors.New("Could not find a target collection for file")
 	}
 
-	toReturn.TargetDatabase = getTargetDatabase(filePath, &config.S.Bro)
+	toReturn.TargetDatabase = getTargetDatabase(filePath, &config.R.Bro)
 	if toReturn.TargetDatabase == "" {
 		fileHandle.Close()
 		return toReturn, errors.New("Could not find a dataset for file")
@@ -113,16 +114,20 @@ func getFileHash(fileHandle *os.File, fInfo os.FileInfo) (string, error) {
 
 //getTargetDatabase assigns a database to a log file based on the path,
 //and the bro config
-func getTargetDatabase(path string, broConfig *config.BroStaticCfg) string {
-	// check the directory map
-	for key, val := range broConfig.DirectoryMap {
-		if strings.Contains(path, key) {
-			return broConfig.DBPrefix + val
+func getTargetDatabase(filePath string, broConfig *config.BroRunningCfg) string {
+	var targetDatabase bytes.Buffer
+	targetDatabase.WriteString(broConfig.TargetDatabase)
+	//Append subfolders to target db
+	if broConfig.SplitStrategy == config.SplitSubfolder {
+		relativeStartIndex := len(broConfig.ImportDirectory)
+		pathSep := string(os.PathSeparator)
+		relativePath := filePath[relativeStartIndex+len(pathSep):]
+		pathPieces := strings.Split(relativePath, pathSep)
+		pathPieces = pathPieces[:len(pathPieces)-1]
+		for _, piece := range pathPieces {
+			targetDatabase.WriteString("-")
+			targetDatabase.WriteString(piece)
 		}
 	}
-	//If a default database is specified put it in there
-	if broConfig.DefaultDatabase != "" {
-		return broConfig.DBPrefix + broConfig.DefaultDatabase
-	}
-	return ""
+	return targetDatabase.String()
 }

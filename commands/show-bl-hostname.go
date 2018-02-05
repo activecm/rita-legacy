@@ -19,9 +19,9 @@ import (
 func init() {
 
 	blHostnames := cli.Command{
-		Name: "show-bl-hostnames",
+		Name:      "show-bl-hostnames",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			databaseFlag,
 			humanFlag,
 			blConnFlag,
 			blSortFlag,

@@ -36,25 +36,6 @@ LogConfig:
 
 # The section Bro configures the bro ingestor
 Bro:
-    # Path to a top level directory of log files
-    LogPath: /opt/bro/logs/
-
-    # If enabled, all databases in this test will get prefixed with the database prefix
-    # DBPrefix: DBPrefix-
-
-    # Subdirectories of LogPath may be separated into different databases for the
-    # test. Map each directory to the database you wish that directory to wind up
-    # in. This is good for running tests against multiple subnets and network
-    # segments. Put the directory name on the left side of the colon, and the
-    # database you wish the logs from that directory to go in on the right side.
-    # DirectoryMap:
-    #     UniqueDir: SeparateDatabaseName
-    #     UniqueDir2: SeparateDatabaseName2
-
-    # If set, files which don't match the directory map will be placed
-    # in this default database.
-    DefaultDatabase: rita
-
     # There needs to be one metadatabase per test. This database holds information
     # about the test and the files related to the test. If there are several
     # subnets mapped in DirectoryMap each will be handled separately and that

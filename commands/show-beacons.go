@@ -13,11 +13,11 @@ import (
 
 func init() {
 	command := cli.Command{
-		Name:  "show-beacons",
-		Usage: "Print beacon information to standard out",
+		Name:      "show-beacons",
+		Usage:     "Print hosts which show signs of C2 software",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			databaseFlag,
 			configFlag,
 		},
 		Action: showBeacons,
@@ -27,18 +27,19 @@ func init() {
 }
 
 func showBeacons(c *cli.Context) error {
-	if c.String("database") == "" {
-		return cli.NewExitError("Specify a database with -d", -1)
+	db := c.Args().Get(0)
+	if db == "" {
+		return cli.NewExitError("Specify a database", -1)
 	}
 	res := database.InitResources(c.String("config"))
-	res.DB.SelectDB(c.String("database"))
+	res.DB.SelectDB(db)
 
 	var data []beaconData.BeaconAnalysisView
 
 	ssn := res.DB.Session.Copy()
 	resultsView := beacon.GetBeaconResultsView(res, ssn, 0)
 	if resultsView == nil {
-		return cli.NewExitError("No results were found for "+c.String("database"), -1)
+		return cli.NewExitError("No results were found for "+db, -1)
 	}
 	resultsView.All(&data)
 	ssn.Close()

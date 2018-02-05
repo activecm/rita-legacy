@@ -81,13 +81,8 @@ type (
 
 	//BroStaticCfg controls the file parser
 	BroStaticCfg struct {
-		LogPath         string            `yaml:"LogPath"`
-		DBPrefix        string            `yaml:"DBPrefix"`
-		MetaDB          string            `yaml:"MetaDB"`
-		DirectoryMap    map[string]string `yaml:"DirectoryMap"`
-		DefaultDatabase string            `yaml:"DefaultDatabase"`
-		UseDates        bool              `yaml:"UseDates"`
-		ImportBuffer    int               `yaml:"ImportBuffer"`
+		MetaDB       string `yaml:"MetaDB"`
+		ImportBuffer int    `yaml:"ImportBuffer"`
 	}
 )
 

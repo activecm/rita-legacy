@@ -13,19 +13,20 @@ import (
 
 func init() {
 	reset := cli.Command{
-		Name:  "delete-database",
-		Usage: "Delete an imported database",
+		Name:      "delete-database",
+		Usage:     "Delete an imported database",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			databaseFlag,
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
 			res := database.InitResources(c.String("config"))
-			if c.String("database") == "" {
-				return cli.NewExitError("Specify a database with -d", -1)
+			db := c.Args().Get(0)
+			if db == "" {
+				return cli.NewExitError("Specify a database", -1)
 			}
 
-			fmt.Println("Are you sure you want to delete database", c.String("database"), "[Y/n]")
+			fmt.Print("Are you sure you want to delete database ", db, " [y/N] ")
 
 			read := bufio.NewReader(os.Stdin)
 
@@ -36,13 +37,15 @@ func init() {
 			response = strings.ToLower(strings.TrimSpace(response))
 
 			if response == "y" || response == "yes" {
-				fmt.Println("Deleting database:", c.String("database"))
-				return res.MetaDB.DeleteDB(c.String("database"))
-			} else if response == "n" || response == "no" {
-				return cli.NewExitError("Database "+c.String("database")+" was not deleted.", 0)
+				fmt.Println("Deleting database:", db)
+				err = res.MetaDB.DeleteDB(db)
+				if err != nil {
+					return cli.NewExitError("ERROR: "+err.Error(), -1)
+				}
 			} else {
-				return cli.NewExitError("Aborted, nothing deleted.", -1)
+				return cli.NewExitError("Database "+db+" was not deleted.", 0)
 			}
+			return nil
 		},
 	}
 

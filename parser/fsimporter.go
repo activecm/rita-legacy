@@ -49,7 +49,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	fmt.Println("\t[-] Finding files to parse")
 	//find all of the bro log paths
-	files := readDir(fs.res.Config.S.Bro.LogPath, fs.res.Log)
+	files := readDir(fs.res.Config.R.Bro.ImportDirectory, fs.res.Log)
 
 	//hash the files and get their stats
 	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res.Config, fs.res.Log)
@@ -65,7 +65,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
 	parseFiles(indexedFiles, fs.parseThreads,
-		fs.res.Config.S.Bro.UseDates, datastore, fs.res.Log)
+		fs.res.Config.R.Bro.SplitStrategy, datastore, fs.res.Log)
 
 	datastore.Flush()
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
@@ -156,7 +156,7 @@ func indexFiles(files []string, indexingThreads int,
 //errors and parses the bro files line by line into the database.
 //NOTE: side effect: this sets the dates field on the indexedFiles
 func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
-	useDates bool, datastore Datastore, logger *log.Logger) {
+	splitStrategy config.BroSplitStrategy, datastore Datastore, logger *log.Logger) {
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
@@ -215,7 +215,7 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
 						//figure out what database this line is heading for
 						targetCollection := indexedFiles[j].TargetCollection
 						targetDB := indexedFiles[j].TargetDatabase
-						if useDates {
+						if splitStrategy == config.SplitDate {
 							targetDB += "-" + date
 						}
 
