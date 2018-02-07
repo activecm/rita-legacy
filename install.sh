@@ -54,6 +54,40 @@ Options:
 HEREDOC
 }
 
+__mod_config() {
+	bro_log_path=$1
+	mongodb_conn_str=$2
+	rita_config="$HOME/.rita/config.yaml"
+
+	printf "[+] Trying to modify config\n"
+	#get the DBPrefix, MetaDB, APIkey
+	printf "[-] Please enter a Database Prefix for Rita: "
+        read db_prefix
+	printf "[-] Please Enter a Meta-Database Name: "
+	read meta_db
+	printf "[-] Please Enter your Google Safe Browsing API Key: "
+	read api_key
+
+	#We will create a string to write Directory structure
+	echo "[+] Getting Bro Log Path"
+	for i in $(find $bro_log_path -type d | rev | cut -f1 -d'/' | rev)
+	do
+        	if ! [[ $bro_log_path =~ $i ]]; then
+                	dirStr+="$i: $i\n        "
+	        fi
+	done
+
+	#Leave one example and print the remaining directory structure
+	sed -i "s/^        UniqueDir2: SeparateDatabaseName2*/        #UniqueDir: SeparatedatabaseName/" $rita_config
+	sed -i "s/^        UniqueDir: SeparateDatabaseName*/""        $dirStr""/" $rita_config
+	sed -i "s+^    ConnectionString: mongodb://localhost:27017*+""    ConnectionString: $mongodb_conn_str""+" $rita_config
+	sed -i "s+^    LogPath: /path/to/top/level/directory/*+""    LogPath: $bro_log_path""+" $rita_config
+	sed -i "s/^    DBPrefix: PrefixForDatabase*/""    DBPrefix: $db_prefix""/" $rita_config
+	sed -i "s/^    MetaDB: MetaDatabase*/""    MetaDB: $meta_db""/" $rita_config
+	sed -i 's/^        APIKey: ""*/''        APIKey: "'$api_key'"''/' $rita_config
+
+}
+
 __explain() {
 	cat <<HEREDOC
 This script will:
@@ -66,6 +100,12 @@ in $_INSTALL_PREFIX and add new PATH and GOPATH entries
 to your .bashrc.
 
 3) Create a configuration directory for RITA in $_CONFIG_PATH
+
+The following information is needed
+	* Bro Log Path
+	* MongoDB Connection String
+	* Metadatabase Name
+	* Google API Key
 
 HEREDOC
 
@@ -142,7 +182,7 @@ __setOS() {
 	_OS="$(lsb_release -is)"
 	if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" ]; then
 		echo "Unsupported operating system"
-		_err
+		__err
 	fi
 }
 
@@ -319,18 +359,51 @@ __install() {
 	# Determine the OS, needs lsb-release
 	__setOS
 
+	bro_log_path="$HOME/Bro_Log"
 	if [[ "${_INSTALL_BRO}" = "true" ]]
 	then
-		__install_bro
+		if ! __package_installed bro && ! __package_installed securityonion-bro;
+		then
+			printf "[+] Bro is not installed\n"
+			read -p "[-] Would you like to install Bro? [y/n] " -r
+			if [[ $REPLY =~ ^[Yy]$ ]]; then
+				__install_bro
+				echo ""
+			else
+				printf "[-] Please ensure you install bro and modify rita.yaml before running RITA\n"
+			fi
+		else
+			printf "[+] Bro is Installed\n"
+			printf "[-] Please enter log path: "
+			read bro_log_path
+		fi
 	fi
+  bro_log_path=$(eval echo $bro_log_path)
 
 	__install_go
 	__check_go_version
 
+	mongodb_conn_str="mongodb://localhost:27017"
 	if [[ "${_INSTALL_MONGO}" = "true" ]]
 	then
-		__install_mongodb & __load "[+] Installing MongoDB"
-	fi
+		if ! __package_installed mongodb-org; then
+			printf "[+] MongoDB is not installed\n"
+			read -p "[-] Would you like to install MongoDB [y/n] " -r
+			if [[ $REPLY =~ ^[Yy]$ ]]; then
+				__install_mongodb & __load "[+] Installing MongoDB"
+			else
+				printf "[-] Please ensure you install MongoDB and modify rita.yaml before running RITA\n"
+			fi
+		else
+			printf "[+] MongoDB is Installed\n"
+			printf "[-] Please enter MongoDB connection string (e.g. mongodb://localhost:27017): "
+			read mongodb_conn_str
+		fi
+  fi
+
+  #We should check if the user wants to install GoLang
+  __install_go
+	__check_go_version
 
 	( # Build RITA
 		# Ensure go dep is installed
@@ -360,6 +433,7 @@ __install() {
 		chmod 666 $_CONFIG_PATH/safebrowsing
 	) & __load "[+] Installing config files to $_CONFIG_PATH"
 
+#We should auto source these and start broctl and mongodb
 	echo -e "
 In order to finish the installation, reload your bash config
 with 'source ~/.bashrc'. Make sure to configure Bro and run
@@ -374,12 +448,12 @@ to stop MongoDB, run 'sudo service mongod stop'."
 }
 
 # start point for installer
-__entry() {	
+__entry() {
 	_INSTALL_BRO=true
 	_INSTALL_MONGO=true
 	_INSTALL_PREFIX=/opt/rita
 	_CONFIG_PATH=/etc/rita
-	_INSTALL_RITA=true	
+	_INSTALL_RITA=true
 	_UNINSTALL_RITA=false
 
 	# Parse through command args
@@ -396,10 +470,10 @@ __entry() {
 				_INSTALL_BRO=false
 				_INSTALL_MONGO=false
 				;;
-			--disable-bro) 
+			--disable-bro)
 				_INSTALL_BRO=false
 				;;
-			--disable-mongo) 
+			--disable-mongo)
 				_INSTALL_MONGO=false
 				;;
 			--prefix)
@@ -419,7 +493,7 @@ __entry() {
 		then
 			__uninstall
 			exit 0
-		fi		
+		fi
 		if [[ "${_INSTALL_RITA}" = "true" ]]
 		then
 			__install
