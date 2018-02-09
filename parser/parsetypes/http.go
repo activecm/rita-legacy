@@ -51,8 +51,6 @@ type HTTP struct {
 	InfoCode int64 `bson:"info_code" bro:"info_code" brotype:"count"`
 	// InfoMsg holds the last seen 1xx message string
 	InfoMsg string `bson:"info_msg" bro:"info_msg" brotype:"string"`
-	// FileName contains the name of the requested file
-	FileName string `bson:"filename" bro:"filename" brotype:"string"`
 	// Tags contains a set of indicators of various attributes related to a particular req and
 	// response pair
 	Tags []string `bson:"tags" bro:"tags" brotype:"set[enum]"`
