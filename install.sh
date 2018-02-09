@@ -60,12 +60,12 @@ This script will:
 
 1) Download and install Bro IDS, Go, and MongoDB.
 
-2) Set up a Go development environment in order to 'go get'
-and 'build' RITA. This requires us to create a directory "go"
-in your home folder and add new PATH and GOPATH entries
+2) Set up a Go development environment in order to install
+RITA. This requires us to create new directories
+in $_INSTALL_PREFIX and add new PATH and GOPATH entries
 to your .bashrc.
 
-3) Create a configuration directory for RITA in your home folder called .rita
+3) Create a configuration directory for RITA in $_CONFIG_PATH
 
 HEREDOC
 
@@ -108,12 +108,15 @@ __checkPermissions() {
 }
 
 __uninstall() {
-	printf "\t[!] Removing $GOPATH/bin/rita \n"
-	rm -rf $GOPATH/bin/rita
-	printf "\t[!] Removing $GOPATH/src/github.com/ocmdev \n"
-	rm -rf $GOPATH/src/github.com/ocmdev
-	printf "\t[!] Removing $HOME/.rita \n"
-	rm -rf $HOME/.rita
+	if [ "$_INSTALL_PREFIX" != "/opt/rita" ]; then
+		# Too risky to delete files if we don't know where it was installed (e.g. could have installed to /)
+		printf "\t[!] Automatic uninstall from a non-standard location is not supported \n"
+	else
+		printf "\t[!] Removing /opt/rita \n"
+		rm -rf /opt/rita
+	fi
+	printf "\t[!] Removing $_CONFIG_PATH \n"
+	rm -rf "$_CONFIG_PATH"
 }
 
 __setPkgMgr() {
@@ -231,12 +234,12 @@ __install_go() {
 	# Check if the GOPATH isn't set
 	if [ -z ${GOPATH+x} ]; then
 		( # Set up the GOPATH
-			mkdir -p $HOME/go/{src,pkg,bin}
-			echo 'export GOPATH=$HOME/go' >> $HOME/.bashrc
-			echo 'export PATH=$PATH:$GOPATH/bin' >> $HOME/.bashrc
+			mkdir -p $_INSTALL_PREFIX/{src,pkg,bin}
+			#echo "export GOPATH=$_INSTALL_PREFIX" >> $HOME/.bashrc
+			echo "export PATH=\$PATH:$_INSTALL_PREFIX/bin" >> $HOME/.bashrc
 		) & __load "\t[+] Configuring Go dev environment"
-		export GOPATH=$HOME/go
-		export PATH=$PATH:$GOPATH/bin
+		export GOPATH=$_INSTALL_PREFIX
+		export PATH=$PATH:$_INSTALL_PREFIX/bin
 	fi
 }
 
@@ -284,7 +287,10 @@ __install_mongodb() {
 __install() {
 
 	# Check if RITA is already installed, if so ask if this is a re-install
-	if [ ! -z $(command -v rita) ] ||	[ -d $HOME/.rita ];	then
+	if [ ! -z $(command -v rita) ] \
+		|| [ -d /opt/rita ] \
+		|| [ -d $_CONFIG_PATH ]
+	then
 		printf "[+] RITA is already installed.\n"
 		read -p "[-] Would you like to erase it and re-install? [y/n] " -r
 		if [[ $REPLY =~ ^[Yy]$ ]]
@@ -312,12 +318,18 @@ __install() {
 	# Determine the OS, needs lsb-release
 	__setOS
 
-	__install_bro
+	if [[ "${_INSTALL_BRO}" = "true" ]]
+	then
+		__install_bro
+	fi
 
-  __install_go
+	__install_go
 	__check_go_version
 
-	__install_mongodb & __load "[+] Installing MongoDB"
+	if [[ "${_INSTALL_MONGO}" = "true" ]]
+	then
+		__install_mongodb & __load "[+] Installing MongoDB"
+	fi
 
 	( # Build RITA
 		# Ensure go dep is installed
@@ -329,25 +341,23 @@ __install() {
 		cp -R "$(dirname "$(realpath ${0})")/." $GOPATH/src/github.com/ocmdev/rita/
 		cd $GOPATH/src/github.com/ocmdev/rita
 		make install > /dev/null
+		# Allow any user to execute rita
+		chmod 755 $GOPATH/bin/rita
 	)	& __load "[+] Installing RITA"
 
 
 	( # Install the base configuration files
-		mkdir $HOME/.rita
-		mkdir $HOME/.rita/logs
+		mkdir -p $_CONFIG_PATH
 		cd $GOPATH/src/github.com/ocmdev/rita
-		cp ./LICENSE $HOME/.rita/LICENSE
-		cp ./etc/rita.yaml $HOME/.rita/config.yaml
-		cp ./etc/tables.yaml $HOME/.rita/tables.yaml
-	) & __load "[+] Installing config files to $HOME/.rita"
-
-
-	# If the user is using sudo, give ownership to the sudo user
-	if [ ! -z ${SUDO_USER+x} ]
-	then
-		chown -R $SUDO_USER:$SUDO_USER $HOME/go
-		chown -R $SUDO_USER:$SUDO_USER $HOME/.rita
-	fi
+		cp ./LICENSE $_CONFIG_PATH/LICENSE
+		cp ./etc/rita.yaml $_CONFIG_PATH/config.yaml
+		cp ./etc/tables.yaml $_CONFIG_PATH/tables.yaml
+		touch $_CONFIG_PATH/safebrowsing
+		chmod 755 $_CONFIG_PATH
+		# All users can read and write rita's config file
+		chmod 666 $_CONFIG_PATH/config.yaml
+		chmod 666 $_CONFIG_PATH/safebrowsing
+	) & __load "[+] Installing config files to $_CONFIG_PATH"
 
 	echo -e "
 In order to finish the installation, reload your bash config
@@ -363,28 +373,62 @@ to stop MongoDB, run 'sudo service mongod stop'."
 }
 
 # start point for installer
-__entry() {
+__entry() {	
+	_INSTALL_BRO=true
+	_INSTALL_MONGO=true
+	_INSTALL_PREFIX=/opt/rita
+	_CONFIG_PATH=/etc/rita
+	_INSTALL_RITA=true	
+	_UNINSTALL_RITA=false
 
-	# Check for help
-	if [[ "${1:-}" =~ ^-h|--help$ ]]
-	then
-		__help
-		exit 0
-	fi
+	# Parse through command args
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+			-h|--help)
+				# Display help and exit
+				__help
+				exit 0
+				;;
+			-u|--uninstall)
+				_UNINSTALL_RITA=true
+				_INSTALL_RITA=false
+				_INSTALL_BRO=false
+				_INSTALL_MONGO=false
+				;;
+			--disable-bro) 
+				_INSTALL_BRO=false
+				;;
+			--disable-mongo) 
+				_INSTALL_MONGO=false
+				;;
+			--prefix)
+				shift
+				_INSTALL_PREFIX="$1"
+				;;
+			*)
+			;;
+	  esac
+	  shift
+	done
 
 	# Check to see if the user has permission to install RITA
 	if __checkPermissions
 	then
-		# Check if we are uninstalling
-		if [[ "${1:-}" =~ ^-u|--uninstall ]]
+		if [[ "${_UNINSTALL_RITA}" = "true" ]]
 		then
 			__uninstall
-		else
+			exit 0
+		fi		
+		if [[ "${_INSTALL_RITA}" = "true" ]]
+		then
 			__install
+			exit 0
 		fi
 	else
 		printf "You do NOT have permission install RITA\n\n"
 	fi
+
+
 }
 
 __entry "${@:-}"
