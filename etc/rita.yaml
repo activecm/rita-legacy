@@ -27,8 +27,8 @@ LogConfig:
     # 0 = error
     LogLevel: 2
 
-    # LogPath is the path for Rita's logs, generally this just defaults to
-    # $HOME/.rita/logs. Logs will only be written here if LogToFile is true
+    # LogPath is the path for Rita's logs. Make sure permissions are set accordingly.
+    # Logs will only be written here if LogToFile is true
     RitaLogPath: $HOME/.rita/logs
 
     LogToFile: true
@@ -85,7 +85,7 @@ BlackListed:
     # not be queried.
     SafeBrowsing:
         APIKey: ""
-        Database: $HOME/.rita/safebrowsing
+        Database: /etc/rita/safebrowsing
 
     # These are custom blacklists that you may define. They are lists of either
     # file paths or urls. These custom blacklists are expected to be simple,

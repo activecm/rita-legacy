@@ -1,9 +1,7 @@
 package config
 
 import (
-	"fmt"
 	"os"
-	"os/user"
 	"reflect"
 )
 
@@ -26,33 +24,21 @@ type (
 
 //userConfigPath specifies the path of RITA's static config file
 //relative to the user's home directory
-const userConfigPath = "/.rita/config.yaml"
+const userConfigPath = "/etc/rita/config.yaml"
 
 //tableConfigPath specifies teh path of RITA's table config file
 //relative to the user's home directory
-const tableConfigPath = "/.rita/tables.yaml"
+const tableConfigPath = "/etc/rita/tables.yaml"
 
 //NOTE: If go ever gets default parameters, default the config options to ""
 
 // GetConfig retrieves a configuration in order of precedence
 func GetConfig(userConfig string, tableConfig string) (*Config, error) {
-	//var user string
-	var currUser *user.User
-	if userConfig == "" || tableConfig == "" {
-		// Get the user's homedir
-		var err error
-		currUser, err = user.Current()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Could not get user info: %s\n", err.Error())
-			return nil, err
-		}
-	}
-
 	if userConfig == "" {
-		userConfig = currUser.HomeDir + userConfigPath
+		userConfig = userConfigPath
 	}
 	if tableConfig == "" {
-		tableConfig = currUser.HomeDir + tableConfigPath
+		tableConfig = tableConfigPath
 	}
 
 	return loadSystemConfig(userConfig, tableConfig)
