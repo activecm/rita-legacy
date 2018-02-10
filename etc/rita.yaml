@@ -36,6 +36,14 @@ LogConfig:
 
 # The section Bro configures the bro ingestor
 Bro:
+    # Path to a top level directory of log files
+    ImportDirectory: /opt/bro/logs/
+
+    # Files directly in the ImportDirectory will be imported into a database
+    # given by DBRoot. Files in a subfolder of ImportDirectory will be imported
+    # into DBRoot-$SUBFOLDER_NAME.
+    DBRoot: "RITA"
+
     # There needs to be one metadatabase per test. This database holds information
     # about the test and the files related to the test. If there are several
     # subnets mapped in DirectoryMap each will be handled separately and that

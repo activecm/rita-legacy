@@ -14,7 +14,7 @@ func init() {
 	command := cli.Command{
 
 		Name:      "show-exploded-dns",
-		Usage:     "Print dns analysis. Exposes covert dns channels.",
+		Usage:     "Print dns analysis. Exposes covert dns channels",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,

@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 
 	yaml "gopkg.in/yaml.v2"
@@ -81,8 +82,10 @@ type (
 
 	//BroStaticCfg controls the file parser
 	BroStaticCfg struct {
-		MetaDB       string `yaml:"MetaDB"`
-		ImportBuffer int    `yaml:"ImportBuffer"`
+		ImportDirectory string `yaml:"ImportDirectory"`
+		DBRoot          string `yaml:"DBRoot"`
+		MetaDB          string `yaml:"MetaDB"`
+		ImportBuffer    int    `yaml:"ImportBuffer"`
 	}
 )
 
@@ -112,6 +115,12 @@ func loadStaticConfig(cfgPath string) (*StaticCfg, error) {
 
 	// set the socket time out in hours
 	config.MongoDB.SocketTimeout *= time.Hour
+
+	// clean the import path
+	// remove tailing / when applicable
+	if strings.HasSuffix(config.Bro.ImportDirectory, string(os.PathSeparator)) {
+		config.Bro.ImportDirectory = config.Bro.ImportDirectory[:len(config.Bro.ImportDirectory)-len(string(config.Bro.ImportDirectory))]
+	}
 
 	// grab the version constants set by the build process
 	config.Version = Version

@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/blang/semver"
-	"github.com/ocmdev/rita/config"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
@@ -27,7 +26,6 @@ type (
 		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
 		Name           string        `bson:"name"`            // Top level name of the database
 		Analyzed       bool          `bson:"analyzed"`        // Has this database been analyzed
-		UsingDates     bool          `bson:"dates"`           // Whether this db was created with dates enabled
 		ImportVersion  string        `bson:"import_version"`  // Rita version at import
 		AnalyzeVersion string        `bson:"analyze_version"` // Rita version at analyze
 	}
@@ -35,7 +33,6 @@ type (
 
 // AddNewDB adds a new database to the DBMetaInfo table
 func (m *MetaDBHandle) AddNewDB(name string) error {
-	m.logDebug("AddNewDB", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	ssn := m.res.DB.Session.Copy()
@@ -45,7 +42,6 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 		DBMetaInfo{
 			Name:          name,
 			Analyzed:      false,
-			UsingDates:    m.res.Config.R.Bro.SplitStrategy == config.SplitDate,
 			ImportVersion: m.res.Config.S.Version,
 		},
 	)
@@ -57,13 +53,11 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 		return err
 	}
 
-	m.logDebug("AddNewDB", "exiting")
 	return nil
 }
 
 // DeleteDB removes a database managed by RITA
 func (m *MetaDBHandle) DeleteDB(name string) error {
-	m.logDebug("DeleteDB", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	ssn := m.res.DB.Session.Copy()
@@ -90,29 +84,17 @@ func (m *MetaDBHandle) DeleteDB(name string) error {
 	if err != nil {
 		return err
 	}
-	if db.UsingDates {
-		date := name[len(name)-10:]
-		name = name[:len(name)-11]
-		_, err = ssn.DB(m.DB).C("files").RemoveAll(
-			bson.M{"database": name, "dates": date},
-		)
-		if err != nil {
-			return err
-		}
-	} else {
-		_, err = ssn.DB(m.DB).C("files").RemoveAll(bson.M{"database": name})
-		if err != nil {
-			return err
-		}
+
+	_, err = ssn.DB(m.DB).C("files").RemoveAll(bson.M{"database": name})
+	if err != nil {
+		return err
 	}
 
-	m.logDebug("DeleteDB", "exiting")
 	return nil
 }
 
 // MarkDBAnalyzed marks a database as having been analyzed
 func (m *MetaDBHandle) MarkDBAnalyzed(name string, complete bool) error {
-	m.logDebug("MarkDBAnalyzed", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -155,7 +137,6 @@ func (m *MetaDBHandle) MarkDBAnalyzed(name string, complete bool) error {
 		}).Error("could not update database entry in meta")
 		return err
 	}
-	m.logDebug("MarkDBAnalyzed", "exiting")
 	return nil
 }
 
@@ -172,7 +153,6 @@ func (m *MetaDBHandle) GetDBMetaInfo(name string) (DBMetaInfo, error) {
 
 // GetDatabases returns a list of databases being tracked in metadb or an empty array on failure
 func (m *MetaDBHandle) GetDatabases() []string {
-	m.logDebug("GetDatabases", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -186,7 +166,6 @@ func (m *MetaDBHandle) GetDatabases() []string {
 	for iter.Next(&db) {
 		results = append(results, db.Name)
 	}
-	m.logDebug("GetDatabases", "exiting")
 	return results
 }
 
@@ -220,7 +199,6 @@ func (m *MetaDBHandle) CheckCompatibleAnalyze(targetDatabase string) (bool, erro
 
 // GetUnAnalyzedDatabases builds a list of database names which have yet to be analyzed
 func (m *MetaDBHandle) GetUnAnalyzedDatabases() []string {
-	m.logDebug("GetUnAnalyzedDatabases", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	ssn := m.res.DB.Session.Copy()
@@ -232,13 +210,11 @@ func (m *MetaDBHandle) GetUnAnalyzedDatabases() []string {
 	for iter.Next(&cur) {
 		results = append(results, cur.Name)
 	}
-	m.logDebug("GetUnAnalyzedDatabases", "exiting")
 	return results
 }
 
 // GetAnalyzedDatabases builds a list of database names which have been analyzed
 func (m *MetaDBHandle) GetAnalyzedDatabases() []string {
-	m.logDebug("GetUnAnalyzedDatabases", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	ssn := m.res.DB.Session.Copy()
@@ -250,7 +226,6 @@ func (m *MetaDBHandle) GetAnalyzedDatabases() []string {
 	for iter.Next(&cur) {
 		results = append(results, cur.Name)
 	}
-	m.logDebug("GetUnAnalyzedDatabases", "exiting")
 	return results
 }
 
@@ -262,7 +237,6 @@ func (m *MetaDBHandle) GetAnalyzedDatabases() []string {
 // from the database, in the case of failure return a zero length list of files and generat a log
 // message.
 func (m *MetaDBHandle) GetFiles() ([]fpt.IndexedFile, error) {
-	m.logDebug("GetFiles", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	var toReturn []fpt.IndexedFile
@@ -278,13 +252,11 @@ func (m *MetaDBHandle) GetFiles() ([]fpt.IndexedFile, error) {
 		}).Error("could not fetch files from meta database")
 		return nil, err
 	}
-	m.logDebug("GetFiles", "exiting")
 	return toReturn, nil
 }
 
 //AddParsedFiles adds indexed files to the files the metaDB using the bulk API
 func (m *MetaDBHandle) AddParsedFiles(files []*fpt.IndexedFile) error {
-	m.logDebug("AddParsedFiles", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if len(files) == 0 {
@@ -318,7 +290,6 @@ func (m *MetaDBHandle) AddParsedFiles(files []*fpt.IndexedFile) error {
 // isBuilt checks to see if a file table exists, as the existence of parsed files is prerequisite
 // to the existance of anything else.
 func (m *MetaDBHandle) isBuilt() bool {
-	m.logDebug("isBuilt", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	ssn := m.res.DB.Session.Copy()
@@ -338,14 +309,12 @@ func (m *MetaDBHandle) isBuilt() bool {
 		}
 	}
 
-	m.logDebug("isBuilt", "exiting")
 	return false
 }
 
 // createMetaDB creates a new metadata database failure is not an option,
 // if this function fails it will bring down the system.
 func (m *MetaDBHandle) createMetaDB() {
-	m.logDebug("newMetaDBHandle", "entering")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -400,14 +369,4 @@ func (m *MetaDBHandle) createMetaDB() {
 	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).EnsureIndex(idx)
 	errchk(err)
 
-	m.logDebug("newMetaDBHandle", "exiting")
-}
-
-// logDebug will simply output some state info
-func (m *MetaDBHandle) logDebug(function, message string) {
-	m.res.Log.WithFields(log.Fields{
-		"function": function,
-		"package":  "database",
-		"module":   "meta",
-	}).Debug(message)
 }

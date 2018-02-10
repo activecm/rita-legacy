@@ -9,10 +9,10 @@ import (
 func init() {
 	command := cli.Command{
 
-		Name: "html-report",
-		Usage: "Create an html report for an analyzed database. " +
+		Name:  "html-report",
+		Usage: "Create an html report for an analyzed database",
+		UsageText: "rita html-report [command-options] [database]\n\n" +
 			"If no database is specified, a report will be created for every database.",
-		ArgsUsage: "[database]",
 		Flags: []cli.Flag{
 			configFlag,
 		},

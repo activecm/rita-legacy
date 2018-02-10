@@ -21,9 +21,10 @@ import (
 
 func init() {
 	analyzeCommand := cli.Command{
-		Name:      "analyze",
-		Usage:     "Analyze imported databases. If no database is specified, every database will be analyzed.",
-		ArgsUsage: "[database]",
+		Name:  "analyze",
+		Usage: "Analyze imported databases",
+		UsageText: "rita analyze [command options] [database]\n\n" +
+			"If no database is specified, every database will be analyzed.",
 		Flags: []cli.Flag{
 			configFlag,
 		},
