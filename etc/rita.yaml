@@ -44,18 +44,8 @@ Bro:
     # into DBRoot-$SUBFOLDER_NAME.
     DBRoot: "RITA"
 
-    # There needs to be one metadatabase per test. This database holds information
-    # about the test and the files related to the test. If there are several
-    # subnets mapped in DirectoryMap each will be handled separately and that
-    # separation is handled by the metadatabase.
+    # This database holds information about the procesed files and databases.
     MetaDB: MetaDatabase
-
-    # If use dates is true the logs will be split into databases by date using the
-    # current system's timezone. This is best for if you have multiple days worth
-    # of log files in the logpath and wish to treat each day as a separate test.
-    # 24 hours worth of data is the ideal for analysis, and using dates will ensure
-    # that tests are broken into 24 hour periods on midnight in the current timezone.
-    UseDates: true
 
     # The number of records shipped off to MongoDB at a time. Increasing
     # the size of the buffer will improve import timings but will leave more
