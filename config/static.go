@@ -115,6 +115,23 @@ func loadStaticConfig(cfgPath string) (*StaticCfg, error) {
 	// so we have to call elem on the reflect value
 	expandConfig(reflect.ValueOf(config).Elem())
 
+	// expand any paths that could potentially be relative
+	config.Log.RitaLogPath, err = ExpandRelPath(config.Log.RitaLogPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to expand relative paths in config file: %s\n", err.Error())
+		return config, err
+	}
+	config.Blacklisted.SafeBrowsing.Database, err = ExpandRelPath(config.Blacklisted.SafeBrowsing.Database)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to expand relative paths in config file: %s\n", err.Error())
+		return config, err
+	}
+	config.Bro.LogPath, err = ExpandRelPath(config.Bro.LogPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to expand relative paths in config file: %s\n", err.Error())
+		return config, err
+	}
+
 	// set the socket time out in hours
 	config.MongoDB.SocketTimeout *= time.Hour
 

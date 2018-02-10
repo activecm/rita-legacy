@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"sync"
 	"time"
+	"path/filepath"
 
 	mgo "gopkg.in/mgo.v2"
 
@@ -136,9 +136,16 @@ func initLog(level int) (*log.Logger, error) {
 }
 
 func addFileLogger(logger *log.Logger, logPath string) {
+	var err error
+	logPath, err = config.ExpandRelPath(logPath)
+	if err != nil {
+		fmt.Println("[!] Could not initialize file logger.")
+		return
+	}
+
 	time := time.Now().Format(util.TimeFormat)
-	logPath = path.Join(logPath, time)
-	_, err := os.Stat(logPath)
+	logPath = filepath.Join(logPath, time)
+	_, err = os.Stat(logPath)
 	if err != nil && os.IsNotExist(err) {
 		err = os.MkdirAll(logPath, 0755)
 		if err != nil {
@@ -148,11 +155,11 @@ func addFileLogger(logger *log.Logger, logPath string) {
 	}
 
 	logger.Hooks.Add(lfshook.NewHook(lfshook.PathMap{
-		log.DebugLevel: path.Join(logPath, "debug.log"),
-		log.InfoLevel:  path.Join(logPath, "info.log"),
-		log.WarnLevel:  path.Join(logPath, "warn.log"),
-		log.ErrorLevel: path.Join(logPath, "error.log"),
-		log.FatalLevel: path.Join(logPath, "fatal.log"),
-		log.PanicLevel: path.Join(logPath, "panic.log"),
+		log.DebugLevel: filepath.Join(logPath, "debug.log"),
+		log.InfoLevel:  filepath.Join(logPath, "info.log"),
+		log.WarnLevel:  filepath.Join(logPath, "warn.log"),
+		log.ErrorLevel: filepath.Join(logPath, "error.log"),
+		log.FatalLevel: filepath.Join(logPath, "fatal.log"),
+		log.PanicLevel: filepath.Join(logPath, "panic.log"),
 	}, nil))
 }

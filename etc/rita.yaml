@@ -85,7 +85,7 @@ BlackListed:
     # not be queried.
     SafeBrowsing:
         APIKey: ""
-        Database: /etc/rita/safebrowsing
+        Database: ../var/rita/safebrowsing
 
     # These are custom blacklists that you may define. They are lists of either
     # file paths or urls. These custom blacklists are expected to be simple,

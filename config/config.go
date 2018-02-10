@@ -2,7 +2,9 @@ package config
 
 import (
 	"os"
+	"fmt"
 	"reflect"
+	"path/filepath"
 )
 
 //Version is filled at compile time with the git version of RITA
@@ -22,23 +24,31 @@ type (
 	}
 )
 
-//userConfigPath specifies the path of RITA's static config file
-//relative to the user's home directory
-const userConfigPath = "/etc/rita/config.yaml"
+//relative to the rita binary's directory
+const userConfigPath = "../etc/rita/config.yaml"
 
-//tableConfigPath specifies teh path of RITA's table config file
-//relative to the user's home directory
-const tableConfigPath = "/etc/rita/tables.yaml"
+//tableConfigPath specifies the path of RITA's table config file
+//relative to the rita binary's directory
+const tableConfigPath = "../etc/rita/tables.yaml"
 
 //NOTE: If go ever gets default parameters, default the config options to ""
 
 // GetConfig retrieves a configuration in order of precedence
 func GetConfig(userConfig string, tableConfig string) (*Config, error) {
+	var err error
 	if userConfig == "" {
-		userConfig = userConfigPath
+		userConfig, err = ExpandRelPath(userConfigPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Could not get the current executable's path: %s\n", err.Error())
+			return nil, err
+		}
 	}
 	if tableConfig == "" {
-		tableConfig = tableConfigPath
+		tableConfig, err = ExpandRelPath(tableConfigPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Could not get the current executable's path: %s\n", err.Error())
+			return nil, err
+		}
 	}
 
 	return loadSystemConfig(userConfig, tableConfig)
@@ -86,3 +96,20 @@ func expandConfig(reflected reflect.Value) {
 		}
 	}
 }
+
+// ExpandRelPaths expands relative paths config strings
+func ExpandRelPath(relPath string) (string, error) {
+	// If relPath is not absolute it should be relative to the running executable
+	if !filepath.IsAbs(relPath) {
+		// Get the path of the current executable
+		ex, err := os.Executable()
+		if err != nil {
+			return relPath, err
+		}
+		return filepath.Join(filepath.Dir(ex), relPath), nil
+	} else {
+		// relPath is already an absolute path so just call clean
+		return filepath.Clean(relPath), nil
+	}
+}
+
