@@ -266,6 +266,7 @@ __install_bro() {
 		echo 'export PATH=$PATH:/opt/bro/bin' >> $HOME/.bashrc
 		PATH=$PATH:/opt/bro/bin
 	fi
+	chmod 2755 /opt/bro/logs
 }
 
 __install_mongodb() {
