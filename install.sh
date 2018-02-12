@@ -57,15 +57,9 @@ HEREDOC
 __mod_config() {
 	bro_log_path=$1
 	mongodb_conn_str=$2
-	rita_config="$HOME/.rita/config.yaml"
+	rita_config="$_CONFIG_PATH/config.yaml"
 
 	printf "[+] Getting config values\n"
-	#get the DBPrefix, MetaDB, APIkey
-	printf "\t[-] Please enter a Database Prefix for Rita (default prefix is \"RitaDB-\" press enter to keep default): "
-  read db_prefix
-  if [ "$db_prefix" == "" ]; then
-		db_prefix='RitaDB-'
-	fi
 
 	printf "\t[-] Please Enter a Meta-Database Name (default is \"MetaDatabase\" press enter to keep default): "
 	read meta_db
@@ -78,8 +72,7 @@ __mod_config() {
 
 	#Leave one example and print the remaining directory structure
 	sed -i "s+^    ConnectionString: mongodb://localhost:27017*+""    ConnectionString: $mongodb_conn_str""+" $rita_config
-	sed -i "s+^    LogPath: /path/to/top/level/directory/*+""    LogPath: $bro_log_path""+" $rita_config
-	sed -i "s/^    DBPrefix: PrefixForDatabase*/""    DBPrefix: $db_prefix""/" $rita_config
+	sed -i "s+^    LogPath: /opt/bro/logs/*+""    LogPath: $bro_log_path""+" $rita_config
 	sed -i "s/^    MetaDB: MetaDatabase*/""    MetaDB: $meta_db""/" $rita_config
 	sed -i 's/^        APIKey: ""*/''        APIKey: "'$api_key'"''/' $rita_config
 
@@ -177,7 +170,7 @@ __setPkgMgr() {
 
 __setOS() {
 	_OS="$(lsb_release -is)"
-	if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" ]; then
+	if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "LinuxMint"]; then
 		echo "Unsupported operating system"
 		__err
 	fi
@@ -356,7 +349,7 @@ __install() {
 	# Determine the OS, needs lsb-release
 	__setOS
 
-	bro_log_path="$HOME/Bro_Log"
+	bro_log_path="/opt/bro/logs/"
 	if [[ "${_INSTALL_BRO}" = "true" ]]
 	then
 		if ! __package_installed bro && ! __package_installed securityonion-bro;
@@ -378,9 +371,8 @@ __install() {
 			fi
 		fi
 	fi
-  bro_log_path=$(eval echo $bro_log_path)
 
-	__install_go
+  __install_go
 	__check_go_version
 
 	mongodb_conn_str="mongodb://localhost:27017"
@@ -396,17 +388,13 @@ __install() {
 			fi
 		else
 			printf "[+] MongoDB is Installed\n"
-			printf "[-] Please enter MongoDB connection string (e.g. mongodb://localhost:27017): "
+			printf "[-] Please enter MongoDB connection string (default is \"mongodb://localhost:27017\" press enter to keep default): "
 			read mongodb_conn_str
 			if [ "$mongodb_conn_str" == "" ]; then
 				mongodb_conn_str='mongodb://localhost:27017'
 			fi
   	fi
 	fi
-
-  #We should check if the user wants to install GoLang
-  __install_go
-	__check_go_version
 
 	( # Build RITA
 		# Ensure go dep is installed
@@ -435,6 +423,8 @@ __install() {
 		chmod 666 $_CONFIG_PATH/config.yaml
 		chmod 666 $_CONFIG_PATH/safebrowsing
 	) & __load "[+] Installing config files to $_CONFIG_PATH"
+
+	__mod_config $bro_log_path $mongodb_conn_str
 
 #We should auto source these and start broctl and mongodb
 	echo -e "
