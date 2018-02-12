@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
-	"strings"
 	"time"
+	"path/filepath"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -116,11 +116,10 @@ func loadStaticConfig(cfgPath string) (*StaticCfg, error) {
 	// set the socket time out in hours
 	config.MongoDB.SocketTimeout *= time.Hour
 
-	// clean the import path
-	// remove tailing / when applicable
-	if strings.HasSuffix(config.Bro.ImportDirectory, string(os.PathSeparator)) {
-		config.Bro.ImportDirectory = config.Bro.ImportDirectory[:len(config.Bro.ImportDirectory)-len(string(config.Bro.ImportDirectory))]
-	}
+	// clean all filepaths
+	config.Log.RitaLogPath = filepath.Clean(config.Log.RitaLogPath)
+	config.Blacklisted.SafeBrowsing.Database = filepath.Clean(config.Blacklisted.SafeBrowsing.Database)
+	config.Bro.ImportDirectory = filepath.Clean(config.Bro.ImportDirectory)
 
 	// grab the version constants set by the build process
 	config.Version = Version

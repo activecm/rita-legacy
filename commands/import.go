@@ -2,9 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/ocmdev/rita/database"
 	"github.com/ocmdev/rita/parser"
@@ -52,11 +50,6 @@ func doImport(c *cli.Context) error {
 		importDir, err := filepath.Abs(importDir)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
-		}
-
-		//Remove tailing / when applicable
-		if strings.HasSuffix(importDir, string(os.PathSeparator)) {
-			importDir = importDir[:len(importDir)-len(string(os.PathSeparator))]
 		}
 
 		res.Config.S.Bro.ImportDirectory = importDir
