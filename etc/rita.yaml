@@ -37,36 +37,15 @@ LogConfig:
 # The section Bro configures the bro ingestor
 Bro:
     # Path to a top level directory of log files
-    LogPath: /opt/bro/logs/
+    ImportDirectory: /opt/bro/logs/
 
-    # If enabled, all databases in this test will get prefixed with the database prefix
-    # DBPrefix: DBPrefix-
+    # Files directly in the ImportDirectory will be imported into a database
+    # given by DBRoot. Files in a subfolder of ImportDirectory will be imported
+    # into DBRoot-$SUBFOLDER_NAME.
+    DBRoot: "RITA"
 
-    # Subdirectories of LogPath may be separated into different databases for the
-    # test. Map each directory to the database you wish that directory to wind up
-    # in. This is good for running tests against multiple subnets and network
-    # segments. Put the directory name on the left side of the colon, and the
-    # database you wish the logs from that directory to go in on the right side.
-    # DirectoryMap:
-    #     UniqueDir: SeparateDatabaseName
-    #     UniqueDir2: SeparateDatabaseName2
-
-    # If set, files which don't match the directory map will be placed
-    # in this default database.
-    DefaultDatabase: rita
-
-    # There needs to be one metadatabase per test. This database holds information
-    # about the test and the files related to the test. If there are several
-    # subnets mapped in DirectoryMap each will be handled separately and that
-    # separation is handled by the metadatabase.
+    # This database holds information about the procesed files and databases.
     MetaDB: MetaDatabase
-
-    # If use dates is true the logs will be split into databases by date using the
-    # current system's timezone. This is best for if you have multiple days worth
-    # of log files in the logpath and wish to treat each day as a separate test.
-    # 24 hours worth of data is the ideal for analysis, and using dates will ensure
-    # that tests are broken into 24 hour periods on midnight in the current timezone.
-    UseDates: true
 
     # The number of records shipped off to MongoDB at a time. Increasing
     # the size of the buffer will improve import timings but will leave more

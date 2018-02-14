@@ -18,9 +18,9 @@ import (
 
 func init() {
 	blURLs := cli.Command{
-		Name: "show-bl-urls",
+		Name:      "show-bl-urls",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			databaseFlag,
 			humanFlag,
 			blConnFlag,
 			blSortFlag,

@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/ocmdev/rita/config"
 	"github.com/ocmdev/rita/database"
 	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
-	"github.com/ocmdev/rita/parser/parsetypes"
 	"github.com/ocmdev/rita/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -49,7 +47,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	fmt.Println("\t[-] Finding files to parse")
 	//find all of the bro log paths
-	files := readDir(fs.res.Config.S.Bro.LogPath, fs.res.Log)
+	files := readDir(fs.res.Config.S.Bro.ImportDirectory, fs.res.Log)
 
 	//hash the files and get their stats
 	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res.Config, fs.res.Log)
@@ -64,8 +62,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
-	parseFiles(indexedFiles, fs.parseThreads,
-		fs.res.Config.S.Bro.UseDates, datastore, fs.res.Log)
+	parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
 	datastore.Flush()
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
@@ -154,9 +151,7 @@ func indexFiles(files []string, indexingThreads int,
 //threads to use to parse the files, whether or not to sort data by date,
 // a MogoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
-//NOTE: side effect: this sets the dates field on the indexedFiles
-func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
-	useDates bool, datastore Datastore, logger *log.Logger) {
+func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) {
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
@@ -199,25 +194,9 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int,
 					)
 
 					if data != nil {
-						//set the dates this file is represeting
-						date := getDateForLogEntry(data, indexedFiles[j].GetFieldMap())
-						dateFound := false
-						for _, parsedDate := range indexedFiles[j].Dates {
-							if parsedDate == date {
-								dateFound = true
-								break
-							}
-						}
-						if !dateFound {
-							indexedFiles[j].Dates = append(indexedFiles[j].Dates, date)
-						}
-
 						//figure out what database this line is heading for
 						targetCollection := indexedFiles[j].TargetCollection
 						targetDB := indexedFiles[j].TargetDatabase
-						if useDates {
-							targetDB += "-" + date
-						}
 
 						datastore.Store(&ImportedData{
 							BroData:          data,
@@ -280,10 +259,4 @@ func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.Me
 	if err != nil {
 		logger.Error("Could not update the list of parsed files")
 	}
-}
-
-func getDateForLogEntry(broData parsetypes.BroData, fieldMap fpt.BroHeaderIndexMap) string {
-	data := reflect.ValueOf(broData).Elem()
-	ts := time.Unix(data.Field(fieldMap["ts"]).Int(), 0)
-	return fmt.Sprintf("%d-%02d-%02d", ts.Year(), ts.Month(), ts.Day())
 }

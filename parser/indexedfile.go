@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"bytes"
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -113,16 +114,21 @@ func getFileHash(fileHandle *os.File, fInfo os.FileInfo) (string, error) {
 
 //getTargetDatabase assigns a database to a log file based on the path,
 //and the bro config
-func getTargetDatabase(path string, broConfig *config.BroStaticCfg) string {
-	// check the directory map
-	for key, val := range broConfig.DirectoryMap {
-		if strings.Contains(path, key) {
-			return broConfig.DBPrefix + val
-		}
+func getTargetDatabase(filePath string, broConfig *config.BroStaticCfg) string {
+	var targetDatabase bytes.Buffer
+	targetDatabase.WriteString(broConfig.DBRoot)
+	//Append subfolders to target db
+	relativeStartIndex := len(broConfig.ImportDirectory)
+	pathSep := string(os.PathSeparator)
+	relativePath := filePath[relativeStartIndex+len(pathSep):]
+
+	//This routine uses Split rather than substring (0, index of path sep)
+	//because we may wish to add all the subdirectories to the db prefix
+	pathPieces := strings.Split(relativePath, pathSep)
+	//if there is more than just the file name
+	if len(pathPieces) > 1 {
+		targetDatabase.WriteString("-")
+		targetDatabase.WriteString(pathPieces[0])
 	}
-	//If a default database is specified put it in there
-	if broConfig.DefaultDatabase != "" {
-		return broConfig.DBPrefix + broConfig.DefaultDatabase
-	}
-	return ""
+	return targetDatabase.String()
 }

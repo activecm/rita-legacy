@@ -14,27 +14,28 @@ import (
 func init() {
 	longURLs := cli.Command{
 
-		Name:  "show-long-urls",
-		Usage: "Print the longest urls",
+		Name:      "show-long-urls",
+		Usage:     "Print the longest urls",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			databaseFlag,
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			if c.String("database") == "" {
-				return cli.NewExitError("Specify a database with -d", -1)
+			db := c.Args().Get(0)
+			if db == "" {
+				return cli.NewExitError("Specify a database", -1)
 			}
 
 			res := database.InitResources(c.String("config"))
 
 			var urls []urls.URL
-			coll := res.DB.Session.DB(c.String("database")).C(res.Config.T.Urls.UrlsTable)
+			coll := res.DB.Session.DB(db).C(res.Config.T.Urls.UrlsTable)
 
 			coll.Find(nil).Sort("-length").All(&urls)
 
 			if len(urls) == 0 {
-				return cli.NewExitError("No results were found for "+c.String("database"), -1)
+				return cli.NewExitError("No results were found for "+db, -1)
 			}
 
 			if c.Bool("human-readable") {
@@ -55,26 +56,27 @@ func init() {
 
 	vistedURLs := cli.Command{
 
-		Name:  "show-most-visited-urls",
-		Usage: "Print the most visited urls",
+		Name:      "show-most-visited-urls",
+		Usage:     "Print the most visited urls",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			databaseFlag,
 		},
 		Action: func(c *cli.Context) error {
-			if c.String("database") == "" {
-				return cli.NewExitError("Specify a database with -d", -1)
+			db := c.Args().Get(0)
+			if db == "" {
+				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var urls []urls.URL
-			coll := res.DB.Session.DB(c.String("database")).C(res.Config.T.Urls.UrlsTable)
+			coll := res.DB.Session.DB(db).C(res.Config.T.Urls.UrlsTable)
 
 			coll.Find(nil).Sort("-count").All(&urls)
 
 			if len(urls) == 0 {
-				return cli.NewExitError("No results were found for "+c.String("database"), -1)
+				return cli.NewExitError("No results were found for "+db, -1)
 			}
 
 			if c.Bool("human-readable") {

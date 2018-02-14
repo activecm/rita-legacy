@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"time"
+	"path/filepath"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -81,13 +82,10 @@ type (
 
 	//BroStaticCfg controls the file parser
 	BroStaticCfg struct {
-		LogPath         string            `yaml:"LogPath"`
-		DBPrefix        string            `yaml:"DBPrefix"`
-		MetaDB          string            `yaml:"MetaDB"`
-		DirectoryMap    map[string]string `yaml:"DirectoryMap"`
-		DefaultDatabase string            `yaml:"DefaultDatabase"`
-		UseDates        bool              `yaml:"UseDates"`
-		ImportBuffer    int               `yaml:"ImportBuffer"`
+		ImportDirectory string `yaml:"ImportDirectory"`
+		DBRoot          string `yaml:"DBRoot"`
+		MetaDB          string `yaml:"MetaDB"`
+		ImportBuffer    int    `yaml:"ImportBuffer"`
 	}
 )
 
@@ -117,6 +115,11 @@ func loadStaticConfig(cfgPath string) (*StaticCfg, error) {
 
 	// set the socket time out in hours
 	config.MongoDB.SocketTimeout *= time.Hour
+
+	// clean all filepaths
+	config.Log.RitaLogPath = filepath.Clean(config.Log.RitaLogPath)
+	config.Blacklisted.SafeBrowsing.Database = filepath.Clean(config.Blacklisted.SafeBrowsing.Database)
+	config.Bro.ImportDirectory = filepath.Clean(config.Bro.ImportDirectory)
 
 	// grab the version constants set by the build process
 	config.Version = Version

@@ -134,7 +134,7 @@ __setPkgMgr() {
 	fi
 	if [ $_PKG_MGR -eq 3 ]; then
 		echo "Unsupported package manager"
-		_err
+		__err
 	fi
 }
 
@@ -142,7 +142,7 @@ __setOS() {
 	_OS="$(lsb_release -is)"
 	if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" ]; then
 		echo "Unsupported operating system"
-		_err
+		__err
 	fi
 }
 

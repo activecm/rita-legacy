@@ -20,9 +20,9 @@ const endl = "\r\n"
 
 func init() {
 	blSourceIPs := cli.Command{
-		Name: "show-bl-source-ips",
+		Name:      "show-bl-source-ips",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			databaseFlag,
 			humanFlag,
 			blConnFlag,
 			blSortFlag,
@@ -33,9 +33,9 @@ func init() {
 	}
 
 	blDestIPs := cli.Command{
-		Name: "show-bl-dest-ips",
+		Name:      "show-bl-dest-ips",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			databaseFlag,
 			humanFlag,
 			blConnFlag,
 			blSortFlag,
@@ -49,12 +49,12 @@ func init() {
 }
 
 func parseBLArgs(c *cli.Context) (string, string, bool, bool, error) {
-	db := c.String("database")
+	db := c.Args().Get(0)
 	sort := c.String("sort")
 	connected := c.Bool("connected")
 	human := c.Bool("human-readable")
 	if db == "" {
-		return db, sort, connected, human, cli.NewExitError("Specify a database with -d", -1)
+		return db, sort, connected, human, cli.NewExitError("Specify a database", -1)
 	}
 	if sort != "conn" && sort != "uconn" && sort != "total_bytes" {
 		return db, sort, connected, human, cli.NewExitError("Invalid option passed to sort flag", -1)

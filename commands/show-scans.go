@@ -14,31 +14,32 @@ import (
 func init() {
 	command := cli.Command{
 
-		Name:  "show-scans",
-		Usage: "Print scanning information",
+		Name:      "show-scans",
+		Usage:     "Print scanning information",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			databaseFlag,
 			configFlag,
 			cli.BoolFlag{
 				Name:  "ports, P",
-				Usage: "show which individual ports were scanned",
+				Usage: "Show which individual ports were scanned",
 			},
 		},
 		Action: func(c *cli.Context) error {
-			if c.String("database") == "" {
-				return cli.NewExitError("Specify a database with -d", -1)
+			db := c.Args().Get(0)
+			if db == "" {
+				return cli.NewExitError("Specify a database", -1)
 			}
 			showPorts := c.Bool("ports")
 
 			res := database.InitResources(c.String("config"))
 
 			var scans []scanning.Scan
-			coll := res.DB.Session.DB(c.String("database")).C(res.Config.T.Scanning.ScanTable)
+			coll := res.DB.Session.DB(db).C(res.Config.T.Scanning.ScanTable)
 			coll.Find(nil).All(&scans)
 
 			if len(scans) == 0 {
-				return cli.NewExitError("No results were found for "+c.String("database"), -1)
+				return cli.NewExitError("No results were found for "+db, -1)
 			}
 
 			if c.Bool("human-readable") {

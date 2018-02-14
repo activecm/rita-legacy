@@ -14,29 +14,30 @@ import (
 func init() {
 	command := cli.Command{
 
-		Name:  "show-long-connections",
-		Usage: "Print long connections and relevant information",
+		Name:      "show-long-connections",
+		Usage:     "Print long connections and relevant information",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			databaseFlag,
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			if c.String("database") == "" {
-				return cli.NewExitError("Specify a database with -d", -1)
+			db := c.Args().Get(0)
+			if db == "" {
+				return cli.NewExitError("Specify a database", -1)
 			}
 
 			res := database.InitResources(c.String("config"))
 
 			var longConns []data.Conn
-			coll := res.DB.Session.DB(c.String("database")).C(res.Config.T.Structure.ConnTable)
+			coll := res.DB.Session.DB(db).C(res.Config.T.Structure.ConnTable)
 
 			sortStr := "-duration"
 
 			coll.Find(nil).Sort(sortStr).All(&longConns)
 
 			if len(longConns) == 0 {
-				return cli.NewExitError("No results were found for "+c.String("database"), -1)
+				return cli.NewExitError("No results were found for "+db, -1)
 			}
 
 			if c.Bool("human-readable") {

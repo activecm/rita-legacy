@@ -22,7 +22,6 @@ Additional functionality is being developed and will be included soon.
 * Clone the package:
 `git clone https://github.com/ocmdev/rita.git`
 * Change into the source directory: `cd rita`
-* Make the installer executable: `chmod +x install.sh`
 * Run the installer: `sudo ./install.sh`
 * Source your .bashrc (the installer added RITA to the PATH): `source ~/.bashrc`
 * Start MongoDB: `sudo service mongod start`
@@ -36,7 +35,7 @@ To install each component of RITA by hand, [check out the instructions in the wi
 ### Configuration File
 RITA contains a yaml format configuration file.
 
-You can specify the location for the configuration file with the **-c** command line flag. If not specified, RITA will first look for the configuration in **~/.rita/config.yaml** then **/etc/rita/config.yaml**.
+You can specify the location for the configuration file with the **-c** command line flag. If not specified, RITA will look for the configuration in **/etc/rita/config.yaml**.
 
 
 ### API Keys
@@ -65,50 +64,29 @@ To obtain an API key:
       * ```bro -r pcap_to_log.pcap local "Site::local_nets += { 192.168.0.0/24 }"  "Log::default_rotation_interval = 1 day"```
 
   * **Option 2**: Install Bro and let it monitor an interface directly [[instructions](https://www.bro.org/sphinx/quickstart/)]
-      * You may wish to [compile Bro from source](https://www.bro.org/sphinx/install/install.html) for performance reasons
+      * You may wish to [compile Bro from source](https://www.bro.org/sphinx/install/install.html) for performance reasons. [This script](https://github.com/ocmdev/bro-install) can help automate the process.
       * The automated installer for RITA installs pre-compiled Bro binaries
 
 #### Importing Data Into RITA
-  * After installing, `rita` should be in your `PATH`
+  * After installing, `rita` should be in your `PATH` and the config file should be set up ready to go. Once your Bro install has collected some logs (Bro will normally rotate logs on the hour) you can run `rita import`. Alternatively, you can manually import existing logs using one of the following options:
   * **Option 1**: Import directly from the terminal (one time import)
-    * `rita import -i path/to/your/bro_logs/ -d dataset_name`
-  * **Option 2**: Set up the Bro configuration in `~/.rita/config.yaml` for repeated imports
-    * Set `LogPath` to the `path/to/your/bro_logs`
-    * Set `DBPrefix` to an identifier common to your set of logs
-    * Set up the `DirectoryMap`
-      * Logs found in folders which match the substring on the left are imported
-      into  the dataset on the right
-    * Example
-      * Say you have two sets of logs to analyze
-        * `/share/bro_logs/networkA`
-        * `/share/bro_logs/networkB`
-      * A correct Bro config section would look like
-      ```yaml
-      Bro:
-          LogPath: /share/bro_logs/
-          DBPrefix: MyCompany_
-          DirectoryMap:
-            networkA: A
-            networkB: B
-      ```
-      * This would import `/share/brologs/networkA` into `MyCompany_A` and
-      `/share/brologs/networkB` into `MyCompany_B`
-
+    * `rita import path/to/your/bro_logs/ database_name`
+  * **Option 2**: Set up the Bro configuration in `/etc/rita/config.yaml` for repeated imports
+    * Set `ImportDirectory` to the `path/to/your/bro_logs`. The default is `/opt/bro/logs`
+    * Set `DBRoot` to an identifier common to your set of logs
 
 #### Analyzing Data With RITA
   * **Option 1**: Analyze one dataset
-    * `rita analyze -d dataset_name`
-    * Ex: `rita analyze -d MyCompany_A`
+    * `rita analyze dataset_name`
+    * Ex: `rita analyze MyCompany_A`
   * **Option 2**: Analyze all imported datasets
     * `rita analyze`
 
 #### Examining Data With RITA
   * Use the **show-X** commands
   * `-H` displays human readable data
-  * `rita show-beacons -d dataset_name -H`
-  * `rita show-blacklisted -d dataset_name -H`
-
-**A link to a video tutorial will be added soon!**
+  * `rita show-beacons dataset_name -H`
+  * `rita show-blacklisted dataset_name -H`
 
 ### Getting help
 Head over to [OFTC and join #ocmdev](https://webchat.oftc.net/?channels=ocmdev) for any questions you may have.
