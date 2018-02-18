@@ -44,12 +44,18 @@ __help() {
 	__title
 
 	cat <<HEREDOC
+This script automatically installs Real Intelligence Threat Analyitics (RITA)
+along with necessary dependencies, including Bro IDS and MongoDB.
+
 Usage:
 	${_NAME} [<arguments>]
 
 Options:
-	-h --help			Show this help message.
-	-u --uninstall			Remove RITA.
+	-h|--help			Show this help message.
+	-r|--reinstall			Force reinstalling RITA.
+	-b|--build			Force building RITA from source code.
+	--disable-bro			Disable automatic installation of Bro IDS.
+	--disable-mongo			Disable automatic installation of MongoDB.
 
 HEREDOC
 }
@@ -103,23 +109,18 @@ __load() {
   echo -e "$loadingText... $_SUCCESS"
 }
 
-__checkPermissions() {
+__check_permissions() {
 	[ `id -u` -eq 0 ]
 }
 
-__uninstall() {
-	if [ "$_INSTALL_PREFIX" != "/opt/rita" ]; then
-		# Too risky to delete files if we don't know where it was installed (e.g. could have installed to /)
-		printf "\t[!] Automatic uninstall from a non-standard location is not supported \n"
-	else
-		printf "\t[!] Removing /opt/rita \n"
-		rm -rf /opt/rita
-	fi
-	printf "\t[!] Removing $_CONFIG_PATH \n"
-	rm -rf "$_CONFIG_PATH"
+__rita_installed() {
+	[[ -f $_INSTALL_PREFIX/bin/rita ]] \
+	|| [[ ! -f $_CONFIG_PATH/rita.yaml ]] \
+	|| [[ ! -f $_CONFIG_PATH/tables.yaml ]] \
+	|| [[ ! -f $_CONFIG_PATH/LICENSE ]]
 }
 
-__setPkgMgr() {
+__set_pkgmgr() {
 	# _PKG_MGR = 1: APT: Ubuntu 14.04, 16.04 and Security Onion (Debian)
 	# _PKG_MGR = 2: YUM: CentOS (Old RHEL Derivatives)
 	# _PKG_MGR = 3: Unsupported
@@ -138,7 +139,7 @@ __setPkgMgr() {
 	fi
 }
 
-__setOS() {
+__set_os() {
 	_OS="$(lsb_release -is)"
 	if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" ]; then
 		echo "Unsupported operating system"
@@ -214,55 +215,35 @@ __check_go_version() {
 }
 
 __install_go() {
-	# Check if go isn't available in the path
-	printf "[+] Checking if Go is installed...\n"
+	# Check if go is already installed
 	if [ ! $(command -v go) ];	then
 		if [ ! -x "/usr/local/go/bin/go" ]; then
-			(
-				curl -s -o /tmp/golang.tar.gz https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz
-				tar -zxf /tmp/golang.tar.gz -C /usr/local/
-				rm /tmp/golang.tar.gz
-			) & __load "\t[+] Installing Go"
+			curl -s -o /tmp/golang.tar.gz https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz
+			tar -zxf /tmp/golang.tar.gz -C /usr/local/
+			rm /tmp/golang.tar.gz
 		fi
-		printf "\t[+] Adding Go to the PATH...\n"
 		export PATH="$PATH:/usr/local/go/bin"
 		echo 'export PATH=$PATH:/usr/local/go/bin' >> $HOME/.bashrc
-	else
-		printf "\t[+] Go is installed...\n"
-	fi
-
-	# Check if the GOPATH isn't set
-	if [ -z ${GOPATH+x} ]; then
-		( # Set up the GOPATH
-			mkdir -p $_INSTALL_PREFIX/{src,pkg,bin}
-			#echo "export GOPATH=$_INSTALL_PREFIX" >> $HOME/.bashrc
-			echo "export PATH=\$PATH:$_INSTALL_PREFIX/bin" >> $HOME/.bashrc
-		) & __load "\t[+] Configuring Go dev environment"
-		export GOPATH=$_INSTALL_PREFIX
-		export PATH=$PATH:$_INSTALL_PREFIX/bin
 	fi
 }
 
 __install_bro() {
-	(
-		# security onion packages bro on their own
-		if ! __package_installed bro && ! __package_installed securityonion-bro; then
-			case "$_OS" in
-				Ubuntu)
-					__add_deb_repo "deb http://download.opensuse.org/repositories/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
-						"Bro" \
-						"http://download.opensuse.org/repositories/network:bro/xUbuntu_$(lsb_release -rs)/Release.key"
-					;;
-				CentOS)
-					__add_rpm_repo http://download.opensuse.org/repositories/network:bro/CentOS_7/network:bro.repo
-					;;
-			esac
-			__install_packages bro broctl
-		fi
-	) & __load "[+] Ensuring Bro IDS is installed"
+	# security onion packages bro on their own
+	if ! __package_installed bro && ! __package_installed securityonion-bro; then
+		case "$_OS" in
+			Ubuntu)
+				__add_deb_repo "deb http://download.opensuse.org/repositories/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
+					"Bro" \
+					"http://download.opensuse.org/repositories/network:bro/xUbuntu_$(lsb_release -rs)/Release.key"
+				;;
+			CentOS)
+				__add_rpm_repo http://download.opensuse.org/repositories/network:bro/CentOS_7/network:bro.repo
+				;;
+		esac
+		__install_packages bro broctl
+	fi
 
 	if [ ! $(command -v bro) ];	then
-		printf "\t[+] Adding Bro to the PATH...\n"
 		echo 'export PATH=$PATH:/opt/bro/bin' >> $HOME/.bashrc
 		PATH=$PATH:/opt/bro/bin
 	fi
@@ -285,102 +266,90 @@ __install_mongodb() {
 	__install_packages mongodb-org
 }
 
-__install() {
+__install_build_env() {
+	# TODO do this in a temporary directory so we don't leave go installed on the system
+	(
+		__install_packages git make
 
-	# Check if RITA is already installed, if so ask if this is a re-install
-	if [ ! -z $(command -v rita) ] \
-		|| [ -d /opt/rita ] \
-		|| [ -d $_CONFIG_PATH ]
-	then
-		printf "[+] RITA is already installed.\n"
-		read -p "[-] Would you like to erase it and re-install? [y/n] " -r
-		if [[ $REPLY =~ ^[Yy]$ ]]
+		__install_go
+		__check_go_version
+
+		_TMP_DIR=`mktemp -d -q "/tmp/rita.XXXXXXXX" </dev/null`
+		if [[ ! -d $_TMP_DIR ]]
 		then
-			__uninstall
-			echo ""
-		else
-			exit 1
+		  # Fallback to $_INSTALL_PREFIX like before
+		  _TMP_DIR=$_INSTALL_PREFIX
 		fi
-	fi
 
-	# Explain the scripts actions
-	__explain
+		# Override GOPATH to build RITA
+		export GOPATH=$_INSTALL_PREFIX
+		export PATH=$PATH:$GOPATH/bin
 
-	# Figure out which package manager to use
-	__setPkgMgr
+		mkdir -p $GOPATH/{src,pkg,bin}
 
-	# Update package sources
-	__freshen_packages
-
-	# Install "the basics"
-	__install_packages git wget curl make coreutils realpath lsb-release & \
-		__load "[+] Ensuring git, wget, curl, make, coreutils, and lsb-release are installed"
-
-	# Determine the OS, needs lsb-release
-	__setOS
-
-	if [[ "${_INSTALL_BRO}" = "true" ]]
-	then
-		__install_bro
-	fi
-
-	__install_go
-	__check_go_version
-
-	if [[ "${_INSTALL_MONGO}" = "true" ]]
-	then
-		__install_mongodb & __load "[+] Installing MongoDB"
-	fi
-
-	( # Build RITA
-		# Ensure go dep is installed
-		wget -q -O $GOPATH/bin/dep https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64
+		# Ensure dep is installed
+		curl --silent --output $GOPATH/bin/dep https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64
 		chmod +x $GOPATH/bin/dep
+	) & __load "[+] Installing build environment"
 
-		mkdir -p $GOPATH/src/github.com/ocmdev/rita
-		# Get the install script's directory in case it's run from elsewhere
-		cp -R "$(dirname "$(realpath ${0})")/." $GOPATH/src/github.com/ocmdev/rita/
+	# Clean out existing RITA source
+	rm -rf $GOPATH/src/github.com/ocmdev/rita
+	mkdir -p $GOPATH/src/github.com/ocmdev/rita
+
+	# Get RITA's source code
+	# First check if the source is available locally
+	if [[ -f ./rita.go ]]
+	then
+		# Copy source code from current directory to GOPATH
+		# Suppress any error messages and always return success 
+		# in case the installer is run from the GOPATH rita dir
+		(cp -R . $GOPATH/src/github.com/ocmdev/rita 2> /dev/null || true) \
+			& __load  "[+] Using locally available RITA source"
+	else
+		# TODO This will fail with current master branch. Make an argument to checkout a certain tag or branch.
+		mkdir -p $GOPATH/src/github.com/ocmdev
+		# Othwerwise clone the source code from Github
+		(git clone https://github.com/ocmdev/rita $GOPATH/src/github.com/ocmdev/rita > /dev/null 2>&1) \
+			& __load  "[+] Cloning RITA source from Github"
+	fi
+}
+
+__build_rita() {
+	(
 		cd $GOPATH/src/github.com/ocmdev/rita
-		make install > /dev/null
-		# Allow any user to execute rita
-		chmod 755 $GOPATH/bin/rita
-	)	& __load "[+] Installing RITA"
+		make > /dev/null
+	)
+}
 
-
-	( # Install the base configuration files
-		mkdir -p $_CONFIG_PATH
-		cd $GOPATH/src/github.com/ocmdev/rita
-		cp ./LICENSE $_CONFIG_PATH/LICENSE
-		cp ./etc/rita.yaml $_CONFIG_PATH/config.yaml
-		cp ./etc/tables.yaml $_CONFIG_PATH/tables.yaml
+__install_rita() {
+	mkdir -p $_CONFIG_PATH
+	if [[ $_REINSTALL_RITA = "true" ]] && [[ -f $_CONFIG_PATH/config.yaml ]]
+	then
+		# TODO this overwrites the user config if run twice in a row
+		(cp -f $_CONFIG_PATH/config.yaml $_CONFIG_PATH/config.yaml.old) \
+			& __load "[+] Backing up configuration to $_CONFIG_PATH/config.yaml.old"
+	fi
+	(
+		cp -f ./rita $_INSTALL_PREFIX/bin/rita
+		chmod 755 $_INSTALL_PREFIX/bin/rita
+		cp -f ./LICENSE $_CONFIG_PATH/LICENSE
+		cp -f ./etc/rita.yaml $_CONFIG_PATH/config.yaml
+		cp -f ./etc/tables.yaml $_CONFIG_PATH/tables.yaml
 		touch $_CONFIG_PATH/safebrowsing
 		chmod 755 $_CONFIG_PATH
 		# All users can read and write rita's config file
 		chmod 666 $_CONFIG_PATH/config.yaml
 		chmod 666 $_CONFIG_PATH/safebrowsing
-	) & __load "[+] Installing config files to $_CONFIG_PATH"
-
-	echo -e "
-In order to finish the installation, reload your bash config
-with 'source ~/.bashrc'. Make sure to configure Bro and run
-'sudo broctl deploy'. Also, make sure to start the MongoDB
-service with 'sudo service mongod start'. You can access
-the MongoDB shell with 'mongo'. If, at any time, you need
-to stop MongoDB, run 'sudo service mongod stop'."
-
-	__title
-	printf "Thank you for installing RITA! "
-	printf "Happy hunting\n"
+		) & __load "[+] Installing RITA binary and config files"
 }
 
-# start point for installer
-__entry() {	
+__parse_args() {
 	_INSTALL_BRO=true
 	_INSTALL_MONGO=true
 	_INSTALL_PREFIX=/opt/rita
 	_CONFIG_PATH=/etc/rita
-	_INSTALL_RITA=true	
-	_UNINSTALL_RITA=false
+	_REINSTALL_RITA=false
+	_BUILD_RITA=false
 
 	# Parse through command args
 	while [[ $# -gt 0 ]]; do
@@ -390,11 +359,11 @@ __entry() {
 				__help
 				exit 0
 				;;
-			-u|--uninstall)
-				_UNINSTALL_RITA=true
-				_INSTALL_RITA=false
-				_INSTALL_BRO=false
-				_INSTALL_MONGO=false
+			-r|--reinstall)
+				_REINSTALL_RITA=true
+				;;
+			-b|--build)
+				_BUILD_RITA=true
 				;;
 			--disable-bro) 
 				_INSTALL_BRO=false
@@ -402,33 +371,103 @@ __entry() {
 			--disable-mongo) 
 				_INSTALL_MONGO=false
 				;;
+			# Note: prefix is purposely undocumented and should be used with care
 			--prefix)
 				shift
-				_INSTALL_PREFIX="$1"
+				# realpath makes sure it's an absolute path
+				_INSTALL_PREFIX="$(realpath "$1")"
 				;;
 			*)
 			;;
 	  esac
 	  shift
 	done
+}
+
+# start point for installer
+__entry() {	
+	__parse_args "${@:-}"
 
 	# Check to see if the user has permission to install RITA
-	if __checkPermissions
+	# TODO simply check if we have write permissions to _INSTALL_PREFIX
+	if ! __check_permissions
 	then
-		if [[ "${_UNINSTALL_RITA}" = "true" ]]
-		then
-			__uninstall
-			exit 0
-		fi		
-		if [[ "${_INSTALL_RITA}" = "true" ]]
-		then
-			__install
-			exit 0
-		fi
-	else
 		printf "You do NOT have permission install RITA\n\n"
+		exit 1
 	fi
 
+	if [[ $_REINSTALL_RITA != "true" ]] && __rita_installed
+	then
+		printf "[+] RITA is already installed in $_INSTALL_PREFIX.\n"
+		read -p "[-] Would you like to re-install? [y/n] " -r
+		if [[ $REPLY =~ ^[Yy]$ ]]
+		then
+			_REINSTALL_RITA=true
+		else
+			exit 1
+		fi
+	fi
+
+	# Explain the scripts actions
+	__explain
+
+	# Figure out which package manager to use
+	__set_pkgmgr
+
+	# Update package sources
+	__freshen_packages
+
+	# Install "the basics"
+	__install_packages curl coreutils realpath lsb-release & \
+		__load "[+] Ensuring curl, coreutils, realpath, and lsb-release are installed"
+
+	# Determine the OS, needs lsb-release
+	__set_os
+
+	if [[ $_INSTALL_BRO = "true" ]]
+	then
+		__install_bro & __load "[+] Installing Bro IDS"
+	fi
+
+	if [[ $_INSTALL_MONGO = "true" ]]
+	then
+		__install_mongodb & __load "[+] Installing MongoDB"
+	fi
+
+	# Go to the install script's directory in case this script is run from elsewhere
+	cd "$(dirname "$(realpath $0)")"
+
+	# Check if we should build from source 
+	if [[ $_BUILD_RITA = "true" ]] \
+		|| [[ ! -f ./rita ]] \
+		|| [[ ! -f ./etc/rita.yaml ]] \
+		|| [[ ! -f ./etc/tables.yaml ]] \
+		|| [[ ! -f ./LICENSE ]]
+	then
+		if [[ $_BUILD_RITA = "false" ]]
+		then
+			printf "[+] Prebuilt RITA not available. Building from source.\n"
+		fi
+		__install_build_env
+		__build_rita & __load "[+] Building RITA"
+		# Compiled files will be here, so cd before installing
+		cd $GOPATH/src/github.com/ocmdev/rita
+	else
+		printf "[+] Using prebuilt RITA binary.\n"
+	fi
+
+	__install_rita
+
+
+	echo -e "
+In order to finish the installation:
+	1) Reload your bash config with 'source ~/.bashrc'. 
+	2) Configure Bro and run 'sudo broctl deploy'. 
+	3) Start the MongoDB service with 'sudo service mongod start'."
+
+	__title
+	printf "Thank you for installing RITA! "
+	printf "Happy hunting\n"
 
 }
 
