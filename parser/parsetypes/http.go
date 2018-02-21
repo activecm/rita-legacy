@@ -1,13 +1,11 @@
 package parsetypes
 
 import (
-	//	"net/url"
 
 	"github.com/activecm/rita/config"
 	"gopkg.in/mgo.v2/bson"
 )
 
-//import "strings"
 
 // HTTP provides a data structure for entries in bro's HTTP log file
 type HTTP struct {
