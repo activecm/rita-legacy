@@ -65,6 +65,3 @@ func (in *Conn) TargetCollection(config *config.StructureTableCfg) string {
 func (in *Conn) Indices() []string {
 	return []string{"$hashed:id_orig_h", "$hashed:id_resp_h", "-duration", "ts", "uid"}
 }
-
-//Normalize pre processes this type of entry before it is imported by rita
-func (in *Conn) Normalize() {}

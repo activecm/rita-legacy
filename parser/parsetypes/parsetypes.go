@@ -6,7 +6,6 @@ import "github.com/activecm/rita/config"
 type BroData interface {
 	TargetCollection(*config.StructureTableCfg) string
 	Indices() []string
-	Normalize()
 }
 
 //NewBroDataFactory creates a new BroData based on the string

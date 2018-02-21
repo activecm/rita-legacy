@@ -9,6 +9,7 @@ import (
 	"github.com/activecm/rita/analysis/blacklist"
 	"github.com/activecm/rita/analysis/crossref"
 	"github.com/activecm/rita/analysis/dns"
+	"github.com/activecm/rita/analysis/sanitization"
 	"github.com/activecm/rita/analysis/scanning"
 	"github.com/activecm/rita/analysis/structure"
 	"github.com/activecm/rita/analysis/urls"
@@ -99,6 +100,9 @@ func analyze(inDb string, configFile string) error {
 		}).Info("Analyzing")
 		fmt.Println("[+] Analyzing " + td)
 		res.DB.SelectDB(td)
+
+		sanitization.SanitizeData(res)
+
 		logAnalysisFunc("Unique Connections", td, res,
 			structure.BuildUniqueConnectionsCollection,
 		)

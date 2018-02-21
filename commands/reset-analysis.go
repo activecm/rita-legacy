@@ -25,16 +25,16 @@ func init() {
 			if db == "" {
 				return cli.NewExitError("Specify a database", -1)
 			}
-			return cleanAnalysis(db, res)
+			return resetAnalysis(db, res)
 		},
 	}
 
 	bootstrapCommands(reset)
 }
 
-// cleanAnalysis cleans out all of the analysis data, leaving behind only the
+// resetAnalysis cleans out all of the analysis data, leaving behind only the
 // raw data from parsing the logs
-func cleanAnalysis(database string, res *database.Resources) error {
+func resetAnalysis(database string, res *database.Resources) error {
 	//clean database
 
 	conn := res.Config.T.Structure.ConnTable
