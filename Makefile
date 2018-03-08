@@ -7,11 +7,11 @@ LDFLAGS=-ldflags="-X github.com/activecm/rita/config.Version=${VERSION} -X githu
 
 
 default:
-#	dep ensure
+	dep ensure
 	go build ${LDFLAGS}
 
 # Having issues with 'go install' + LDFLAGS using sudo and the
 # install script. This is a workaround.
 install:
-#	dep ensure
+	dep ensure
 	go build ${LDFLAGS} -o ${GOPATH}/bin/${BINARY}
