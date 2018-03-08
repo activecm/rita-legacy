@@ -337,10 +337,10 @@ __install() {
 		wget -q -O $GOPATH/bin/dep https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64
 		chmod +x $GOPATH/bin/dep
 
-		mkdir -p $GOPATH/src/github.com/ocmdev/rita
+		mkdir -p $GOPATH/src/github.com/activecm/rita
 		# Get the install script's directory in case it's run from elsewhere
-		cp -R "$(dirname "$(realpath ${0})")/." $GOPATH/src/github.com/ocmdev/rita/
-		cd $GOPATH/src/github.com/ocmdev/rita
+		cp -R "$(dirname "$(realpath ${0})")/." $GOPATH/src/github.com/activecm/rita/
+		cd $GOPATH/src/github.com/activecm/rita
 		make install > /dev/null
 		# Allow any user to execute rita
 		chmod 755 $GOPATH/bin/rita
@@ -349,7 +349,7 @@ __install() {
 
 	( # Install the base configuration files
 		mkdir -p $_CONFIG_PATH
-		cd $GOPATH/src/github.com/ocmdev/rita
+		cd $GOPATH/src/github.com/activecm/rita
 		cp ./LICENSE $_CONFIG_PATH/LICENSE
 		cp ./etc/rita.yaml $_CONFIG_PATH/config.yaml
 		cp ./etc/tables.yaml $_CONFIG_PATH/tables.yaml

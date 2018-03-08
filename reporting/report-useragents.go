@@ -5,9 +5,9 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/useragent"
-	"github.com/ocmdev/rita/reporting/templates"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/useragent"
+	"github.com/activecm/rita/reporting/templates"
 )
 
 func printUserAgents(db string, res *database.Resources) error {

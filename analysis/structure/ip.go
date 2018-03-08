@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"net"
 
-	"github.com/ocmdev/rita/database"
-	structureTypes "github.com/ocmdev/rita/datatypes/structure"
+	"github.com/activecm/rita/database"
+	structureTypes "github.com/activecm/rita/datatypes/structure"
 	log "github.com/sirupsen/logrus"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ocmdev/rita/database"
+	"github.com/activecm/rita/database"
 	"github.com/urfave/cli"
 	yaml "gopkg.in/yaml.v2"
 )

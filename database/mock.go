@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ocmdev/rita/config"
+	"github.com/activecm/rita/config"
 )
 
 // InitMockResources grabs the configuration file and intitializes the configuration data

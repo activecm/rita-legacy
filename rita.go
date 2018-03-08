@@ -4,8 +4,8 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/ocmdev/rita/commands"
-	"github.com/ocmdev/rita/config"
+	"github.com/activecm/rita/commands"
+	"github.com/activecm/rita/config"
 	"github.com/urfave/cli"
 )
 

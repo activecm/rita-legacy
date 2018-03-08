@@ -5,9 +5,9 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/dns"
-	"github.com/ocmdev/rita/reporting/templates"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/dns"
+	"github.com/activecm/rita/reporting/templates"
 )
 
 func printDNS(db string, res *database.Resources) error {

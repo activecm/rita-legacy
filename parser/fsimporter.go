@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
-	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
-	"github.com/ocmdev/rita/util"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
+	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
 )
 

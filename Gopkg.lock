@@ -2,6 +2,30 @@
 
 
 [[projects]]
+  name = "github.com/activecm/mgorus"
+  packages = ["."]
+  revision = "544a63f222470b2feb3b1142f7edb9a843f5120d"
+  version = "v0.1.0"
+
+[[projects]]
+  name = "github.com/activecm/mgosec"
+  packages = ["."]
+  revision = "af42afa3ec74143661a863bdae62d36a93c6eca7"
+  version = "v0.1.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/activecm/rita-bl"
+  packages = [
+    ".",
+    "database",
+    "list",
+    "sources/lists",
+    "sources/rpc"
+  ]
+  revision = "070299442c8c467e9501907b53ba4646be71255b"
+
+[[projects]]
   name = "github.com/blang/semver"
   packages = ["."]
   revision = "2ee87856327ba09384cabd113bc6b5d174e9ec0f"
@@ -32,12 +56,6 @@
   version = "v0.0.2"
 
 [[projects]]
-  name = "github.com/ocmdev/mgorus"
-  packages = ["."]
-  revision = "544a63f222470b2feb3b1142f7edb9a843f5120d"
-  version = "v0.1.0"
-
-[[projects]]
   name = "github.com/ocmdev/mgosec"
   packages = ["."]
   revision = "af42afa3ec74143661a863bdae62d36a93c6eca7"
@@ -47,10 +65,8 @@
   branch = "master"
   name = "github.com/ocmdev/rita-bl"
   packages = [
-    ".",
     "database",
     "list",
-    "sources/lists",
     "sources/lists/util",
     "sources/rpc"
   ]
@@ -149,6 +165,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "faeb74ddc998410e81792434cdede82704ed7479eb84d31e1cc20b2db67a8901"
+  inputs-digest = "2cd8cd4548384c70c9d6a0facc232a8a7ed8573751f8cbea14c27b2153d38f8c"
   solver-name = "gps-cdcl"
   solver-version = 1

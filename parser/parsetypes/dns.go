@@ -1,7 +1,7 @@
 package parsetypes
 
 import (
-	"github.com/ocmdev/rita/config"
+	"github.com/activecm/rita/config"
 	"gopkg.in/mgo.v2/bson"
 )
 

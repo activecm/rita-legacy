@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ocmdev/rita/database"
+	"github.com/activecm/rita/database"
 	"github.com/urfave/cli"
 )
 

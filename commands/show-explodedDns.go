@@ -4,8 +4,8 @@ import (
 	"encoding/csv"
 	"os"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/dns"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/dns"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )

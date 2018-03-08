@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/urls"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/urls"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )

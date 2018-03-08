@@ -1,10 +1,10 @@
 package dns
 
 import (
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
-	dnsTypes "github.com/ocmdev/rita/datatypes/dns"
-	"github.com/ocmdev/rita/util"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
+	dnsTypes "github.com/activecm/rita/datatypes/dns"
+	"github.com/activecm/rita/util"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )

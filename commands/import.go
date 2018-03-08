@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/parser"
-	"github.com/ocmdev/rita/util"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/parser"
+	"github.com/activecm/rita/util"
 	"github.com/urfave/cli"
 )
 

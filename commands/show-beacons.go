@@ -4,9 +4,9 @@ import (
 	"encoding/csv"
 	"os"
 
-	"github.com/ocmdev/rita/analysis/beacon"
-	"github.com/ocmdev/rita/database"
-	beaconData "github.com/ocmdev/rita/datatypes/beacon"
+	"github.com/activecm/rita/analysis/beacon"
+	"github.com/activecm/rita/database"
+	beaconData "github.com/activecm/rita/datatypes/beacon"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )

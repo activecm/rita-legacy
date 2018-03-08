@@ -21,16 +21,16 @@
 
 
 [[constraint]]
-  name = "github.com/ocmdev/mgorus"
+  name = "github.com/activecm/mgorus"
   version = "0.1.0"
 
 [[constraint]]
-  name = "github.com/ocmdev/mgosec"
+  name = "github.com/activecm/mgosec"
   version = "0.1.0"
 
 [[constraint]]
   branch = "master"
-  name = "github.com/ocmdev/rita-bl"
+  name = "github.com/activecm/rita-bl"
 
 [[constraint]]
   branch = "master"

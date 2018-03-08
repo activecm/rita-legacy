@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
-	pt "github.com/ocmdev/rita/parser/parsetypes"
+	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	pt "github.com/activecm/rita/parser/parsetypes"
 	log "github.com/sirupsen/logrus"
 )
 

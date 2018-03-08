@@ -6,8 +6,8 @@ import (
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/ocmdev/rita/database"
-	dataXRef "github.com/ocmdev/rita/datatypes/crossref"
+	"github.com/activecm/rita/database"
+	dataXRef "github.com/activecm/rita/datatypes/crossref"
 )
 
 // getXRefSelectors is a place to add new selectors to the crossref module

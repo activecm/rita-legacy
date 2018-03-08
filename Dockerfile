@@ -12,7 +12,7 @@
 FROM golang:1.8-alpine as rita-builder
 RUN apk update && apk upgrade && apk add --no-cache git make ca-certificates wget
 RUN wget -q -O /go/bin/dep https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 && chmod +x /go/bin/dep
-WORKDIR /go/src/github.com/ocmdev/rita
+WORKDIR /go/src/github.com/activecm/rita
 COPY . .
 RUN make
 
@@ -20,6 +20,6 @@ FROM alpine:latest
 
 WORKDIR /root
 RUN mkdir /etc/rita
-COPY --from=rita-builder /go/src/github.com/ocmdev/rita/etc/tables.yaml /etc/rita/
-COPY --from=rita-builder /go/src/github.com/ocmdev/rita/rita .
+COPY --from=rita-builder /go/src/github.com/activecm/rita/etc/tables.yaml /etc/rita/
+COPY --from=rita-builder /go/src/github.com/activecm/rita/rita .
 ENTRYPOINT ["./rita"]

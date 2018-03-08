@@ -1,7 +1,7 @@
 package crossref
 
 import (
-	"github.com/ocmdev/rita/database"
+	"github.com/activecm/rita/database"
 )
 
 type (

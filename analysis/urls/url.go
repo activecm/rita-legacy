@@ -1,8 +1,8 @@
 package urls
 
 import (
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"

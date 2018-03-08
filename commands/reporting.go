@@ -1,8 +1,8 @@
 package commands
 
 import (
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/reporting"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/reporting"
 	"github.com/urfave/cli"
 )
 
