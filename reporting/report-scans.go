@@ -6,9 +6,9 @@ import (
 	"os"
 	"sort"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/scanning"
-	"github.com/ocmdev/rita/reporting/templates"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/scanning"
+	"github.com/activecm/rita/reporting/templates"
 )
 
 func printScans(db string, res *database.Resources) error {

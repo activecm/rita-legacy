@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/blang/semver"
-	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
+	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"

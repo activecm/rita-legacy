@@ -1,6 +1,6 @@
 package parsetypes
 
-import "github.com/ocmdev/rita/config"
+import "github.com/activecm/rita/config"
 
 //BroData holds a line of a bro log
 type BroData interface {

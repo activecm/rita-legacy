@@ -8,9 +8,9 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/ocmdev/rita/database"
-	htmlTempl "github.com/ocmdev/rita/reporting/templates"
-	"github.com/ocmdev/rita/util"
+	"github.com/activecm/rita/database"
+	htmlTempl "github.com/activecm/rita/reporting/templates"
+	"github.com/activecm/rita/util"
 	"github.com/skratchdot/open-golang/open"
 )
 

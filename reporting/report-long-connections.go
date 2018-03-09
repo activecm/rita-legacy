@@ -5,9 +5,9 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/data"
-	"github.com/ocmdev/rita/reporting/templates"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/data"
+	"github.com/activecm/rita/reporting/templates"
 )
 
 func printLongConns(db string, res *database.Resources) error {

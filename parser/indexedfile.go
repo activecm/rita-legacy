@@ -11,9 +11,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ocmdev/rita/config"
-	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
-	pt "github.com/ocmdev/rita/parser/parsetypes"
+	"github.com/activecm/rita/config"
+	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	pt "github.com/activecm/rita/parser/parsetypes"
 )
 
 //newIndexedFile takes in a file path and the bro config and opens up the

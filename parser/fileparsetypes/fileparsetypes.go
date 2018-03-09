@@ -3,7 +3,7 @@ package fileparsetypes
 import (
 	"time"
 
-	pt "github.com/ocmdev/rita/parser/parsetypes"
+	pt "github.com/activecm/rita/parser/parsetypes"
 	"gopkg.in/mgo.v2/bson"
 )
 

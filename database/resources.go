@@ -10,10 +10,10 @@ import (
 
 	mgo "gopkg.in/mgo.v2"
 
-	"github.com/ocmdev/mgorus"
-	"github.com/ocmdev/mgosec"
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/util"
+	"github.com/activecm/mgorus"
+	"github.com/activecm/mgosec"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/util"
 	"github.com/rifflock/lfshook"
 	log "github.com/sirupsen/logrus"
 )

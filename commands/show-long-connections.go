@@ -5,8 +5,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/data"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/data"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )

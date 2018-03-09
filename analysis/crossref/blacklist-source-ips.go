@@ -1,9 +1,9 @@
 package crossref
 
 import (
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/blacklist"
-	"github.com/ocmdev/rita/datatypes/structure"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/blacklist"
+	"github.com/activecm/rita/datatypes/structure"
 	"gopkg.in/mgo.v2/bson"
 )
 

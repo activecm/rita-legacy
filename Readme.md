@@ -1,6 +1,6 @@
 # RITA (Real Intelligence Threat Analytics)
 
-Brought to you by Offensive CounterMeasures.
+Brought to you by Active CounterMeasures.
 
 ---
 ### What is Here
@@ -20,17 +20,14 @@ Additional functionality is being developed and will be included soon.
 **The automatic  installer is officially supported on Ubuntu 14.04, 16.04 LTS, Security Onion, and CentOS 7**
 
 * Clone the package:
-`git clone https://github.com/ocmdev/rita.git`
+`git clone https://github.com/activecm/rita.git`
 * Change into the source directory: `cd rita`
 * Run the installer: `sudo ./install.sh`
 * Source your .bashrc (the installer added RITA to the PATH): `source ~/.bashrc`
 * Start MongoDB: `sudo service mongod start`
 
-### Docker Installation
-RITA is available as a Docker image at ocmdev/rita, [check out the instructions in the wiki](https://github.com/ocmdev/rita/wiki/Docker-Installation).
-
 ### Manual Installation
-To install each component of RITA by hand, [check out the instructions in the wiki](https://github.com/ocmdev/rita/wiki/Installation).
+To install each component of RITA by hand, [check out the instructions in the wiki](https://github.com/activecm/rita/wiki/Installation).
 
 ### Configuration File
 RITA contains a yaml format configuration file.
@@ -64,7 +61,7 @@ To obtain an API key:
       * ```bro -r pcap_to_log.pcap local "Site::local_nets += { 192.168.0.0/24 }"  "Log::default_rotation_interval = 1 day"```
 
   * **Option 2**: Install Bro and let it monitor an interface directly [[instructions](https://www.bro.org/sphinx/quickstart/)]
-      * You may wish to [compile Bro from source](https://www.bro.org/sphinx/install/install.html) for performance reasons. [This script](https://github.com/ocmdev/bro-install) can help automate the process.
+      * You may wish to [compile Bro from source](https://www.bro.org/sphinx/install/install.html) for performance reasons. [This script](https://github.com/activecm/bro-install) can help automate the process.
       * The automated installer for RITA installs pre-compiled Bro binaries
 
 #### Importing Data Into RITA
@@ -89,11 +86,11 @@ To obtain an API key:
   * `rita show-blacklisted dataset_name -H`
 
 ### Getting help
-Head over to [OFTC and join #ocmdev](https://webchat.oftc.net/?channels=ocmdev) for any questions you may have.
+Please create an issue on GitHub if you have any questions or concerns.
 
 ### Contributing to RITA
-To contribute to RITA visit our [Contributing Guide](https://github.com/ocmdev/rita/blob/master/Contributing.md)
+To contribute to RITA visit our [Contributing Guide](https://github.com/activecm/rita/blob/master/Contributing.md)
 
 ### License
 GNU GPL V3
-&copy; Offensive CounterMeasures &trade;
+&copy; Active CounterMeasures &trade;

@@ -6,7 +6,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ocmdev/rita/database"
+	"github.com/activecm/rita/database"
 	mgo "gopkg.in/mgo.v2"
 )
 

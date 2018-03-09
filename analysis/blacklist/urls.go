@@ -4,12 +4,12 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/ocmdev/rita-bl/list"
+	"github.com/activecm/rita-bl/list"
 
-	bl "github.com/ocmdev/rita-bl"
-	"github.com/ocmdev/rita/database"
-	data "github.com/ocmdev/rita/datatypes/blacklist"
-	"github.com/ocmdev/rita/datatypes/urls"
+	bl "github.com/activecm/rita-bl"
+	"github.com/activecm/rita/database"
+	data "github.com/activecm/rita/datatypes/blacklist"
+	"github.com/activecm/rita/datatypes/urls"
 	log "github.com/sirupsen/logrus"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"

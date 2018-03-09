@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 
 	"github.com/blang/semver"
-	"github.com/ocmdev/mgosec"
+	"github.com/activecm/mgosec"
 )
 
 type (

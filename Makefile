@@ -3,7 +3,7 @@ EXACT_VERSION := $(shell git describe --always --long --dirty --tags)
 GOPATH := $(GOPATH)
 BINARY := rita
 
-LDFLAGS=-ldflags="-X github.com/ocmdev/rita/config.Version=${VERSION} -X github.com/ocmdev/rita/config.ExactVersion=${EXACT_VERSION}"
+LDFLAGS=-ldflags="-X github.com/activecm/rita/config.Version=${VERSION} -X github.com/activecm/rita/config.ExactVersion=${EXACT_VERSION}"
 
 
 default:
