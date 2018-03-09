@@ -281,11 +281,11 @@ Failed to connect to database: no reachable servers
 
 **Trusted Certificate Verification Example**
 
-The following example configuration assumes your Mongo server is located at `offensivecountermeasures.com` and that you have obtained and configured Mongo with a certificate signed with a valid certificate authority. In this case, you do not need to specify a `CAFile` path.
+The following example configuration assumes your Mongo server is located at `activecountermeasures.com` and that you have obtained and configured Mongo with a certificate signed with a valid certificate authority. In this case, you do not need to specify a `CAFile` path.
 
 ```yaml
 MongoDB:
-  ConnectionString: mongodb://offensivecountermeasures.com:27017
+  ConnectionString: mongodb://activecountermeasures.com:27017
   TLS:
     Enable: true
     VerifyCertificate: true

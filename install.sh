@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# RITA is brought to you by Offensive CounterMeasures.
-# offensivecountermeasures.com
+# RITA is brought to you by Active CounterMeasures.
+# activecountermeasures.com
 
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
@@ -79,7 +79,7 @@ __title() {
    /   |     |   _ \\
 _|_\ ___|   _| _/  _\\
 
-Brought to you by Offensive CounterMeasures
+Brought to you by Active CounterMeasures
 "
 
 }

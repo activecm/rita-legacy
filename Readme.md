@@ -1,6 +1,6 @@
 # RITA (Real Intelligence Threat Analytics)
 
-Brought to you by Offensive CounterMeasures.
+Brought to you by Active CounterMeasures.
 
 ---
 ### What is Here
@@ -89,11 +89,11 @@ To obtain an API key:
   * `rita show-blacklisted dataset_name -H`
 
 ### Getting help
-Head over to [OFTC and join #activecm](https://webchat.oftc.net/?channels=activecm) for any questions you may have.
+Please create an issue on GitHub if you have any questions or concerns.
 
 ### Contributing to RITA
 To contribute to RITA visit our [Contributing Guide](https://github.com/activecm/rita/blob/master/Contributing.md)
 
 ### License
 GNU GPL V3
-&copy; Offensive CounterMeasures &trade;
+&copy; Active CounterMeasures &trade;
