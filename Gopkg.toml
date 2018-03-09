@@ -29,7 +29,7 @@
   version = "0.1.0"
 
 [[constraint]]
-  branch = "activecm"
+  branch = "master"
   name = "github.com/activecm/rita-bl"
 
 [[constraint]]
