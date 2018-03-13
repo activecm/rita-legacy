@@ -16,7 +16,6 @@ _SUBQUESTION="\t$_QUESTION"
 
 
 # ERROR HANDLING
-#Kill 0 to kill subshells as well
 __err() {
 	printf "\n$_IMPORTANT Installation $_FAILED on line $1.\n"
 	exit 1
@@ -24,6 +23,7 @@ __err() {
 
 __int() {
 	printf "\n$_IMPORTANT Installation \e[91mCANCELLED\e[0m.\n"
+	exit 1
 }
 
 trap '__err $LINENO' ERR
