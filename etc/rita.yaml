@@ -29,7 +29,7 @@ LogConfig:
 
     # LogPath is the path for Rita's logs. Make sure permissions are set accordingly.
     # Logs will only be written here if LogToFile is true
-    RitaLogPath: $HOME/.rita/logs
+    RitaLogPath: /var/lib/rita/logs
 
     LogToFile: true
     LogToDB: true
