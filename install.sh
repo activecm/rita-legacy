@@ -69,7 +69,7 @@ fi
 
 # ENTRYPOINT
 __entry() {
-	_UNINSTALL_RITA=false
+	_REINSTALL_RITA=false
 
 	# Optional Dependencies
 	_INSTALL_BRO=true
@@ -95,8 +95,8 @@ __entry() {
 				__help
 				exit 0
 				;;
-			-u|--uninstall)
-				_UNINSTALL_RITA=true
+			-r|--reinstall)
+				_REINSTALL_RITA=true
 				_INSTALL_BRO=false
 				_INSTALL_MONGO=false
 				;;
@@ -106,11 +106,7 @@ __entry() {
 			--disable-mongo)
 				_INSTALL_MONGO=false
 				;;
-			--prefix)
-				shift
-				_INSTALL_PREFIX="$1"
-				;;
-			--version)
+			-v|--version)
 				shift
 				_RITA_VERSION="$1"
 				;;
@@ -122,33 +118,30 @@ __entry() {
 
 	_BIN_PATH="$_INSTALL_PREFIX/bin"
 
-	if __installation_exist; then
+	if [ __installation_exist ] && [ "$_REINSTALL_RITA" != "true" ]; then
 		printf "$_IMPORTANT RITA is already installed.\n"
 		printf "$_QUESTION Would you like to erase it and re-install? [y/N] "
 		read
 		if [[ $REPLY =~ ^[Yy]$ ]]; then
-			_UNINSTALL_RITA=true
-			_INSTALL_BRO=false
-			_INSTALL_MONGO=false
+			_REINSTALL_RITA=true
 		else
 			exit 0
 		fi
 	fi
 
-	if [ "$_UNINSTALL_RITA" = "true" ]; then
-		__uninstall
-	else
-		__install
+	if [ "$_REINSTALL_RITA" = "true" ]; then
+		__reinstall
 	fi
+	__install
 }
 
 __installation_exist() {
 	[ -f "$_BIN_PATH/rita" -o -d "$_CONFIG_PATH" -o -d "$_VAR_PATH" ]
 }
 
-__uninstall() {
-	printf "$_IMPORTANT Uninstalling RITA..."
-	if [ -f "$_BIN_PATH/rita"]; then
+__reinstall() {
+	printf "$_IMPORTANT Re-installing RITA..."
+	if [ -f "$_BIN_PATH/rita" ]; then
 		printf "$_SUBITEM Removing $_BIN_PATH/rita \n"
 		$_ELEVATE rm "$_BIN_PATH/rita"
 	else
@@ -166,7 +159,6 @@ __uninstall() {
 	else
 		printf "$_SUBIMPORTANT $_VAR_PATH not found! \n"
 	fi
-	printf "$_IMPORTANT You may wish to uninstall Go, MongoDB, and Bro IDS if they were installed. \n"
 }
 
 __install() {
@@ -324,7 +316,7 @@ __create_go_path() {
 
 	printf "$_SUBIMPORTANT Adding your GOPATH to $_GOPATH_PATH_SCRIPT \n"
 	echo "export GOPATH=\"$GOPATH\"" > "$_GOPATH_PATH_SCRIPT"
-	echo "export PATH=\"\$PATH:\$GOPATH\bin\"" >> "$_GOPATH_PATH_SCRIPT"
+	echo "export PATH=\"\$PATH:\$GOPATH/bin\"" >> "$_GOPATH_PATH_SCRIPT"
 	_GOPATH_PATH_SCRIPT_INSTALLED=true
 
 	printf "$_SUBIMPORTANT Adding $_GOPATH_PATH_SCRIPT to $HOME/.profile \n"
@@ -553,6 +545,23 @@ _|_\ ___|   _| _/  _\\
 
 Brought to you by Active CounterMeasures
 "
+}
+
+__help() {
+	__title
+
+	cat <<HEREDOC
+This script automatically installs Real Intelligence Threat Analyitics (RITA)
+along with necessary dependencies, including Bro IDS and MongoDB.
+Usage:
+	${_NAME} [<arguments>]
+Options:
+	-h|--help			Show this help message.
+	-r|--reinstall			Force reinstalling RITA.
+	-v|--version <version>		Specify the version tag of RITA to install instead of master.
+	--disable-bro			Disable automatic installation of Bro IDS.
+	--disable-mongo			Disable automatic installation of MongoDB.
+HEREDOC
 }
 
 __load() {
