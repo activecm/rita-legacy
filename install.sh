@@ -239,7 +239,7 @@ __install_bro() {
 			curl -sSL http://download.opensuse.org/repositories/network%3A/bro/CentOS_7/x86_64/bro-core-2.5.3-1.1.x86_64.rpm -o /tmp/bro-core-2.5.3-1.1.x86_64.rpm
 			curl -sSL http://download.opensuse.org/repositories/network%3A/bro/CentOS_7/x86_64/broctl-2.5.3-1.1.x86_64.rpm -o /tmp/broctl-2.5.3-1.1.x86_64.rpm
 			curl -sSL http://download.opensuse.org/repositories/network%3A/bro/CentOS_7/x86_64/libbroccoli-2.5.3-1.1.x86_64.rpm -o /tmp/libbroccoli-2.5.3-1.1.x86_64.rpm
-			yum -y -q localinstall /tmp/bro-2.5.3-1.1.x86_64.rpm /tmp/bro-core-2.5.3-1.1.x86_64.rpm /tmp/broctl-2.5.3-1.1.x86_64.rpm /tmp/libbroccoli-2.5.3-1.1.x86_64.rpm
+			$_ELEVATE yum -y -q localinstall /tmp/bro-2.5.3-1.1.x86_64.rpm /tmp/bro-core-2.5.3-1.1.x86_64.rpm /tmp/broctl-2.5.3-1.1.x86_64.rpm /tmp/libbroccoli-2.5.3-1.1.x86_64.rpm
 			# End workaround
 			;;
 	esac
