@@ -202,12 +202,20 @@ __install() {
 
 	__load "$_ITEM Installing RITA" __build_rita && __install_rita
 
+	# Ubuntu 14.04 uses Upstart for init
+        _START_MONGO="sudo systemctl start mongod"
+	_STOP_MONGO="sudo systemctl stop mongod"
+	if [ $_OS = "Ubuntu" -a $_OS_CODENAME = "trusty" ]; then
+		_START_MONGO="sudo service mongod start"
+		_STOP_MONGO="sudo service mongod stop"
+	fi
+
 	printf "$_IMPORTANT To finish the installtion, reload the system profile and \n"
 	printf "$_IMPORTANT user profile with 'source /etc/profile' and 'source ~/.profile'. \n"
 	printf "$_IMPORTANT Additionally, you may want to configure Bro and run 'sudo broctl deploy'. \n"
-	printf "$_IMPORTANT Finally, start MongoDB with 'sudo systemctl start mongod'. You can \n"
+	printf "$_IMPORTANT Finally, start MongoDB with '$_START_MONGO'. You can \n"
 	printf "$_IMPORTANT access the MongoDB shell with 'mongo'. If, at any time, you need \n"
-	printf "$_IMPORTANT to stop MongoDB, run 'sudo systemctl stop mongod'. \n"
+	printf "$_IMPORTANT to stop MongoDB, run '$_STOP_MONGO'. \n"
 
 	__title
 	printf "Thank you for installing RITA! Happy hunting! \n"
@@ -370,6 +378,7 @@ __install_rita() {
 
 __gather_OS() {
 	_OS="$(lsb_release -is)"
+	_OS_CODENAME="$(lsb_release -cs)"
 	if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" ]; then
 		printf "$_ITEM This installer supports Ubuntu and CentOS. \n"
 		printf "$_IMPORTANT Your operating system is unsupported."
