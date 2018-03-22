@@ -23,29 +23,21 @@ type (
 )
 
 //userConfigPath specifies the path of RITA's static config file
-//relative to the user's home directory
 const userConfigPath = "/etc/rita/config.yaml"
-
-//tableConfigPath specifies teh path of RITA's table config file
-//relative to the user's home directory
-const tableConfigPath = "/etc/rita/tables.yaml"
 
 //NOTE: If go ever gets default parameters, default the config options to ""
 
 // GetConfig retrieves a configuration in order of precedence
-func GetConfig(userConfig string, tableConfig string) (*Config, error) {
+func GetConfig(userConfig string) (*Config, error) {
 	if userConfig == "" {
 		userConfig = userConfigPath
 	}
-	if tableConfig == "" {
-		tableConfig = tableConfigPath
-	}
 
-	return loadSystemConfig(userConfig, tableConfig)
+	return loadSystemConfig(userConfig)
 }
 
 // loadSystemConfig attempts to parse a config file
-func loadSystemConfig(userConfig string, tableConfig string) (*Config, error) {
+func loadSystemConfig(userConfig string) (*Config, error) {
 	var config = new(Config)
 	static, err := loadStaticConfig(userConfig)
 	if err != nil {
@@ -53,7 +45,7 @@ func loadSystemConfig(userConfig string, tableConfig string) (*Config, error) {
 	}
 	config.S = *static
 
-	tables, err := loadTableConfig(tableConfig)
+	tables, err := loadTableConfig()
 	if err != nil {
 		return config, err
 	}

@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+
 	"github.com/urfave/cli"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -28,20 +30,28 @@ func init() {
 
 // testConfiguration prints out the result of parsing the config file
 func testConfiguration(c *cli.Context) error {
-	res := database.InitResources(c.String("config"))
+	// First, print out the config as it was parsed
+	conf, err := config.GetConfig(c.String("config"))
+	if err != nil {
+		fmt.Fprintf(os.Stdout, "Failed to config, exiting")
+		panic(err)
+	}
 
-	staticConfig, err := yaml.Marshal(res.Config.S)
+	staticConfig, err := yaml.Marshal(conf.S)
 	if err != nil {
 		return err
 	}
 
-	tableConfig, err := yaml.Marshal(res.Config.T)
+	tableConfig, err := yaml.Marshal(conf.T)
 	if err != nil {
 		return err
 	}
 
 	fmt.Fprintf(os.Stdout, "\n%s\n", string(staticConfig))
 	fmt.Fprintf(os.Stdout, "\n%s\n", string(tableConfig))
+
+	// Then test initializing external resources like db connection and file handles
+	database.InitResources(c.String("config"))
 
 	return nil
 }

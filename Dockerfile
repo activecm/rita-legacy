@@ -20,6 +20,6 @@ FROM alpine:latest
 
 WORKDIR /root
 RUN mkdir /etc/rita
-COPY --from=rita-builder /go/src/github.com/activecm/rita/etc/tables.yaml /etc/rita/
+COPY --from=rita-builder /go/src/github.com/activecm/rita/etc/rita.yaml /etc/rita/config.yaml
 COPY --from=rita-builder /go/src/github.com/activecm/rita/rita .
 ENTRYPOINT ["./rita"]
