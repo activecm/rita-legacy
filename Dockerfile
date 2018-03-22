@@ -21,7 +21,6 @@ FROM scratch
 WORKDIR /var/lib/rita
 
 WORKDIR /
-COPY --from=rita-builder /go/src/github.com/activecm/rita/etc/tables.yaml /etc/rita/tables.yaml
 COPY --from=rita-builder /go/src/github.com/activecm/rita/etc/rita.yaml /etc/rita/config.yaml
 COPY --from=rita-builder /go/src/github.com/activecm/rita/rita /rita
 
