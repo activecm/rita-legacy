@@ -120,45 +120,18 @@ __entry() {
 
 	if [ __installation_exist ] && [ "$_REINSTALL_RITA" != "true" ]; then
 		printf "$_IMPORTANT RITA is already installed.\n"
-		printf "$_QUESTION Would you like to erase it and re-install? [y/N] "
+		printf "$_QUESTION Would you like to re-install? [y/N] "
 		read
-		if [[ $REPLY =~ ^[Yy]$ ]]; then
-			_REINSTALL_RITA=true
-		else
+		if [[ $REPLY =~ ^[Nn]$ ]]; then
 			exit 0
 		fi
 	fi
 
-	if [ "$_REINSTALL_RITA" = "true" ]; then
-		__reinstall
-	fi
 	__install
 }
 
 __installation_exist() {
 	[ -f "$_BIN_PATH/rita" -o -d "$_CONFIG_PATH" -o -d "$_VAR_PATH" ]
-}
-
-__reinstall() {
-	printf "$_IMPORTANT Re-installing RITA..."
-	if [ -f "$_BIN_PATH/rita" ]; then
-		printf "$_SUBITEM Removing $_BIN_PATH/rita \n"
-		$_ELEVATE rm "$_BIN_PATH/rita"
-	else
-		printf "$_SUBIMPORTANT $_BIN_PATH/rita not found! \n"
-	fi
-	if [ -d "$_CONFIG_PATH" ]; then
-		printf "$_SUBITEM Removing $_CONFIG_PATH \n"
-		$_ELEVATE rm -rf "$_CONFIG_PATH"
-	else
-		printf "$_SUBIMPORTANT $_CONFIG_PATH not found! \n"
-	fi
-	if [ -d "$_VAR_PATH" ]; then
-		printf "$_SUBITEM Removing $_VAR_PATH \n"
-		$_ELEVATE rm -rf "$_VAR_PATH"
-	else
-		printf "$_SUBIMPORTANT $_VAR_PATH not found! \n"
-	fi
 }
 
 __install() {
@@ -364,13 +337,17 @@ __install_rita() {
 	#$_ELEVATE mkdir -p "$_VAR_PATH"
 	$_ELEVATE mkdir -p "$_VAR_PATH/logs"
 
-	$_ELEVATE mv "$_RITA_SRC_DIR/rita" "$_BIN_PATH/rita"
+	$_ELEVATE mv -f "$_RITA_SRC_DIR/rita" "$_BIN_PATH/rita"
 	$_ELEVATE chown root:root "$_BIN_PATH/rita"
 	$_ELEVATE chmod 755 "$_BIN_PATH/rita"
 
-	$_ELEVATE cp "$_RITA_SRC_DIR/LICENSE" "$_CONFIG_PATH/LICENSE"
-	$_ELEVATE cp "$_RITA_SRC_DIR/etc/rita.yaml" "$_CONFIG_PATH/config.yaml"
-	$_ELEVATE cp "$_RITA_SRC_DIR/etc/tables.yaml" "$_CONFIG_PATH/tables.yaml"
+	$_ELEVATE cp -f "$_RITA_SRC_DIR/LICENSE" "$_CONFIG_PATH/LICENSE"
+	if [ -f "$_CONFIG_PATH/config.yaml" ]; then
+		printf "$_SUBITEM Backing up your current RITA config: $_CONFIG_PATH/config.yaml -> $_CONFIG_PATH/config.yaml.old \n"
+		$_ELEVATE mv -f "$_CONFIG_PATH/config.yaml" "$_CONFIG_PATH/config.yaml.old"
+	fi
+	$_ELEVATE cp -f "$_RITA_SRC_DIR/etc/rita.yaml" "$_CONFIG_PATH/config.yaml"
+	$_ELEVATE cp -f "$_RITA_SRC_DIR/etc/tables.yaml" "$_CONFIG_PATH/tables.yaml"
 
 	# All users can read and write rita's config file
 	$_ELEVATE chmod 755 "$_CONFIG_PATH"
