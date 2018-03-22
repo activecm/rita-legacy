@@ -233,6 +233,14 @@ __install_bro() {
 			;;
 		CentOS)
 			__add_rpm_repo http://download.opensuse.org/repositories/network:bro/CentOS_7/network:bro.repo
+			
+			# Workaround for https://github.com/activecm/rita/issues/189
+			curl -sSL http://download.opensuse.org/repositories/network%3A/bro/CentOS_7/x86_64/bro-2.5.3-1.1.x86_64.rpm -o /tmp/bro-2.5.3-1.1.x86_64.rpm
+			curl -sSL http://download.opensuse.org/repositories/network%3A/bro/CentOS_7/x86_64/bro-core-2.5.3-1.1.x86_64.rpm -o /tmp/bro-core-2.5.3-1.1.x86_64.rpm
+			curl -sSL http://download.opensuse.org/repositories/network%3A/bro/CentOS_7/x86_64/broctl-2.5.3-1.1.x86_64.rpm -o /tmp/broctl-2.5.3-1.1.x86_64.rpm
+			curl -sSL http://download.opensuse.org/repositories/network%3A/bro/CentOS_7/x86_64/libbroccoli-2.5.3-1.1.x86_64.rpm -o /tmp/libbroccoli-2.5.3-1.1.x86_64.rpm
+			yum -y -q localinstall /tmp/bro-2.5.3-1.1.x86_64.rpm /tmp/bro-core-2.5.3-1.1.x86_64.rpm /tmp/broctl-2.5.3-1.1.x86_64.rpm /tmp/libbroccoli-2.5.3-1.1.x86_64.rpm
+			# End workaround
 			;;
 	esac
 	__install_packages bro broctl
@@ -600,6 +608,7 @@ __add_deb_repo() {
 
 __add_rpm_repo() {
 	$_ELEVATE yum-config-manager -q --add-repo=$1 > /dev/null 2>&1
+	__freshen_packages
 }
 
 # ENTRYPOINT CALL
