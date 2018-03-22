@@ -122,7 +122,7 @@ __entry() {
 		printf "$_IMPORTANT RITA is already installed.\n"
 		printf "$_QUESTION Would you like to re-install? [y/N] "
 		read
-		if [[ $REPLY =~ ^[Nn]$ ]]; then
+		if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 			exit 0
 		fi
 	fi
