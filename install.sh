@@ -305,7 +305,7 @@ __install_mongodb() {
 			;;
 		CentOS)
 			if [ ! -s /etc/yum.repos.d/mongodb-org-3.4.repo ]; then
-				echo -e '[mongodb-org-3.4]\nname=MongoDB Repository\nbaseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/3.4/x86_64/\ngpgcheck=1\nenabled=1\ngpgkey=https://www.mongodb.org/static/pgp/server-3.4.asc' > /etc/yum.repos.d/mongodb-org-3.4.repo
+				echo -e '[mongodb-org-3.4]\nname=MongoDB Repository\nbaseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/3.4/x86_64/\ngpgcheck=1\nenabled=1\ngpgkey=https://www.mongodb.org/static/pgp/server-3.4.asc' | $_ELEVATE tee /etc/yum.repos.d/mongodb-org-3.4.repo > /dev/null
 			fi
 			;;
 	esac
