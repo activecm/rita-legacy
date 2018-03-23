@@ -363,7 +363,6 @@ __install_rita() {
 		$_ELEVATE mv -f "$_CONFIG_PATH/config.yaml" "$_CONFIG_PATH/config.yaml.old"
 	fi
 	$_ELEVATE cp -f "$_RITA_SRC_DIR/etc/rita.yaml" "$_CONFIG_PATH/config.yaml"
-	$_ELEVATE cp -f "$_RITA_SRC_DIR/etc/tables.yaml" "$_CONFIG_PATH/tables.yaml"
 
 	# All users can read and write rita's config file
 	$_ELEVATE chmod 755 "$_CONFIG_PATH"

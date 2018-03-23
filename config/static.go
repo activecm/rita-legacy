@@ -92,12 +92,11 @@ type (
 // loadStaticConfig attempts to parse a config file
 func loadStaticConfig(cfgPath string) (*StaticCfg, error) {
 	var config = new(StaticCfg)
-	_, err := os.Stat(cfgPath)
 
-	if os.IsNotExist(err) {
+	cfgPath, err := expandRelPath(cfgPath)
+	if err != nil {
 		return config, err
 	}
-
 	cfgFile, err := ioutil.ReadFile(cfgPath)
 	if err != nil {
 		return config, err
@@ -126,4 +125,22 @@ func loadStaticConfig(cfgPath string) (*StaticCfg, error) {
 	config.ExactVersion = ExactVersion
 
 	return config, nil
+}
+
+// expandRelPaths expands relative paths config strings
+func expandRelPath(relPath string) (string, error) {
+	// paths may have env vars like $HOME
+	relPath = os.ExpandEnv(relPath)
+	// If relPath is not absolute it should be relative to the running executable
+	if !filepath.IsAbs(relPath) {
+		// Get the path of the current executable
+		ex, err := os.Executable()
+		if err != nil {
+			return relPath, err
+		}
+		return filepath.Join(filepath.Dir(ex), relPath), nil
+	} else {
+		// relPath is already an absolute path so just call clean
+		return filepath.Clean(relPath), nil
+	}
 }

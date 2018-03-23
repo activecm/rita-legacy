@@ -22,38 +22,44 @@ type (
 	}
 )
 
-//userConfigPath specifies the path of RITA's static config file
-//relative to the user's home directory
-const userConfigPath = "/etc/rita/config.yaml"
-
-//tableConfigPath specifies teh path of RITA's table config file
-//relative to the user's home directory
-const tableConfigPath = "/etc/rita/tables.yaml"
-
 //NOTE: If go ever gets default parameters, default the config options to ""
 
 // GetConfig retrieves a configuration in order of precedence
-func GetConfig(userConfig string, tableConfig string) (*Config, error) {
-	if userConfig == "" {
-		userConfig = userConfigPath
-	}
-	if tableConfig == "" {
-		tableConfig = tableConfigPath
-	}
-
-	return loadSystemConfig(userConfig, tableConfig)
-}
-
-// loadSystemConfig attempts to parse a config file
-func loadSystemConfig(userConfig string, tableConfig string) (*Config, error) {
+func GetConfig(userConfig string) (*Config, error) {
 	var config = new(Config)
-	static, err := loadStaticConfig(userConfig)
+
+	var configSearchPath []string
+	if userConfig != "" {
+		// Use the user specified path
+		configSearchPath = []string { userConfig }
+	} else {
+		// Search the following paths for a config file and
+		// use the first one found
+		configSearchPath = []string {
+			"./config.yaml",
+			"$HOME/.rita/config.yaml",
+			"../etc/rita/config.yaml",
+			"/etc/rita/config.yaml",
+		}
+	}
+	
+	var static *StaticCfg
+	var err error
+	for _, configPath := range configSearchPath {
+		static, err = loadStaticConfig(configPath)
+		if err == nil {
+			// Stop after finding the first successful file
+			config.S = *static
+			break
+		}
+		fmt.Println(err.Error())
+	}
+	// If none of the config file paths worked, return an error
 	if err != nil {
 		return config, err
 	}
-	config.S = *static
 
-	tables, err := loadTableConfig(tableConfig)
+	tables, err := loadTableConfig()
 	if err != nil {
 		return config, err
 	}
