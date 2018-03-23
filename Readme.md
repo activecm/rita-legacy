@@ -19,11 +19,12 @@ Additional functionality is being developed and will be included soon.
 ### Automatic Installation
 **The automatic  installer is officially supported on Ubuntu 14.04, 16.04 LTS, Security Onion, and CentOS 7**
 
+
+
 * Clone the package:
 `git clone https://github.com/activecm/rita.git`
 * Change into the source directory: `cd rita`
-* Run the installer: `sudo ./install.sh`
-* Source your .bashrc (the installer added RITA to the PATH): `source ~/.bashrc`
+* Run the installer: `./install.sh`
 * Start MongoDB: `sudo service mongod start`
 
 ### Manual Installation
