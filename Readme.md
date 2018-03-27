@@ -1,6 +1,6 @@
 # RITA (Real Intelligence Threat Analytics)
 
-Brought to you by Active CounterMeasures.
+Brought to you by Active Countermeasures.
 
 ---
 ### What is Here
@@ -19,8 +19,6 @@ Additional functionality is being developed and will be included soon.
 ### Automatic Installation
 **The automatic  installer is officially supported on Ubuntu 14.04, 16.04 LTS, Security Onion, and CentOS 7**
 
-
-
 * Clone the package:
 `git clone https://github.com/activecm/rita.git`
 * Change into the source directory: `cd rita`
@@ -34,7 +32,6 @@ To install each component of RITA by hand, [check out the instructions in the wi
 RITA contains a yaml format configuration file.
 
 You can specify the location for the configuration file with the **-c** command line flag. If not specified, RITA will look for the configuration in **/etc/rita/config.yaml**.
-
 
 ### API Keys
 RITA relies on the the [Google Safe Browsing API](https://developers.google.com/safe-browsing/) to check network log data for connections to known threats. An API key is required to use this service. Obtaining a key is free, and only requires a Google account.
@@ -94,4 +91,4 @@ To contribute to RITA visit our [Contributing Guide](https://github.com/activecm
 
 ### License
 GNU GPL V3
-&copy; Active CounterMeasures &trade;
+&copy; Active Countermeasures &trade;

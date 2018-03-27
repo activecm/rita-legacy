@@ -1,25 +1,28 @@
-#RITA runs in Docker!
-#However, it needs a little help.
-#In order to run rita in Docker, two volume mounts are needed. 
-#One for logs, and another for the config file.
-#Alternatively you may extend this dockerfile and add in these files.
-#Make sure your Dockerized RITA config file points to the correct bro log location.
-#Additionally, make sure that RITA has access to a MongoDB server.
-
-#Ex: docker run -it --rm -v /path/to/bro/logs:/logs/:ro -v /path/to/rita/config.yaml:/root/.rita/config.yaml:ro rita import
-#RITA works best with docker-compose. Docker-compose lets you set these mounts
-#and additionally connect it to MongoDB with ease.
-FROM golang:1.8-alpine as rita-builder
-RUN apk update && apk upgrade && apk add --no-cache git make ca-certificates wget
+FROM golang:1.10-alpine as rita-builder
+RUN apk add --no-cache git make ca-certificates wget build-base
 RUN wget -q -O /go/bin/dep https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 && chmod +x /go/bin/dep
 WORKDIR /go/src/github.com/activecm/rita
 COPY . .
-RUN make
 
-FROM alpine:latest
+# Change ARGs with --build-arg to target other architectures
+# Produce a self-contained statically linked binary
+ARG CGO_ENABLED=0
+# Set the build target architecture and OS
+ARG GOARCH=amd64
+ARG GOOS=linux
+# Passing arguments in to make result in them being set as 
+# environment variables for the call to go build
+RUN make CGO_ENABLED=$CGO_ENABLED GOARCH=$GOARCH GOOS=$GOOS
 
-WORKDIR /root
-RUN mkdir /etc/rita
-COPY --from=rita-builder /go/src/github.com/activecm/rita/etc/tables.yaml /etc/rita/
-COPY --from=rita-builder /go/src/github.com/activecm/rita/rita .
-ENTRYPOINT ["./rita"]
+FROM scratch
+
+# Use WORKDIR to create /var/lib/rita since "mkdir" doesn't exist in scratch
+# /var/lib/rita is required for the safebrowsing cache in the default config
+WORKDIR /var/lib/rita
+
+WORKDIR /
+COPY --from=rita-builder /go/src/github.com/activecm/rita/etc/tables.yaml /etc/rita/tables.yaml
+COPY --from=rita-builder /go/src/github.com/activecm/rita/etc/rita.yaml /etc/rita/config.yaml
+COPY --from=rita-builder /go/src/github.com/activecm/rita/rita /rita
+
+ENTRYPOINT ["/rita"]
