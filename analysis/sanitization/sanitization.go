@@ -7,8 +7,8 @@ import (
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/parser/parsetypes"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/parser/parsetypes"
 )
 
 //SanitizeData cleans up abnormalities in the imported data
