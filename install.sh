@@ -352,6 +352,7 @@ __install_rita() {
 	$_ELEVATE mkdir -p "$_CONFIG_PATH"
 	#$_ELEVATE mkdir -p "$_VAR_PATH"
 	$_ELEVATE mkdir -p "$_VAR_PATH/logs"
+	$_ELEVATE chmod 777 "$_VAR_PATH/logs"
 
 	$_ELEVATE mv -f "$_RITA_SRC_DIR/rita" "$_BIN_PATH/rita"
 	$_ELEVATE chown root:root "$_BIN_PATH/rita"
