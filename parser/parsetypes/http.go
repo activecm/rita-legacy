@@ -1,13 +1,11 @@
 package parsetypes
 
 import (
-	"net/url"
 
 	"github.com/activecm/rita/config"
 	"gopkg.in/mgo.v2/bson"
 )
 
-import "strings"
 
 // HTTP provides a data structure for entries in bro's HTTP log file
 type HTTP struct {
@@ -83,22 +81,4 @@ func (line *HTTP) TargetCollection(config *config.StructureTableCfg) string {
 //Indices gives MongoDB indices that should be used with the collection
 func (line *HTTP) Indices() []string {
 	return []string{"$hashed:id_orig_h", "$hashed:id_resp_h", "$hashed:user_agent", "uid"}
-}
-
-// Normalize fixes up absolute uri's as read by bro to be relative
-func (line *HTTP) Normalize() {
-	//uri is missing the protocol. set uri to ""
-	// ex: Host: 67.217.65.244 URI: 67.217.65.244:443
-	if strings.HasPrefix(line.URI, line.Host) {
-		line.URI = ""
-		return
-	}
-	parsedURL, err2 := url.Parse(line.URI)
-	if err2 != nil {
-		line.URI = ""
-		return
-	}
-	if parsedURL.IsAbs() {
-		line.URI = parsedURL.RequestURI()
-	}
 }

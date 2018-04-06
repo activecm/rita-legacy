@@ -27,7 +27,7 @@ type DNS struct {
 	// the query
 	TransID int64 `bson:"trans_id" bro:"trans_id" brotype:"count"`
 	// RTT contains the round trip time of this request / response
-	RTT float64 `bson:"RTT" bro:"rtt" brotype:"interval"`
+	RTT float64 `bson:"rtt" bro:"rtt" brotype:"interval"`
 	// Query contians the query string
 	Query string `bson:"query" bro:"query" brotype:"string"`
 	// QClass contains a the qclass of the query
@@ -70,6 +70,3 @@ func (in *DNS) TargetCollection(config *config.StructureTableCfg) string {
 func (in *DNS) Indices() []string {
 	return []string{"$hashed:id_orig_h", "$hashed:id_resp_h", "$hashed:query"}
 }
-
-//Normalize pre processes this type of entry before it is imported by rita
-func (in *DNS) Normalize() {}

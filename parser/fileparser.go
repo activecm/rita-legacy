@@ -292,6 +292,5 @@ func parseLine(lineString string, header *fpt.BroHeader,
 			}).Error("Encountered unhandled type in log")
 		}
 	}
-	dat.Normalize()
 	return dat
 }
