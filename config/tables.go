@@ -115,7 +115,7 @@ func loadTableConfig() (*TableCfg, error) {
 	config.UserAgent.UserAgentTable = "useragent"
 
 	config.Meta.FilesTable     = "files"
-	config.Meta.DatabasesTable = "database"
+	config.Meta.DatabasesTable = "databases"
 
 	return config, nil
 }
