@@ -11,9 +11,7 @@ import (
 // returning a *Resources object which has all of the necessary configuration information
 func InitMockResources(userConfig string) *Resources {
 	//TODO: hard code in a test config
-	//GetConfig requires a table config. "" tells the configuration manager
-	//to use the default table config.
-	conf, err := config.GetConfig(userConfig, "")
+	conf, err := config.GetConfig(userConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stdout, "Failed to config, exiting")
 		panic(err)

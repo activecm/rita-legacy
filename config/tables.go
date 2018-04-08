@@ -1,116 +1,121 @@
 package config
 
-import (
-	"fmt"
-	"io/ioutil"
-	"os"
-	"reflect"
-
-	yaml "gopkg.in/yaml.v2"
-)
-
 type (
 	//TableCfg is the container for other table config sections
 	TableCfg struct {
-		Log         LogTableCfg         `yaml:"LogConfig"`
-		Blacklisted BlacklistedTableCfg `yaml:"BlackListed"`
-		DNS         DNSTableCfg         `yaml:"Dns"`
-		Crossref    CrossrefTableCfg    `yaml:"Crossref"`
-		Scanning    ScanningTableCfg    `yaml:"Scanning"`
-		Structure   StructureTableCfg   `yaml:"Structure"`
-		Beacon      BeaconTableCfg      `yaml:"Beacon"`
-		Urls        UrlsTableCfg        `yaml:"Urls"`
-		UserAgent   UserAgentTableCfg   `yaml:"UserAgent"`
-		Meta        MetaTableCfg        `yaml:"MetaTables"`
+		Log         LogTableCfg
+		Blacklisted BlacklistedTableCfg
+		DNS         DNSTableCfg
+		Crossref    CrossrefTableCfg
+		Scanning    ScanningTableCfg
+		Structure   StructureTableCfg
+		Beacon      BeaconTableCfg
+		Urls        UrlsTableCfg
+		UserAgent   UserAgentTableCfg
+		Meta        MetaTableCfg
 	}
 
 	//LogTableCfg contains the configuration for logging
 	LogTableCfg struct {
-		RitaLogTable string `yaml:"RitaLogTable"`
+		RitaLogTable string
 	}
 
 	//StructureTableCfg contains the names of the base level collections
 	StructureTableCfg struct {
-		ConnTable       string `yaml:"ConnectionTable"`
-		HTTPTable       string `yaml:"HttpTable"`
-		DNSTable        string `yaml:"DnsTable"`
-		UniqueConnTable string `yaml:"UniqueConnectionTable"`
-		HostTable       string `yaml:"HostTable"`
-		IPv4Table       string `yaml:"IPv4Table"`
-		IPv6Table       string `yaml:"IPv6Table"`
+		ConnTable       string
+		HTTPTable       string
+		DNSTable        string
+		UniqueConnTable string
+		HostTable       string
+		IPv4Table       string
+		IPv6Table       string
 	}
 
 	//BlacklistedTableCfg is used to control the blacklisted analysis module
 	BlacklistedTableCfg struct {
-		BlacklistDatabase string `yaml:"Database"`
-		SourceIPsTable    string `yaml:"SourceIPsTable"`
-		DestIPsTable      string `yaml:"DestIPsTable"`
-		HostnamesTable    string `yaml:"HostnamesTable"`
-		UrlsTable         string `yaml:"UrlsTable"`
+		BlacklistDatabase string
+		SourceIPsTable    string
+		DestIPsTable      string
+		HostnamesTable    string
+		UrlsTable         string
 	}
 
 	//DNSTableCfg is used to control the dns analysis module
 	DNSTableCfg struct {
-		ExplodedDNSTable string `yaml:"ExplodedDnsTable"`
-		HostnamesTable   string `yaml:"HostnamesTable"`
+		ExplodedDNSTable string
+		HostnamesTable   string
 	}
 
 	//CrossrefTableCfg is used to control the crossref analysis module
 	CrossrefTableCfg struct {
-		SourceTable string `yaml:"SourceTable"`
-		DestTable   string `yaml:"DestinationTable"`
+		SourceTable string
+		DestTable   string
 	}
 
 	//ScanningTableCfg is used to control the scanning analysis module
 	ScanningTableCfg struct {
-		ScanTable string `yaml:"ScanTable"`
+		ScanTable string
 	}
 
 	//BeaconTableCfg is used to control the beaconing analysis module
 	BeaconTableCfg struct {
-		BeaconTable string `yaml:"BeaconTable"`
+		BeaconTable string
 	}
 
 	//UrlsTableCfg is used to control the urls analysis module
 	UrlsTableCfg struct {
-		UrlsTable string `yaml:"UrlsTable"`
+		UrlsTable string
 	}
 
 	//UserAgentTableCfg is used to control the urls analysis module
 	UserAgentTableCfg struct {
-		UserAgentTable string `yaml:"UserAgentTable"`
+		UserAgentTable string
 	}
 
 	//MetaTableCfg contains the meta db collection names
 	MetaTableCfg struct {
-		FilesTable     string `yaml:"FilesTable"`
-		DatabasesTable string `yaml:"DatabasesTable"`
+		FilesTable     string
+		DatabasesTable string
 	}
 )
 
-// loadTableConfig attempts to parse a config file
-func loadTableConfig(cfgPath string) (*TableCfg, error) {
+// loadTableConfig initializes a config struct
+func loadTableConfig() (*TableCfg, error) {
 	var config = new(TableCfg)
-	_, err := os.Stat(cfgPath)
 
-	if os.IsNotExist(err) {
-		return config, err
-	}
+	// initialize all the table configs
+	config.Log.RitaLogTable = "logs"
 
-	cfgFile, err := ioutil.ReadFile(cfgPath)
-	if err != nil {
-		return config, err
-	}
-	err = yaml.Unmarshal(cfgFile, config)
+	config.Structure.ConnTable       = "conn"
+	config.Structure.HTTPTable       = "http"
+	config.Structure.DNSTable        = "dns"
+	config.Structure.UniqueConnTable = "uconn"
+	config.Structure.HostTable       = "host"
+	config.Structure.IPv4Table       = "ipv4"
+	config.Structure.IPv6Table       = "ipv6"
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to read config: %s\n", err.Error())
-		return config, err
-	}
+	config.Blacklisted.BlacklistDatabase = "rita-blacklist"
+	config.Blacklisted.SourceIPsTable    = "blSourceIPs"
+	config.Blacklisted.DestIPsTable      = "blDestIPs"
+	config.Blacklisted.HostnamesTable    = "blHostnames"
+	config.Blacklisted.UrlsTable         = "blUrls"
 
-	// expand env variables, config is a pointer
-	// so we have to call elem on the reflect value
-	expandConfig(reflect.ValueOf(config).Elem())
+	config.DNS.ExplodedDNSTable = "explodedDns"
+	config.DNS.HostnamesTable   = "hostnames"
+
+	config.Crossref.SourceTable = "sourceXREF"
+	config.Crossref.DestTable   = "destXREF"
+
+	config.Scanning.ScanTable = "scan"
+
+	config.Beacon.BeaconTable = "beacon"
+
+	config.Urls.UrlsTable = "urls"
+
+	config.UserAgent.UserAgentTable = "useragent"
+
+	config.Meta.FilesTable     = "files"
+	config.Meta.DatabasesTable = "databases"
 
 	return config, nil
 }
