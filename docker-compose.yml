@@ -1,0 +1,29 @@
+version: '3'
+
+services:
+  # bro:
+  #   image: blacktop/bro:2.5
+  #   network_mode: host
+  #   volumes:
+  #     - logs:/pcap
+  #   cap_add:
+  #     - NET_RAW
+
+  db:
+    image: mongo:3.6
+    volumes:
+      - db:/data/db/
+      
+  rita:
+    image: quay.io/activecm/rita:${RITA_VERSION:-master}
+    build: .
+    links:
+      # give db an alias of "localhost" so that RITA's default config works unchanged
+      - db:localhost
+    volumes:
+      - ${BRO_LOGS:?You must provide a path to your BRO_LOGS}:/opt/bro/logs:ro
+      # - logs:/opt/bro/logs
+
+volumes:
+  db:
+  # logs:

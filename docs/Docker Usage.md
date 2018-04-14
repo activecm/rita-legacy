@@ -10,13 +10,13 @@ You can run RITA using Docker! You have several options depending on your specif
 The easiest way is to pull down the pre-built image.
 
 ```
-docker pull activecm/rita:latest
+docker pull quay.io/activecm/rita:master
 ```
 
-You can also build the image from scratch.
+You can also build the image from source.
 
 ```
-docker build -t activecm/rita:latest .
+docker build -t quay.io/activecm/rita:master .
 ```
 
 ## Running RITA with Docker Compose
@@ -43,6 +43,14 @@ export BRO_LOGS=/path/to/your/logs
 docker-compose run --rm -v /path/to/your/rita/config.yaml:/etc/rita/config.yaml rita show-databases
 ```
 
+Note: If you'd like to use a different version of RITA than the default `master` you can do so using the `RITA_VERSION` variable.
+
+```
+export RITA_VERSION=dev
+export BRO_LOGS=/path/to/your/logs
+docker-compose run --rm -v /path/to/your/rita/config.yaml:/etc/rita/config.yaml rita show-databases
+```
+
 ## Running RITA with Docker Using External Mongo
 
 If you don't need/want the convenience of Docker Compose running the Mongo server for you, you can also use RITA without it. You will need to modify RITA's config file to point to your external Mongo server.
@@ -51,11 +59,11 @@ If you don't need/want the convenience of Docker Compose running the Mongo serve
 docker run -it --rm \
 	-v /path/to/your/bro/logs:/opt/bro/logs/:ro \
 	-v /path/to/your/rita/config.yaml:/etc/rita/config.yaml:ro \
-	activecm/rita:latest import
+	quay.io/activecm/rita:master import
 docker run -it --rm \
 	-v /path/to/your/bro/logs:/opt/bro/logs/:ro \
 	-v /path/to/your/rita/config.yaml:/etc/rita/config.yaml:ro \
-	activecm/rita:latest analyze
+	quay.io/activecm/rita:master analyze
 ```
 
 ## Using Docker to Build RITA
@@ -63,7 +71,7 @@ docker run -it --rm \
 You can use Docker to build a statically linked RITA binary for you. This binary should be portable between Linux 64-bit systems. Once you've obtained the RITA docker image (see the "Obtaining the RITA Docker Image" section above) you can run the following commands to copy the binary to your host system.
 
 ```
-docker create --name rita activecm/rita:latest
+docker create --name rita quay.io/activecm/rita:master
 docker cp rita:/rita ./rita
 docker rm rita
 ```
