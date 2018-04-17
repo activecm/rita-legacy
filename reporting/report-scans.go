@@ -6,9 +6,9 @@ import (
 	"os"
 	"sort"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/scanning"
-	"github.com/ocmdev/rita/reporting/templates"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/scanning"
+	"github.com/activecm/rita/reporting/templates"
 )
 
 func printScans(db string, res *database.Resources) error {
@@ -24,7 +24,7 @@ func printScans(db string, res *database.Resources) error {
 	}
 
 	var scans []scanning.Scan
-	coll := res.DB.Session.DB(db).C(res.System.ScanningConfig.ScanTable)
+	coll := res.DB.Session.DB(db).C(res.Config.T.Scanning.ScanTable)
 	coll.Find(nil).All(&scans)
 
 	w, err := getScanWriter(scans)

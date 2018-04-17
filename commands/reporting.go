@@ -1,8 +1,8 @@
 package commands
 
 import (
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/reporting"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/reporting"
 	"github.com/urfave/cli"
 )
 
@@ -10,18 +10,15 @@ func init() {
 	command := cli.Command{
 
 		Name:  "html-report",
-		Usage: "Write analysis information to html output",
+		Usage: "Create an html report for an analyzed database",
+		UsageText: "rita html-report [command-options] [database]\n\n" +
+			"If no database is specified, a report will be created for every database.",
 		Flags: []cli.Flag{
 			configFlag,
-			cli.StringFlag{
-				Name:  "database, d",
-				Usage: "Specify which databases to export, otherwise will export all databases",
-				Value: "",
-			},
 		},
 		Action: func(c *cli.Context) error {
-			res := database.InitResources("")
-			databaseName := c.String("database")
+			res := database.InitResources(c.String("config"))
+			databaseName := c.Args().Get(0)
 			var databases []string
 			if databaseName != "" {
 				databases = append(databases, databaseName)

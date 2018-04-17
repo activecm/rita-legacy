@@ -4,16 +4,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ocmdev/rita/analysis/beacon"
-	"github.com/ocmdev/rita/analysis/blacklisted"
-	"github.com/ocmdev/rita/analysis/crossref"
-	"github.com/ocmdev/rita/analysis/dns"
-	"github.com/ocmdev/rita/analysis/scanning"
-	"github.com/ocmdev/rita/analysis/structure"
-	"github.com/ocmdev/rita/analysis/urls"
-	"github.com/ocmdev/rita/analysis/useragent"
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/util"
+	"github.com/blang/semver"
+	"github.com/activecm/rita/analysis/beacon"
+	"github.com/activecm/rita/analysis/blacklist"
+	"github.com/activecm/rita/analysis/crossref"
+	"github.com/activecm/rita/analysis/dns"
+	"github.com/activecm/rita/analysis/sanitization"
+	"github.com/activecm/rita/analysis/scanning"
+	"github.com/activecm/rita/analysis/structure"
+	"github.com/activecm/rita/analysis/urls"
+	"github.com/activecm/rita/analysis/useragent"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -21,40 +23,62 @@ import (
 func init() {
 	analyzeCommand := cli.Command{
 		Name:  "analyze",
-		Usage: "Analyze imported databases, if no [database,d] flag is specified will attempt all",
+		Usage: "Analyze imported databases",
+		UsageText: "rita analyze [command options] [database]\n\n" +
+			"If no database is specified, every database will be analyzed.",
 		Flags: []cli.Flag{
-			databaseFlag,
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			analyze(c.String("database"), c.String("config"))
-			return nil
+			return analyze(c.Args().Get(0), c.String("config"))
 		},
 	}
 
 	bootstrapCommands(analyzeCommand)
 }
 
-func analyze(inDb string, configFile string) {
+func analyze(inDb string, configFile string) error {
 	res := database.InitResources(configFile)
+	var toRunDirty []string
 	var toRun []string
 
 	// Check to see if we want to run a full database or just one off the command line
 	if inDb == "" {
 		res.Log.Info("Running analysis against all databases")
-		toRun = append(toRun, res.MetaDB.GetUnAnalyzedDatabases()...)
+		toRunDirty = append(toRun, res.MetaDB.GetUnAnalyzedDatabases()...)
 	} else {
-		info, err := res.MetaDB.GetDBMetaInfo(inDb)
+		toRunDirty = append(toRun, inDb)
+	}
+
+	// Check for problems
+	for _, possDB := range toRunDirty {
+		info, err := res.MetaDB.GetDBMetaInfo(possDB)
 		if err != nil {
-			res.Log.Errorf("Error: %s not found.\n", inDb)
-			return
+			errStr := fmt.Sprintf("Error: %s not found.", possDB)
+			res.Log.Errorf(errStr)
+			fmt.Println(errStr)
+			continue
 		}
 		if info.Analyzed {
-			res.Log.Errorf("Error: %s is already analyzed.\n", inDb)
-			return
+			errStr := fmt.Sprintf("Error: %s is already analyzed.", possDB)
+			res.Log.Errorf(errStr)
+			fmt.Println(errStr)
+			continue
 		}
-
-		toRun = append(toRun, inDb)
+		semVer, err := semver.ParseTolerant(info.ImportVersion)
+		if err != nil {
+			errStr := fmt.Sprintf("Error: %s is labelled with an incorrect version tag", possDB)
+			res.Log.Errorf(errStr)
+			fmt.Println(errStr)
+			continue
+		}
+		if semVer.Major != res.Config.R.Version.Major {
+			errStr := fmt.Sprintf("Error: %s was parsed by an incompatible version of RITA", possDB)
+			res.Log.Errorf(errStr)
+			fmt.Println(errStr)
+			continue
+		}
+		toRun = append(toRun, possDB)
 	}
 
 	startAll := time.Now()
@@ -76,11 +100,18 @@ func analyze(inDb string, configFile string) {
 		}).Info("Analyzing")
 		fmt.Println("[+] Analyzing " + td)
 		res.DB.SelectDB(td)
+
+		sanitization.SanitizeData(res)
+
 		logAnalysisFunc("Unique Connections", td, res,
 			structure.BuildUniqueConnectionsCollection,
 		)
 		logAnalysisFunc("Unique Hosts", td, res,
-			structure.BuildHostsCollection,
+			func(innerRes *database.Resources) {
+				structure.BuildHostsCollection(innerRes)
+				structure.BuildIPv4Collection(innerRes)
+				structure.BuildIPv6Collection(innerRes)
+			},
 		)
 		logAnalysisFunc("Unique Hostnames", td, res,
 			dns.BuildHostnamesCollection,
@@ -94,11 +125,11 @@ func analyze(inDb string, configFile string) {
 		logAnalysisFunc("User Agent", td, res,
 			useragent.BuildUserAgentCollection,
 		)
+		logAnalysisFunc("Blacklisted", td, res,
+			blacklist.BuildBlacklistedCollections,
+		)
 		logAnalysisFunc("Beaconing", td, res,
 			beacon.BuildBeaconCollection,
-		)
-		logAnalysisFunc("Blacklisted", td, res,
-			blacklisted.BuildBlacklistedCollection,
 		)
 		logAnalysisFunc("Scanning", td, res,
 			scanning.BuildScanningCollection,
@@ -120,6 +151,7 @@ func analyze(inDb string, configFile string) {
 		"end_time": endAll.Format(util.TimeFormat),
 		"duration": endAll.Sub(startAll),
 	}).Info("Analysis complete")
+	return nil
 }
 
 func logAnalysisFunc(analysisName string, databaseName string,

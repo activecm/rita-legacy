@@ -2,6 +2,7 @@ package commands
 
 import (
 	"runtime"
+	"strconv"
 
 	"github.com/urfave/cli"
 )
@@ -11,24 +12,17 @@ var (
 
 	// below are some prebuilt flags that get used often in various commands
 
-	// databaseFlag allows users to specify which database they'd like to use
-	databaseFlag = cli.StringFlag{
-		Name:  "database, d",
-		Usage: "execute this command against the database named `NAME`",
-		Value: "",
-	}
-
 	// threadFlag allows users to specify how many threads should be used
 	threadFlag = cli.IntFlag{
 		Name:  "threads, t",
-		Usage: "use `N` threads when executing this command",
+		Usage: "Use `N` threads when executing this command",
 		Value: runtime.NumCPU(),
 	}
 
 	// configFlag allows users to specify an alternate config file to use
 	configFlag = cli.StringFlag{
 		Name:  "config, c",
-		Usage: "use `CONFIGFILE` as configuration when running this command",
+		Usage: "Use a given `CONFIG_FILE` when running this command",
 		Value: "",
 	}
 
@@ -36,12 +30,18 @@ var (
 	// report instead of the simple csv style output
 	humanFlag = cli.BoolFlag{
 		Name:  "human-readable, H",
-		Usage: "print a report instead of csv",
+		Usage: "Print a report instead of csv",
 	}
 
-	allFlag = cli.BoolFlag{
-		Name:  "all, a",
-		Usage: "print all available records",
+	blSortFlag = cli.StringFlag{
+		Name:  "sort, s",
+		Usage: "Sort by conn (# of connections), uconn (# of unique connections), total_bytes (# of bytes)",
+		Value: "conn",
+	}
+
+	blConnFlag = cli.BoolFlag{
+		Name:  "connected, C",
+		Usage: "Show hosts which were connected to this blacklisted entry",
 	}
 )
 
@@ -55,4 +55,12 @@ func bootstrapCommands(commands ...cli.Command) {
 // Commands provides all of the defined commands to the front end
 func Commands() []cli.Command {
 	return allCommands
+}
+
+//helper functions for formatting floats and integers
+func f(f float64) string {
+	return strconv.FormatFloat(f, 'g', 6, 64)
+}
+func i(i int64) string {
+	return strconv.FormatInt(i, 10)
 }

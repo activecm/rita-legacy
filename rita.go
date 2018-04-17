@@ -4,8 +4,8 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/ocmdev/rita/commands"
-	"github.com/ocmdev/rita/config"
+	"github.com/activecm/rita/commands"
+	"github.com/activecm/rita/config"
 	"github.com/urfave/cli"
 )
 
@@ -17,7 +17,7 @@ func main() {
 
 	// Change the version string with updates so that a quick help command will
 	// let the testers know what version of HT they're on
-	app.Version = config.VERSION
+	app.Version = config.Version
 
 	// Define commands used with this application
 	app.Commands = commands.Commands()

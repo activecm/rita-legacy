@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"bytes"
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -10,14 +11,14 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ocmdev/rita/config"
-	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
-	pt "github.com/ocmdev/rita/parser/parsetypes"
+	"github.com/activecm/rita/config"
+	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	pt "github.com/activecm/rita/parser/parsetypes"
 )
 
 //newIndexedFile takes in a file path and the bro config and opens up the
 //file path and parses out some metadata
-func newIndexedFile(filePath string, config *config.SystemConfig,
+func newIndexedFile(filePath string, config *config.Config,
 	logger *log.Logger) (*fpt.IndexedFile, error) {
 	toReturn := new(fpt.IndexedFile)
 	toReturn.Path = filePath
@@ -76,13 +77,13 @@ func newIndexedFile(filePath string, config *config.SystemConfig,
 		return toReturn, errors.New("Could not parse first line of file for time")
 	}
 
-	toReturn.TargetCollection = line.TargetCollection(&config.StructureConfig)
+	toReturn.TargetCollection = line.TargetCollection(&config.T.Structure)
 	if toReturn.TargetCollection == "" {
 		fileHandle.Close()
 		return toReturn, errors.New("Could not find a target collection for file")
 	}
 
-	toReturn.TargetDatabase = getTargetDatabase(filePath, &config.BroConfig)
+	toReturn.TargetDatabase = getTargetDatabase(filePath, &config.S.Bro)
 	if toReturn.TargetDatabase == "" {
 		fileHandle.Close()
 		return toReturn, errors.New("Could not find a dataset for file")
@@ -113,16 +114,21 @@ func getFileHash(fileHandle *os.File, fInfo os.FileInfo) (string, error) {
 
 //getTargetDatabase assigns a database to a log file based on the path,
 //and the bro config
-func getTargetDatabase(path string, broConfig *config.BroCfg) string {
-	// check the directory map
-	for key, val := range broConfig.DirectoryMap {
-		if strings.Contains(path, key) {
-			return broConfig.DBPrefix + val
-		}
+func getTargetDatabase(filePath string, broConfig *config.BroStaticCfg) string {
+	var targetDatabase bytes.Buffer
+	targetDatabase.WriteString(broConfig.DBRoot)
+	//Append subfolders to target db
+	relativeStartIndex := len(broConfig.ImportDirectory)
+	pathSep := string(os.PathSeparator)
+	relativePath := filePath[relativeStartIndex+len(pathSep):]
+
+	//This routine uses Split rather than substring (0, index of path sep)
+	//because we may wish to add all the subdirectories to the db prefix
+	pathPieces := strings.Split(relativePath, pathSep)
+	//if there is more than just the file name
+	if len(pathPieces) > 1 {
+		targetDatabase.WriteString("-")
+		targetDatabase.WriteString(pathPieces[0])
 	}
-	//If a default database is specified put it in there
-	if broConfig.DefaultDatabase != "" {
-		return broConfig.DBPrefix + broConfig.DefaultDatabase
-	}
-	return ""
+	return targetDatabase.String()
 }

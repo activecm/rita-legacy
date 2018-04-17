@@ -1,14 +1,12 @@
 package commands
 
 import (
-	"fmt"
+	"encoding/csv"
 	"os"
-	"sort"
 	"strconv"
-	"text/template"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/scanning"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/scanning"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -16,58 +14,101 @@ import (
 func init() {
 	command := cli.Command{
 
-		Name:  "show-scans",
-		Usage: "Print scanning information",
+		Name:      "show-scans",
+		Usage:     "Print scanning information",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			databaseFlag,
+			configFlag,
+			cli.BoolFlag{
+				Name:  "ports, P",
+				Usage: "Show which individual ports were scanned",
+			},
 		},
 		Action: func(c *cli.Context) error {
-			if c.String("database") == "" {
-				return cli.NewExitError("Specify a database with -d", -1)
+			db := c.Args().Get(0)
+			if db == "" {
+				return cli.NewExitError("Specify a database", -1)
 			}
+			showPorts := c.Bool("ports")
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var scans []scanning.Scan
-			coll := res.DB.Session.DB(c.String("database")).C(res.System.ScanningConfig.ScanTable)
+			coll := res.DB.Session.DB(db).C(res.Config.T.Scanning.ScanTable)
 			coll.Find(nil).All(&scans)
 
-			if c.Bool("human-readable") {
-				return showScansHuman(scans)
+			if len(scans) == 0 {
+				return cli.NewExitError("No results were found for "+db, -1)
 			}
-			return showScans(scans)
+
+			if c.Bool("human-readable") {
+				err := showScansHuman(scans, showPorts)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
+				return nil
+			}
+			err := showScans(scans, showPorts)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(command)
 }
 
-func showScans(scans []scanning.Scan) error {
-	tmpl := "{{.Src}},{{.Dst}},{{.PortCount}},{{range $idx, $port := .PortSet}}{{if $idx}} {{end}}{{ $port }}{{end}}\r\n"
-
-	out, err := template.New("scn").Parse(tmpl)
-	if err != nil {
-		return err
+func showScans(scans []scanning.Scan, showPorts bool) error {
+	csvWriter := csv.NewWriter(os.Stdout)
+	header := []string{"Source", "Destination", "Ports Scanned"}
+	if showPorts {
+		header = append(header, "Ports")
 	}
-
-	var error error
+	csvWriter.Write(header)
 	for _, scan := range scans {
-		sort.Ints(scan.PortSet)
-		err := out.Execute(os.Stdout, scan)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
+		data := []string{scan.Src, scan.Dst, strconv.Itoa(scan.PortCount)}
+
+		if showPorts {
+			portSet := make([]byte, scan.PortCount*3)
+			for i, port := range scan.PortSet {
+				if i != 0 {
+					strconv.AppendQuote(portSet, " ")
+				}
+				strconv.AppendInt(portSet, int64(port), 10)
+			}
+			data = append(data, string(portSet))
 		}
+
+		csvWriter.Write(data)
 	}
-	return error
+	csvWriter.Flush()
+	return nil
 }
 
 // showScans prints all scans for a given database
-func showScansHuman(scans []scanning.Scan) error {
+func showScansHuman(scans []scanning.Scan, showPorts bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Source", "Destination", "Ports Scanned"})
+	header := []string{"Source", "Destination", "Ports Scanned"}
+	if showPorts {
+		header = append(header, "Ports")
+	}
+	table.SetHeader(header)
 	for _, scan := range scans {
-		table.Append([]string{scan.Src, scan.Dst, strconv.Itoa(scan.PortCount)})
+		data := []string{scan.Src, scan.Dst, strconv.Itoa(scan.PortCount)}
+
+		if showPorts {
+			portSet := make([]byte, scan.PortCount*3)
+			for i, port := range scan.PortSet {
+				if i != 0 {
+					strconv.AppendQuote(portSet, " ")
+				}
+				strconv.AppendInt(portSet, int64(port), 10)
+			}
+			data = append(data, string(portSet))
+		}
+
+		table.Append(data)
 	}
 	table.Render()
 	return nil

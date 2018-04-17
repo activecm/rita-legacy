@@ -5,9 +5,9 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/urls"
-	"github.com/ocmdev/rita/reporting/templates"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/urls"
+	"github.com/activecm/rita/reporting/templates"
 )
 
 func printLongURLs(db string, res *database.Resources) error {
@@ -22,7 +22,7 @@ func printLongURLs(db string, res *database.Resources) error {
 	}
 
 	var urls []urls.URL
-	coll := res.DB.Session.DB(db).C(res.System.UrlsConfig.UrlsTable)
+	coll := res.DB.Session.DB(db).C(res.Config.T.Urls.UrlsTable)
 	coll.Find(nil).Sort("-length").Limit(1000).All(&urls)
 
 	w, err := getLongURLWriter(urls)

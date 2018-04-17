@@ -1,10 +1,10 @@
 package dns
 
 import (
-	"github.com/ocmdev/rita/config"
-	"github.com/ocmdev/rita/database"
-	dnsTypes "github.com/ocmdev/rita/datatypes/dns"
-	"github.com/ocmdev/rita/util"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
+	dnsTypes "github.com/activecm/rita/datatypes/dns"
+	"github.com/activecm/rita/util"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -16,15 +16,16 @@ const tempHostnamesCollName string = "__temp_hostnames"
 func BuildHostnamesCollection(res *database.Resources) {
 	sourceCollectionName,
 		tempCollectionName,
-		pipeline := getHostnamesAggregationScript(res.System)
+		pipeline := getHostnamesAggregationScript(res.Config)
 
-	hostNamesCollection := res.System.DNSConfig.HostnamesTable
+	hostNamesCollection := res.Config.T.DNS.HostnamesTable
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
 	res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
 
-	err := res.DB.CreateCollection(hostNamesCollection, []string{"$hashed:host"})
+	indexes := []mgo.Index{{Key: []string{"host"}, Unique: true}}
+	err := res.DB.CreateCollection(hostNamesCollection, false, indexes)
 
 	if err != nil {
 		res.Log.Error("Could not create ", hostNamesCollection, err)
@@ -38,8 +39,8 @@ func BuildHostnamesCollection(res *database.Resources) {
 
 //getHostnamesAggregationScript maps dns a type queries to their answers
 //unfortunately, answers may be other hostnames
-func getHostnamesAggregationScript(sysCfg *config.SystemConfig) (string, string, []bson.D) {
-	sourceCollectionName := sysCfg.StructureConfig.DNSTable
+func getHostnamesAggregationScript(conf *config.Config) (string, string, []bson.D) {
+	sourceCollectionName := conf.T.Structure.DNSTable
 
 	newCollectionName := tempHostnamesCollName
 
@@ -117,7 +118,7 @@ func GetIPsFromHost(res *database.Resources, host string) []string {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	hostnames := ssn.DB(res.DB.GetSelectedDB()).C(res.System.DNSConfig.HostnamesTable)
+	hostnames := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.HostnamesTable)
 
 	var destIPs dnsTypes.Hostname
 	hostnames.Find(bson.M{"host": host}).One(&destIPs)

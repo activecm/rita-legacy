@@ -1,13 +1,11 @@
 package crossref
 
 import (
-	"github.com/ocmdev/rita/database"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/activecm/rita/database"
 )
 
 type (
 	XRef struct {
-		ID         bson.ObjectId `bson:"_id,omitempty"`
 		ModuleName string        `bson:"module"`
 		Host       string        `bson:"host"`
 	}

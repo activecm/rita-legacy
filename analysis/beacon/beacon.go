@@ -10,11 +10,11 @@ import (
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/ocmdev/rita/database"
-	dataBeacon "github.com/ocmdev/rita/datatypes/beacon"
-	"github.com/ocmdev/rita/datatypes/data"
-	"github.com/ocmdev/rita/datatypes/structure"
-	"github.com/ocmdev/rita/util"
+	"github.com/activecm/rita/database"
+	dataBeacon "github.com/activecm/rita/datatypes/beacon"
+	"github.com/activecm/rita/datatypes/data"
+	"github.com/activecm/rita/datatypes/structure"
+	"github.com/activecm/rita/util"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -23,7 +23,7 @@ type (
 	//Beacon contains methods for conducting a beacon hunt
 	Beacon struct {
 		db                string                                // current database
-		resources         *database.Resources                   // holds the global config and DB layer
+		res               *database.Resources                   // holds the global config and DB layer
 		defaultConnThresh int                                   // default connections threshold
 		collectChannel    chan string                           // holds ip addresses
 		analysisChannel   chan *beaconAnalysisInput             // holds unanalyzed data
@@ -46,15 +46,18 @@ type (
 		uconnID bson.ObjectId // Unique Connection ID
 		ts      []int64       // Connection timestamps for this src, dst pair
 		//dur []int64
-		//orig_bytes []int64
+		orig_ip_bytes []int64
 		//resp_bytes []int64
 	}
 )
 
 func BuildBeaconCollection(res *database.Resources) {
-	collection_name := res.System.BeaconConfig.BeaconTable
-	collection_keys := []string{"uconn_id", "ts_score"}
-	err := res.DB.CreateCollection(collection_name, collection_keys)
+	collection_name := res.Config.T.Beacon.BeaconTable
+	collection_keys := []mgo.Index{
+		{Key: []string{"uconn_id"}, Unique: true},
+		{Key: []string{"ts_score"}},
+	}
+	err := res.DB.CreateCollection(collection_name, false, collection_keys)
 	if err != nil {
 		res.Log.Error("Failed: ", collection_name, err.Error())
 		return
@@ -64,7 +67,7 @@ func BuildBeaconCollection(res *database.Resources) {
 
 func GetBeaconResultsView(res *database.Resources, ssn *mgo.Session, cutoffScore float64) *mgo.Iter {
 	pipeline := getViewPipeline(res, cutoffScore)
-	return res.DB.AggregateCollection(res.System.BeaconConfig.BeaconTable, ssn, pipeline)
+	return res.DB.AggregateCollection(res.Config.T.Beacon.BeaconTable, ssn, pipeline)
 }
 
 // New creates a new beacon module
@@ -73,14 +76,14 @@ func newBeacon(res *database.Resources) *Beacon {
 	// If the threshold is incorrectly specified, fix it up.
 	// We require at least four delta times to analyze
 	// (Q1, Q2, Q3, Q4). So we need at least 5 connections
-	thresh := res.System.BeaconConfig.DefaultConnectionThresh
+	thresh := res.Config.S.Beacon.DefaultConnectionThresh
 	if thresh < 5 {
 		thresh = 5
 	}
 
 	return &Beacon{
 		db:                res.DB.GetSelectedDB(),
-		resources:         res,
+		res:               res,
 		defaultConnThresh: thresh,
 		log:               res.Log,
 		collectChannel:    make(chan string),
@@ -94,7 +97,7 @@ func newBeacon(res *database.Resources) *Beacon {
 
 // Run Starts the beacon hunt process
 func (t *Beacon) run() {
-	session := t.resources.DB.Session.Copy()
+	session := t.res.DB.Session.Copy()
 	defer session.Close()
 
 	//Find first time
@@ -106,14 +109,14 @@ func (t *Beacon) run() {
 	//This could be optimized with an aggregation
 	var conn data.Conn
 	session.DB(t.db).
-		C(t.resources.System.StructureConfig.ConnTable).
+		C(t.res.Config.T.Structure.ConnTable).
 		Find(nil).Limit(1).Sort("ts").Iter().Next(&conn)
 
 	t.minTime = conn.Ts
 
 	t.log.Debug("Looking for last connection timestamp")
 	session.DB(t.db).
-		C(t.resources.System.StructureConfig.ConnTable).
+		C(t.res.Config.T.Structure.ConnTable).
 		Find(nil).Limit(1).Sort("-ts").Iter().Next(&conn)
 
 	t.maxTime = conn.Ts
@@ -127,7 +130,7 @@ func (t *Beacon) run() {
 	// add local addresses to collect channel
 	var host structure.Host
 	localIter := session.DB(t.db).
-		C(t.resources.System.StructureConfig.HostTable).
+		C(t.res.Config.T.Structure.HostTable).
 		Find(bson.M{"local": true}).Iter()
 
 	//kick off the threaded goroutines
@@ -147,7 +150,7 @@ func (t *Beacon) run() {
 	}
 
 	for localIter.Next(&host) {
-		t.collectChannel <- host.Ip
+		t.collectChannel <- host.IP
 	}
 	t.log.Debug("Finding all source / destination pairs for analysis")
 	close(t.collectChannel)
@@ -162,14 +165,14 @@ func (t *Beacon) run() {
 
 // collect grabs all src, dst pairs and their connection data
 func (t *Beacon) collect() {
-	session := t.resources.DB.Session.Copy()
+	session := t.res.DB.Session.Copy()
 	defer session.Close()
 	host, more := <-t.collectChannel
 	for more {
 		//grab all destinations related with this host
 		var uconn structure.UniqueConnection
 		destIter := session.DB(t.db).
-			C(t.resources.System.StructureConfig.UniqueConnTable).
+			C(t.res.Config.T.Structure.UniqueConnTable).
 			Find(bson.M{"src": host}).Iter()
 
 		for destIter.Next(&uconn) {
@@ -188,12 +191,13 @@ func (t *Beacon) collect() {
 			//Grab connection data
 			var conn data.Conn
 			connIter := session.DB(t.db).
-				C(t.resources.System.StructureConfig.ConnTable).
-				Find(bson.M{"id_origin_h": uconn.Src, "id_resp_h": uconn.Dst}).
+				C(t.res.Config.T.Structure.ConnTable).
+				Find(bson.M{"id_orig_h": uconn.Src, "id_resp_h": uconn.Dst}).
 				Iter()
 
 			for connIter.Next(&conn) {
 				newInput.ts = append(newInput.ts, conn.Ts)
+				newInput.orig_ip_bytes = append(newInput.orig_ip_bytes, conn.OriginIPBytes)
 			}
 			t.analysisChannel <- newInput
 		}
@@ -205,8 +209,9 @@ func (t *Beacon) collect() {
 // analyze src, dst pairs with their connection data
 func (t *Beacon) analyze() {
 	for data := range t.analysisChannel {
-		//sort the timestamps since they may have arrived out of order
+		//sort the size and timestamps since they may have arrived out of order
 		sort.Sort(util.SortableInt64(data.ts))
+		sort.Sort(util.SortableInt64(data.orig_ip_bytes))
 
 		//remove subsecond communications
 		//these will appear as beacons if we do not remove them
@@ -215,102 +220,152 @@ func (t *Beacon) analyze() {
 
 		//If removing duplicates lowered the conn count under the threshold,
 		//remove this data from the analysis
-		if len(data.ts) < t.resources.System.BeaconConfig.DefaultConnectionThresh {
+		if len(data.ts) < t.res.Config.S.Beacon.DefaultConnectionThresh {
 			continue
 		}
 
 		//store the diff slice length since we use it a lot
-		//this is one less then the data slice length
+		//for timestamps this is one less then the data slice length
 		//since we are calculating the times in between readings
-		length := len(data.ts) - 1
+		tsLength := len(data.ts) - 1
+		dsLength := len(data.orig_ip_bytes)
 
 		//find the duration of this connection
 		//perfect beacons should fill the observation period
-		duration := float64(data.ts[length]-data.ts[0]) /
+		duration := float64(data.ts[tsLength]-data.ts[0]) /
 			float64(t.maxTime-t.minTime)
 
 		//find the delta times between the timestamps
-		diff := make([]int64, length)
-		for i := 0; i < length; i++ {
+		diff := make([]int64, tsLength)
+		for i := 0; i < tsLength; i++ {
 			diff[i] = data.ts[i+1] - data.ts[i]
 		}
 
-		//perfect beacons should have symmetric delta time distributions
+		//perfect beacons should have symmetric delta time and size distributions
 		//Bowley's measure of skew is used to check symmetry
 		sort.Sort(util.SortableInt64(diff))
-		bSkew := float64(0)
+		tsSkew := float64(0)
+		dsSkew := float64(0)
 
-		//length -1 is used since diff is a zero based slice
-		low := diff[util.Round(.25*float64(length-1))]
-		mid := diff[util.Round(.5*float64(length-1))]
-		high := diff[util.Round(.75*float64(length-1))]
-		bNum := low + high - 2*mid
-		bDen := high - low
+		//tsLength -1 is used since diff is a zero based slice
+		tsLow := diff[util.Round(.25*float64(tsLength-1))]
+		tsMid := diff[util.Round(.5*float64(tsLength-1))]
+		tsHigh := diff[util.Round(.75*float64(tsLength-1))]
+		tsBowleyNum := tsLow + tsHigh - 2*tsMid
+		tsBowleyDen := tsHigh - tsLow
 
-		//bSkew should equal zero if the denominator equals zero
+		//we do the same for datasizes
+		dsLow := data.orig_ip_bytes[util.Round(.25*float64(dsLength-1))]
+		dsMid := data.orig_ip_bytes[util.Round(.5*float64(dsLength-1))]
+		dsHigh := data.orig_ip_bytes[util.Round(.75*float64(dsLength-1))]
+		dsBowleyNum := dsLow + dsHigh - 2*dsMid
+		dsBowleyDen := dsHigh - dsLow
+
+		//tsSkew should equal zero if the denominator equals zero
 		//bowley skew is unreliable if Q2 = Q1 or Q2 = Q3
-		if bDen != 0 && mid != low && mid != high {
-			bSkew = float64(bNum) / float64(bDen)
+		if tsBowleyDen != 0 && tsMid != tsLow && tsMid != tsHigh {
+			tsSkew = float64(tsBowleyNum) / float64(tsBowleyDen)
+		}
+
+		if dsBowleyDen != 0 && dsMid != dsLow && dsMid != dsHigh {
+			dsSkew = float64(dsBowleyNum) / float64(dsBowleyDen)
 		}
 
 		//perfect beacons should have very low dispersion around the
 		//median of their delta times
 		//Median Absolute Deviation About the Median
 		//is used to check dispersion
-		devs := make([]int64, length)
-		for i := 0; i < length; i++ {
-			devs[i] = util.Abs(diff[i] - mid)
+		devs := make([]int64, tsLength)
+		for i := 0; i < tsLength; i++ {
+			devs[i] = util.Abs(diff[i] - tsMid)
+		}
+
+		ds_devs := make([]int64, dsLength)
+		for i := 0; i < dsLength; i++ {
+			ds_devs[i] = util.Abs(data.orig_ip_bytes[i] - dsMid)
 		}
 
 		sort.Sort(util.SortableInt64(devs))
-		madm := devs[util.Round(.5*float64(length-1))]
+		sort.Sort(util.SortableInt64(ds_devs))
+
+		tsMadm := devs[util.Round(.5*float64(tsLength-1))]
+		dsMadm := ds_devs[util.Round(.5*float64(dsLength-1))]
 
 		//Store the range for human analysis
-		iRange := diff[length-1] - diff[0]
+		tsIntervalRange := diff[tsLength-1] - diff[0]
+		dsRange := data.orig_ip_bytes[dsLength-1] - data.orig_ip_bytes[0]
 
 		//get a list of the intervals found in the data,
 		//the number of times the interval was found,
 		//and the most occurring interval
-		intervals, intervalCounts, mode, modeCount := createCountMap(diff)
-
-		output := dataBeacon.BeaconAnalysisOutput{
-			UconnID:           data.uconnID,
-			TS_iSkew:          bSkew,
-			TS_iDispersion:    madm,
-			TS_duration:       duration,
-			TS_iRange:         iRange,
-			TS_iMode:          mode,
-			TS_iModeCount:     modeCount,
-			TS_intervals:      intervals,
-			TS_intervalCounts: intervalCounts,
-		}
+		intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
+		dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(data.orig_ip_bytes)
 
 		//more skewed distributions recieve a lower score
 		//less skewed distributions recieve a higher score
-		alpha := 1.0 - math.Abs(bSkew)
+		tsSkewScore := 1.0 - math.Abs(tsSkew) //smush tsSkew
+		dsSkewScore := 1.0 - math.Abs(dsSkew) //smush dsSkew
 
 		//lower dispersion is better, cutoff dispersion scores at 30 seconds
-		beta := 1.0 - float64(madm)/30.0
-		if beta < 0 {
-			beta = 0
+		tsMadmScore := 1.0 - float64(tsMadm)/30.0
+		if tsMadmScore < 0 {
+			tsMadmScore = 0
 		}
-		gamma := duration
 
-		//in order of ascending importance: skew, duration, dispersion
-		output.TS_score = (alpha + beta + gamma) / 3.0
+		//lower dispersion is better, cutoff dispersion scores at 32 bytes
+		dsMadmScore := 1.0 - float64(dsMadm)/32.0
+		if dsMadmScore < 0 {
+			dsMadmScore = 0
+		}
+
+		tsDurationScore := duration
+
+		//smaller data sizes receive a higher score
+		dsSmallnessScore := 1.0 - (float64(dsMode) / 65535.0)
+		if dsSmallnessScore < 0 {
+			dsSmallnessScore = 0
+		}
+
+		output := dataBeacon.BeaconAnalysisOutput{
+			UconnID:           data.uconnID,
+			TS_iSkew:          tsSkew,
+			TS_iDispersion:    tsMadm,
+			TS_duration:       duration,
+			TS_iRange:         tsIntervalRange,
+			TS_iMode:          tsMode,
+			TS_iModeCount:     tsModeCount,
+			TS_intervals:      intervals,
+			TS_intervalCounts: intervalCounts,
+			DS_skew:           dsSkew,
+			DS_dispersion:     dsMadm,
+			DS_range:          dsRange,
+			DS_sizes:          dsSizes,
+			DS_sizeCounts:     dsCounts,
+			DS_mode:           dsMode,
+			DS_modeCount:      dsModeCount,
+		}
+
+		//score numerators
+		tsSum := (tsSkewScore + tsMadmScore + tsDurationScore)
+		dsSum := (dsSkewScore + dsMadmScore + dsSmallnessScore)
+
+		//score averages
+		output.TS_score = tsSum / 3.0
+		output.DS_score = dsSum / 3.0
+		output.Score = (tsSum + dsSum) / 6.0
+
 		t.writeChannel <- &output
 	}
-
 	t.analysisWg.Done()
 }
 
 // write writes the beacon analysis results to the database
 func (t *Beacon) write() {
-	session := t.resources.DB.Session.Copy()
+	session := t.res.DB.Session.Copy()
 	defer session.Close()
 
 	for data := range t.writeChannel {
-		session.DB(t.db).C(t.resources.System.BeaconConfig.BeaconTable).Insert(data)
+		session.DB(t.db).C(t.res.Config.T.Beacon.BeaconTable).Insert(data)
 	}
 	t.writeWg.Done()
 }
@@ -345,20 +400,23 @@ func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
 	return distinct, counts, mode, max
 }
 
-// GetViewPipeline creates an aggregation for user views since the beacon table
-// stores uconn uid's rather than src, dest pairs
-func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
+// GetViewPipeline creates an aggregation for user views since the beacon collection
+// stores uconn uid's rather than src, dest pairs. cuttoff is the lowest overall
+// score to report on. Setting cuttoff to 0 retrieves all the records from the
+// beaconing collection. Setting cuttoff to 1 will prevent the aggregation from
+// returning any records.
+func getViewPipeline(res *database.Resources, cuttoff float64) []bson.D {
 	return []bson.D{
 		{
 			{"$match", bson.D{
-				{"ts_score", bson.D{
+				{"score", bson.D{
 					{"$gt", cuttoff},
 				}},
 			}},
 		},
 		{
 			{"$lookup", bson.D{
-				{"from", r.System.StructureConfig.UniqueConnTable},
+				{"from", res.Config.T.Structure.UniqueConnTable},
 				{"localField", "uconn_id"},
 				{"foreignField", "_id"},
 				{"as", "uconn"},
@@ -369,12 +427,12 @@ func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 		},
 		{
 			{"$sort", bson.D{
-				{"ts_score", -1},
+				{"score", -1},
 			}},
 		},
 		{
 			{"$project", bson.D{
-				{"ts_score", 1},
+				{"score", 1},
 				{"src", "$uconn.src"},
 				{"dst", "$uconn.dst"},
 				{"local_src", "$uconn.local_src"},
@@ -386,6 +444,12 @@ func getViewPipeline(r *database.Resources, cuttoff float64) []bson.D {
 				{"ts_iMode_count", 1},
 				{"ts_iSkew", 1},
 				{"ts_duration", 1},
+				{"ts_iDispersion", 1},
+				{"ds_dispersion", 1},
+				{"ds_range", 1},
+				{"ds_mode", 1},
+				{"ds_mode_count", 1},
+				{"ds_skew", 1},
 			}},
 		},
 	}

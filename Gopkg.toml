@@ -21,20 +21,16 @@
 
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/Zalgo2462/mgorus"
+  name = "github.com/activecm/mgorus"
+  version = "0.1.0"
+
+[[constraint]]
+  name = "github.com/activecm/mgosec"
+  version = "0.1.0"
 
 [[constraint]]
   branch = "master"
-  name = "github.com/alecthomas/template"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/google/safebrowsing"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/ocmdev/rita-blacklist"
+  name = "github.com/activecm/rita-bl"
 
 [[constraint]]
   branch = "master"

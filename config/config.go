@@ -1,170 +1,63 @@
 package config
 
 import (
-	"fmt"
-	"io/ioutil"
 	"os"
-	"os/user"
 	"reflect"
-
-	"gopkg.in/yaml.v2"
 )
 
-//VERSION is filled at compile time with the git version of RITA
-var VERSION = "undefined"
+//Version is filled at compile time with the git version of RITA
+//Version is filled by "git describe --abbrev=0 --tags"
+var Version = "undefined"
+
+//ExactVersion is filled at compile time with the git version of RITA
+//ExactVersion is filled by "git describe --always --long --dirty --tags"
+var ExactVersion = "undefined"
 
 type (
-	//SystemConfig is the container for other config sections
-	SystemConfig struct {
-		BatchSize         int             `yaml:"BatchSize"`
-		DatabaseHost      string          `yaml:"DatabaseHost"`
-		Prefetch          float64         `yaml:"Prefetch"`
-		LogConfig         LogCfg          `yaml:"LogConfig"`
-		BlacklistedConfig BlacklistedCfg  `yaml:"BlackListed"`
-		DNSConfig         DNSCfg          `yaml:"Dns"`
-		CrossrefConfig    CrossrefCfg     `yaml:"Crossref"`
-		ScanningConfig    ScanningCfg     `yaml:"Scanning"`
-		StructureConfig   StructureCfg    `yaml:"Structure"`
-		BeaconConfig      BeaconCfg       `yaml:"Beacon"`
-		UrlsConfig        UrlsCfg         `yaml:"Urls"`
-		UserAgentConfig   UserAgentCfg    `yaml:"UserAgent"`
-		BroConfig         BroCfg          `yaml:"Bro"`
-		SafeBrowsing      SafeBrowsingCfg `yaml:"SafeBrowsing"`
-		MetaTables        MetaCfg         `yaml:"MetaTables"`
-		Version           string
-	}
-
-	//LogCfg contains the configuration for logging
-	LogCfg struct {
-		LogLevel     int    `yaml:"LogLevel"`
-		RitaLogPath  string `yaml:"RitaLogPath"`
-		LogToFile    bool   `yaml:"LogToFile"`
-		RitaLogTable string `yaml:"RitaLogTable"`
-		LogToDB      bool   `yaml:"LogToDB"`
-	}
-
-	//StructureCfg contains the names of the base level collections
-	StructureCfg struct {
-		ConnTable       string `yaml:"ConnectionTable"`
-		HTTPTable       string `yaml:"HttpTable"`
-		DNSTable        string `yaml:"DnsTable"`
-		UniqueConnTable string `yaml:"UniqueConnectionTable"`
-		HostTable       string `yaml:"HostTable"`
-	}
-
-	//BlacklistedCfg is used to control the blacklisted analysis module
-	BlacklistedCfg struct {
-		ThreadCount       int    `yaml:"ThreadCount"`
-		ChannelSize       int    `yaml:"ChannelSize"`
-		BlacklistTable    string `yaml:"BlackListTable"`
-		BlacklistDatabase string `yaml:"Database"`
-	}
-
-	//DNSCfg is used to control the dns analysis module
-	DNSCfg struct {
-		ExplodedDNSTable string `yaml:"ExplodedDnsTable"`
-		HostnamesTable   string `yaml:"HostnamesTable"`
-	}
-
-	//CrossrefCfg is used to control the crossref analysis module
-	CrossrefCfg struct {
-		InternalTable   string  `yaml:"InternalTable"`
-		ExternalTable   string  `yaml:"ExternalTable"`
-		BeaconThreshold float64 `yaml:"BeaconThreshold"`
-	}
-
-	//SafeBrowsingCfg contains the details for contacting Google's safebrowsing api
-	SafeBrowsingCfg struct {
-		APIKey   string `yaml:"APIKey"`
-		Database string `yaml:"Database"`
-	}
-
-	//ScanningCfg is used to control the scanning analysis module
-	ScanningCfg struct {
-		ScanThreshold int    `yaml:"ScanThreshold"`
-		ScanTable     string `yaml:"ScanTable"`
-	}
-
-	//BeaconCfg is used to control the beaconing analysis module
-	BeaconCfg struct {
-		DefaultConnectionThresh int    `yaml:"DefaultConnectionThresh"`
-		BeaconTable             string `yaml:"BeaconTable"`
-	}
-
-	//UrlsCfg is used to control the urls analysis module
-	UrlsCfg struct {
-		UrlsTable string `yaml:"UrlsTable"`
-	}
-
-	//UserAgentCfg is used to control the urls analysis module
-	UserAgentCfg struct {
-		UserAgentTable string `yaml:"UserAgentTable"`
-	}
-
-	//BroCfg controls the file parser
-	BroCfg struct {
-		LogPath         string            `yaml:"LogPath"`
-		DBPrefix        string            `yaml:"DBPrefix"`
-		MetaDB          string            `yaml:"MetaDB"`
-		DirectoryMap    map[string]string `yaml:"DirectoryMap"`
-		DefaultDatabase string            `yaml:"DefaultDatabase"`
-		UseDates        bool              `yaml:"UseDates"`
-		ImportBuffer    int               `yaml:"ImportBuffer"`
-	}
-
-	//MetaCfg contains the meta db collection names
-	MetaCfg struct {
-		FilesTable     string `yaml:"FilesTable"`
-		DatabasesTable string `yaml:"DatabasesTable"`
+	//Config holds the configuration for the running system
+	Config struct {
+		R RunningCfg
+		S StaticCfg
+		T TableCfg
 	}
 )
 
+//userConfigPath specifies the path of RITA's static config file
+const userConfigPath = "/etc/rita/config.yaml"
+
+//NOTE: If go ever gets default parameters, default the config options to ""
+
 // GetConfig retrieves a configuration in order of precedence
-func GetConfig(cfgPath string) (*SystemConfig, bool) {
-	if cfgPath != "" {
-		return loadSystemConfig(cfgPath)
+func GetConfig(userConfig string) (*Config, error) {
+	if userConfig == "" {
+		userConfig = userConfigPath
 	}
 
-	// Get the user's homedir
-	user, err := user.Current()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not get user info: %s\n", err.Error())
-	} else {
-
-		conf, ok := loadSystemConfig(user.HomeDir + "/.rita/config.yaml")
-		if ok {
-			return conf, ok
-		}
-	}
-
-	// If none of the other configs have worked, go for the global config
-	return loadSystemConfig("/etc/rita/config.yaml")
+	return loadSystemConfig(userConfig)
 }
 
 // loadSystemConfig attempts to parse a config file
-func loadSystemConfig(cfgPath string) (*SystemConfig, bool) {
-	var config = new(SystemConfig)
-
-	config.Version = VERSION
-
-	if _, err := os.Stat(cfgPath); !os.IsNotExist(err) {
-		cfgFile, err := ioutil.ReadFile(cfgPath)
-		if err != nil {
-			return config, false
-		}
-		err = yaml.Unmarshal(cfgFile, config)
-
-		// expand env variables, config is a pointer
-		// so we have to call elem on the reflect value
-		expandConfig(reflect.ValueOf(config).Elem())
-
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to read config: %s\n", err.Error())
-			return config, false
-		}
-		return config, true
+func loadSystemConfig(userConfig string) (*Config, error) {
+	var config = new(Config)
+	static, err := loadStaticConfig(userConfig)
+	if err != nil {
+		return config, err
 	}
-	return config, false
+	config.S = *static
+
+	tables, err := loadTableConfig()
+	if err != nil {
+		return config, err
+	}
+	config.T = *tables
+
+	running, err := loadRunningConfig(static)
+	if err != nil {
+		return config, err
+	}
+	config.R = *running
+
+	return config, err
 }
 
 // expandConfig expands environment variables in config strings
@@ -176,6 +69,12 @@ func expandConfig(reflected reflect.Value) {
 			expandConfig(f)
 		} else if f.Kind() == reflect.String {
 			f.SetString(os.ExpandEnv(f.String()))
+		} else if f.Kind() == reflect.Slice && f.Type().Elem().Kind() == reflect.String {
+			strs := f.Interface().([]string)
+			for i, str := range strs {
+				strs[i] = os.ExpandEnv(str)
+			}
+			f.Set(reflect.ValueOf(strs))
 		}
 	}
 }

@@ -1,5 +1,23 @@
-# Mongo Database to connect to
-DatabaseHost: localhost:27017
+MongoDB:
+    # See https://docs.mongodb.com/manual/reference/connection-string/
+    ConnectionString: mongodb://localhost:27017
+    # Example with authentication. Be sure to change the AuthenticationMechanism as well.
+    # ConnectionString: mongodb://username:password@localhost:27017
+
+    # Accepted Values: null, "SCRAM-SHA-1", "MONGODB-CR", "PLAIN"
+    # Since Mongo version 3.0 the default authentication mechanism is SCRAM-SHA-1
+    AuthenticationMechanism: null
+
+    # The time in hours before RITA's connection to MongoDB times out. 0 waits indefinitely.
+    SocketTimeout: 2
+
+    # For encrypting data on the wire between RITA and MongoDB
+    TLS:
+        Enable: false
+        #If set, RITA will verify the MongoDB certificate's hostname and validity
+        VerifyCertificate: false
+        #If set, RITA will use the provided CA file instead of the system's CA's
+        CAFile: null
 
 LogConfig:
     # LogLevel
@@ -9,98 +27,71 @@ LogConfig:
     # 0 = error
     LogLevel: 2
 
-    # LogPath is the path for Rita's logs, generally this just defaults to
-    # $HOME/.rita/logs. Logs will only be written here if LogToFile is true
-    RitaLogPath: $HOME/.rita/logs
-    LogToFile: true
+    # LogPath is the path for Rita's logs. Make sure permissions are set accordingly.
+    # Logs will only be written here if LogToFile is true
+    RitaLogPath: /var/lib/rita/logs
 
-    RitaLogTable: logs
+    LogToFile: true
     LogToDB: true
 
 # The section Bro configures the bro ingestor
 Bro:
     # Path to a top level directory of log files
-    LogPath: /path/to/top/level/directory/
+    ImportDirectory: /opt/bro/logs/
 
-    # All databases in this test will get prefixed with the database prefix
-    DBPrefix: PrefixForDatabase
+    # Files directly in the ImportDirectory will be imported into a database
+    # given by DBRoot. Files in a subfolder of ImportDirectory will be imported
+    # into DBRoot-$SUBFOLDER_NAME.
+    DBRoot: "RITA"
 
-    # Subdirectories of LogPath may be separated into different databases for the
-    # test. Map each directory to the database you wish that directory to wind up
-    # in. This is good for running tests against multiple subnets and network
-    # segments. Put the directory name on the left side of the colon, and the
-    # database you wish the logs from that directory to go in on the right side.
-    DirectoryMap:
-        UniqueDir: SeparateDatabaseName
-        UniqueDir2: SeparateDatabaseName2
-
-    # If set, files which don't match the directory map will be placed
-    # in this default database.
-    #DefaultDatabase: DefaultDatabaseName
-
-    # There needs to be one metadatabase per test. This database holds information
-    # about the test and the files related to the test. If there are several
-    # subnets mapped in DirectoryMap each will be handled separately and that
-    # separation is handled by the metadatabase.
+    # This database holds information about the procesed files and databases.
     MetaDB: MetaDatabase
-
-    # If use dates is true the logs will be split into databases by date, this is
-    # best for if you have multiple days worth of log files in the logpath and wish
-    # to treat each day as a separate test. 24hours worth of data is the ideal for
-    # analysis, and using dates will ensure that tests are broken into 24hour periods
-    # around midnight of each day.
-    UseDates: false
 
     # The number of records shipped off to MongoDB at a time. Increasing
     # the size of the buffer will improve import timings but will leave more
     # records unimported if there is an error
     ImportBuffer: 100000
 
-SafeBrowsing:
-    APIKey: ""
-    Database: $HOME/.rita/safebrowsing
-
-# NOTE: DO NOT CHANGE THE SETTINGS BELOW UNLESS YOU ARE FAMILIAR WITH THE CODE #
-Structure:
-    ConnectionTable: conn
-    HttpTable: http
-    DnsTable: dns
-    UniqueConnectionTable: uconn
-    HostTable: host
-
 BlackListed:
-    ThreadCount: 2
-    ChannelSize: 1000
-    BlackListTable: blacklisted
-    Database: rita-blacklist
+    # These are blacklists built into rita-blacklist. Set these to false
+    # to disable checks against them.
+    myIP.ms: true
+    MalwareDomains.com: true
+    MalwareDomainList.com: true
 
-Dns:
-    ExplodedDnsTable: explodedDns
-    HostnamesTable: hostnames
+    # Google SafeBrowsing requires an api key and a file to cache the results in.
+    # If either APIKey or Database is an empty string, Google SafeBrowsing will
+    # not be queried.
+    SafeBrowsing:
+        APIKey: ""
+        Database: /var/lib/rita/safebrowsing
+
+    # These are custom blacklists that you may define. They are lists of either
+    # file paths or urls. These custom blacklists are expected to be simple,
+    # line separated text documents containing a list of blacklisted entries.
+
+    # Example: CustomIPBlacklists: ["$HOME/.rita/myIPBlacklist.txt"]
+    # myIPBlacklist.txt would look like this:
+    # 192.168.0.1
+    # 10.10.174.1
+
+    # Lists containing both IPv4 and IPv6 addresses are acceptable
+    CustomIPBlacklists: []
+    # Lists containing hostnames, domain names, and FQDNs are acceptable
+    CustomHostnameBlacklists: []
+    # URLs must each contain a protocol, a host, and a resource
+    # Ex: http://google.com/
+    # Ex: ftp://myftpserver.com/a/file/over/here.txt
+    CustomURLBlacklists: []
 
 Crossref:
-    InternalTable: internXREF
-    ExternalTable: externXREF
     BeaconThreshold: .7
 
 Scanning:
     ScanThreshold: 50
-    ScanTable: scan
 
 Beacon:
     DefaultConnectionThresh: 24
-    BeaconTable: beacon
-
-Urls:
-    UrlsTable: urls
-
-UserAgent:
-    UserAgentTable: useragent
-
-MetaTables:
-    FilesTable: files
-    DatabasesTable: databases
-
 
 # Adjusting batchsize and prefetch may help speed up certain database queries
 BatchSize: 300

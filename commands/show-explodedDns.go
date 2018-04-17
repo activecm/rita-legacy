@@ -1,13 +1,11 @@
 package commands
 
 import (
-	"fmt"
+	"encoding/csv"
 	"os"
-	"strconv"
-	"text/template"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/dns"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/dns"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -15,66 +13,65 @@ import (
 func init() {
 	command := cli.Command{
 
-		Name:  "show-exploded-dns",
-		Usage: "Print dns analysis. Exposes covert dns channels.",
+		Name:      "show-exploded-dns",
+		Usage:     "Print dns analysis. Exposes covert dns channels",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			databaseFlag,
-			allFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			if c.String("database") == "" {
-				return cli.NewExitError("Specify a database with -d", -1)
+			db := c.Args().Get(0)
+			if db == "" {
+				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var explodedResults []dns.ExplodedDNS
-			iter := res.DB.Session.DB(c.String("database")).C(res.System.DNSConfig.ExplodedDNSTable).Find(nil)
-			count, _ := iter.Count()
+			iter := res.DB.Session.DB(db).C(res.Config.T.DNS.ExplodedDNSTable).Find(nil)
 
-			if !c.Bool("all") {
-				count = 15
+			iter.Sort("-subdomains").All(&explodedResults)
+
+			if len(explodedResults) == 0 {
+				return cli.NewExitError("No results were found for "+db, -1)
 			}
-
-			iter.Sort("-subdomains").Limit(count).All(&explodedResults)
 
 			if c.Bool("human-readable") {
-				return showResultsHuman(explodedResults)
+				err := showDNSResultsHuman(explodedResults)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
+				return nil
 			}
-			return showResults(explodedResults)
+			err := showDNSResults(explodedResults)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(command)
 }
 
-func showResults(dnsResults []dns.ExplodedDNS) error {
-	tmpl := "{{.Domain}},{{.Subdomains}},{{.Visited}}\n"
-
-	out, err := template.New("exploded-dns").Parse(tmpl)
-	if err != nil {
-		return err
-	}
-
-	var error error
+func showDNSResults(dnsResults []dns.ExplodedDNS) error {
+	csvWriter := csv.NewWriter(os.Stdout)
+	csvWriter.Write([]string{"Domain", "Unique Subdomains", "Times Looked Up"})
 	for _, result := range dnsResults {
-		err := out.Execute(os.Stdout, result)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
-		}
+		csvWriter.Write([]string{
+			result.Domain, i(result.Subdomains), i(result.Visited),
+		})
 	}
-	return error
+	csvWriter.Flush()
+	return nil
 }
 
-func showResultsHuman(dnsResults []dns.ExplodedDNS) error {
+func showDNSResultsHuman(dnsResults []dns.ExplodedDNS) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Domain", "Unique Subdomains", "Times Looked Up"})
 	for _, result := range dnsResults {
 		table.Append([]string{
-			result.Domain,
-			strconv.FormatInt(result.Subdomains, 10),
-			strconv.FormatInt(result.Visited, 10),
+			result.Domain, i(result.Subdomains), i(result.Visited),
 		})
 	}
 	table.Render()

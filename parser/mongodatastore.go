@@ -1,130 +1,111 @@
 package parser
 
 import (
-	log "github.com/sirupsen/logrus"
-
+	"errors"
 	"sync"
 
-	mgo "gopkg.in/mgo.v2"
+	log "github.com/sirupsen/logrus"
 
-	"github.com/ocmdev/rita/database"
-	fpt "github.com/ocmdev/rita/parser/fileparsetypes"
-	pt "github.com/ocmdev/rita/parser/parsetypes"
+	"github.com/activecm/rita/database"
+	mgo "gopkg.in/mgo.v2"
 )
 
-//importedData is sent to a datastore to be stored away
-type importedData struct {
-	broData        pt.BroData
-	targetDatabase string
-	file           *fpt.IndexedFile
+//storeMap maps database names to collection maps and provides a mutex
+//to sync around
+type storeMap struct {
+	databases map[string]*collectionMap
+	rwLock    *sync.Mutex
 }
 
-//collectionStore binds a collection write channel with the target collection
-//and the indices to be applied to it
-type collectionStore struct {
-	writeChannel chan importedData
-	database     string
-	collection   string
-	indices      []string
+//collectionMap maps collection names to collection writers and provides a
+//mutex to sync around
+type collectionMap struct {
+	collections map[string]*collectionWriter
+	rwLock      *sync.Mutex
 }
 
-//MongoDatastore is a datastore which stores bro data in MongoDB
+//collectionWriter reads a channel and inserts the data into MongoDB
+type collectionWriter struct {
+	writeChannel     chan *ImportedData
+	writerWG         *sync.WaitGroup
+	session          *mgo.Session
+	logger           *log.Logger
+	bufferSize       int
+	targetDatabase   string
+	targetCollection string
+	indices          []string
+}
+
+//MongoDatastore provides a backend for storing bro data in MongoDB
 type MongoDatastore struct {
-	dbMap       map[string]map[string]collectionStore
-	existingDBs []string
-	metaDB      *database.MetaDBHandle
-	bufferSize  int
-	session     *mgo.Session
-	logger      *log.Logger
-	waitgroup   *sync.WaitGroup
-	mutex1      *sync.Mutex
-	mutex2      *sync.Mutex
+	session       *mgo.Session
+	metaDB        *database.MetaDBHandle
+	bufferSize    int
+	logger        *log.Logger
+	writerWG      *sync.WaitGroup
+	writeMap      storeMap
+	analyzedDBs   []string
+	unanalyzedDBs []string
 }
 
-//NewMongoDatastore creates a datastore which stores bro data in MongoDB
+//NewMongoDatastore returns a new MongoDatastore and caches the existing
+//db names
 func NewMongoDatastore(session *mgo.Session, metaDB *database.MetaDBHandle,
 	bufferSize int, logger *log.Logger) *MongoDatastore {
 	return &MongoDatastore{
-		dbMap:       make(map[string]map[string]collectionStore),
-		existingDBs: metaDB.GetDatabases(),
-		metaDB:      metaDB,
-		bufferSize:  bufferSize,
-		session:     session,
-		logger:      logger,
-		waitgroup:   new(sync.WaitGroup),
-		mutex1:      new(sync.Mutex), //mutex1 syncs the first level of map access
-		mutex2:      new(sync.Mutex), //mutex2 syncs the second level of map access
-		//NOTE: Mutex2 may be replaced with a map of mutexes for better performance
+		session:    session,
+		metaDB:     metaDB,
+		bufferSize: bufferSize,
+		logger:     logger,
+		writerWG:   new(sync.WaitGroup),
+		writeMap: storeMap{
+			databases: make(map[string]*collectionMap),
+			rwLock:    new(sync.Mutex),
+		},
+		analyzedDBs:   metaDB.GetAnalyzedDatabases(),
+		unanalyzedDBs: metaDB.GetUnAnalyzedDatabases(),
 	}
 }
 
-//store a line of imported data in MongoDB
-func (mongo *MongoDatastore) store(data importedData) {
-	//get the map representing the target database
-	mongo.mutex1.Lock()
-	collectionMap, ok := mongo.dbMap[data.targetDatabase]
-	if !ok {
-		mongo.registerDatabase(data.targetDatabase)
-		collectionMap = make(map[string]collectionStore)
-		mongo.dbMap[data.targetDatabase] = collectionMap
+//Store saves parsed Bro data to MongoDB.
+//Additionally, it caches some information to create indices later on
+func (mongo *MongoDatastore) Store(data *ImportedData) {
+	collMap, err := mongo.getCollectionMap(data)
+	if err != nil {
+		mongo.logger.Error(err)
+		return
 	}
-	mongo.mutex1.Unlock()
+	collWriter := mongo.getCollectionWriter(data, collMap)
+	collWriter.writeChannel <- data
+}
 
-	//get the collectionStore for the target collection
-	mongo.mutex2.Lock()
-	coll, ok := collectionMap[data.file.TargetCollection]
-	if !ok {
-		coll = collectionStore{
-			writeChannel: make(chan importedData),
-			database:     data.targetDatabase,
-			collection:   data.file.TargetCollection,
-			indices:      data.broData.Indices(),
+//Flush waits for all writing to finish
+func (mongo *MongoDatastore) Flush() {
+	mongo.writeMap.rwLock.Lock()
+	for _, collMap := range mongo.writeMap.databases {
+		collMap.rwLock.Lock()
+		for _, collWriter := range collMap.collections {
+			close(collWriter.writeChannel)
 		}
-		collectionMap[data.file.TargetCollection] = coll
-		//start the goroutine for this writer
-		mongo.waitgroup.Add(1)
-		go bulkInsertImportedData(
-			coll, mongo.bufferSize, mongo.session.Copy(),
-			mongo.waitgroup, mongo.logger,
-		)
+		collMap.rwLock.Unlock()
 	}
-	mongo.mutex2.Unlock()
-	//queue up the line to be written
-	coll.writeChannel <- data
+	mongo.writeMap.rwLock.Unlock()
+	mongo.writerWG.Wait()
 }
 
-//flush flushes the datastore
-func (mongo *MongoDatastore) flush() {
-	//wait for any changes to the collection maps to finish
-	mongo.mutex1.Lock()
-	mongo.mutex2.Lock()
-	//close out the write channels, allowing them to flush
-	for _, db := range mongo.dbMap {
-		for _, collStore := range db {
-			close(collStore.writeChannel)
-		}
-	}
-	mongo.mutex2.Unlock()
-	mongo.mutex1.Unlock()
-	//wait for the channels to flush
-	mongo.waitgroup.Wait()
-}
-
-//finalize ensures the indexes are applied to the mongo collections
-func (mongo *MongoDatastore) finalize() {
-	//ensure indices
+//Index ensures that the data is searchable
+func (mongo *MongoDatastore) Index() {
 	//NOTE: We do this one by one in order to prevent individual indexing
 	//operations from taking too long
 	ssn := mongo.session.Copy()
 	defer ssn.Close()
-	//wait for any changes to the collection maps to finish
-	//this shouldn't be an issue but it doesn't hurt
-	mongo.mutex1.Lock()
-	mongo.mutex2.Lock()
-	for _, collMap := range mongo.dbMap {
-		for _, collStore := range collMap {
-			collection := ssn.DB(collStore.database).C(collStore.collection)
-			for _, index := range collStore.indices {
+
+	mongo.writeMap.rwLock.Lock()
+	for _, collMap := range mongo.writeMap.databases {
+		collMap.rwLock.Lock()
+		for _, collWriter := range collMap.collections {
+			collection := ssn.DB(collWriter.targetDatabase).C(collWriter.targetCollection)
+			for _, index := range collWriter.indices {
 				err := collection.EnsureIndex(mgo.Index{
 					Key: []string{index},
 				})
@@ -135,51 +116,118 @@ func (mongo *MongoDatastore) finalize() {
 				}
 			}
 		}
+		collMap.rwLock.Unlock()
 	}
-	mongo.mutex2.Unlock()
-	mongo.mutex1.Unlock()
+	mongo.writeMap.rwLock.Unlock()
 }
 
-func (mongo *MongoDatastore) registerDatabase(db string) {
-	found := false
-	for _, existingDB := range mongo.existingDBs {
-		if db == existingDB {
-			found = true
-			break
+//getCollectionMap returns a map from collection names to collection writers
+//given a bro entry's target database. If the database does not exist,
+//getCollectionMap will create the database. If the database does exist
+//and the database has been analyzed, getCollectionMap will return an error.
+func (mongo *MongoDatastore) getCollectionMap(data *ImportedData) (*collectionMap, error) {
+	mongo.writeMap.rwLock.Lock()
+	defer mongo.writeMap.rwLock.Unlock()
+
+	//check the cache for the collection map
+	collMap, ok := mongo.writeMap.databases[data.TargetDatabase]
+	if ok {
+		return collMap, nil
+	}
+
+	//check if the database is already analyzed
+
+	//iterate over indices to save RAM
+	//nolint: golint
+	for i, _ := range mongo.analyzedDBs {
+		if mongo.analyzedDBs[i] == data.TargetDatabase {
+			return nil, errors.New("cannot import bro data into already analyzed database")
 		}
 	}
-	if !found {
-		mongo.metaDB.AddNewDB(db)
-	} else {
-		mongo.logger.Error("Attempted to insert data into existing database.")
-		panic("[!] Attempted to insert data into existing database.")
+
+	//check if the database was created in an earlier parse
+	targetDBExists := false
+	//nolint: golint
+	for i, _ := range mongo.unanalyzedDBs {
+		if mongo.unanalyzedDBs[i] == data.TargetDatabase {
+			targetDBExists = true
+		}
 	}
+
+	if targetDBExists {
+		compatible, err := mongo.metaDB.CheckCompatibleImport(data.TargetDatabase)
+		if err != nil {
+			return nil, err
+		}
+		if !compatible {
+			return nil, errors.New("cannot import bro data into already populated, incompatible database")
+		}
+	} else {
+		//create the database if it doesn't exist
+		err := mongo.metaDB.AddNewDB(data.TargetDatabase)
+		if err != nil {
+			return nil, err
+		}
+		mongo.unanalyzedDBs = append(mongo.unanalyzedDBs, data.TargetDatabase)
+	}
+
+	mongo.writeMap.databases[data.TargetDatabase] = &collectionMap{
+		collections: make(map[string]*collectionWriter),
+		rwLock:      new(sync.Mutex),
+	}
+	return mongo.writeMap.databases[data.TargetDatabase], nil
 }
 
-func bulkInsertImportedData(coll collectionStore, bufferSize int,
-	session *mgo.Session, wg *sync.WaitGroup, logger *log.Logger) {
+//getCollectionWriter returns a collection writer which can be used to send
+//data to a specific MongoDB collection. If a collection writer does not exist
+//in the cache, it is created and a new thread is spun up for it.
+func (mongo *MongoDatastore) getCollectionWriter(data *ImportedData, collMap *collectionMap) *collectionWriter {
+	collMap.rwLock.Lock()
+	defer collMap.rwLock.Unlock()
+	collWriter, ok := collMap.collections[data.TargetCollection]
+	if ok {
+		return collWriter
+	}
+	collMap.collections[data.TargetCollection] = &collectionWriter{
+		writeChannel:     make(chan *ImportedData),
+		writerWG:         mongo.writerWG,
+		session:          mongo.session.Copy(),
+		logger:           mongo.logger,
+		bufferSize:       mongo.bufferSize,
+		targetDatabase:   data.TargetDatabase,
+		targetCollection: data.TargetCollection,
+		indices:          data.BroData.Indices(),
+	}
+	go collMap.collections[data.TargetCollection].bulkInsert()
+	return collMap.collections[data.TargetCollection]
+}
 
-	//buffer the writes to MongoDB
-	buffer := make([]interface{}, 0, bufferSize)
-	collection := session.DB(coll.database).C(coll.collection)
+//bulkInsert is a goroutine which reads a channel and inserts the data in bulk
+//into MongoDB
+func (writer *collectionWriter) bulkInsert() {
+	writer.writerWG.Add(1)
+	defer writer.writerWG.Done()
+	defer writer.session.Close()
 
-	//append data to the buffer until it is full, then insert them
-	for data := range coll.writeChannel {
-		if len(buffer) == bufferSize {
+	buffer := make([]interface{}, 0, writer.bufferSize)
+	collection := writer.session.DB(writer.targetDatabase).C(writer.targetCollection)
+
+	for data := range writer.writeChannel {
+		if len(buffer) == writer.bufferSize {
 			bulk := collection.Bulk()
 			bulk.Unordered()
 			bulk.Insert(buffer...)
 			_, err := bulk.Run()
 			if err != nil {
-				logger.WithFields(log.Fields{
-					"target_database":   coll.database,
-					"target_collection": coll.collection,
+				writer.logger.WithFields(log.Fields{
+					"target_database":   writer.targetDatabase,
+					"target_collection": writer.targetCollection,
 					"error":             err.Error(),
 				}).Error("Unable to insert bulk data in MongoDB")
 			}
 			buffer = buffer[:0]
 		}
-		buffer = append(buffer, data.broData)
+		buffer = append(buffer, data.BroData)
 	}
 
 	//guaranteed to be at least 1 line in the buffer
@@ -188,12 +236,10 @@ func bulkInsertImportedData(coll collectionStore, bufferSize int,
 	bulk.Insert(buffer...)
 	_, err := bulk.Run()
 	if err != nil {
-		logger.WithFields(log.Fields{
-			"target_database":   coll.database,
-			"target_collection": coll.collection,
+		writer.logger.WithFields(log.Fields{
+			"target_database":   writer.targetDatabase,
+			"target_collection": writer.targetCollection,
 			"error":             err.Error(),
 		}).Error("Unable to insert bulk data in MongoDB")
 	}
-	session.Close()
-	wg.Done()
 }

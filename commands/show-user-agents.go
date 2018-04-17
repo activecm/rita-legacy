@@ -1,13 +1,11 @@
 package commands
 
 import (
-	"fmt"
+	"encoding/csv"
 	"os"
-	"strconv"
-	"text/template"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/useragent"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/useragent"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -15,26 +13,27 @@ import (
 func init() {
 	command := cli.Command{
 
-		Name:  "show-user-agents",
-		Usage: "Print user agent information",
+		Name:      "show-user-agents",
+		Usage:     "Print user agent information",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			databaseFlag,
-			allFlag,
 			cli.BoolFlag{
 				Name:  "least-used, l",
-				Usage: "Print the least used user agent strings",
+				Usage: "Sort the user agents from least used to most used.",
 			},
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			if c.String("database") == "" {
-				return cli.NewExitError("Specify a database with -d", -1)
+			db := c.Args().Get(0)
+			if db == "" {
+				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var agents []useragent.UserAgent
-			coll := res.DB.Session.DB(c.String("database")).C(res.System.UserAgentConfig.UserAgentTable)
+			coll := res.DB.Session.DB(db).C(res.Config.T.UserAgent.UserAgentTable)
 
 			var sortStr string
 			if c.Bool("least-used") {
@@ -43,38 +42,37 @@ func init() {
 				sortStr = "-times_used"
 			}
 
-			query := coll.Find(nil).Sort(sortStr)
-			if !c.Bool("all") {
-				query.Limit(15)
+			coll.Find(nil).Sort(sortStr).All(&agents)
+
+			if len(agents) == 0 {
+				return cli.NewExitError("No results were found for "+db, -1)
 			}
-			query.All(&agents)
 
 			if c.Bool("human-readable") {
-				return showAgentsHuman(agents)
+				err := showAgentsHuman(agents)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
+				return nil
 			}
-			return showAgents(agents)
+			err := showAgents(agents)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(command)
 }
 
 func showAgents(agents []useragent.UserAgent) error {
-	tmpl := "{{.UserAgent}},{{.TimesUsed}}\n"
-
-	out, err := template.New("ua").Parse(tmpl)
-	if err != nil {
-		return err
-	}
-
-	var error error
+	csvWriter := csv.NewWriter(os.Stdout)
+	csvWriter.Write([]string{"User Agent", "Times Used"})
 	for _, agent := range agents {
-		err := out.Execute(os.Stdout, agent)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
-		}
+		csvWriter.Write([]string{agent.UserAgent, i(agent.TimesUsed)})
 	}
-	return error
+	csvWriter.Flush()
+	return nil
 }
 
 func showAgentsHuman(agents []useragent.UserAgent) error {
@@ -82,7 +80,7 @@ func showAgentsHuman(agents []useragent.UserAgent) error {
 	table.SetColWidth(100)
 	table.SetHeader([]string{"User Agent", "Times Used"})
 	for _, agent := range agents {
-		table.Append([]string{agent.UserAgent, strconv.FormatInt(agent.TimesUsed, 10)})
+		table.Append([]string{agent.UserAgent, i(agent.TimesUsed)})
 	}
 	table.Render()
 	return nil

@@ -3,7 +3,7 @@ package fileparsetypes
 import (
 	"time"
 
-	pt "github.com/ocmdev/rita/parser/parsetypes"
+	pt "github.com/activecm/rita/parser/parsetypes"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -32,7 +32,6 @@ type IndexedFile struct {
 	Hash             string        `bson:"hash"`
 	TargetCollection string        `bson:"collection"`
 	TargetDatabase   string        `bson:"database"`
-	Dates            []string      `bson:"dates"`
 	ParseTime        time.Time     `bson:"time_complete"`
 	header           *BroHeader
 	broDataFactory   func() pt.BroData

@@ -13,7 +13,7 @@ there.
 
 Just be sure to do the following:
 * Check if the bug is already accounted for on the
-[Github issue tracker](https://github.com/ocmdev/rita/issues)
+[Github issue tracker](https://github.com/activecm/rita/issues)
   * If an issue already exists, add the following info in a comment
   * If not, create an issue, and include the following info
 * Give very specific descriptions of how to reproduce the bug
@@ -34,23 +34,29 @@ There are several ways to contribute code to the RITA project.
   * All too often code is developed to meet milestones which only undergoes
   empirical, human testing
   * We would love to see unit tests throughout RITA
+  * Currently we only have unit tests for Beacon check under analysis/beacon to
+  see how tests can be written neatly and easily
+  * Also when writing tests it is advisable to work backwards, start with what
+  result you want to get and then work backwards through the code
+  * When you're ready to test code run `go test ./...` from the root directory
+  of the project
   * Feel free to refactor code to increase our ability to test it
-  * Join our [IRC](https://github.com/ocmdev/rita/wiki/RITA-Gittiquette) to
+  * Join our [IRC](https://github.com/activecm/rita/wiki/RITA-Gittiquette) to
   learn more
 * Add new features:
   * If you would like to become involved in the development effort, please hop
-   on our [OFTC channel at #ocmdev](https://webchat.oftc.net/?channels=ocmdev)
+   on our [OFTC channel at #activecm](https://webchat.oftc.net/?channels=activecm)
    and chat about what is currently being worked on.
 
 All of these tasks ultimately culminate in a pull request being issued,
 reviewed, and merged. When interacting with RITA through Git please check out
 the
-[RITA Gittiquette page](https://github.com/ocmdev/rita/wiki/RITA-Gittiquette).
+[RITA Gittiquette page](https://github.com/activecm/rita/wiki/RITA-Gittiquette).
 Go limits the ways you may use Git with an open source project such as RITA, so
 it is important that you understand the procedures laid out here.
 
 ### Gittiquette Summary
-* We currently have a dev and master branch on OCMDev
+* We currently have a dev and master branch on activecm
   * Master is our tagged release branch
   * Dev is our development and staging branch
   * As more users come to rely on RITA, we will introduce a release-testing branch
@@ -66,9 +72,9 @@ your feature branch off of it
 * Submit a pull request on Github
 
 ### Switching to the `dev` Branch
-* Install RITA using either the [installer](https://raw.githubusercontent.com/ocmdev/rita/master/install.sh) or
-[manually](https://github.com/ocmdev/rita/wiki/Installation)
-* `cd $GOPATH/src/github.com/ocmdev/rita`
+* Install RITA using either the [installer](https://raw.githubusercontent.com/activecm/rita/master/install.sh) or
+[manually](https://github.com/activecm/rita/wiki/Installation)
+* `cd $GOPATH/src/github.com/activecm/rita`
 * `git checkout dev`
 * `make install`
 * Configure a config file for the dev branch

@@ -1,8 +1,8 @@
 package crossref
 
 import (
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/scanning"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/scanning"
 )
 
 type (
@@ -18,30 +18,22 @@ func (s ScanningSelector) GetName() string {
 //Select selects scanning and scanned hosts for XRef analysis
 func (s ScanningSelector) Select(res *database.Resources) (<-chan string, <-chan string) {
 	// make channels to return
-	internalHosts := make(chan string)
-	externalHosts := make(chan string)
+	sourceHosts := make(chan string)
+	destHosts := make(chan string)
 	// run the read code async and return the channels immediately
 	go func() {
 		ssn := res.DB.Session.Copy()
 		defer ssn.Close()
 		iter := ssn.DB(res.DB.GetSelectedDB()).
-			C(res.System.ScanningConfig.ScanTable).Find(nil).Iter()
+			C(res.Config.T.Scanning.ScanTable).Find(nil).Iter()
 
 		var data scanning.Scan
 		for iter.Next(&data) {
-			if data.LocalSrc {
-				internalHosts <- data.Src
-			} else {
-				externalHosts <- data.Src
-			}
-			if data.LocalDst {
-				internalHosts <- data.Dst
-			} else {
-				externalHosts <- data.Dst
-			}
+			sourceHosts <- data.Src
+			destHosts <- data.Dst
 		}
-		close(internalHosts)
-		close(externalHosts)
+		close(sourceHosts)
+		close(destHosts)
 	}()
-	return internalHosts, externalHosts
+	return sourceHosts, destHosts
 }

@@ -1,12 +1,11 @@
 package parsetypes
 
-import "github.com/ocmdev/rita/config"
+import "github.com/activecm/rita/config"
 
 //BroData holds a line of a bro log
 type BroData interface {
-	TargetCollection(*config.StructureCfg) string
+	TargetCollection(*config.StructureTableCfg) string
 	Indices() []string
-	Normalize()
 }
 
 //NewBroDataFactory creates a new BroData based on the string

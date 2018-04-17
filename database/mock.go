@@ -4,21 +4,21 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ocmdev/rita/config"
+	"github.com/activecm/rita/config"
 )
 
 // InitMockResources grabs the configuration file and intitializes the configuration data
 // returning a *Resources object which has all of the necessary configuration information
-func InitMockResources(cfgPath string) *Resources {
+func InitMockResources(userConfig string) *Resources {
 	//TODO: hard code in a test config
-	conf, ok := config.GetConfig(cfgPath)
-	if !ok {
+	conf, err := config.GetConfig(userConfig)
+	if err != nil {
 		fmt.Fprintf(os.Stdout, "Failed to config, exiting")
-		os.Exit(-1)
+		panic(err)
 	}
 
 	// Fire up the logging system
-	log, err := initLog(conf.LogConfig.LogLevel)
+	log, err := initLog(conf.S.Log.LogLevel)
 	if err != nil {
 		fmt.Printf("Failed to prep logger: %s", err.Error())
 		os.Exit(-1)
@@ -32,7 +32,7 @@ func InitMockResources(cfgPath string) *Resources {
 
 	r := &Resources{
 		Log:    log,
-		System: conf,
+		Config: conf,
 	}
 
 	// db and resources have cyclic pointers

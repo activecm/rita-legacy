@@ -1,13 +1,12 @@
 package commands
 
 import (
-	"fmt"
+	"encoding/csv"
 	"os"
 	"strconv"
-	"text/template"
 
-	"github.com/ocmdev/rita/database"
-	"github.com/ocmdev/rita/datatypes/data"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/data"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -15,57 +14,65 @@ import (
 func init() {
 	command := cli.Command{
 
-		Name:  "show-long-connections",
-		Usage: "Print long connections and relevant information",
+		Name:      "show-long-connections",
+		Usage:     "Print long connections and relevant information",
+		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			databaseFlag,
-			allFlag,
+			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			if c.String("database") == "" {
-				return cli.NewExitError("Specify a database with -d", -1)
+			db := c.Args().Get(0)
+			if db == "" {
+				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := database.InitResources("")
+			res := database.InitResources(c.String("config"))
 
 			var longConns []data.Conn
-			coll := res.DB.Session.DB(c.String("database")).C(res.System.StructureConfig.ConnTable)
+			coll := res.DB.Session.DB(db).C(res.Config.T.Structure.ConnTable)
 
 			sortStr := "-duration"
 
-			query := coll.Find(nil).Sort(sortStr)
-			if !c.Bool("all") {
-				query.Limit(15)
+			coll.Find(nil).Sort(sortStr).All(&longConns)
+
+			if len(longConns) == 0 {
+				return cli.NewExitError("No results were found for "+db, -1)
 			}
-			query.All(&longConns)
 
 			if c.Bool("human-readable") {
-				return showConnsHuman(longConns)
+				err := showConnsHuman(longConns)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
+				return nil
 			}
-			return showConns(longConns)
+			err := showConns(longConns)
+			if err != nil {
+				return cli.NewExitError(err.Error(), -1)
+			}
+			return nil
 		},
 	}
 	bootstrapCommands(command)
 }
 
 func showConns(connResults []data.Conn) error {
-	tmpl := "{{.Src}},{{.Spt}},{{.Dst}},{{.Dpt}},{{.Dur}},{{.Proto}}\n"
-
-	out, err := template.New("Conn").Parse(tmpl)
-	if err != nil {
-		return err
-	}
-
-	var error error
+	csvWriter := csv.NewWriter(os.Stdout)
+	csvWriter.Write([]string{"Source IP", "Source Port", "Destination IP",
+		"Destination Port", "Duration", "Protocol"})
 	for _, result := range connResults {
-		err := out.Execute(os.Stdout, result)
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "ERROR: Template failure: %s\n", err.Error())
-			error = err
-		}
+		csvWriter.Write([]string{
+			result.Src,
+			strconv.Itoa(result.Spt),
+			result.Dst,
+			strconv.Itoa(result.Dpt),
+			f(result.Dur),
+			result.Proto,
+		})
 	}
-	return error
+	csvWriter.Flush()
+	return nil
 }
 
 func showConnsHuman(connResults []data.Conn) error {
@@ -78,7 +85,7 @@ func showConnsHuman(connResults []data.Conn) error {
 			strconv.Itoa(result.Spt),
 			result.Dst,
 			strconv.Itoa(result.Dpt),
-			strconv.FormatFloat(result.Dur, 'f', 2, 64),
+			f(result.Dur),
 			result.Proto,
 		})
 	}
