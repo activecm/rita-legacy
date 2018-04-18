@@ -240,7 +240,7 @@ __install_rita() {
 	_RITA_CONFIG_URL="$_RITA_DOWNLOAD_URL/config.yaml"
 	_RITA_LICENSE_URL="$_RITA_DOWNLOAD_URL/LICENSE"
 	
-	curl -sSL $_RITA_BINARY_URL -o $_BIN_PATH/rita
+	curl -sSL "$_RITA_BINARY_URL" -o "$_BIN_PATH/rita"
 	chmod 755 "$_BIN_PATH/rita"
 
 	mkdir -p "$_CONFIG_PATH"
@@ -251,14 +251,16 @@ __install_rita() {
 	curl -sSL "$_RITA_LICENSE_URL" -o "$_CONFIG_PATH/LICENSE"
 
 	if [ -f "$_CONFIG_PATH/config.yaml" ]; then
-		printf "$_SUBITEM Backing up your current RITA config: $_CONFIG_PATH/config.yaml -> $_CONFIG_PATH/config.yaml.old \n"
-		mv -f "$_CONFIG_PATH/config.yaml" "$_CONFIG_PATH/config.yaml.old"
+		# Don't overwrite existing config
+		curl -sSL "$_RITA_CONFIG_URL" -o "$_CONFIG_PATH/config.yaml.new"
+		chmod 666 "$_CONFIG_PATH/config.yaml.new"
+  else
+		curl -sSL "$_RITA_CONFIG_URL" -o "$_CONFIG_PATH/config.yaml"
+		chmod 666 "$_CONFIG_PATH/config.yaml"
 	fi
-	curl -sSL "$_RITA_CONFIG_URL" -o "$_CONFIG_PATH/config.yaml"
 
 	# All users can read and write rita's config file
 	chmod 755 "$_CONFIG_PATH"
-	chmod 666 "$_CONFIG_PATH/config.yaml"
 
 	touch "$_VAR_PATH/safebrowsing"
 	chmod 755 "$_VAR_PATH"

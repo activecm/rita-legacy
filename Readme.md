@@ -22,7 +22,7 @@ Additional functionality is being developed and will be included soon.
 * Clone the package:
 `git clone https://github.com/activecm/rita.git`
 * Change into the source directory: `cd rita`
-* Run the installer: `./install.sh`
+* Run the installer: `sudo ./install.sh`
 * Start MongoDB: `sudo service mongod start`
 
 ### Manual Installation
