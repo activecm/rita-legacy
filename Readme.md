@@ -8,25 +8,24 @@ Brought to you by Active Countermeasures.
 RITA is an open source framework for network traffic analysis.
 
 The framework ingests [Bro Logs](https://www.bro.org/), and currently supports the following analysis features:
- - **Beaconing**: Search for signs of beaconing behavior in and out of your network
- - **DNS Tunneling** Search for signs of DNS based covert channels
- - **Blacklisted**: Query blacklists to search for suspicious domains and hosts
+ - **Beaconing Detection**: Search for signs of beaconing behavior in and out of your network
+ - **DNS Tunneling Detection** Search for signs of DNS based covert channels
+ - **Blacklist Checking**: Query blacklists to search for suspicious domains and hosts
  - **URL Length Analysis**: Search for lengthy URLs indicative of malware
- - **Scanning**: Search for signs of port scans in your network
+ - **Scanning Detection**: Search for signs of port scans in your network
 
 Additional functionality is being developed and will be included soon.
 
 ### Automatic Installation
 **The automatic  installer is officially supported on Ubuntu 14.04, 16.04 LTS, Security Onion, and CentOS 7**
 
-* Clone the package:
-`git clone https://github.com/activecm/rita.git`
-* Change into the source directory: `cd rita`
+* Download the latest `install.sh` file from the [release page](https://github.com/activecm/rita/releases/latest)
+* Make the installer executable: `chmod +x ./install.sh`
 * Run the installer: `sudo ./install.sh`
 * Start MongoDB: `sudo service mongod start`
 
 ### Manual Installation
-To install each component of RITA by hand, [check out the instructions in the wiki](https://github.com/activecm/rita/wiki/Installation).
+To install each component of RITA by hand, [check out the instructions in the wiki](https://github.com/activecm/rita/blob/master/docs/Manual%20Installation.md).
 
 ### Configuration File
 RITA contains a yaml format configuration file.
