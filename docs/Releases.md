@@ -4,7 +4,7 @@ Steps for creating a RITA release.
 
 - Tag a commit on master as a release
 	- Checkout the commit
-	- `git tag [version]`
+	- Tag the commit with `git tag [version]`
 		- Follow [SemVer](https://semver.org)
 	- Push the tag to github using `git push origin [version]`
 - Wait for Quay.io to build the docker image
