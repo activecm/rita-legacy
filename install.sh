@@ -142,6 +142,11 @@ __install() {
 	fi
 
 	__load "$_ITEM Installing RITA" __install_rita
+	if [ "$_REINSTALL_RITA" = "true" ]; then
+		printf "$_IMPORTANT $_RITA_CONFIG_FILE may need to be updated for this version of RITA. \n"
+		printf "$_IMPORTANT A default config file has been created at $_RITA_REINSTALL_CONFIG_FILE. \n"
+		printf "$_IMPORTANT \"rita test-config\" may be used to troubleshoot configuration issues. \n \n"
+	fi
 
 	# Ubuntu 14.04 uses Upstart for init
         _START_MONGO="sudo systemctl start mongod"
@@ -240,6 +245,9 @@ __install_rita() {
 	_RITA_CONFIG_URL="$_RITA_DOWNLOAD_URL/config.yaml"
 	_RITA_LICENSE_URL="$_RITA_DOWNLOAD_URL/LICENSE"
 	
+	_RITA_CONFIG_FILE="$_CONFIG_PATH/config.yaml"
+	_RITA_REINSTALL_CONFIG_FILE="$_CONFIG_PATH/config.yaml.new"
+
 	curl -sSL "$_RITA_BINARY_URL" -o "$_BIN_PATH/rita"
 	chmod 755 "$_BIN_PATH/rita"
 
@@ -250,13 +258,13 @@ __install_rita() {
 
 	curl -sSL "$_RITA_LICENSE_URL" -o "$_CONFIG_PATH/LICENSE"
 
-	if [ -f "$_CONFIG_PATH/config.yaml" ]; then
+	if [ "$_REINSTALL_RITA" = "true" ]; then
 		# Don't overwrite existing config
-		curl -sSL "$_RITA_CONFIG_URL" -o "$_CONFIG_PATH/config.yaml.new"
-		chmod 666 "$_CONFIG_PATH/config.yaml.new"
-  else
-		curl -sSL "$_RITA_CONFIG_URL" -o "$_CONFIG_PATH/config.yaml"
-		chmod 666 "$_CONFIG_PATH/config.yaml"
+		curl -sSL "$_RITA_CONFIG_URL" -o "$_RITA_REINSTALL_CONFIG_FILE"
+		chmod 666 "$_RITA_REINSTALL_CONFIG_FILE"
+	else
+		curl -sSL "$_RITA_CONFIG_URL" -o "$_RITA_CONFIG_FILE"
+		chmod 666 "$_RITA_CONFIG_FILE"
 	fi
 
 	# All users can read and write rita's config file
