@@ -187,14 +187,10 @@ __install_bro() {
 			;;
 		CentOS)
 			__add_rpm_repo http://download.opensuse.org/repositories/network:bro/CentOS_7/network:bro.repo
-			
 			# Workaround for https://github.com/activecm/rita/issues/189
-			curl -sSL http://download.opensuse.org/repositories/network%3A/bro/CentOS_7/x86_64/bro-2.5.3-1.1.x86_64.rpm -o /tmp/bro-2.5.3-1.1.x86_64.rpm
-			curl -sSL http://download.opensuse.org/repositories/network%3A/bro/CentOS_7/x86_64/bro-core-2.5.3-1.1.x86_64.rpm -o /tmp/bro-core-2.5.3-1.1.x86_64.rpm
-			curl -sSL http://download.opensuse.org/repositories/network%3A/bro/CentOS_7/x86_64/broctl-2.5.3-1.1.x86_64.rpm -o /tmp/broctl-2.5.3-1.1.x86_64.rpm
-			curl -sSL http://download.opensuse.org/repositories/network%3A/bro/CentOS_7/x86_64/libbroccoli-2.5.3-1.1.x86_64.rpm -o /tmp/libbroccoli-2.5.3-1.1.x86_64.rpm
-			yum -y -q localinstall /tmp/bro-2.5.3-1.1.x86_64.rpm /tmp/bro-core-2.5.3-1.1.x86_64.rpm /tmp/broctl-2.5.3-1.1.x86_64.rpm /tmp/libbroccoli-2.5.3-1.1.x86_64.rpm
-			# End workaround
+			# Replace the download.opensuse.org link with downloadcontent.opensuse.org link
+			# https://www.linuxquestions.org/questions/linux-general-1/yum-update-failed-because-of-timeout-4175625075/#post5828487
+			cat '/etc/yum.repos.d/network:bro.repo' | sed -e 's/download\.opensuse\.org/downloadcontent.opensuse.org/g' | tee '/etc/yum.repos.d/network:bro.repo.tmp' >/dev/null && mv -f '/etc/yum.repos.d/network:bro.repo.tmp' '/etc/yum.repos.d/network:bro.repo'
 			;;
 	esac
 	__install_packages bro broctl
