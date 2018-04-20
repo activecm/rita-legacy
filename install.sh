@@ -96,6 +96,7 @@ __entry() {
 		if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 			exit 0
 		fi
+		_REINSTALL_RITA="true"
 	fi
 
 	__install
