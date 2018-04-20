@@ -240,10 +240,11 @@ __install_rita() {
 		_RITA_VERSION="$(eval $_LATEST_VERSION_COMMAND)"
 	fi
 
-	_RITA_DOWNLOAD_URL="https://github.com/activecm/rita/releases/download/$_RITA_VERSION"
-	_RITA_BINARY_URL="$_RITA_DOWNLOAD_URL/rita"	
-	_RITA_CONFIG_URL="$_RITA_DOWNLOAD_URL/config.yaml"
-	_RITA_LICENSE_URL="$_RITA_DOWNLOAD_URL/LICENSE"
+	_RITA_RELEASE_URL="https://github.com/activecm/rita/releases/download/$_RITA_VERSION"
+	_RITA_REPO_URL="https://raw.githubusercontent.com/activecm/rita/$_RITA_VERSION"
+	_RITA_BINARY_URL="$_RITA_RELEASE_URL/rita"
+	_RITA_CONFIG_URL="$_RITA_REPO_URL/etc/rita.yaml"
+	_RITA_LICENSE_URL="$_RITA_REPO_URL/LICENSE"
 	
 	_RITA_CONFIG_FILE="$_CONFIG_PATH/config.yaml"
 	_RITA_REINSTALL_CONFIG_FILE="$_CONFIG_PATH/config.yaml.new"

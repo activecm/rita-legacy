@@ -46,7 +46,7 @@
     1. Allow users to write to the safebrowsing file
         * ```sudo chmod 666 /var/lib/rita/safebrowsing```
     1. Install the config file
-	* ```sudo cp etc/rita.yaml /etc/rita/config.yaml```
+        * ```sudo cp etc/rita.yaml /etc/rita/config.yaml```
     1. Allow users to write to the RITA config file
         * ```sudo chmod 666 /etc/rita/config.yaml```
     1. You can test a configuration file with ```rita test-config -c PATH/TO/FILE```

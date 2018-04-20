@@ -25,7 +25,7 @@ Additional functionality is being developed and will be included soon.
 * Start MongoDB: `sudo service mongod start`
 
 ### Manual Installation
-To install each component of RITA by hand, [check out the instructions in the wiki](https://github.com/activecm/rita/blob/master/docs/Manual%20Installation.md).
+To install each component of RITA by hand, [check out the instructions in the docs](https://github.com/activecm/rita/blob/master/docs/Manual%20Installation.md).
 
 ### Configuration File
 RITA contains a yaml format configuration file.
@@ -81,6 +81,7 @@ To obtain an API key:
   * `-H` displays human readable data
   * `rita show-beacons dataset_name -H`
   * `rita show-blacklisted dataset_name -H`
+  * Use less to view data `rita show-beacons dataset_name -H | less -S`
 
 ### Getting help
 Please create an issue on GitHub if you have any questions or concerns.

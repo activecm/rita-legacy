@@ -17,8 +17,5 @@ Steps for creating a RITA release.
 		- If the config file changed, give a thorough description of the needed changes
 	- Attach the following files:
 		- The `rita` binary, pulled from the docker image
-		- The `rita.yaml` file for the tagged code base
-			- IMPORTANT: This must be named `config.yaml` in the release
-		- The `LICENSE` file for the tagged code base
 		- The `install.sh` file for the tagged code base
 	- Publish the release
