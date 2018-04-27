@@ -26,7 +26,7 @@ func printAnalysis(res *datatype_beacon.BeaconAnalysisOutput) string {
 func TestAnalysis(t *testing.T) {
 	//There are mock resources to set our database equal to, so we don't have errors
 	//TODO: update the mock.go file under the database to perfectly mock the MongoDB
-	res := database.InitMockResources("")
+	res := database.InitMockResources("../../etc/rita.yaml")
 	res.Log.Level = log.DebugLevel
 	res.Config.S.Beacon.DefaultConnectionThresh = 2
 
