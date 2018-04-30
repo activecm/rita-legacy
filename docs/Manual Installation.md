@@ -24,13 +24,15 @@
     1. Load your new configurations with source.
         * ```source $HOME/.bashrc```
 1. Getting RITA and building it
-  	1. First we want to use the go to grab sources and deps for rita.
-    	* ```go get github.com/activecm/rita```
-  	1. Now lets change to the rita directory.
-    	* ```cd $GOPATH/src/github.com/activecm/rita```
-  	1. Finally we'll build and install the rita binary.
-  		* ```make install```
-		* This will install to `$GOPATH/bin/rita` not `/usr/local/bin/rita`
+    1. First we want to use the go to grab sources and deps for rita.
+        * ```go get github.com/activecm/rita```
+    1. Now lets change to the rita directory.
+        * ```cd $GOPATH/src/github.com/activecm/rita```
+    1. Check out the desired branch you wish to work with. This will most likely be `dev`.
+        * ```git checkout dev```
+    1. Finally we'll build and install the rita binary.
+        * ```make install```
+        * This will install to `$GOPATH/bin/rita` not `/usr/local/bin/rita`
 1. Configuring the system
     1. Create a configuration directory at `/etc/rita`
         * ```sudo mkdir /etc/rita```
@@ -52,4 +54,3 @@
     1. You can test a configuration file with ```rita test-config -c PATH/TO/FILE```
         * There will be empty quotes or 0's assigned to empty fields
     1. Follow the documentation in the Readme.md for configuring RITA
-
