@@ -23,6 +23,8 @@
         * ```echo 'export PATH="$PATH:$GOPATH/bin"' >> $HOME/.bashrc```
     1. Load your new configurations with source.
         * ```source $HOME/.bashrc```
+    1. Install dep to your GoPath
+        * ```wget -q -O $GOPATH/bin/dep https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 && chmod +x $GOPATH/bin/dep```
 1. Getting RITA and building it
     1. First we want to use the go to grab sources and deps for rita.
         * ```go get github.com/activecm/rita```
@@ -51,6 +53,6 @@
         * ```sudo cp etc/rita.yaml /etc/rita/config.yaml```
     1. Allow users to write to the RITA config file
         * ```sudo chmod 666 /etc/rita/config.yaml```
-    1. You can test a configuration file with ```rita test-config -c PATH/TO/FILE```
+    1. You can test a configuration file with ```rita test-config```
         * There will be empty quotes or 0's assigned to empty fields
     1. Follow the documentation in the Readme.md for configuring RITA
