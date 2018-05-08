@@ -70,12 +70,12 @@ func showScans(scans []scanning.Scan, showPorts bool) error {
 		data := []string{scan.Src, scan.Dst, strconv.Itoa(scan.PortCount)}
 
 		if showPorts {
-			portSet := make([]byte, scan.PortCount*3)
+			portSet := []byte("")
 			for i, port := range scan.PortSet {
 				if i != 0 {
-					strconv.AppendQuote(portSet, " ")
+					portSet = append(portSet, " "...)
 				}
-				strconv.AppendInt(portSet, int64(port), 10)
+				portSet = strconv.AppendInt(portSet, int64(port), 10)
 			}
 			data = append(data, string(portSet))
 		}
@@ -92,18 +92,19 @@ func showScansHuman(scans []scanning.Scan, showPorts bool) error {
 	header := []string{"Source", "Destination", "Ports Scanned"}
 	if showPorts {
 		header = append(header, "Ports")
+		table.SetColWidth(80)
 	}
 	table.SetHeader(header)
 	for _, scan := range scans {
 		data := []string{scan.Src, scan.Dst, strconv.Itoa(scan.PortCount)}
 
 		if showPorts {
-			portSet := make([]byte, scan.PortCount*3)
+			portSet := []byte("")
 			for i, port := range scan.PortSet {
 				if i != 0 {
-					strconv.AppendQuote(portSet, " ")
+					portSet = append(portSet, " "...)
 				}
-				strconv.AppendInt(portSet, int64(port), 10)
+				portSet = strconv.AppendInt(portSet, int64(port), 10)
 			}
 			data = append(data, string(portSet))
 		}
