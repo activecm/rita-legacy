@@ -1,12 +1,11 @@
 package config
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"time"
-	"path/filepath"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -91,21 +90,25 @@ type (
 
 // loadStaticConfig attempts to parse a config file
 func loadStaticConfig(cfgPath string) (*StaticCfg, error) {
-	var config = new(StaticCfg)
 	_, err := os.Stat(cfgPath)
 
 	if os.IsNotExist(err) {
-		return config, err
+		return nil, err
 	}
 
 	cfgFile, err := ioutil.ReadFile(cfgPath)
 	if err != nil {
-		return config, err
+		return nil, err
 	}
-	err = yaml.Unmarshal(cfgFile, config)
+
+	return parseStaticConfig(cfgFile)
+}
+
+func parseStaticConfig(cfgFile []byte) (*StaticCfg, error) {
+	var config = new(StaticCfg)
+	err := yaml.Unmarshal(cfgFile, config)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to read config: %s\n", err.Error())
 		return config, err
 	}
 

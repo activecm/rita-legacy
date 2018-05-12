@@ -33,6 +33,12 @@
   version = "v3.5.1"
 
 [[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -63,6 +69,12 @@
   revision = "b8a9be070da40449e501c3c4730a889e42d87a9e"
 
 [[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/rifflock/lfshook"
   packages = ["."]
   revision = "bf539943797a1f34c1f502d07de419b5238ae6c6"
@@ -79,6 +91,12 @@
   name = "github.com/skratchdot/open-golang"
   packages = ["open"]
   revision = "75fb7ed4208cf72d323d7d02fd1a5964a7a9073c"
+
+[[projects]]
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
+  version = "v1.2.1"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -149,6 +167,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2cd8cd4548384c70c9d6a0facc232a8a7ed8573751f8cbea14c27b2153d38f8c"
+  inputs-digest = "a4e09dc561c661f2ae4ae099a769261c68e717ecc2d812caaf375f93d2fcfb5f"
   solver-name = "gps-cdcl"
   solver-version = 1

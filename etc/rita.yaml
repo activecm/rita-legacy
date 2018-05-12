@@ -92,7 +92,3 @@ Scanning:
 
 Beacon:
     DefaultConnectionThresh: 24
-
-# Adjusting batchsize and prefetch may help speed up certain database queries
-BatchSize: 300
-Prefetch: 0.33

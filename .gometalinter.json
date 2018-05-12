@@ -1,0 +1,8 @@
+{
+  "Enable": ["vet", "vetshadow", "golint", "ineffassign", "goconst"],
+  "Linters": {
+    "vet": "go vet -all -composites=false:PATH:LINE:MESSAGE"
+  },
+  "JSON": true,
+  "Vendor": true
+}

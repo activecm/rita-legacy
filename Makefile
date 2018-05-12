@@ -13,3 +13,7 @@ default:
 install:
 	dep ensure
 	go build ${LDFLAGS} -o ${GOPATH}/bin/${BINARY}
+
+test:
+	dep ensure
+	go test ${LDFLAGS} ./...
