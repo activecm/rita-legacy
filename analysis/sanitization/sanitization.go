@@ -61,7 +61,7 @@ func sanitizeHTTPData(res *database.Resources) {
 	}
 }
 
-func sanitizeHTTPRecord(httpRec *parsetypes.HTTP) interface{} {
+func sanitizeHTTPRecord(httpRec *parsetypes.HTTP) bson.M {
 	newURI := httpRec.URI
 
 	// ex: Host: 67.217.65.244 URI: 67.217.65.244:443
