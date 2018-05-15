@@ -3,6 +3,8 @@ package database
 import (
 	"errors"
 
+	"github.com/activecm/mgosec"
+	"github.com/activecm/rita/config"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -10,14 +12,39 @@ import (
 
 // DB is the workhorse container for messing with the database
 type DB struct {
-	Session   *mgo.Session
-	resources *Resources
-	selected  string
+	Session  *mgo.Session
+	log      *log.Logger
+	selected string
 }
 
-///////////////////////////////////////////////////////////////////////////////
-////////////////////////// SUPPORTING FUNCTIONS ///////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
+//NewDB constructs a new DB struct
+func NewDB(conf *config.Config, log *log.Logger) (*DB, error) {
+	// Jump into the requested database
+	session, err := connectToMongoDB(conf, log)
+	if err != nil {
+		return nil, err
+	}
+	session.SetSocketTimeout(conf.S.MongoDB.SocketTimeout)
+	session.SetSyncTimeout(conf.S.MongoDB.SocketTimeout)
+	session.SetCursorTimeout(0)
+
+	return &DB{
+		Session:  session,
+		log:      log,
+		selected: "",
+	}, nil
+}
+
+//connectToMongoDB connects to MongoDB possibly with authentication and TLS
+func connectToMongoDB(conf *config.Config, logger *log.Logger) (*mgo.Session, error) {
+	connString := conf.S.MongoDB.ConnectionString
+	authMechanism := conf.R.MongoDB.AuthMechanismParsed
+	tlsConfig := conf.R.MongoDB.TLS.TLSConfig
+	if conf.S.MongoDB.TLS.Enabled {
+		return mgosec.Dial(connString, authMechanism, tlsConfig)
+	}
+	return mgosec.DialInsecure(connString, authMechanism)
+}
 
 //SelectDB selects a database for analysis
 func (d *DB) SelectDB(db string) {
@@ -36,7 +63,7 @@ func (d *DB) CollectionExists(table string) bool {
 	defer ssn.Close()
 	coll, err := ssn.DB(d.selected).CollectionNames()
 	if err != nil {
-		d.resources.Log.WithFields(log.Fields{
+		d.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("Failed collection name lookup")
 		return false
@@ -65,7 +92,7 @@ func (d *DB) CreateCollection(name string, id bool, indeces []mgo.Index) error {
 		return errors.New("collection already exists")
 	}
 
-	d.resources.Log.Debug("Building collection: ", name)
+	d.log.Debug("Building collection: ", name)
 
 	// Create new collection by referencing to it, no need to call Create
 	err := session.DB(d.selected).C(name).Create(
@@ -96,7 +123,7 @@ func (d *DB) AggregateCollection(sourceCollection string,
 
 	// Identify the source collection we will aggregate information from into the new collection
 	if !d.CollectionExists(sourceCollection) {
-		d.resources.Log.Warning("Failed aggregation: (Source collection: ",
+		d.log.Warning("Failed aggregation: (Source collection: ",
 			sourceCollection, " doesn't exist)")
 		return nil
 	}
@@ -110,7 +137,7 @@ func (d *DB) AggregateCollection(sourceCollection string,
 	// If error, Throw computer against wall and drink 2 angry beers while
 	// questioning your life, purpose, and relationships.
 	if iter.Err() != nil {
-		d.resources.Log.WithFields(log.Fields{
+		d.log.WithFields(log.Fields{
 			"error": iter.Err().Error(),
 		}).Error("Failed aggregate operation")
 		return nil
@@ -126,7 +153,7 @@ func (d *DB) MapReduceCollection(sourceCollection string, job mgo.MapReduce) boo
 
 	// Identify the source collection we will aggregate information from into the new collection
 	if !d.CollectionExists(sourceCollection) {
-		d.resources.Log.Warning("Failed map reduce: (Source collection: ", sourceCollection, " doesn't exist)")
+		d.log.Warning("Failed map reduce: (Source collection: ", sourceCollection, " doesn't exist)")
 		return false
 	}
 	collection := session.DB(d.selected).C(sourceCollection)
@@ -137,7 +164,7 @@ func (d *DB) MapReduceCollection(sourceCollection string, job mgo.MapReduce) boo
 	// If error, Throw computer against wall and drink 2 angry beers while
 	// questioning your life, purpose, and relationships.
 	if err != nil {
-		d.resources.Log.WithFields(log.Fields{
+		d.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("Failed map reduce")
 		return false

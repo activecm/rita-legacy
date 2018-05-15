@@ -5,12 +5,12 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/urls"
 	"github.com/activecm/rita/reporting/templates"
+	"github.com/activecm/rita/resources"
 )
 
-func printLongURLs(db string, res *database.Resources) error {
+func printLongURLs(db string, res *resources.Resources) error {
 	f, err := os.Create("long-urls.html")
 	if err != nil {
 		return err

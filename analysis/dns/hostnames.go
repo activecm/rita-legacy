@@ -2,8 +2,8 @@ package dns
 
 import (
 	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
 	dnsTypes "github.com/activecm/rita/datatypes/dns"
+	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -13,7 +13,7 @@ const tempHostnamesCollName string = "__temp_hostnames"
 
 // BuildHostnamesCollection generates the mongo collection which maps
 // hostnames to ip addresses
-func BuildHostnamesCollection(res *database.Resources) {
+func BuildHostnamesCollection(res *resources.Resources) {
 	sourceCollectionName,
 		tempCollectionName,
 		pipeline := getHostnamesAggregationScript(res.Config)
@@ -114,7 +114,7 @@ func mapHostnamesToIps(selectedDB string, sourceCollection string,
 }
 
 // GetIPsFromHost uses the hostnames table to do a cached whois query
-func GetIPsFromHost(res *database.Resources, host string) []string {
+func GetIPsFromHost(res *resources.Resources, host string) []string {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 

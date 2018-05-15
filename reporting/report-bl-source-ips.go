@@ -8,13 +8,13 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/datatypes/structure"
 	"github.com/activecm/rita/reporting/templates"
+	"github.com/activecm/rita/resources"
 )
 
-func printBLSourceIPs(db string, res *database.Resources) error {
+func printBLSourceIPs(db string, res *resources.Resources) error {
 	f, err := os.Create("bl-source-ips.html")
 	if err != nil {
 		return err

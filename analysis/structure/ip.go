@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"net"
 
-	"github.com/activecm/rita/database"
 	structureTypes "github.com/activecm/rita/datatypes/structure"
+	"github.com/activecm/rita/resources"
 	log "github.com/sirupsen/logrus"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -13,7 +13,7 @@ import (
 
 //BuildIPv4Collection generates binary representations of the IPv4 addresses in the
 //dataset for use in subnetting, address selection, etc.
-func BuildIPv4Collection(res *database.Resources) {
+func BuildIPv4Collection(res *resources.Resources) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -41,7 +41,7 @@ func BuildIPv4Collection(res *database.Resources) {
 
 //BuildIPv6Collection generates binary representations of the IPv6 addresses in the
 //dataset for use in subnetting, address selection, etc.
-func BuildIPv6Collection(res *database.Resources) {
+func BuildIPv6Collection(res *resources.Resources) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 

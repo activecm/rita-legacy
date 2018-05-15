@@ -2,7 +2,7 @@ package structure
 
 import (
 	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/resources"
 
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -10,7 +10,7 @@ import (
 
 // GetConnSourcesFromDest finds all of the ips which communicated with a
 // given destination ip
-func GetConnSourcesFromDest(res *database.Resources, ip string) []string {
+func GetConnSourcesFromDest(res *resources.Resources, ip string) []string {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -30,7 +30,7 @@ func GetConnSourcesFromDest(res *database.Resources, ip string) []string {
 
 //BuildUniqueConnectionsCollection finds the unique connection pairs
 //between sources and destinations
-func BuildUniqueConnectionsCollection(res *database.Resources) {
+func BuildUniqueConnectionsCollection(res *resources.Resources) {
 	// Create the aggregate command
 	sourceCollectionName,
 		newCollectionName,

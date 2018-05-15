@@ -6,8 +6,8 @@ import (
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/activecm/rita/database"
 	dataXRef "github.com/activecm/rita/datatypes/crossref"
+	"github.com/activecm/rita/resources"
 )
 
 // getXRefSelectors is a place to add new selectors to the crossref module
@@ -21,7 +21,7 @@ func getXRefSelectors() []dataXRef.XRefSelector {
 }
 
 // BuildXRefCollection runs threaded crossref analysis
-func BuildXRefCollection(res *database.Resources) {
+func BuildXRefCollection(res *resources.Resources) {
 	indexes := []mgo.Index{{Key: []string{"host"}, Unique: true}}
 	res.DB.CreateCollection(res.Config.T.Crossref.SourceTable, false, indexes)
 	res.DB.CreateCollection(res.Config.T.Crossref.DestTable, false, indexes)
@@ -52,7 +52,7 @@ func BuildXRefCollection(res *database.Resources) {
 //multiplexXRef takes a target colllection, and a map from
 //analysis module names to a channel containging the hosts associated with it
 //and writes the incoming hosts to the target crossref collection
-func multiplexXRef(res *database.Resources, collection string,
+func multiplexXRef(res *resources.Resources, collection string,
 	analysisModules map[string]<-chan string, externWG *sync.WaitGroup) {
 
 	xRefWG := new(sync.WaitGroup)
@@ -65,7 +65,7 @@ func multiplexXRef(res *database.Resources, collection string,
 }
 
 // writeXRef upserts a value into the target crossref collection
-func writeXRef(res *database.Resources, collection string,
+func writeXRef(res *resources.Resources, collection string,
 	moduleName string, hosts <-chan string, externWG *sync.WaitGroup) {
 
 	ssn := res.DB.Session.Copy()
@@ -81,7 +81,7 @@ func writeXRef(res *database.Resources, collection string,
 	externWG.Done()
 }
 
-func finalizeXRef(res *database.Resources, collection string) {
+func finalizeXRef(res *resources.Resources, collection string) {
 	// Aggregation script
 	// nolint: vet
 	pipeline := []bson.D{

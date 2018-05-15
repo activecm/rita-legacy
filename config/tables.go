@@ -80,31 +80,31 @@ type (
 )
 
 // loadTableConfig initializes a config struct
-func loadTableConfig() (*TableCfg, error) {
+func loadTableConfig() *TableCfg {
 	var config = new(TableCfg)
 
 	// initialize all the table configs
 	config.Log.RitaLogTable = "logs"
 
-	config.Structure.ConnTable       = "conn"
-	config.Structure.HTTPTable       = "http"
-	config.Structure.DNSTable        = "dns"
+	config.Structure.ConnTable = "conn"
+	config.Structure.HTTPTable = "http"
+	config.Structure.DNSTable = "dns"
 	config.Structure.UniqueConnTable = "uconn"
-	config.Structure.HostTable       = "host"
-	config.Structure.IPv4Table       = "ipv4"
-	config.Structure.IPv6Table       = "ipv6"
+	config.Structure.HostTable = "host"
+	config.Structure.IPv4Table = "ipv4"
+	config.Structure.IPv6Table = "ipv6"
 
 	config.Blacklisted.BlacklistDatabase = "rita-blacklist"
-	config.Blacklisted.SourceIPsTable    = "blSourceIPs"
-	config.Blacklisted.DestIPsTable      = "blDestIPs"
-	config.Blacklisted.HostnamesTable    = "blHostnames"
-	config.Blacklisted.UrlsTable         = "blUrls"
+	config.Blacklisted.SourceIPsTable = "blSourceIPs"
+	config.Blacklisted.DestIPsTable = "blDestIPs"
+	config.Blacklisted.HostnamesTable = "blHostnames"
+	config.Blacklisted.UrlsTable = "blUrls"
 
 	config.DNS.ExplodedDNSTable = "explodedDns"
-	config.DNS.HostnamesTable   = "hostnames"
+	config.DNS.HostnamesTable = "hostnames"
 
 	config.Crossref.SourceTable = "sourceXREF"
-	config.Crossref.DestTable   = "destXREF"
+	config.Crossref.DestTable = "destXREF"
 
 	config.Scanning.ScanTable = "scan"
 
@@ -114,8 +114,8 @@ func loadTableConfig() (*TableCfg, error) {
 
 	config.UserAgent.UserAgentTable = "useragent"
 
-	config.Meta.FilesTable     = "files"
+	config.Meta.FilesTable = "files"
 	config.Meta.DatabasesTable = "databases"
 
-	return config, nil
+	return config
 }

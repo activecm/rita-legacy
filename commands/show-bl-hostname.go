@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/activecm/rita/analysis/dns"
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/datatypes/structure"
+	"github.com/activecm/rita/resources"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 	"gopkg.in/mgo.v2/bson"
@@ -39,7 +39,7 @@ func printBLHostnames(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	res := database.InitResources(c.String("config"))
+	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db) //so we can use the dns.GetIPsFromHost method
 
 	var blHosts []blacklist.BlacklistedHostname

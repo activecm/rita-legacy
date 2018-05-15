@@ -2,14 +2,14 @@ package structure
 
 import (
 	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/resources"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // BuildHostsCollection builds the 'host' collection for this timeframe.
 // Runs via mongodb aggregation. Sourced from the 'conn' table.
-func BuildHostsCollection(res *database.Resources) {
+func BuildHostsCollection(res *resources.Resources) {
 	// Create the aggregate command
 	sourceCollectionName,
 		newCollectionName,

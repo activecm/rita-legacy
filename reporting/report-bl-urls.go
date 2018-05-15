@@ -8,14 +8,14 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/datatypes/structure"
 	"github.com/activecm/rita/datatypes/urls"
 	"github.com/activecm/rita/reporting/templates"
+	"github.com/activecm/rita/resources"
 )
 
-func printBLURLs(db string, res *database.Resources) error {
+func printBLURLs(db string, res *resources.Resources) error {
 	f, err := os.Create("bl-urls.html")
 	if err != nil {
 		return err

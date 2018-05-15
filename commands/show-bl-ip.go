@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/datatypes/structure"
+	"github.com/activecm/rita/resources"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 	"gopkg.in/mgo.v2/bson"
@@ -67,7 +67,7 @@ func printBLSourceIPs(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	res := database.InitResources(c.String("config"))
+	res := resources.InitResources(c.String("config"))
 
 	var blIPs []blacklist.BlacklistedIP
 	res.DB.Session.DB(db).
@@ -110,7 +110,7 @@ func printBLDestIPs(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	res := database.InitResources(c.String("config"))
+	res := resources.InitResources(c.String("config"))
 
 	var blIPs []blacklist.BlacklistedIP
 	res.DB.Session.DB(db).

@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/resources"
 	"github.com/urfave/cli"
 )
 
@@ -20,7 +20,7 @@ func init() {
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			res := database.InitResources(c.String("config"))
+			res := resources.InitResources(c.String("config"))
 			db := c.Args().Get(0)
 			if db == "" {
 				return cli.NewExitError("Specify a database", -1)

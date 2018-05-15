@@ -2,14 +2,14 @@ package useragent
 
 import (
 	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/resources"
 
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
 //BuildUserAgentCollection performs frequency analysis on user agents
-func BuildUserAgentCollection(res *database.Resources) {
+func BuildUserAgentCollection(res *resources.Resources) {
 	// Create the aggregate command
 	sourceCollectionName,
 		newCollectionName,

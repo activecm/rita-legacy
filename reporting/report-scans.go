@@ -6,12 +6,12 @@ import (
 	"os"
 	"sort"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/scanning"
 	"github.com/activecm/rita/reporting/templates"
+	"github.com/activecm/rita/resources"
 )
 
-func printScans(db string, res *database.Resources) error {
+func printScans(db string, res *resources.Resources) error {
 	f, err := os.Create("scans.html")
 	if err != nil {
 		return err

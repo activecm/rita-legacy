@@ -4,9 +4,9 @@ import (
 	"unsafe"
 
 	"github.com/activecm/rita-bl/list"
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/dns"
 	"github.com/activecm/rita/datatypes/structure"
+	"github.com/activecm/rita/resources"
 
 	bl "github.com/activecm/rita-bl"
 	data "github.com/activecm/rita/datatypes/blacklist"
@@ -22,7 +22,7 @@ type hostnameShort struct {
 //buildBlacklistedHostnames builds a set of blacklisted hostnames from the
 //iterator provided, the system config, a handle to rita-blacklist,
 //and a buffer of hostnames to check at a time
-func buildBlacklistedHostnames(hostnames *mgo.Iter, res *database.Resources,
+func buildBlacklistedHostnames(hostnames *mgo.Iter, res *resources.Resources,
 	blHandle *bl.Blacklist, bufferSize int) {
 	//create session to write to
 	ssn := res.DB.Session.Copy()

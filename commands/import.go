@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/parser"
+	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/urfave/cli"
 )
@@ -32,7 +32,7 @@ func init() {
 
 // doImport runs the importer
 func doImport(c *cli.Context) error {
-	res := database.InitResources(c.String("config"))
+	res := resources.InitResources(c.String("config"))
 	importDir := c.Args().Get(0)
 	targetDatabase := c.Args().Get(1)
 	threads := util.Max(c.Int("threads")/2, 1)

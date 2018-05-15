@@ -3,13 +3,13 @@ package beacon
 import (
 	"testing"
 
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/resources"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAnalysis(t *testing.T) {
-	res := database.InitMockResources("")
+	res := resources.InitIntegrationTestingResources(t)
 	res.Log.Level = log.DebugLevel
 	res.Config.S.Beacon.DefaultConnectionThresh = 2
 
@@ -27,10 +27,10 @@ func TestAnalysis(t *testing.T) {
 
 		//Now fill in the data that we will need to analyze traffic
 		data := &beaconAnalysisInput{
-			src:           "0.0.0.0",
-			dst:           "0.0.0.0",
-			ts:            val.ts, //these are the timestamps
-			orig_ip_bytes: val.ds, //these are the data sizes
+			src:         "0.0.0.0",
+			dst:         "0.0.0.0",
+			ts:          val.ts, //these are the timestamps
+			origIPBytes: val.ds, //these are the data sizes
 		}
 
 		//Feed the data into our new channel

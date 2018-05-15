@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const testConfigFull = `
+const staticConfigParserTestConfig = `
 MongoDB:
     ConnectionString: mongodb://localhost:27017
     AuthenticationMechanism: null
@@ -91,7 +91,7 @@ var testConfigFullExp = StaticCfg{
 }
 
 func TestParseStaticConfig(t *testing.T) {
-	config, err := parseStaticConfig([]byte(testConfigFull))
+	config, err := parseStaticConfig([]byte(staticConfigParserTestConfig))
 	testConfigFullExp.Version = config.Version
 	testConfigFullExp.ExactVersion = config.ExactVersion
 	assert.Nil(t, err)

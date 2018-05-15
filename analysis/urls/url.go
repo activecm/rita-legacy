@@ -2,14 +2,14 @@ package urls
 
 import (
 	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/resources"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
 //BuildUrlsCollection performs url length analysis
-func BuildUrlsCollection(res *database.Resources) {
+func BuildUrlsCollection(res *resources.Resources) {
 	// Create the aggregate command
 	sourceCollectionName,
 		newCollectionName,

@@ -6,12 +6,12 @@ import (
 	"os"
 
 	"github.com/activecm/rita/analysis/beacon"
-	"github.com/activecm/rita/database"
 	beaconData "github.com/activecm/rita/datatypes/beacon"
 	"github.com/activecm/rita/reporting/templates"
+	"github.com/activecm/rita/resources"
 )
 
-func printBeacons(db string, res *database.Resources) error {
+func printBeacons(db string, res *resources.Resources) error {
 	f, err := os.Create("beacons.html")
 	if err != nil {
 		return err

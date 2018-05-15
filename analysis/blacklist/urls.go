@@ -7,9 +7,9 @@ import (
 	"github.com/activecm/rita-bl/list"
 
 	bl "github.com/activecm/rita-bl"
-	"github.com/activecm/rita/database"
 	data "github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/datatypes/urls"
+	"github.com/activecm/rita/resources"
 	log "github.com/sirupsen/logrus"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -21,7 +21,7 @@ type (
 		URI string `bson:"uri"`
 	}
 
-	//srcIPGroup holds information used to find the number of unique connections,
+	//SrcIPGroup holds information used to find the number of unique connections,
 	//total connections, and total bytes for a blacklisted url, but are grouped by
 	//the ip that connected to the blacklisted url
 	SrcIPGroup struct {
@@ -35,7 +35,7 @@ type (
 //iterator provided, the system config, a handle to rita-blacklist,
 //a buffer of urls to check at a time, and protocol prefix string to
 //append to results coming from the iterator
-func buildBlacklistedURLs(urls *mgo.Iter, res *database.Resources,
+func buildBlacklistedURLs(urls *mgo.Iter, res *resources.Resources,
 	blHandle *bl.Blacklist, bufferSize int, prefix string) {
 	//create session to write to
 	ssn := res.DB.Session.Copy()

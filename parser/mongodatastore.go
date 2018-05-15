@@ -39,7 +39,7 @@ type collectionWriter struct {
 //MongoDatastore provides a backend for storing bro data in MongoDB
 type MongoDatastore struct {
 	session       *mgo.Session
-	metaDB        *database.MetaDBHandle
+	metaDB        *database.MetaDB
 	bufferSize    int
 	logger        *log.Logger
 	writerWG      *sync.WaitGroup
@@ -50,7 +50,7 @@ type MongoDatastore struct {
 
 //NewMongoDatastore returns a new MongoDatastore and caches the existing
 //db names
-func NewMongoDatastore(session *mgo.Session, metaDB *database.MetaDBHandle,
+func NewMongoDatastore(session *mgo.Session, metaDB *database.MetaDB,
 	bufferSize int, logger *log.Logger) *MongoDatastore {
 	return &MongoDatastore{
 		session:    session,

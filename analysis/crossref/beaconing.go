@@ -2,8 +2,8 @@ package crossref
 
 import (
 	"github.com/activecm/rita/analysis/beacon"
-	"github.com/activecm/rita/database"
 	dataBeacon "github.com/activecm/rita/datatypes/beacon"
+	"github.com/activecm/rita/resources"
 )
 
 type (
@@ -17,7 +17,7 @@ func (s BeaconingSelector) GetName() string {
 }
 
 //Select selects beaconing hosts for XRef analysis
-func (s BeaconingSelector) Select(res *database.Resources) (<-chan string, <-chan string) {
+func (s BeaconingSelector) Select(res *resources.Resources) (<-chan string, <-chan string) {
 	// make channels to return
 	sourceHosts := make(chan string)
 	destHosts := make(chan string)
