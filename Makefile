@@ -4,7 +4,7 @@ GOPATH := $(GOPATH)
 BINARY := rita
 
 LDFLAGS := -ldflags="-X github.com/activecm/rita/config.Version=${VERSION} -X github.com/activecm/rita/config.ExactVersion=${EXACT_VERSION}"
-TESTFLAGS := -p=1
+TESTFLAGS := -p=1 -v
 # go source files
 SRC := $(shell find . -path ./vendor -prune -o -type f -name '*.go' -print)
 
