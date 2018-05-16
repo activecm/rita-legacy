@@ -68,6 +68,25 @@ func RemoveSortedDuplicates(sortedIn []int64) []int64 {
 	return result
 }
 
+func CountAndRemoveSortedDuplicates(sortedIn []int64) ([]int64, map[int64]int64) {
+	//Avoid some reallocations
+	result := make([]int64, 0, len(sortedIn)/2)
+	counts := make(map[int64]int64)
+
+	last := sortedIn[0]
+	result = append(result, last)
+	counts[last]++
+
+	for idx := 1; idx < len(sortedIn); idx++ {
+		if last != sortedIn[idx] {
+			result = append(result, sortedIn[idx])
+		}
+		last = sortedIn[idx]
+		counts[last]++
+	}
+	return result, counts
+}
+
 //two's complement 64 bit abs value
 func Abs(a int64) int64 {
 	mask := a >> 63

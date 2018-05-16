@@ -1,9 +1,11 @@
 package beacon
 
 import (
+	"sort"
 	"testing"
 
 	dataBeacon "github.com/activecm/rita/datatypes/beacon"
+	"github.com/activecm/rita/util"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -42,6 +44,8 @@ func TestCreateCountMap(t *testing.T) {
 		3:  3,
 		4:  4,
 	}
+	sort.Sort(util.SortableInt64(testData))
+
 	//grab the keys from testDataCounts
 	uniqTestData := make([]int64, len(testDataCounts))
 	i := 0
@@ -49,7 +53,6 @@ func TestCreateCountMap(t *testing.T) {
 		uniqTestData[i] = k
 		i++
 	}
-
 	uniq, uniqCounts, mode, modeCount := createCountMap(testData)
 	assert.ElementsMatch(t, uniq, uniqTestData)
 	for i, datum := range uniq {

@@ -1,6 +1,7 @@
 package beacon
 
 import (
+	"errors"
 	"math"
 	"sort"
 	"sync"
@@ -198,30 +199,22 @@ func (a *analyzer) start() {
 
 // createCountMap returns a distinct data array, data count array, the mode,
 // and the number of times the mode occured
-func createCountMap(data []int64) ([]int64, []int64, int64, int64) {
-	//create interval counts for human analysis
-	dataMap := make(map[int64]int64)
-	for _, d := range data {
-		dataMap[d]++
+func createCountMap(sortedIn []int64) ([]int64, []int64, int64, int64) {
+	if !sort.IsSorted(util.SortableInt64(sortedIn)) {
+		// If this could be a compile error, it would be
+		panic(errors.New("Unsorted data passed to beacon/analyzer.go:createCountMap"))
 	}
-
-	distinct := make([]int64, len(dataMap))
-	counts := make([]int64, len(dataMap))
-
-	i := 0
-	for k, v := range dataMap {
-		distinct[i] = k
-		counts[i] = v
-		i++
-	}
-
+	distinct, countsMap := util.CountAndRemoveSortedDuplicates(sortedIn)
+	countsArr := make([]int64, len(distinct))
 	mode := distinct[0]
-	max := counts[0]
-	for idx, count := range counts {
+	max := countsMap[mode]
+	for i, datum := range distinct {
+		count := countsMap[datum]
+		countsArr[i] = count
 		if count > max {
 			max = count
-			mode = distinct[idx]
+			mode = datum
 		}
 	}
-	return distinct, counts, mode, max
+	return distinct, countsArr, mode, max
 }

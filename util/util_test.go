@@ -68,6 +68,27 @@ func TestRemoveSortedDuplicates(t *testing.T) {
 	assert.True(t, sort.IsSorted(SortableInt64(normalTest)))
 }
 
+func TestCountAndRemoveSortedDuplicates(t *testing.T) {
+	allSame := []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	allSameExp := []int64{0}
+	normal := []int64{1, 2, 3, 3, 3, 4, 4, 4, 5, 6, 10}
+	normalExp := []int64{1, 2, 3, 4, 5, 6, 10}
+	allSameTest, allSameCounts := CountAndRemoveSortedDuplicates(allSame)
+	assert.ElementsMatch(t, allSameExp, allSameTest)
+	assert.Equal(t, int64(len(allSame)), allSameCounts[0])
+
+	normalTest, normalCounts := CountAndRemoveSortedDuplicates(normal)
+	assert.ElementsMatch(t, normalExp, normalTest)
+	assert.True(t, sort.IsSorted(SortableInt64(normalTest)))
+	assert.Equal(t, int64(1), normalCounts[1])
+	assert.Equal(t, int64(1), normalCounts[2])
+	assert.Equal(t, int64(3), normalCounts[3])
+	assert.Equal(t, int64(3), normalCounts[4])
+	assert.Equal(t, int64(1), normalCounts[5])
+	assert.Equal(t, int64(1), normalCounts[6])
+	assert.Equal(t, int64(1), normalCounts[10])
+}
+
 func TestAbs(t *testing.T) {
 	max := int64(math.MaxInt64)
 	pos := int64(1)
