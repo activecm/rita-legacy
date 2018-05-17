@@ -2,6 +2,7 @@ package resources
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/activecm/mgorus"
@@ -18,11 +19,11 @@ func InitIntegrationTestingResources(t *testing.T) *Resources {
 		t.Skip()
 	}
 
-	if len(os.Args) != 2 {
+	mongoURI := os.Args[len(os.Args)-1]
+
+	if !strings.Contains(mongoURI, "mongodb://") {
 		t.Fatal("-args [MongoDB URI] is required to run RITA integration tests with go test")
 	}
-
-	mongoURI := os.Args[1]
 
 	conf, err := config.LoadTestingConfig(mongoURI)
 	if err != nil {

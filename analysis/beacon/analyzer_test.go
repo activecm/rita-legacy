@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAnalysis(t *testing.T) {
-	for _, val := range testDataList {
+func TestAnalyzer(t *testing.T) {
+	for _, val := range analyzerTestDataList {
 		analyzer := newAnalyzer(5, val.ts[0], val.ts[len(val.ts)-1],
 			func(res *dataBeacon.BeaconAnalysisOutput) {
 				t.Run(val.description, func(t *testing.T) {
