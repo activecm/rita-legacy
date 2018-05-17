@@ -118,7 +118,7 @@ func TestRound(t *testing.T) {
 	assert.Equal(t, posUpExp, Round(posUp))
 }
 
-func TestMixMax(t *testing.T) {
+func TestMinMax(t *testing.T) {
 	large := 100
 	small := -100
 	assert.Equal(t, large, Max(large, small))
