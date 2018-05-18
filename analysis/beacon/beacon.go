@@ -23,7 +23,7 @@ type (
 		dst         string        // Destination IP
 		uconnID     bson.ObjectId // Unique Connection ID
 		ts          []int64       // Connection timestamps for this src, dst pair
-		origIPBytes []int64
+		origIPBytes []int64       // Src to dst connection sizes for each connection
 	}
 )
 

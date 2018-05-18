@@ -1,8 +1,8 @@
 package beacon
 
 type analyzerTestData struct {
-	ts          []int64
-	ds          []int64
+	ts          []int64 //timestamps
+	ds          []int64 //originating data sizes
 	minScore    float64
 	maxScore    float64
 	description string

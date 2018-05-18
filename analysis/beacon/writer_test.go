@@ -22,11 +22,3 @@ func TestWriter(t *testing.T) {
 	res.DB.Session.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(nil).All(&writtenData)
 	assert.ElementsMatch(t, writerTestDataList, writtenData)
 }
-
-func setUpWriterTest(t *testing.T) {
-
-}
-
-func tearDownWriterTest(t *testing.T) {
-
-}

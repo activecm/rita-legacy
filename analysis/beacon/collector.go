@@ -11,9 +11,11 @@ import (
 )
 
 type (
+	// collector collects Conn records into groups based on destination given
+	// a source host
 	collector struct {
-		db                  *database.DB
-		conf                *config.Config
+		db                  *database.DB               // provides access to MongoDB
+		conf                *config.Config             // contains details needed to access MongoDB
 		connectionThreshold int                        // the minimum number of connections to be considered a beacon
 		collectedCallback   func(*beaconAnalysisInput) // called on each collected set of connections
 		collectChannel      chan string                // holds ip addresses
@@ -21,6 +23,9 @@ type (
 	}
 )
 
+// newCollector creates a new collector for creating beaconAnalysisInput objects
+// which group the given source, a detected destination, and all of their
+// connection analysis details (timestamps, data sizes, etc.)
 func newCollector(db *database.DB, conf *config.Config, connectionThreshold int,
 	collectedCallback func(*beaconAnalysisInput)) *collector {
 	return &collector{
@@ -32,15 +37,19 @@ func newCollector(db *database.DB, conf *config.Config, connectionThreshold int,
 	}
 }
 
+// collect queues a host for collection
+// Note: this function may block
 func (c *collector) collect(srcHost string) {
 	c.collectChannel <- srcHost
 }
 
+// flush waits for the collection threads to finish
 func (c *collector) flush() {
 	close(c.collectChannel)
 	c.collectWg.Wait()
 }
 
+// start kicks off a new collection thread
 func (c *collector) start() {
 	c.collectWg.Add(1)
 	go func() {

@@ -9,14 +9,17 @@ import (
 )
 
 type (
+	//writer simply writes BeaconAnalysisOutput objects to the beacons collection
 	writer struct {
-		db           *database.DB
-		conf         *config.Config
+		db           *database.DB                          // provides access to MongoDB
+		conf         *config.Config                        // contains details needed to access MongoDB
 		writeChannel chan *dataBeacon.BeaconAnalysisOutput // holds analyzed data
 		writeWg      sync.WaitGroup                        // wait for writing to finish
 	}
 )
 
+//newWriter creates a writer object to write BeaconAnalysisOutput data to
+//the beacons collection
 func newWriter(db *database.DB, conf *config.Config) *writer {
 	return &writer{
 		db:           db,
@@ -25,15 +28,19 @@ func newWriter(db *database.DB, conf *config.Config) *writer {
 	}
 }
 
+//write queues up a BeaconAnalysisOutput to be written to the beacons collection
+//Note: this function may block
 func (w *writer) write(data *dataBeacon.BeaconAnalysisOutput) {
 	w.writeChannel <- data
 }
 
+// flush waits for the write threads to finish
 func (w *writer) flush() {
 	close(w.writeChannel)
 	w.writeWg.Wait()
 }
 
+// start kicks off a new write thread
 func (w *writer) start() {
 	w.writeWg.Add(1)
 	go func() {

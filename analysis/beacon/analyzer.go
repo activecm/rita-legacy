@@ -12,16 +12,19 @@ import (
 )
 
 type (
+	// analyzer implements the bulk of beaconing analysis, creating the scores
+	// for a given set of timestamps and data sizes
 	analyzer struct {
 		connectionThreshold int                                    // the minimum number of connections to be considered a beacon
-		minTime             int64                                  // minimum time
-		maxTime             int64                                  // maximum time
+		minTime             int64                                  // beginning of the observation period
+		maxTime             int64                                  // ending of the observation period
 		analyzedCallback    func(*dataBeacon.BeaconAnalysisOutput) // called on each analyzed result
 		analysisChannel     chan *beaconAnalysisInput              // holds unanalyzed data
 		analysisWg          sync.WaitGroup                         // wait for analysis to finish
 	}
 )
 
+// newAnalyzer creates a new analyzer for computing beaconing scores.
 func newAnalyzer(connectionThreshold int, minTime, maxTime int64,
 	analyzedCallback func(*dataBeacon.BeaconAnalysisOutput)) *analyzer {
 	return &analyzer{
@@ -33,16 +36,19 @@ func newAnalyzer(connectionThreshold int, minTime, maxTime int64,
 	}
 }
 
+// analyze sends a group of timestamps and data sizes in for analysis.
+// Note: this function may block
 func (a *analyzer) analyze(data *beaconAnalysisInput) {
 	a.analysisChannel <- data
 }
 
+// flush waits for the analysis threads to finish
 func (a *analyzer) flush() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
 }
 
-// analyze src, dst pairs with their connection data
+// start kicks off a new analysis thread
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
