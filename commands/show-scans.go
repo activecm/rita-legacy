@@ -22,7 +22,7 @@ func init() {
 			configFlag,
 			cli.BoolFlag{
 				Name:  "ports, P",
-				Usage: "Show which individual ports were scanned",
+				Usage: "Show which individual ports were scanned. Incompaitble with --human-readable.",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -31,6 +31,10 @@ func init() {
 				return cli.NewExitError("Specify a database", -1)
 			}
 			showPorts := c.Bool("ports")
+			humanReadable := c.Bool("human-readable")
+			if showPorts && humanReadable {
+				return cli.NewExitError("--ports and --human-readable are incompatible", -1)
+			}
 
 			res := database.InitResources(c.String("config"))
 
@@ -42,8 +46,8 @@ func init() {
 				return cli.NewExitError("No results were found for "+db, -1)
 			}
 
-			if c.Bool("human-readable") {
-				err := showScansHuman(scans, showPorts)
+			if humanReadable {
+				err := showScansHuman(scans)
 				if err != nil {
 					return cli.NewExitError(err.Error(), -1)
 				}
@@ -70,12 +74,12 @@ func showScans(scans []scanning.Scan, showPorts bool) error {
 		data := []string{scan.Src, scan.Dst, strconv.Itoa(scan.PortCount)}
 
 		if showPorts {
-			portSet := make([]byte, scan.PortCount*3)
+			portSet := []byte("")
 			for i, port := range scan.PortSet {
 				if i != 0 {
-					strconv.AppendQuote(portSet, " ")
+					portSet = append(portSet, " "...)
 				}
-				strconv.AppendInt(portSet, int64(port), 10)
+				portSet = strconv.AppendInt(portSet, int64(port), 10)
 			}
 			data = append(data, string(portSet))
 		}
@@ -87,27 +91,12 @@ func showScans(scans []scanning.Scan, showPorts bool) error {
 }
 
 // showScans prints all scans for a given database
-func showScansHuman(scans []scanning.Scan, showPorts bool) error {
+func showScansHuman(scans []scanning.Scan) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	header := []string{"Source", "Destination", "Ports Scanned"}
-	if showPorts {
-		header = append(header, "Ports")
-	}
 	table.SetHeader(header)
 	for _, scan := range scans {
 		data := []string{scan.Src, scan.Dst, strconv.Itoa(scan.PortCount)}
-
-		if showPorts {
-			portSet := make([]byte, scan.PortCount*3)
-			for i, port := range scan.PortSet {
-				if i != 0 {
-					strconv.AppendQuote(portSet, " ")
-				}
-				strconv.AppendInt(portSet, int64(port), 10)
-			}
-			data = append(data, string(portSet))
-		}
-
 		table.Append(data)
 	}
 	table.Render()
