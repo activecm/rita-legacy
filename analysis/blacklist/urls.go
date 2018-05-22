@@ -157,9 +157,9 @@ func fillBlacklistedURL(blURL *data.BlacklistedURL, longURL, db,
 		},
 		{
 			{"$project", bson.M{
-				"orig_bytes": "$conn.orig_bytes",
-				"resp_bytes": "$conn.resp_bytes",
-				"src":        "$conn.id_orig_h",
+				"orig_ip_bytes": "$conn.orig_ip_bytes",
+				"resp_ip_bytes": "$conn.resp_ip_bytes",
+				"src":           "$conn.id_orig_h",
 			}},
 		},
 		{
@@ -168,8 +168,8 @@ func fillBlacklistedURL(blURL *data.BlacklistedURL, longURL, db,
 				"total_bytes": bson.D{
 					{"$sum", bson.D{
 						{"$add", []interface{}{
-							"$orig_bytes",
-							"$resp_bytes",
+							"$orig_ip_bytes",
+							"$resp_ip_bytes",
 						}},
 					}},
 				},
