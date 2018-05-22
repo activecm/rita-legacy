@@ -46,7 +46,7 @@ func resetAnalysis(database string, res *database.Resources) error {
 		return cli.NewExitError("Failed to find analysis results", -1)
 	}
 
-	fmt.Println("Are you sure you want to reset analysis for", database, "[Y/n]")
+	fmt.Print("Are you sure you want to reset analysis for ", database, " [y/N] ")
 
 	read := bufio.NewReader(os.Stdin)
 
@@ -58,8 +58,7 @@ func resetAnalysis(database string, res *database.Resources) error {
 	if response == "y" || response == "yes" {
 		fmt.Println("Resetting database:", database)
 	} else {
-		fmt.Println("Aborted, nothing reset")
-		return nil
+		return cli.NewExitError("Database "+database+" was not reset.", 0)
 	}
 
 	//check if we had an issue dropping a collection
