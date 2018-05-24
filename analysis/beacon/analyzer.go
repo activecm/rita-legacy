@@ -1,7 +1,6 @@
 package beacon
 
 import (
-	"errors"
 	"math"
 	"sort"
 	"sync"
@@ -60,7 +59,7 @@ func (a *analyzer) start() {
 			//remove subsecond communications
 			//these will appear as beacons if we do not remove them
 			//subsecond beacon finding *may* be implemented later on...
-			data.ts = util.RemoveSortedDuplicates(data.ts)
+			data.ts = util.RemoveConsecutiveDuplicates(data.ts)
 
 			//If removing duplicates lowered the conn count under the threshold,
 			//remove this data from the analysis
@@ -206,11 +205,8 @@ func (a *analyzer) start() {
 // createCountMap returns a distinct data array, data count array, the mode,
 // and the number of times the mode occured
 func createCountMap(sortedIn []int64) ([]int64, []int64, int64, int64) {
-	if !sort.IsSorted(util.SortableInt64(sortedIn)) {
-		// If this could be a compile error, it would be
-		panic(errors.New("Unsorted data passed to beacon/analyzer.go:createCountMap"))
-	}
-	distinct, countsMap := util.CountAndRemoveSortedDuplicates(sortedIn)
+	//Since the data is already sorted, we can call this without fear
+	distinct, countsMap := util.CountAndRemoveConsecutiveDuplicates(sortedIn)
 	countsArr := make([]int64, len(distinct))
 	mode := distinct[0]
 	max := countsMap[mode]
