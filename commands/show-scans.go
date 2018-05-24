@@ -5,8 +5,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/scanning"
+	"github.com/activecm/rita/resources"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -36,7 +36,7 @@ func init() {
 				return cli.NewExitError("--ports and --human-readable are incompatible", -1)
 			}
 
-			res := database.InitResources(c.String("config"))
+			res := resources.InitResources(c.String("config"))
 
 			var scans []scanning.Scan
 			coll := res.DB.Session.DB(db).C(res.Config.T.Scanning.ScanTable)

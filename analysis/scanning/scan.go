@@ -2,14 +2,14 @@ package scanning
 
 import (
 	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/resources"
 
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
 //BuildScanningCollection detects port scans
-func BuildScanningCollection(res *database.Resources) {
+func BuildScanningCollection(res *resources.Resources) {
 	// Create the aggregate command
 	sourceCollectionName,
 		newCollectionName,

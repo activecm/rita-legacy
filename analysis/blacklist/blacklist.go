@@ -12,7 +12,7 @@ import (
 	"github.com/activecm/rita-bl/sources/lists"
 	"github.com/activecm/rita-bl/sources/rpc"
 	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/resources"
 	log "github.com/sirupsen/logrus"
 	mgo "gopkg.in/mgo.v2"
 )
@@ -24,7 +24,7 @@ const ritaBLBufferSize = 1000
 //BuildBlacklistedCollections builds the blacklisted sources,
 //blacklisted destinations, blacklist hostnames, and blacklisted urls
 //collections
-func BuildBlacklistedCollections(res *database.Resources) {
+func BuildBlacklistedCollections(res *resources.Resources) {
 	//capture the current value for the error closure below
 	currentDB := res.DB.GetSelectedDB()
 	var err error
@@ -217,7 +217,7 @@ func tryOpenFileThenURL(path string) func() (io.ReadCloser, error) {
 }
 
 //buildBlacklistRPCS gathers the remote procedures to check against
-func buildBlacklistRPCS(res *database.Resources) []rpc.RPC {
+func buildBlacklistRPCS(res *resources.Resources) []rpc.RPC {
 	var rpcs []rpc.RPC
 	//set up google url checker
 	if len(res.Config.S.Blacklisted.SafeBrowsing.APIKey) > 0 &&

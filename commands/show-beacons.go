@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/activecm/rita/analysis/beacon"
-	"github.com/activecm/rita/database"
 	beaconData "github.com/activecm/rita/datatypes/beacon"
+	"github.com/activecm/rita/resources"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -31,7 +31,7 @@ func showBeacons(c *cli.Context) error {
 	if db == "" {
 		return cli.NewExitError("Specify a database", -1)
 	}
-	res := database.InitResources(c.String("config"))
+	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
 	var data []beaconData.BeaconAnalysisView

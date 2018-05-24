@@ -5,12 +5,12 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/data"
 	"github.com/activecm/rita/reporting/templates"
+	"github.com/activecm/rita/resources"
 )
 
-func printLongConns(db string, res *database.Resources) error {
+func printLongConns(db string, res *resources.Resources) error {
 	f, err := os.Create("long-conns.html")
 	if err != nil {
 		return err

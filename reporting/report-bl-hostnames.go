@@ -9,13 +9,13 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/activecm/rita/analysis/dns"
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/datatypes/structure"
 	"github.com/activecm/rita/reporting/templates"
+	"github.com/activecm/rita/resources"
 )
 
-func printBLHostnames(db string, res *database.Resources) error {
+func printBLHostnames(db string, res *resources.Resources) error {
 	f, err := os.Create("bl-hostnames.html")
 	if err != nil {
 		return err

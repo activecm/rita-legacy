@@ -7,17 +7,17 @@ import (
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/resources"
 )
 
 //SanitizeData cleans up abnormalities in the imported data
-func SanitizeData(res *database.Resources) {
+func SanitizeData(res *resources.Resources) {
 	sanitizeHTTPData(res)
 }
 
 //sanitizeHTTPData cleans up abnormalities in the HTTP collection
-func sanitizeHTTPData(res *database.Resources) {
+func sanitizeHTTPData(res *resources.Resources) {
 	sess := res.DB.Session.Copy()
 	defer sess.Close()
 

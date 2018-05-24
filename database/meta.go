@@ -4,8 +4,9 @@ import (
 	"os"
 	"sync"
 
-	"github.com/blang/semver"
+	"github.com/activecm/rita/config"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	"github.com/blang/semver"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -13,12 +14,12 @@ import (
 
 type (
 
-	// MetaDBHandle exports control for the meta database
-	MetaDBHandle struct {
-		DB   string      // Database path
-		lock *sync.Mutex // Read and write lock
-		log  *log.Logger // Logging object
-		res  *Resources  // Keep resources object
+	// MetaDB exports control for the meta database
+	MetaDB struct {
+		lock     *sync.Mutex    // Read and write lock
+		config   *config.Config // configuration info
+		dbHandle *mgo.Session   // Database handle
+		log      *log.Logger    // Logging object
 	}
 
 	// DBMetaInfo defines some information about the database
@@ -31,22 +32,38 @@ type (
 	}
 )
 
+// NewMetaDB instantiates a new handle for the RITA MetaDatabase
+func NewMetaDB(config *config.Config, dbHandle *mgo.Session,
+	log *log.Logger) *MetaDB {
+	metaDB := &MetaDB{
+		lock:     new(sync.Mutex),
+		config:   config,
+		dbHandle: dbHandle,
+		log:      log,
+	}
+	//Build Meta collection
+	if !metaDB.isBuilt() {
+		metaDB.createMetaDB()
+	}
+	return metaDB
+}
+
 // AddNewDB adds a new database to the DBMetaInfo table
-func (m *MetaDBHandle) AddNewDB(name string) error {
+func (m *MetaDB) AddNewDB(name string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	ssn := m.res.DB.Session.Copy()
+	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	err := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Insert(
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Insert(
 		DBMetaInfo{
 			Name:          name,
 			Analyzed:      false,
-			ImportVersion: m.res.Config.S.Version,
+			ImportVersion: m.config.S.Version,
 		},
 	)
 	if err != nil {
-		m.res.Log.WithFields(log.Fields{
+		m.log.WithFields(log.Fields{
 			"error": err.Error(),
 			"name":  name,
 		}).Error("failed to create new db document")
@@ -57,21 +74,21 @@ func (m *MetaDBHandle) AddNewDB(name string) error {
 }
 
 // DeleteDB removes a database managed by RITA
-func (m *MetaDBHandle) DeleteDB(name string) error {
+func (m *MetaDB) DeleteDB(name string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	ssn := m.res.DB.Session.Copy()
+	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
 	//get the record
 	var db DBMetaInfo
-	err := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Find(bson.M{"name": name}).One(&db)
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"name": name}).One(&db)
 	if err != nil {
 		return err
 	}
 
 	//delete the record
-	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Remove(bson.M{"name": name})
+	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Remove(bson.M{"name": name})
 	if err != nil {
 		return err
 	}
@@ -80,12 +97,12 @@ func (m *MetaDBHandle) DeleteDB(name string) error {
 	ssn.DB(name).DropDatabase()
 
 	//delete any parsed file records associated
-	_, err = ssn.DB(m.DB).C(m.res.Config.T.Meta.FilesTable).RemoveAll(bson.M{"database": name})
+	_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.FilesTable).RemoveAll(bson.M{"database": name})
 	if err != nil {
 		return err
 	}
 
-	_, err = ssn.DB(m.DB).C("files").RemoveAll(bson.M{"database": name})
+	_, err = ssn.DB(m.config.S.Bro.MetaDB).C("files").RemoveAll(bson.M{"database": name})
 	if err != nil {
 		return err
 	}
@@ -94,19 +111,19 @@ func (m *MetaDBHandle) DeleteDB(name string) error {
 }
 
 // MarkDBAnalyzed marks a database as having been analyzed
-func (m *MetaDBHandle) MarkDBAnalyzed(name string, complete bool) error {
+func (m *MetaDB) MarkDBAnalyzed(name string, complete bool) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	ssn := m.res.DB.Session.Copy()
+	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
 	dbr := DBMetaInfo{}
-	err := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
 		Find(bson.M{"name": name}).One(&dbr)
 
 	if err != nil {
-		m.res.Log.WithFields(log.Fields{
+		m.log.WithFields(log.Fields{
 			"database_requested": name,
 			"error":              err.Error(),
 		}).Error("database not found in metadata directory")
@@ -115,12 +132,12 @@ func (m *MetaDBHandle) MarkDBAnalyzed(name string, complete bool) error {
 
 	var versionTag string
 	if complete {
-		versionTag = m.res.Config.S.Version
+		versionTag = m.config.S.Version
 	} else {
 		versionTag = ""
 	}
 
-	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).
+	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
 		Update(bson.M{"_id": dbr.ID}, bson.M{
 			"$set": bson.D{
 				{"analyzed", complete},
@@ -129,8 +146,8 @@ func (m *MetaDBHandle) MarkDBAnalyzed(name string, complete bool) error {
 		})
 
 	if err != nil {
-		m.res.Log.WithFields(log.Fields{
-			"metadb_attempted":   m.DB,
+		m.log.WithFields(log.Fields{
+			"metadb_attempted":   m.config.S.Bro.MetaDB,
 			"database_requested": name,
 			"_id":                dbr.ID.Hex,
 			"error":              err.Error(),
@@ -141,25 +158,25 @@ func (m *MetaDBHandle) MarkDBAnalyzed(name string, complete bool) error {
 }
 
 // GetDBMetaInfo returns a meta db entry
-func (m *MetaDBHandle) GetDBMetaInfo(name string) (DBMetaInfo, error) {
+func (m *MetaDB) GetDBMetaInfo(name string) (DBMetaInfo, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	ssn := m.res.DB.Session.Copy()
+	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 	var result DBMetaInfo
-	err := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Find(bson.M{"name": name}).One(&result)
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"name": name}).One(&result)
 	return result, err
 }
 
 // GetDatabases returns a list of databases being tracked in metadb or an empty array on failure
-func (m *MetaDBHandle) GetDatabases() []string {
+func (m *MetaDB) GetDatabases() []string {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	ssn := m.res.DB.Session.Copy()
+	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	iter := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Find(nil).Iter()
+	iter := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(nil).Iter()
 
 	var results []string
 	var db DBMetaInfo
@@ -171,7 +188,7 @@ func (m *MetaDBHandle) GetDatabases() []string {
 
 //CheckCompatibleImport checks if a database was imported with a version of
 //RITA which is compatible with the running version
-func (m *MetaDBHandle) CheckCompatibleImport(targetDatabase string) (bool, error) {
+func (m *MetaDB) CheckCompatibleImport(targetDatabase string) (bool, error) {
 	dbData, err := m.GetDBMetaInfo(targetDatabase)
 	if err != nil {
 		return false, err
@@ -180,12 +197,12 @@ func (m *MetaDBHandle) CheckCompatibleImport(targetDatabase string) (bool, error
 	if err != nil {
 		return false, err
 	}
-	return m.res.Config.R.Version.Major == existingVer.Major, nil
+	return m.config.R.Version.Major == existingVer.Major, nil
 }
 
 //CheckCompatibleAnalyze checks if a database was analyzed with a version of
 //RITA which is compatible with the running version
-func (m *MetaDBHandle) CheckCompatibleAnalyze(targetDatabase string) (bool, error) {
+func (m *MetaDB) CheckCompatibleAnalyze(targetDatabase string) (bool, error) {
 	dbData, err := m.GetDBMetaInfo(targetDatabase)
 	if err != nil {
 		return false, err
@@ -194,19 +211,19 @@ func (m *MetaDBHandle) CheckCompatibleAnalyze(targetDatabase string) (bool, erro
 	if err != nil {
 		return false, err
 	}
-	return m.res.Config.R.Version.Major == existingVer.Major, nil
+	return m.config.R.Version.Major == existingVer.Major, nil
 }
 
 // GetUnAnalyzedDatabases builds a list of database names which have yet to be analyzed
-func (m *MetaDBHandle) GetUnAnalyzedDatabases() []string {
+func (m *MetaDB) GetUnAnalyzedDatabases() []string {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	ssn := m.res.DB.Session.Copy()
+	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
 	var results []string
 	var cur DBMetaInfo
-	iter := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Find(bson.M{"analyzed": false}).Iter()
+	iter := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"analyzed": false}).Iter()
 	for iter.Next(&cur) {
 		results = append(results, cur.Name)
 	}
@@ -214,15 +231,15 @@ func (m *MetaDBHandle) GetUnAnalyzedDatabases() []string {
 }
 
 // GetAnalyzedDatabases builds a list of database names which have been analyzed
-func (m *MetaDBHandle) GetAnalyzedDatabases() []string {
+func (m *MetaDB) GetAnalyzedDatabases() []string {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	ssn := m.res.DB.Session.Copy()
+	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
 	var results []string
 	var cur DBMetaInfo
-	iter := ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Find(bson.M{"analyzed": true}).Iter()
+	iter := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"analyzed": true}).Iter()
 	for iter.Next(&cur) {
 		results = append(results, cur.Name)
 	}
@@ -236,18 +253,18 @@ func (m *MetaDBHandle) GetAnalyzedDatabases() []string {
 // GetFiles gets a list of all IndexedFile objects in the database if successful return a list of files
 // from the database, in the case of failure return a zero length list of files and generat a log
 // message.
-func (m *MetaDBHandle) GetFiles() ([]fpt.IndexedFile, error) {
+func (m *MetaDB) GetFiles() ([]fpt.IndexedFile, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	var toReturn []fpt.IndexedFile
 
-	ssn := m.res.DB.Session.Copy()
+	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	err := ssn.DB(m.DB).C(m.res.Config.T.Meta.FilesTable).
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.FilesTable).
 		Find(nil).Iter().All(&toReturn)
 	if err != nil {
-		m.res.Log.WithFields(log.Fields{
+		m.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("could not fetch files from meta database")
 		return nil, err
@@ -256,16 +273,16 @@ func (m *MetaDBHandle) GetFiles() ([]fpt.IndexedFile, error) {
 }
 
 //AddParsedFiles adds indexed files to the files the metaDB using the bulk API
-func (m *MetaDBHandle) AddParsedFiles(files []*fpt.IndexedFile) error {
+func (m *MetaDB) AddParsedFiles(files []*fpt.IndexedFile) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if len(files) == 0 {
 		return nil
 	}
-	ssn := m.res.DB.Session.Copy()
+	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	bulk := ssn.DB(m.DB).C(m.res.Config.T.Meta.FilesTable).Bulk()
+	bulk := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.FilesTable).Bulk()
 	bulk.Unordered()
 
 	//construct the interface slice for bulk
@@ -277,7 +294,7 @@ func (m *MetaDBHandle) AddParsedFiles(files []*fpt.IndexedFile) error {
 	bulk.Insert(interfaceSlice...)
 	_, err := bulk.Run()
 	if err != nil {
-		m.res.Log.WithFields(log.Fields{
+		m.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("could not insert files into meta database")
 		return err
@@ -289,22 +306,22 @@ func (m *MetaDBHandle) AddParsedFiles(files []*fpt.IndexedFile) error {
 
 // isBuilt checks to see if a file table exists, as the existence of parsed files is prerequisite
 // to the existance of anything else.
-func (m *MetaDBHandle) isBuilt() bool {
+func (m *MetaDB) isBuilt() bool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	ssn := m.res.DB.Session.Copy()
+	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	coll, err := ssn.DB(m.DB).CollectionNames()
+	coll, err := ssn.DB(m.config.S.Bro.MetaDB).CollectionNames()
 	if err != nil {
-		m.res.Log.WithFields(log.Fields{
+		m.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("error when looking up metadata collections")
 		return false
 	}
 
 	for _, name := range coll {
-		if name == m.res.Config.T.Meta.FilesTable {
+		if name == m.config.T.Meta.FilesTable {
 			return true
 		}
 	}
@@ -314,7 +331,7 @@ func (m *MetaDBHandle) isBuilt() bool {
 
 // createMetaDB creates a new metadata database failure is not an option,
 // if this function fails it will bring down the system.
-func (m *MetaDBHandle) createMetaDB() {
+func (m *MetaDB) createMetaDB() {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -322,13 +339,13 @@ func (m *MetaDBHandle) createMetaDB() {
 		if err == nil {
 			return
 		}
-		m.res.Log.WithFields(log.Fields{
+		m.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("newMetaDBHandle failed to build database (aborting)")
 		os.Exit(-1)
 	}
 
-	ssn := m.res.DB.Session.Copy()
+	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
 	// Create the files collection
@@ -337,10 +354,10 @@ func (m *MetaDBHandle) createMetaDB() {
 		Capped:         false,
 	}
 
-	err := ssn.DB(m.DB).C(m.res.Config.T.Log.RitaLogTable).Create(&myCol)
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Log.RitaLogTable).Create(&myCol)
 	errchk(err)
 
-	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.FilesTable).Create(&myCol)
+	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.FilesTable).Create(&myCol)
 	errchk(err)
 
 	idx := mgo.Index{
@@ -351,11 +368,11 @@ func (m *MetaDBHandle) createMetaDB() {
 		Name:       "hashindex",
 	}
 
-	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.FilesTable).EnsureIndex(idx)
+	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.FilesTable).EnsureIndex(idx)
 	errchk(err)
 
 	// Create the database collection
-	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).Create(&myCol)
+	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Create(&myCol)
 	errchk(err)
 
 	idx = mgo.Index{
@@ -366,7 +383,7 @@ func (m *MetaDBHandle) createMetaDB() {
 		Name:       "nameindex",
 	}
 
-	err = ssn.DB(m.DB).C(m.res.Config.T.Meta.DatabasesTable).EnsureIndex(idx)
+	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).EnsureIndex(idx)
 	errchk(err)
 
 }

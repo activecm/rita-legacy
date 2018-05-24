@@ -4,8 +4,8 @@ import (
 	"encoding/csv"
 	"os"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/useragent"
+	"github.com/activecm/rita/resources"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -30,7 +30,7 @@ func init() {
 				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := database.InitResources(c.String("config"))
+			res := resources.InitResources(c.String("config"))
 
 			var agents []useragent.UserAgent
 			coll := res.DB.Session.DB(db).C(res.Config.T.UserAgent.UserAgentTable)

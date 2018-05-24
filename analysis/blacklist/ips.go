@@ -5,9 +5,9 @@ import (
 
 	bl "github.com/activecm/rita-bl"
 	"github.com/activecm/rita-bl/list"
-	"github.com/activecm/rita/database"
 	data "github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/datatypes/structure"
+	"github.com/activecm/rita/resources"
 	log "github.com/sirupsen/logrus"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -45,7 +45,7 @@ func getUniqueIPFromUconnPipeline(field string) []bson.D {
 //iterator provided, the system config, a handle to rita-blacklist,
 //a buffer of ips to check at a time, and a boolean designating
 //whether or not the ips are connection sources or destinations
-func buildBlacklistedIPs(ips *mgo.Iter, res *database.Resources,
+func buildBlacklistedIPs(ips *mgo.Iter, res *resources.Resources,
 	blHandle *bl.Blacklist, bufferSize int, source bool) {
 	//create session to write to
 	ssn := res.DB.Session.Copy()

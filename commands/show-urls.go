@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/urls"
+	"github.com/activecm/rita/resources"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -27,7 +27,7 @@ func init() {
 				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := database.InitResources(c.String("config"))
+			res := resources.InitResources(c.String("config"))
 
 			var urls []urls.URL
 			coll := res.DB.Session.DB(db).C(res.Config.T.Urls.UrlsTable)
@@ -68,7 +68,7 @@ func init() {
 				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := database.InitResources(c.String("config"))
+			res := resources.InitResources(c.String("config"))
 
 			var urls []urls.URL
 			coll := res.DB.Session.DB(db).C(res.Config.T.Urls.UrlsTable)

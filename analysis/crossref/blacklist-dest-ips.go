@@ -1,9 +1,9 @@
 package crossref
 
 import (
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/datatypes/structure"
+	"github.com/activecm/rita/resources"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -18,7 +18,7 @@ func (s BLDestIPSelector) GetName() string {
 }
 
 //Select selects blacklisted dest ips for XRef analysis
-func (s BLDestIPSelector) Select(res *database.Resources) (<-chan string, <-chan string) {
+func (s BLDestIPSelector) Select(res *resources.Resources) (<-chan string, <-chan string) {
 	// make channels to return
 	sourceHosts := make(chan string)
 	destHosts := make(chan string)

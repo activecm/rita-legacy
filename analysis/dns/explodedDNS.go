@@ -1,7 +1,7 @@
 package dns
 
 import (
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/resources"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -11,7 +11,7 @@ const tempUniqSubdomainCollName string = "__temp_UniqSubdomains"
 
 // BuildExplodedDNSCollection splits domain names into sub-domains
 // and performs analysis
-func BuildExplodedDNSCollection(res *database.Resources) {
+func BuildExplodedDNSCollection(res *resources.Resources) {
 	buildExplodedDNSVistedCounts(res)
 	buildExplodedDNSUniqSubdomains(res)
 	zipExplodedDNSResults(res)
@@ -23,7 +23,7 @@ func BuildExplodedDNSCollection(res *database.Resources) {
 
 // buildExplodedDNSVistedCounts uses the map reduce job to count how many
 // times each super domain was visited
-func buildExplodedDNSVistedCounts(res *database.Resources) {
+func buildExplodedDNSVistedCounts(res *resources.Resources) {
 	res.DB.MapReduceCollection(
 		res.Config.T.Structure.DNSTable,
 		mgo.MapReduce{
@@ -37,7 +37,7 @@ func buildExplodedDNSVistedCounts(res *database.Resources) {
 
 // buildExplodedDNSUniqSubdomains uses the map reduce job to count how many
 // unique subdomains exist for a given super domain
-func buildExplodedDNSUniqSubdomains(res *database.Resources) {
+func buildExplodedDNSUniqSubdomains(res *resources.Resources) {
 	res.DB.MapReduceCollection(
 		tempVistedCountCollName,
 		mgo.MapReduce{
@@ -49,7 +49,7 @@ func buildExplodedDNSUniqSubdomains(res *database.Resources) {
 	)
 }
 
-func zipExplodedDNSResults(res *database.Resources) {
+func zipExplodedDNSResults(res *resources.Resources) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 	indexes := []mgo.Index{

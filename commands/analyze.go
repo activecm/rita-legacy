@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/blang/semver"
 	"github.com/activecm/rita/analysis/beacon"
 	"github.com/activecm/rita/analysis/blacklist"
 	"github.com/activecm/rita/analysis/crossref"
@@ -14,8 +13,9 @@ import (
 	"github.com/activecm/rita/analysis/structure"
 	"github.com/activecm/rita/analysis/urls"
 	"github.com/activecm/rita/analysis/useragent"
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
+	"github.com/blang/semver"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -38,7 +38,7 @@ func init() {
 }
 
 func analyze(inDb string, configFile string) error {
-	res := database.InitResources(configFile)
+	res := resources.InitResources(configFile)
 	var toRunDirty []string
 	var toRun []string
 
@@ -107,7 +107,7 @@ func analyze(inDb string, configFile string) error {
 			structure.BuildUniqueConnectionsCollection,
 		)
 		logAnalysisFunc("Unique Hosts", td, res,
-			func(innerRes *database.Resources) {
+			func(innerRes *resources.Resources) {
 				structure.BuildHostsCollection(innerRes)
 				structure.BuildIPv4Collection(innerRes)
 				structure.BuildIPv6Collection(innerRes)
@@ -155,7 +155,7 @@ func analyze(inDb string, configFile string) error {
 }
 
 func logAnalysisFunc(analysisName string, databaseName string,
-	resources *database.Resources, analysis func(*database.Resources)) {
+	resources *resources.Resources, analysis func(*resources.Resources)) {
 	analysisName += " Analysis"
 	start := time.Now()
 	resources.Log.WithFields(log.Fields{

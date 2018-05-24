@@ -12,6 +12,7 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -19,14 +20,14 @@ import (
 type (
 	//FSImporter provides the ability to import bro files from the file system
 	FSImporter struct {
-		res             *database.Resources
+		res             *resources.Resources
 		indexingThreads int
 		parseThreads    int
 	}
 )
 
 //NewFSImporter creates a new file system importer
-func NewFSImporter(resources *database.Resources,
+func NewFSImporter(resources *resources.Resources,
 	indexingThreads int, parseThreads int) *FSImporter {
 	return &FSImporter{
 		res:             resources,
@@ -218,7 +219,7 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore D
 }
 
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
-	metaDatabase *database.MetaDBHandle, logger *log.Logger) []*fpt.IndexedFile {
+	metaDatabase *database.MetaDB, logger *log.Logger) []*fpt.IndexedFile {
 	var toReturn []*fpt.IndexedFile
 	oldFiles, err := metaDatabase.GetFiles()
 	if err != nil {
@@ -253,7 +254,7 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 }
 
 //updateFilesIndex updates the files collection in the metaDB with the newly parsed files
-func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.MetaDBHandle,
+func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.MetaDB,
 	logger *log.Logger) {
 	err := metaDatabase.AddParsedFiles(indexedFiles)
 	if err != nil {

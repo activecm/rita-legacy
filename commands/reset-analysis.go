@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/resources"
 	"github.com/urfave/cli"
 )
 
@@ -20,7 +20,7 @@ func init() {
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			res := database.InitResources(c.String("config"))
+			res := resources.InitResources(c.String("config"))
 			db := c.Args().Get(0)
 			if db == "" {
 				return cli.NewExitError("Specify a database", -1)
@@ -34,7 +34,7 @@ func init() {
 
 // resetAnalysis cleans out all of the analysis data, leaving behind only the
 // raw data from parsing the logs
-func resetAnalysis(database string, res *database.Resources) error {
+func resetAnalysis(database string, res *resources.Resources) error {
 	//clean database
 
 	conn := res.Config.T.Structure.ConnTable

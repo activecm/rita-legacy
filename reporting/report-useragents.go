@@ -5,12 +5,12 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/useragent"
 	"github.com/activecm/rita/reporting/templates"
+	"github.com/activecm/rita/resources"
 )
 
-func printUserAgents(db string, res *database.Resources) error {
+func printUserAgents(db string, res *resources.Resources) error {
 	f, err := os.Create("useragents.html")
 	if err != nil {
 		return err
