@@ -48,9 +48,9 @@ Bro:
     MetaDB: MetaDatabase
 
     # The number of records shipped off to MongoDB at a time. Increasing
-    # the size of the buffer will improve import timings but will leave more
-    # records unimported if there is an error
-    ImportBuffer: 100000
+    # the size of the buffer will improve import timings at the expense
+    # of using more RAM.
+    ImportBuffer: 30000
 
 BlackListed:
     # These are blacklists built into rita-blacklist. Set these to false
