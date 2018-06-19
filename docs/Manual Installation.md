@@ -10,9 +10,9 @@
     1. Test that bro is working by firing up bro and ensuring that it's spitting out logs. If you're having some trouble with bro configuration or use, here are some helpful links:
         * Bro quick start [https://www.bro.org/sphinx-git/quickstart/index.html](https://www.bro.org/sphinx-git/quickstart/index.html)
         * broctl [https://www.bro.org/sphinx/components/broctl/README.html](https://www.bro.org/sphinx/components/broctl/README.html)
-1. Install MongoDB (You will need MongoDB >= 3.2.0 which is not included by default in the Ubuntu 16.04 package manager.)
+1. Install MongoDB (You will need a version between 3.2.0 and 3.7.0 which is not included by default in the Ubuntu 16.04 package manager.)
     * Follow the MongoDB installation guide at https://docs.mongodb.com/manual/installation/
-    * Download a version >= 3.2.0 at https://www.mongodb.com/download-center?jmp=nav#community
+    * Download a version >= 3.2.0, but < 3.7.0 at https://www.mongodb.com/download-center?jmp=nav#community
     * Ensure MongoDB is running before continuing  
 1. Install GoLang using the instructions at [https://golang.org/doc/install](https://golang.org/doc/install)
     1. After the install we need to set a local GOPATH for our user. So lets set up a directory in our HomeDir
@@ -52,4 +52,3 @@
     1. You can test a configuration file with ```rita test-config -c PATH/TO/FILE```
         * There will be empty quotes or 0's assigned to empty fields
     1. Follow the documentation in the Readme.md for configuring RITA
-

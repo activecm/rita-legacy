@@ -2,13 +2,31 @@ package database
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/activecm/mgosec"
 	"github.com/activecm/rita/config"
+	"github.com/blang/semver"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
+
+//MinMongoDBVersion is the lower, inclusive bound on the
+//versions of MongoDB compatible with RITA
+var MinMongoDBVersion = semver.Version{
+	Major: 3,
+	Minor: 2,
+	Patch: 0,
+}
+
+//MaxMongoDBVersion is the upper, exclusive bound on the
+//versions of MongoDB compatible with RITA
+var MaxMongoDBVersion = semver.Version{
+	Major: 3,
+	Minor: 7,
+	Patch: 0,
+}
 
 // DB is the workhorse container for messing with the database
 type DB struct {
@@ -40,10 +58,42 @@ func connectToMongoDB(conf *config.Config, logger *log.Logger) (*mgo.Session, er
 	connString := conf.S.MongoDB.ConnectionString
 	authMechanism := conf.R.MongoDB.AuthMechanismParsed
 	tlsConfig := conf.R.MongoDB.TLS.TLSConfig
+
+	var sess *mgo.Session
+	var err error
 	if conf.S.MongoDB.TLS.Enabled {
-		return mgosec.Dial(connString, authMechanism, tlsConfig)
+		sess, err = mgosec.Dial(connString, authMechanism, tlsConfig)
+	} else {
+		sess, err = mgosec.DialInsecure(connString, authMechanism)
 	}
-	return mgosec.DialInsecure(connString, authMechanism)
+	if err != nil {
+		return sess, err
+	}
+
+	buildInfo, err := sess.BuildInfo()
+	if err != nil {
+		sess.Close()
+		return nil, err
+	}
+
+	semVersion, err := semver.ParseTolerant(buildInfo.Version)
+	if err != nil {
+		sess.Close()
+		return nil, err
+	}
+
+	if !(semVersion.GE(MinMongoDBVersion) && semVersion.LT(MaxMongoDBVersion)) {
+		sess.Close()
+		return nil, fmt.Errorf(
+			"unsupported version of MongoDB. %s not within [%s, %s)",
+			semVersion.String(),
+			MinMongoDBVersion.String(),
+			MaxMongoDBVersion.String(),
+		)
+	}
+
+	return sess, nil
+
 }
 
 //SelectDB selects a database for analysis

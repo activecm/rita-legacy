@@ -25,7 +25,7 @@ type (
 func InitResources(userConfig string) *Resources {
 	conf, err := config.LoadConfig(userConfig)
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "Failed to config: %s", err.Error())
+		fmt.Fprintf(os.Stdout, "Failed to config: %s\n", err.Error())
 		os.Exit(-1)
 	}
 
@@ -35,7 +35,7 @@ func InitResources(userConfig string) *Resources {
 	// Allows code to interact with the database
 	db, err := database.NewDB(conf, log)
 	if err != nil {
-		fmt.Printf("Failed to connect to database: %s", err.Error())
+		fmt.Printf("Failed to connect to database: %s\n", err.Error())
 		os.Exit(-1)
 	}
 
