@@ -56,7 +56,7 @@ func zipExplodedDNSResults(res *resources.Resources) {
 		{Key: []string{"domain"}, Unique: true},
 		{Key: []string{"subdomains"}},
 	}
-	res.DB.CreateCollection(res.Config.T.DNS.ExplodedDNSTable, false, indexes)
+	res.DB.CreateCollection(res.Config.T.DNS.ExplodedDNSTable, indexes)
 	res.DB.AggregateCollection(tempVistedCountCollName, ssn,
 		// nolint: vet
 		[]bson.D{

@@ -19,7 +19,6 @@ func BuildIPv4Collection(res *resources.Resources) {
 
 	errorCheck := res.DB.CreateCollection(
 		res.Config.T.Structure.IPv4Table,
-		false,
 		[]mgo.Index{
 			{Key: []string{"ip"}, Unique: true},
 			{Key: []string{"ipv4_binary"}},
@@ -47,7 +46,6 @@ func BuildIPv6Collection(res *resources.Resources) {
 
 	errorCheck := res.DB.CreateCollection(
 		res.Config.T.Structure.IPv6Table,
-		false,
 		[]mgo.Index{
 			{Key: []string{"ip"}, Unique: true},
 			{Key: []string{"ipv6_binary.1"}},

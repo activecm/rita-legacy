@@ -37,7 +37,7 @@ func BuildUniqueConnectionsCollection(res *resources.Resources) {
 		newCollectionKeys,
 		pipeline := getUniqueConnectionsScript(res.Config)
 
-	err := res.DB.CreateCollection(newCollectionName, true, newCollectionKeys)
+	err := res.DB.CreateCollection(newCollectionName, newCollectionKeys)
 	if err != nil {
 		res.Log.Error("Failed: ", newCollectionName, err.Error())
 		return

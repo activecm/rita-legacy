@@ -18,7 +18,7 @@ func BuildUrlsCollection(res *resources.Resources) {
 		pipeline := getURLCollectionScript(res.Config)
 
 	// Create it
-	err := res.DB.CreateCollection(newCollectionName, false, []mgo.Index{})
+	err := res.DB.CreateCollection(newCollectionName, []mgo.Index{})
 	if err != nil {
 		res.Log.Error("Failed: ", newCollectionName, err.Error())
 		return

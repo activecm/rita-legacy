@@ -17,7 +17,7 @@ func BuildHostsCollection(res *resources.Resources) {
 		pipeline := getHosts(res.Config)
 
 	// Aggregate it!
-	errorCheck := res.DB.CreateCollection(newCollectionName, false, newCollectionKeys)
+	errorCheck := res.DB.CreateCollection(newCollectionName, newCollectionKeys)
 	if errorCheck != nil {
 		res.Log.Error("Failed: ", newCollectionName, errorCheck)
 		return
