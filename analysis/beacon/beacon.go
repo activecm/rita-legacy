@@ -37,7 +37,7 @@ func BuildBeaconCollection(res *resources.Resources) {
 		{Key: []string{"uconn_id"}, Unique: true},
 		{Key: []string{"ts_score"}},
 	}
-	err := res.DB.CreateCollection(collectionName, false, collectionKeys)
+	err := res.DB.CreateCollection(collectionName, collectionKeys)
 	if err != nil {
 		res.Log.Error("Failed: ", collectionName, err.Error())
 		return

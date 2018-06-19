@@ -78,7 +78,7 @@ func (d *DB) CollectionExists(table string) bool {
 
 //CreateCollection creates a new collection in the currently selected
 //database with the required indeces
-func (d *DB) CreateCollection(name string, id bool, indeces []mgo.Index) error {
+func (d *DB) CreateCollection(name string, indeces []mgo.Index) error {
 	// Make a copy of the current session
 	session := d.Session.Copy()
 	defer session.Close()
@@ -96,9 +96,7 @@ func (d *DB) CreateCollection(name string, id bool, indeces []mgo.Index) error {
 
 	// Create new collection by referencing to it, no need to call Create
 	err := session.DB(d.selected).C(name).Create(
-		&mgo.CollectionInfo{
-			DisableIdIndex: !id,
-		},
+		&mgo.CollectionInfo{},
 	)
 
 	// Make sure it actually got created

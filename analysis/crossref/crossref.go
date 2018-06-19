@@ -23,8 +23,8 @@ func getXRefSelectors() []dataXRef.XRefSelector {
 // BuildXRefCollection runs threaded crossref analysis
 func BuildXRefCollection(res *resources.Resources) {
 	indexes := []mgo.Index{{Key: []string{"host"}, Unique: true}}
-	res.DB.CreateCollection(res.Config.T.Crossref.SourceTable, false, indexes)
-	res.DB.CreateCollection(res.Config.T.Crossref.DestTable, false, indexes)
+	res.DB.CreateCollection(res.Config.T.Crossref.SourceTable, indexes)
+	res.DB.CreateCollection(res.Config.T.Crossref.DestTable, indexes)
 
 	//maps from analysis types to channels of hosts found
 	sources := make(map[string]<-chan string)

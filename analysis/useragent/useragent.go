@@ -17,7 +17,7 @@ func BuildUserAgentCollection(res *resources.Resources) {
 		pipeline := getUserAgentCollectionScript(res.Config)
 
 	// Create it
-	err := res.DB.CreateCollection(newCollectionName, false, newCollectionKeys)
+	err := res.DB.CreateCollection(newCollectionName, newCollectionKeys)
 	if err != nil {
 		res.Log.Error("Failed: ", newCollectionName, err.Error())
 		return
