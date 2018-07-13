@@ -3,7 +3,7 @@ package parsetypes
 import (
 
 	"github.com/activecm/rita/config"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo/bson"
 )
 
 

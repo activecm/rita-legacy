@@ -3,8 +3,8 @@ package structure
 import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/resources"
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	mgo "github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 )
 
 // BuildHostsCollection builds the 'host' collection for this timeframe.

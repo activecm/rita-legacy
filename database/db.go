@@ -8,8 +8,8 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/blang/semver"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 )
 
 //MinMongoDBVersion is the lower, inclusive bound on the

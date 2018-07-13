@@ -4,8 +4,8 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/resources"
 
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 )
 
 //BuildUrlsCollection performs url length analysis

@@ -7,8 +7,8 @@ import (
 	structureTypes "github.com/activecm/rita/datatypes/structure"
 	"github.com/activecm/rita/resources"
 	log "github.com/sirupsen/logrus"
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	mgo "github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 )
 
 //BuildIPv4Collection generates binary representations of the IPv4 addresses in the

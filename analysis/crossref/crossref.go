@@ -3,8 +3,8 @@ package crossref
 import (
 	"sync"
 
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	mgo "github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 
 	dataXRef "github.com/activecm/rita/datatypes/crossref"
 	"github.com/activecm/rita/resources"

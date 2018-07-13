@@ -2,7 +2,7 @@ package beacon
 
 import (
 	dataBeacon "github.com/activecm/rita/datatypes/beacon"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo/bson"
 )
 
 var writerTestDataList = []dataBeacon.BeaconAnalysisOutput{

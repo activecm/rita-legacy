@@ -4,14 +4,14 @@
 [[projects]]
   name = "github.com/activecm/mgorus"
   packages = ["."]
-  revision = "544a63f222470b2feb3b1142f7edb9a843f5120d"
-  version = "v0.1.0"
+  revision = "14fb55db664fcb78819379c2fcc01f917d682c67"
+  version = "v0.1.1"
 
 [[projects]]
   name = "github.com/activecm/mgosec"
   packages = ["."]
-  revision = "af42afa3ec74143661a863bdae62d36a93c6eca7"
-  version = "v0.1.0"
+  revision = "3940290cb0e63eafbbabeb8c4a0a788f80e6bc7d"
+  version = "v0.1.1"
 
 [[projects]]
   branch = "master"
@@ -24,7 +24,7 @@
     "sources/lists/util",
     "sources/rpc"
   ]
-  revision = "a88d294decb19915d5cc4f53b64d5e80b781b775"
+  revision = "c067dd0a13599f118564cb3f6f022c94aef822ac"
 
 [[projects]]
   name = "github.com/blang/semver"
@@ -37,6 +37,18 @@
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/globalsign/mgo"
+  packages = [
+    ".",
+    "bson",
+    "internal/json",
+    "internal/sasl",
+    "internal/scram"
+  ]
+  revision = "113d3961e7311526535a1ef7042196563d442761"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -95,8 +107,8 @@
 [[projects]]
   name = "github.com/stretchr/testify"
   packages = ["assert"]
-  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
-  version = "v1.2.1"
+  revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
+  version = "v1.2.2"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -108,13 +120,13 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "1a580b3eff7814fc9b40602fd35256c63b50f491"
+  revision = "a49355c7e3f8fe157a85be2f77e6e269a0f89602"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["idna"]
-  revision = "2491c5de3490fced2f6cff376127c667efeed857"
+  revision = "d0887baf81f4598189d4e12a37c6da86f0bba4d0"
 
 [[projects]]
   branch = "master"
@@ -123,7 +135,7 @@
     "unix",
     "windows"
   ]
-  revision = "7c87d13f8e835d2fb3a70a2912c811ed0c1d241b"
+  revision = "1b2967e3c290b7c545b3db0deeda16e9be4f98a2"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -147,18 +159,6 @@
   version = "v0.3.0"
 
 [[projects]]
-  branch = "v2"
-  name = "gopkg.in/mgo.v2"
-  packages = [
-    ".",
-    "bson",
-    "internal/json",
-    "internal/sasl",
-    "internal/scram"
-  ]
-  revision = "3f83fa5005286a7fe593b055f0d7771a7dce4655"
-
-[[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
@@ -167,6 +167,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a4e09dc561c661f2ae4ae099a769261c68e717ecc2d812caaf375f93d2fcfb5f"
+  inputs-digest = "1ff4e02c38d242f65262210414bcf60841615d7af0ab8dc2ccbd20c47a49308b"
   solver-name = "gps-cdcl"
   solver-version = 1
