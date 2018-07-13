@@ -11,8 +11,8 @@ import (
 	bl "github.com/activecm/rita-bl"
 	data "github.com/activecm/rita/datatypes/blacklist"
 	log "github.com/sirupsen/logrus"
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	mgo "github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 )
 
 type hostnameShort struct {
