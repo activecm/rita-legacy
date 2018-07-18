@@ -6,7 +6,7 @@ import (
 	"github.com/activecm/rita/datatypes/structure"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/resources"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCollector(t *testing.T) {
@@ -46,11 +46,11 @@ func TestCollector(t *testing.T) {
 }
 
 func collectionSuccessful(t *testing.T, collectorTestData *collectorTestData, collectedData *beaconAnalysisInput) {
-	assert.Equal(t, collectorTestData.src, collectedData.src)
-	assert.Equal(t, collectorTestData.dst, collectedData.dst)
+	require.Equal(t, collectorTestData.src, collectedData.src)
+	require.Equal(t, collectorTestData.dst, collectedData.dst)
 	for i := range collectorTestData.ts {
-		assert.Equal(t, collectorTestData.ts[i], collectedData.ts[i])
-		assert.Equal(t, collectorTestData.ds[i], collectedData.origIPBytes[i])
+		require.Equal(t, collectorTestData.ts[i], collectedData.ts[i])
+		require.Equal(t, collectorTestData.ds[i], collectedData.origIPBytes[i])
 	}
 }
 

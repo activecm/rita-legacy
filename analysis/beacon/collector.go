@@ -84,9 +84,25 @@ func (c *collector) start() {
 					Iter()
 
 				for connIter.Next(&conn) {
+					//TODO: Test. Currently none of the test cases mark proto, so they
+					//pass
+
+					//filter out unestablished connections
+					//We expect at least SYN ACK SYN-ACK [FIN ACK FIN ACK/ RST]
+					if conn.Proto == "tcp" && conn.OriginPackets+conn.ResponsePackets <= 3 {
+						continue
+					}
+
 					newInput.ts = append(newInput.ts, conn.Ts)
 					newInput.origIPBytes = append(newInput.origIPBytes, conn.OriginIPBytes)
 				}
+
+				//filtering may have reduced the amount of connections
+				//check again if we should skip this unique connection
+				if len(newInput.ts) < c.connectionThreshold {
+					continue
+				}
+
 				c.collectedCallback(newInput)
 			}
 			host, more = <-c.collectChannel
