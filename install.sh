@@ -428,9 +428,9 @@ __install_packages() {
 
 __freshen_packages() {
 	if [ $_PKG_MGR -eq 1 ]; then   #apt
-		apt-get -qq update > /dev/null 2>&1
+		apt-get -qq update > /dev/null 2>&1 || /bin/true
 	elif [ $_PKG_MGR -eq 2 ]; then #yum
-		yum -q makecache > /dev/null 2>&1
+		yum -q makecache > /dev/null 2>&1 || /bin/true
 	fi
 }
 
