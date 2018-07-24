@@ -34,8 +34,8 @@ func (w *writer) write(data *dataBeacon.BeaconAnalysisOutput) {
 	w.writeChannel <- data
 }
 
-// flush waits for the write threads to finish
-func (w *writer) flush() {
+// close waits for the write threads to finish
+func (w *writer) close() {
 	close(w.writeChannel)
 	w.writeWg.Wait()
 }

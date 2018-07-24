@@ -18,6 +18,7 @@ type (
 		minTime             int64                                  // beginning of the observation period
 		maxTime             int64                                  // ending of the observation period
 		analyzedCallback    func(*dataBeacon.BeaconAnalysisOutput) // called on each analyzed result
+		closedCallback      func()                                 // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel     chan *beaconAnalysisInput              // holds unanalyzed data
 		analysisWg          sync.WaitGroup                         // wait for analysis to finish
 	}
@@ -25,12 +26,13 @@ type (
 
 // newAnalyzer creates a new analyzer for computing beaconing scores.
 func newAnalyzer(connectionThreshold int, minTime, maxTime int64,
-	analyzedCallback func(*dataBeacon.BeaconAnalysisOutput)) *analyzer {
+	analyzedCallback func(*dataBeacon.BeaconAnalysisOutput), closedCallback func()) *analyzer {
 	return &analyzer{
 		connectionThreshold: connectionThreshold,
 		minTime:             minTime,
 		maxTime:             maxTime,
 		analyzedCallback:    analyzedCallback,
+		closedCallback:      closedCallback,
 		analysisChannel:     make(chan *beaconAnalysisInput),
 	}
 }
@@ -41,10 +43,11 @@ func (a *analyzer) analyze(data *beaconAnalysisInput) {
 	a.analysisChannel <- data
 }
 
-// flush waits for the analysis threads to finish
-func (a *analyzer) flush() {
+// close waits for the analysis threads to finish
+func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
+	a.closedCallback()
 }
 
 // start kicks off a new analysis thread

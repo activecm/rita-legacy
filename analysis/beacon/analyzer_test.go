@@ -7,20 +7,22 @@ import (
 	dataBeacon "github.com/activecm/rita/datatypes/beacon"
 	"github.com/activecm/rita/util"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAnalyzer(t *testing.T) {
 	for _, val := range analyzerTestDataList {
-		analyzer := newAnalyzer(5, val.ts[0], val.ts[len(val.ts)-1],
-			func(res *dataBeacon.BeaconAnalysisOutput) {
-				t.Run(val.description, func(t *testing.T) {
-					t.Logf("Expected Score: %f < x < %f\n Score: %f", val.minScore, val.maxScore, res.Score)
-					if res.Score < val.minScore || res.Score > val.maxScore {
-						t.Fail()
-					}
-				})
-			})
+		analyzedChan := make(chan *dataBeacon.BeaconAnalysisOutput, 1)
+
+		analyzer := newAnalyzer(
+			5,                                //connection threshold
+			val.ts[0], val.ts[len(val.ts)-1], //min max times,
+			func(output *dataBeacon.BeaconAnalysisOutput) {
+				analyzedChan <- output
+			}, func() {
+				close(analyzedChan)
+			},
+		)
 		analyzer.start()
 		analyzer.analyze(&beaconAnalysisInput{
 			src:         "0.0.0.0",
@@ -28,7 +30,14 @@ func TestAnalyzer(t *testing.T) {
 			ts:          val.ts, //these are the timestamps
 			origIPBytes: val.ds, //these are the data sizes
 		})
-		analyzer.flush()
+		analyzer.close()
+
+		t.Run(val.description, func(t *testing.T) {
+			output, ok := <-analyzedChan
+			require.True(t, ok)
+			t.Logf("Expected Score: %f < x < %f\n Score: %f", val.minScore, val.maxScore, output.Score)
+			require.False(t, output.Score < val.minScore || output.Score > val.maxScore)
+		})
 	}
 }
 
@@ -54,10 +63,10 @@ func TestCreateCountMap(t *testing.T) {
 		i++
 	}
 	uniq, uniqCounts, mode, modeCount := createCountMap(testData)
-	assert.ElementsMatch(t, uniq, uniqTestData)
+	require.ElementsMatch(t, uniq, uniqTestData)
 	for i, datum := range uniq {
-		assert.Equal(t, testDataCounts[datum], uniqCounts[i])
+		require.Equal(t, testDataCounts[datum], uniqCounts[i])
 	}
-	assert.Equal(t, int64(0), mode)
-	assert.Equal(t, int64(5), modeCount)
+	require.Equal(t, int64(0), mode)
+	require.Equal(t, int64(5), modeCount)
 }

@@ -10,39 +10,69 @@ import (
 )
 
 func TestCollector(t *testing.T) {
+
 	res := resources.InitIntegrationTestingResources(t)
 	setUpCollectorTest(t, res)
 	defer tearDownCollectorConnRecords(t, res)
 
-	collectedChannel := make(chan *beaconAnalysisInput)
+	var collectedChannel chan *beaconAnalysisInput
 
-	collector := newCollector(
-		res.DB, res.Config, res.Config.S.Beacon.DefaultConnectionThresh,
-		func(collected *beaconAnalysisInput) {
-			collectedChannel <- collected
-		},
-	)
-	collector.start()
-	collector.collect(collectorTestDataHostList[0])
+	collect := func(srcHost string) {
+		collectedChannel = make(chan *beaconAnalysisInput, 2)
+		collector := newCollector(
+			res.DB, res.Config, res.Config.S.Beacon.DefaultConnectionThresh,
+			func(collected *beaconAnalysisInput) {
+				collectedChannel <- collected
+			},
+			func() {
+				close(collectedChannel)
+			},
+		)
+		collector.start()
+		collector.collect(srcHost)
+		collector.close()
+	}
+
+	collect(collectorTestDataHostList[0])
 
 	t.Run(collectorTestDataList[0].description, func(t *testing.T) {
-		collectedHost := <-collectedChannel
+		collectedHost, ok := <-collectedChannel
+		require.True(t, ok)
 		collectionSuccessful(t, &collectorTestDataList[0], collectedHost)
 	})
 
-	t.Run(collectorTestDataList[2].description, func(t *testing.T) {
-		collectedHost := <-collectedChannel
-		collectionSuccessful(t, &collectorTestDataList[2], collectedHost)
-	})
-
-	collector.collect(collectorTestDataHostList[1])
-
 	t.Run(collectorTestDataList[1].description, func(t *testing.T) {
-		collectedHost := <-collectedChannel
+		collectedHost, ok := <-collectedChannel
+		require.True(t, ok)
 		collectionSuccessful(t, &collectorTestDataList[1], collectedHost)
 	})
 
-	collector.flush()
+	collect(collectorTestDataHostList[1])
+
+	t.Run(collectorTestDataList[2].description, func(t *testing.T) {
+		collectedHost, ok := <-collectedChannel
+		require.True(t, ok)
+		collectionSuccessful(t, &collectorTestDataList[2], collectedHost)
+	})
+
+	t.Run(collectorTestDataList[3].description, func(t *testing.T) {
+		_, ok := <-collectedChannel
+		require.False(t, ok)
+	})
+
+	collect(collectorTestDataHostList[2])
+
+	t.Run(collectorTestDataList[5].description, func(t *testing.T) {
+		collectedHost, ok := <-collectedChannel
+		require.True(t, ok)
+		collectionSuccessful(t, &collectorTestDataList[5], collectedHost)
+	})
+
+	t.Run(collectorTestDataList[4].description, func(t *testing.T) {
+		_, ok := <-collectedChannel
+		require.False(t, ok)
+	})
+
 }
 
 func collectionSuccessful(t *testing.T, collectorTestData *collectorTestData, collectedData *beaconAnalysisInput) {
@@ -57,9 +87,9 @@ func collectionSuccessful(t *testing.T, collectorTestData *collectorTestData, co
 func setUpCollectorTest(t *testing.T, res *resources.Resources) {
 	session := res.DB.Session.Copy()
 	defer session.Close()
-	for _, record := range collectorTestDataList {
+	for i, record := range collectorTestDataList {
 		if len(record.ts) != len(record.ds) {
-			t.FailNow()
+			t.Fatalf("number of timestamps and data measures are not equal for test record %d", i)
 		}
 		uconn := structure.UniqueConnection{
 			Src:             record.src,
@@ -74,6 +104,9 @@ func setUpCollectorTest(t *testing.T, res *resources.Resources) {
 				OrigIPBytes: dataSize,
 				Source:      record.src,
 				Destination: record.dst,
+				Proto:       record.proto,
+				OrigPkts:    record.origPackets,
+				RespPkts:    record.respPackets,
 			}
 			session.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.ConnTable).Insert(&connRecord)
 		}
