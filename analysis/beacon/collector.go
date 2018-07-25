@@ -87,9 +87,6 @@ func (c *collector) start() {
 					Iter()
 
 				for connIter.Next(&conn) {
-					//TODO: Test. Currently none of the test cases mark proto, so they
-					//pass
-
 					//filter out unestablished connections
 					//We expect at least SYN ACK SYN-ACK [FIN ACK FIN ACK/ RST]
 					if conn.Proto == "tcp" && conn.OriginPackets+conn.ResponsePackets <= 3 {
