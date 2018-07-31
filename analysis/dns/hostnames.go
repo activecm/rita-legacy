@@ -5,8 +5,8 @@ import (
 	dnsTypes "github.com/activecm/rita/datatypes/dns"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	mgo "github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 )
 
 const tempHostnamesCollName string = "__temp_hostnames"

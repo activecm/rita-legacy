@@ -2,7 +2,7 @@ package parsetypes
 
 import (
 	"github.com/activecm/rita/config"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo/bson"
 )
 
 // DNS provides a data structure for entries in the bro DNS log

@@ -5,7 +5,7 @@ import (
 
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo/bson"
 )
 
 func TestSanitizeHTTPRecord(t *testing.T) {

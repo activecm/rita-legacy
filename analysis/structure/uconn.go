@@ -4,8 +4,8 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/resources"
 
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	mgo "github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 )
 
 // GetConnSourcesFromDest finds all of the ips which communicated with a

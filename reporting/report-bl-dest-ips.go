@@ -4,7 +4,7 @@ import (
 	"html/template"
 	"os"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo/bson"
 
 	"github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/datatypes/structure"

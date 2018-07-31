@@ -7,7 +7,7 @@ import (
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/data"
 	"github.com/activecm/rita/datatypes/structure"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo/bson"
 )
 
 type (

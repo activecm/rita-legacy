@@ -6,7 +6,7 @@ import (
 	"os"
 	"sort"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo/bson"
 
 	"github.com/activecm/rita/analysis/dns"
 	"github.com/activecm/rita/datatypes/blacklist"

@@ -4,8 +4,8 @@ import (
 	"runtime"
 	"time"
 
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	mgo "github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/datatypes/data"

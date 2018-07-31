@@ -4,7 +4,7 @@ import (
 	"github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/datatypes/structure"
 	"github.com/activecm/rita/resources"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo/bson"
 )
 
 type (

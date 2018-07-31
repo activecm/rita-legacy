@@ -14,7 +14,7 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/resources"
 	log "github.com/sirupsen/logrus"
-	mgo "gopkg.in/mgo.v2"
+	mgo "github.com/globalsign/mgo"
 )
 
 type resultsChan chan map[string][]blDB.BlacklistResult
