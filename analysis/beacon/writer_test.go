@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	dataBeacon "github.com/activecm/rita/datatypes/beacon"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/activecm/rita/resources"
 )
@@ -16,9 +16,9 @@ func TestWriter(t *testing.T) {
 	for i := range writerTestDataList {
 		writer.write(&writerTestDataList[i])
 	}
-	writer.flush()
+	writer.close()
 
 	var writtenData []dataBeacon.BeaconAnalysisOutput
 	res.DB.Session.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(nil).All(&writtenData)
-	assert.ElementsMatch(t, writerTestDataList, writtenData)
+	require.ElementsMatch(t, writerTestDataList, writtenData)
 }

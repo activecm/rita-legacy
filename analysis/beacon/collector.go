@@ -18,6 +18,7 @@ type (
 		conf                *config.Config             // contains details needed to access MongoDB
 		connectionThreshold int                        // the minimum number of connections to be considered a beacon
 		collectedCallback   func(*beaconAnalysisInput) // called on each collected set of connections
+		closedCallback      func()                     // called when .close() is called and no more calls to collectedCallback will be made
 		collectChannel      chan string                // holds ip addresses
 		collectWg           sync.WaitGroup             // wait for collection to finish
 	}
@@ -27,12 +28,13 @@ type (
 // which group the given source, a detected destination, and all of their
 // connection analysis details (timestamps, data sizes, etc.)
 func newCollector(db *database.DB, conf *config.Config, connectionThreshold int,
-	collectedCallback func(*beaconAnalysisInput)) *collector {
+	collectedCallback func(*beaconAnalysisInput), closedCallback func()) *collector {
 	return &collector{
 		db:                  db,
 		conf:                conf,
 		connectionThreshold: connectionThreshold,
 		collectedCallback:   collectedCallback,
+		closedCallback:      closedCallback,
 		collectChannel:      make(chan string),
 	}
 }
@@ -43,10 +45,11 @@ func (c *collector) collect(srcHost string) {
 	c.collectChannel <- srcHost
 }
 
-// flush waits for the collection threads to finish
-func (c *collector) flush() {
+// close waits for the collection threads to finish
+func (c *collector) close() {
 	close(c.collectChannel)
 	c.collectWg.Wait()
+	c.closedCallback()
 }
 
 // start kicks off a new collection thread
@@ -84,9 +87,22 @@ func (c *collector) start() {
 					Iter()
 
 				for connIter.Next(&conn) {
+					//filter out unestablished connections
+					//We expect at least SYN ACK SYN-ACK [FIN ACK FIN ACK/ RST]
+					if conn.Proto == "tcp" && conn.OriginPackets+conn.ResponsePackets <= 3 {
+						continue
+					}
+
 					newInput.ts = append(newInput.ts, conn.Ts)
 					newInput.origIPBytes = append(newInput.origIPBytes, conn.OriginIPBytes)
 				}
+
+				//filtering may have reduced the amount of connections
+				//check again if we should skip this unique connection
+				if len(newInput.ts) < c.connectionThreshold {
+					continue
+				}
+
 				c.collectedCallback(newInput)
 			}
 			host, more = <-c.collectChannel

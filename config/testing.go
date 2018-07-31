@@ -39,6 +39,8 @@ Beacon:
 
 // LoadTestingConfig loads the hard coded testing config
 func LoadTestingConfig(mongoURI string) (*Config, error) {
+	Version = "v0.0.0+testing"
+	ExactVersion = "v0.0.0+testing"
 	var config = new(Config)
 	static, err := parseStaticConfig([]byte(testConfig))
 	if err != nil {

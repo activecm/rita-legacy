@@ -62,11 +62,11 @@ func BuildBeaconCollection(res *resources.Resources) {
 	writerWorker := newWriter(res.DB, res.Config)
 	analyzerWorker := newAnalyzer(
 		thresh, minTime, maxTime,
-		writerWorker.write,
+		writerWorker.write, writerWorker.close,
 	)
 	collectorWorker := newCollector(
 		res.DB, res.Config, thresh,
-		analyzerWorker.analyze,
+		analyzerWorker.analyze, analyzerWorker.close,
 	)
 
 	//kick off the threaded goroutines
@@ -89,12 +89,7 @@ func BuildBeaconCollection(res *resources.Resources) {
 	session.Close()
 
 	// Wait for things to finish
-	res.Log.Debug("Finding all source / destination pairs for analysis")
-	collectorWorker.flush()
-	res.Log.Debug("Analyzing source / destination pairs")
-	analyzerWorker.flush()
-	res.Log.Debug("Finishing writing results to database")
-	writerWorker.flush()
+	collectorWorker.close()
 }
 
 func findAnalysisPeriod(db *database.DB, connCollection string,
