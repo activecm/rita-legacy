@@ -279,7 +279,7 @@ rita show-databases
 Failed to connect to database: no reachable servers
 ```
 
-**Trusted Certificate Verification Example**
+##### Trusted Certificate Verification Example
 
 The following example configuration assumes your Mongo server is located at `activecountermeasures.com` and that you have obtained and configured Mongo with a certificate signed with a valid certificate authority. In this case, you do not need to specify a `CAFile` path.
 
@@ -291,7 +291,7 @@ MongoDB:
     VerifyCertificate: true
 ```
 
-**Self-Signed Certificate Verification Example**
+##### Self-Signed Certificate Verification Example
 
 In order to validate a self-signed certificate, you must specify the path to the CA file (commonly with a .crt extension). If you followed this document to generate one then it will be named `mongodb-cert.crt`. RITA does not need the private key (.key), or the combined file (.pem) which also contains the private key. You should protect the private key and not copy it anywhere unnecessarily.
 
@@ -309,7 +309,7 @@ MongoDB:
 Note: `~` does not expand in RITA's config file and will cause an error. Use `$HOME` instead.
 
 
-**Self-Signed Certificate Verification Invalid Example**
+##### Self-Signed Certificate Verification Invalid Example
 
 The following shows one example of a configuration that will not work. This is because an IP address (`127.0.0.1`) is used in the `ConnectionString`. Even if you set `CN` to `127.0.0.1` or add `IP:127.0.0.1` as a `SAN` when generating your certificate, this will still fail to validate.
 
@@ -344,19 +344,3 @@ MongoDB:
     #If set, RITA will use the provided CA file instead of the system's CA's
     CAFile: $HOME/.rita/mongodb-cert.crt
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
