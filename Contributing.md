@@ -24,7 +24,7 @@ Just be sure to do the following:
 
 ## Contributing Code
 There are several ways to contribute code to the RITA project.
-Before diving in, follow the [Manual Installation Instructions](https://github.com/activecm/rita/blob/v1.0.0/docs/Manual%20Installation.md)
+Before diving in, follow the [Manual Installation Instructions](docs/Manual%20Installation.md)
 
 * Add godoc comments and fix style compliance issues:
   * Run the [go metalinter](https://github.com/alecthomas/gometalinter)
