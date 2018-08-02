@@ -4,6 +4,7 @@
 # activecountermeasures.com
 
 # CONSTANTS
+_RITA_VERSION="v1.0.2"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
 _SUCCESS="\e[92mSUCCESS\e[0m"
@@ -32,11 +33,6 @@ trap '__int' INT
 set -o errexit
 set -o errtrace
 set -o pipefail
-
-if ! [ $(id -u) = 0 ]; then 
-	echo "You do not have permissions to install RITA!"
-	exit 1
-fi
 
 # ENTRYPOINT
 __entry() {
@@ -77,15 +73,16 @@ __entry() {
 			--disable-mongo)
 				_INSTALL_MONGO=false
 				;;
-			-v|--version)
-				shift
-				_RITA_VERSION="$1"
-				;;
 			*)
 			;;
 	  esac
 	  shift
 	done
+
+	if ! [ $(id -u) = 0 ]; then 
+		echo "You do not have permissions to install RITA!"
+		exit 1
+	fi
 
 	_BIN_PATH="$_INSTALL_PREFIX/bin"
 
@@ -230,13 +227,6 @@ __install_mongodb() {
 }
 
 __install_rita() {
-	# Set _RITA_VERSION if it's not set
-	if [ -z ${_RITA_VERSION+x} ]; then
-		_LATEST_VERSION_COMMAND=\
-'curl -sSL https://api.github.com/repos/activecm/rita/releases/latest | grep tag_name | cut -d"\"" -f4'
-		_RITA_VERSION="$(eval $_LATEST_VERSION_COMMAND)"
-	fi
-
 	_RITA_RELEASE_URL="https://github.com/activecm/rita/releases/download/$_RITA_VERSION"
 	_RITA_REPO_URL="https://raw.githubusercontent.com/activecm/rita/$_RITA_VERSION"
 	_RITA_BINARY_URL="$_RITA_RELEASE_URL/rita"
@@ -373,7 +363,7 @@ __title() {
 "
  _ \ _ _| __ __|  \\
    /   |     |   _ \\
-_|_\ ___|   _| _/  _\\
+_|_\ ___|   _| _/  _\\  $_RITA_VERSION
 
 Brought to you by Active CounterMeasures
 "
