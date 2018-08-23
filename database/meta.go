@@ -7,9 +7,9 @@ import (
 	"github.com/activecm/rita/config"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/blang/semver"
-	log "github.com/sirupsen/logrus"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -354,10 +354,7 @@ func (m *MetaDB) createMetaDB() {
 		Capped:         false,
 	}
 
-	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Log.RitaLogTable).Create(&myCol)
-	errchk(err)
-
-	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.FilesTable).Create(&myCol)
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.FilesTable).Create(&myCol)
 	errchk(err)
 
 	idx := mgo.Index{

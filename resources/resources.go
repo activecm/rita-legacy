@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/activecm/mgorus"
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	log "github.com/sirupsen/logrus"
@@ -25,17 +24,25 @@ type (
 func InitResources(userConfig string) *Resources {
 	conf, err := config.LoadConfig(userConfig)
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "Failed to config: %s\n", err.Error())
+		fmt.Fprintf(os.Stdout, "Failed to load configuration: %s\n", err.Error())
 		os.Exit(-1)
 	}
 
 	// Fire up the logging system
 	log := initLogger(&conf.S.Log)
 
+	if conf.S.Log.LogToFile {
+		err = addFileLogger(log, conf.S.Log.RitaLogPath)
+		if err != nil {
+			fmt.Printf("Could not initialize file logger: %s\n", err.Error())
+			os.Exit(-1)
+		}
+	}
+
 	// Allows code to interact with the database
 	db, err := database.NewDB(conf, log)
 	if err != nil {
-		fmt.Printf("Failed to connect to database: %s\n", err.Error())
+		fmt.Printf("Failed to connect to MongoDB: %s\n", err.Error())
 		os.Exit(-1)
 	}
 
@@ -44,11 +51,11 @@ func InitResources(userConfig string) *Resources {
 
 	//Begin logging to the metadatabase
 	if conf.S.Log.LogToDB {
-		log.Hooks.Add(
-			mgorus.NewHookerFromSession(
-				db.Session, conf.S.Bro.MetaDB, conf.T.Log.RitaLogTable,
-			),
-		)
+		err = addMongoLogger(log, db.Session, conf.S.Bro.MetaDB, conf.T.Log.RitaLogTable)
+		if err != nil {
+			fmt.Printf("Could not initialize MongoDB logger: %s\n", err.Error())
+			os.Exit(-1)
+		}
 	}
 
 	//bundle up the system resources
