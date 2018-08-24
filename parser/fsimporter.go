@@ -61,12 +61,12 @@ func (fs *FSImporter) Run(datastore Datastore) {
 		},
 	).Info("Finished collecting file details. Starting upload.")
 
-	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
+	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.FileIndex, fs.res.Log)
 
 	parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
 	datastore.Flush()
-	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
+	updateFilesIndex(indexedFiles, fs.res.FileIndex, fs.res.Log)
 
 	progTime = time.Now()
 	fs.res.Log.WithFields(
@@ -219,9 +219,9 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore D
 }
 
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
-	metaDatabase *database.MetaDB, logger *log.Logger) []*fpt.IndexedFile {
+	filesIndex database.ImportedFilesIndex, logger *log.Logger) []*fpt.IndexedFile {
 	var toReturn []*fpt.IndexedFile
-	oldFiles, err := metaDatabase.GetFiles()
+	oldFiles, err := filesIndex.GetFiles()
 	if err != nil {
 		logger.WithFields(log.Fields{
 			"error": err.Error(),
@@ -254,9 +254,9 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 }
 
 //updateFilesIndex updates the files collection in the metaDB with the newly parsed files
-func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.MetaDB,
+func updateFilesIndex(indexedFiles []*fpt.IndexedFile, filesIndex database.ImportedFilesIndex,
 	logger *log.Logger) {
-	err := metaDatabase.AddParsedFiles(indexedFiles)
+	err := filesIndex.RegisterFiles(indexedFiles)
 	if err != nil {
 		logger.Error("Could not update the list of parsed files")
 	}

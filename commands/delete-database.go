@@ -20,7 +20,6 @@ func init() {
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			res := resources.InitResources(c.String("config"))
 			db := c.Args().Get(0)
 			if db == "" {
 				return cli.NewExitError("Specify a database", -1)
@@ -37,17 +36,33 @@ func init() {
 			response = strings.ToLower(strings.TrimSpace(response))
 
 			if response == "y" || response == "yes" {
-				fmt.Println("Deleting database:", db)
-				err = res.MetaDB.DeleteDB(db)
-				if err != nil {
-					return cli.NewExitError("ERROR: "+err.Error(), -1)
-				}
-			} else {
-				return cli.NewExitError("Database "+db+" was not deleted.", 0)
+				res := resources.InitResources(c.String("config"))
+				return deleteDatabase(res, db)
 			}
-			return nil
+			return cli.NewExitError("Database "+db+" was not deleted.", 0)
 		},
 	}
 
 	bootstrapCommands(reset)
+}
+
+func deleteDatabase(res *resources.Resources, db string) error {
+	fmt.Println("Deleting database:", db)
+	ritaDB, err := res.DBIndex.GetDatabase(db)
+	if err != nil {
+		return cli.NewExitError("Error: could not delete database: "+err.Error(), -1)
+	}
+	err = res.FileIndex.RemoveFilesForDatabase(db)
+	if err != nil {
+		return cli.NewExitError("Error: could not delete database: "+err.Error(), -1)
+	}
+	err = ritaDB.DeleteIndex(res.DB.Session)
+	if err != nil {
+		return cli.NewExitError("Error: could not delete database: "+err.Error(), -1)
+	}
+	err = ritaDB.Drop(res.DB.Session)
+	if err != nil {
+		return cli.NewExitError("Error: could not delete database: "+err.Error(), -1)
+	}
+	return nil
 }

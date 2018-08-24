@@ -17,6 +17,15 @@ type (
 		indexCollectionName string
 		log                 *log.Logger
 	}
+
+	// DBMetaInfo defines some information about the database
+	DBMetaInfo struct {
+		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
+		Name           string        `bson:"name"`            // Top level name of the database
+		Analyzed       bool          `bson:"analyzed"`        // Has this database been analyzed
+		ImportVersion  string        `bson:"import_version"`  // Rita version at import
+		AnalyzeVersion string        `bson:"analyze_version"` // Rita version at analyze
+	}
 )
 
 // Name returns the name of the database. Can be used with ssn.DB(_).
@@ -107,4 +116,17 @@ func (r *RITADatabase) UnsetAnalyzed(ssn *mgo.Session) error {
 		return err
 	}
 	return nil
+}
+
+// DeleteIndex removes this database from the RITADatabaseIndex
+// Note: This does not drop the database
+func (r *RITADatabase) DeleteIndex(ssn *mgo.Session) error {
+	return ssn.DB(r.metaDatabaseName).C(r.indexCollectionName).Remove(bson.M{
+		"name": r.indexDoc.Name,
+	})
+}
+
+// Drop drops the referenced database from MongoDB
+func (r *RITADatabase) Drop(ssn *mgo.Session) error {
+	return ssn.DB(r.indexDoc.Name).DropDatabase()
 }

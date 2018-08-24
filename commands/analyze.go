@@ -15,7 +15,6 @@ import (
 	"github.com/activecm/rita/analysis/useragent"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
-	"github.com/blang/semver"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -45,36 +44,44 @@ func analyze(inDb string, configFile string) error {
 	// Check to see if we want to run a full database or just one off the command line
 	if inDb == "" {
 		res.Log.Info("Running analysis against all databases")
-		toRunDirty = append(toRun, res.MetaDB.GetUnAnalyzedDatabases()...)
+		unanalyzedDBs, err := res.DBIndex.GetUnanalyzedDatabases()
+		if err != nil {
+			errStr := fmt.Sprintf("Error: failed to list unanalyzed databases: %s", err.Error())
+			res.Log.Error(errStr)
+			return cli.NewExitError(errStr, 255)
+		}
+		for i := range unanalyzedDBs {
+			toRunDirty = append(toRunDirty, unanalyzedDBs[i].Name())
+		}
 	} else {
-		toRunDirty = append(toRun, inDb)
+		toRunDirty = append(toRunDirty, inDb)
 	}
 
 	// Check for problems
 	for _, possDB := range toRunDirty {
-		info, err := res.MetaDB.GetDBMetaInfo(possDB)
+		ritaDB, err := res.DBIndex.GetDatabase(possDB)
 		if err != nil {
 			errStr := fmt.Sprintf("Error: %s not found.", possDB)
-			res.Log.Errorf(errStr)
+			res.Log.Error(errStr)
 			fmt.Println(errStr)
 			continue
 		}
-		if info.Analyzed {
+		if ritaDB.Analyzed() {
 			errStr := fmt.Sprintf("Error: %s is already analyzed.", possDB)
-			res.Log.Errorf(errStr)
+			res.Log.Error(errStr)
 			fmt.Println(errStr)
 			continue
 		}
-		semVer, err := semver.ParseTolerant(info.ImportVersion)
+		compatible, err := ritaDB.CompatibleImportVersion(res.Config.R.Version)
 		if err != nil {
 			errStr := fmt.Sprintf("Error: %s is labelled with an incorrect version tag", possDB)
-			res.Log.Errorf(errStr)
+			res.Log.Error(errStr)
 			fmt.Println(errStr)
 			continue
 		}
-		if semVer.Major != res.Config.R.Version.Major {
+		if !compatible {
 			errStr := fmt.Sprintf("Error: %s was parsed by an incompatible version of RITA", possDB)
-			res.Log.Errorf(errStr)
+			res.Log.Error(errStr)
 			fmt.Println(errStr)
 			continue
 		}
@@ -138,7 +145,21 @@ func analyze(inDb string, configFile string) error {
 			crossref.BuildXRefCollection,
 		)
 
-		res.MetaDB.MarkDBAnalyzed(td, true)
+		db, err := res.DBIndex.GetDatabase(td)
+		if err != nil {
+			errStr := fmt.Sprintf("Error: could not mark %s as analyzed: %s", td, err.Error())
+			res.Log.Error(errStr)
+			fmt.Println(errStr)
+			return cli.NewExitError(errStr, 255)
+		}
+		err = db.SetAnalyzed(res.DB.Session, res.Config.R.Version)
+		if err != nil {
+			errStr := fmt.Sprintf("Error: could not mark %s as analyzed: %s", td, err.Error())
+			res.Log.Error(errStr)
+			fmt.Println(errStr)
+			return cli.NewExitError(errStr, 255)
+		}
+
 		endIndiv := time.Now()
 		res.Log.WithFields(log.Fields{
 			"database": td,

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/reporting"
 	"github.com/activecm/rita/resources"
 	"github.com/urfave/cli"
@@ -19,11 +20,19 @@ func init() {
 		Action: func(c *cli.Context) error {
 			res := resources.InitResources(c.String("config"))
 			databaseName := c.Args().Get(0)
-			var databases []string
+			var databases []database.RITADatabase
 			if databaseName != "" {
-				databases = append(databases, databaseName)
+				ritaDB, err := res.DBIndex.GetDatabase(databaseName)
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
+				databases = append(databases, ritaDB)
 			} else {
-				databases = res.MetaDB.GetAnalyzedDatabases()
+				ritaDBs, err := res.DBIndex.GetAnalyzedDatabases()
+				if err != nil {
+					return cli.NewExitError(err.Error(), -1)
+				}
+				databases = append(databases, ritaDBs...)
 			}
 			err := reporting.PrintHTML(databases, res)
 			if err != nil {

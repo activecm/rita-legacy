@@ -120,6 +120,25 @@ func (r *RITADatabaseIndex) GetDatabase(name string) (RITADatabase, error) {
 	return r.newRITADatabase(indexDoc), nil
 }
 
+// GetDatabases returns a RITADatabase object for each
+// registered database or an error if the database index
+// collection cannot be read.
+func (r *RITADatabaseIndex) GetDatabases() ([]RITADatabase, error) {
+	indexColl := r.openIndexCollection()
+	defer r.closeIndexCollection(indexColl)
+	var results []RITADatabase
+	var currIndexDoc DBMetaInfo
+	iter := indexColl.Find(nil).Iter()
+	for iter.Next(&currIndexDoc) {
+		results = append(results, r.newRITADatabase(currIndexDoc))
+	}
+	// There shouldn't be an error if there aren't any databases
+	if iter.Err() == mgo.ErrNotFound {
+		return results, nil
+	}
+	return results, iter.Err()
+}
+
 // GetUnanalyzedDatabases returns a RITADatabase object for each
 // registered unanalyzed database or an error if the database index
 // collection cannot be read.

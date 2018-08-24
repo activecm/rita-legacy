@@ -3,6 +3,7 @@ package database
 import (
 	"github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -114,7 +115,17 @@ func (i *ImportedFilesIndex) RegisterFiles(files []*fileparsetypes.IndexedFile) 
 	return nil
 }
 
+//RemoveFilesForDatabase removes all files in the ImportedFilesIndex
+//which were imported into a specified database
+func (i *ImportedFilesIndex) RemoveFilesForDatabase(database string) error {
+	_, err := i.dbHandle.DB(i.metaDatabaseName).C(i.indexCollectionName).RemoveAll(
+		bson.M{"database": database},
+	)
+	//TODO: verify this doesn't return an error if the query doesn't match any records
+	return err
+}
+
 // Close closes the underlying connection to MongoDB
-func (r *ImportedFilesIndex) Close() {
-	r.dbHandle.Close()
+func (i *ImportedFilesIndex) Close() {
+	i.dbHandle.Close()
 }
