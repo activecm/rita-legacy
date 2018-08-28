@@ -44,9 +44,17 @@ func resetAnalysis(database string, res *resources.Resources) error {
 	if err != nil {
 		return cli.NewExitError("Failed to find database "+database+".", -1)
 	}
-	if !ritaDB.Analyzed() {
-		return cli.NewExitError("Database "+database+" has not been analyzed.", -1)
-	}
+
+	/*
+		Sometimes analysis fails and we need to reset a database which
+		hasn't been properly marked analyzed.
+
+		Alternatively, we create a flag for analysis start in the metadb
+
+		if !ritaDB.Analyzed() {
+			return cli.NewExitError("Database "+database+" has not been analyzed.", -1)
+		}
+	*/
 
 	fmt.Print("Are you sure you want to reset analysis for ", database, " [y/N] ")
 
