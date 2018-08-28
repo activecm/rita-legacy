@@ -40,7 +40,7 @@ type collectionWriter struct {
 //MongoDatastore provides a backend for storing bro data in MongoDB
 type MongoDatastore struct {
 	session       *mgo.Session
-	dbIndex       *database.RITADatabaseIndex
+	dbIndex       database.RITADatabaseIndex
 	bufferSize    int
 	importVersion semver.Version
 	logger        *log.Logger
@@ -52,7 +52,7 @@ type MongoDatastore struct {
 
 //NewMongoDatastore returns a new MongoDatastore and caches the existing
 //db names
-func NewMongoDatastore(session *mgo.Session, dbIndex *database.RITADatabaseIndex,
+func NewMongoDatastore(session *mgo.Session, dbIndex database.RITADatabaseIndex,
 	bufferSize int, importVersion semver.Version, logger *log.Logger) (*MongoDatastore, error) {
 
 	analyzedDBs, err := dbIndex.GetAnalyzedDatabases()

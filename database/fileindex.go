@@ -33,7 +33,7 @@ func NewImportedFilesIndex(dbHandle *mgo.Session,
 		Key:        []string{"hash", "database"},
 		Unique:     true,
 		DropDups:   true,
-		Background: true,
+		Background: true, //this is a hold over. I don't think we want this. (LL)
 		Name:       "hashindex",
 	}
 

@@ -61,7 +61,7 @@ func doImport(c *cli.Context) error {
 	importer := parser.NewFSImporter(res, threads, threads)
 	datastore, err := parser.NewMongoDatastore(
 		res.DB.Session,
-		&res.DBIndex,
+		res.DBIndex,
 		res.Config.S.Bro.ImportBuffer,
 		res.Config.R.Version,
 		res.Log,

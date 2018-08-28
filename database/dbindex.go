@@ -18,10 +18,10 @@ type (
 	}
 )
 
-// NewRITADatabaseIndex creates a collection the MetaDatabase
-// to track RITA managed databases. Most importantly, database index
+// NewRITADatabaseIndex creates a collection in the MetaDatabase
+// to track RITA managed databases. Most importantly, the database index
 // contains information on whether databases have been imported,
-// and/ ord analyzed.
+// and/ or analyzed.
 func NewRITADatabaseIndex(dbHandle *mgo.Session,
 	metaDatabaseName string, indexCollectionName string,
 	logger *log.Logger) (RITADatabaseIndex, error) {
@@ -31,7 +31,7 @@ func NewRITADatabaseIndex(dbHandle *mgo.Session,
 		Key:        []string{"name"},
 		Unique:     true,
 		DropDups:   true,
-		Background: true, // This is a hold over. I don't think we want this.
+		Background: true, // This is a hold over. I don't think we want this. (LL)
 		Name:       "nameindex",
 	}
 
@@ -75,8 +75,6 @@ func (r *RITADatabaseIndex) newRITADatabase(indexDoc DBMetaInfo) RITADatabase {
 }
 
 // RegisterNewDatabase registers a new database in the RITADatabaseIndex.
-// New datatabases are marked unanalyzed.
-// Once the database has been analyzed, call SetAnalyzed.
 // NOTE: This only creates an index record. It does not
 // actually create the database
 //
@@ -158,7 +156,7 @@ func (r *RITADatabaseIndex) GetUnanalyzedDatabases() ([]RITADatabase, error) {
 	return results, iter.Err()
 }
 
-// GetAnalyzedDatabases returs a RITADatabase object for each
+// GetAnalyzedDatabases returns a RITADatabase object for each
 // registered analyzed database or an error if the database index
 // collection cannot be read.
 func (r *RITADatabaseIndex) GetAnalyzedDatabases() ([]RITADatabase, error) {
