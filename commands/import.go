@@ -69,7 +69,10 @@ func doImport(c *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError("Error: could not set up connection with MongoDB: "+err.Error(), -1)
 	}
-	importer.Run(datastore)
+	err = importer.Run(datastore)
+	if err != nil {
+		return err
+	}
 	res.Log.Infof("Finished importing %s\n", res.Config.S.Bro.ImportDirectory)
 	return nil
 }

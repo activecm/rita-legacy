@@ -78,17 +78,20 @@ func (r *RITADatabaseIndex) newRITADatabase(indexDoc DBMetaInfo) RITADatabase {
 // NOTE: This only creates an index record. It does not
 // actually create the database
 //
+// You may want to call SetImportFinished/ SetAnalyzed on the returned RITADatabase.
+//
 // Returns a RITADatabase object for interacting with the new database,
 // and an error which may occur if the database index collection
 // cannot be modified.
-func (r *RITADatabaseIndex) RegisterNewDatabase(name string, ritaVersion semver.Version) (RITADatabase, error) {
+func (r *RITADatabaseIndex) RegisterNewDatabase(name string, importVersion semver.Version) (RITADatabase, error) {
 	indexColl := r.openIndexCollection()
 	defer r.closeIndexCollection(indexColl)
 
 	indexDoc := DBMetaInfo{
-		Name:          name,
-		Analyzed:      false,
-		ImportVersion: ritaVersion.String(),
+		Name:           name,
+		ImportFinished: false,
+		Analyzed:       false,
+		ImportVersion:  importVersion.String(),
 	}
 
 	err := indexColl.Insert(indexDoc)

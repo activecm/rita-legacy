@@ -91,8 +91,8 @@ func (mongo *MongoDatastore) Store(data *ImportedData) {
 	collWriter.writeChannel <- data
 }
 
-//Flush waits for all writing to finish
-func (mongo *MongoDatastore) Flush() {
+//Flush waits for all writing to finish and closes the datastore object
+func (mongo *MongoDatastore) Flush() error {
 	mongo.writeMap.rwLock.Lock()
 	for _, collMap := range mongo.writeMap.databases {
 		collMap.rwLock.Lock()
@@ -103,17 +103,21 @@ func (mongo *MongoDatastore) Flush() {
 	}
 	mongo.writeMap.rwLock.Unlock()
 	mongo.writerWG.Wait()
+	return nil
 }
 
 //Index ensures that the data is searchable
-func (mongo *MongoDatastore) Index() {
+func (mongo *MongoDatastore) Index() error {
 	//NOTE: We do this one by one in order to prevent individual indexing
 	//operations from taking too long
 	ssn := mongo.session.Copy()
 	defer ssn.Close()
 
 	mongo.writeMap.rwLock.Lock()
-	for _, collMap := range mongo.writeMap.databases {
+	defer mongo.writeMap.rwLock.Unlock()
+
+	for database, collMap := range mongo.writeMap.databases {
+		//Add search indexes to collections
 		collMap.rwLock.Lock()
 		for _, collWriter := range collMap.collections {
 			collection := ssn.DB(collWriter.targetDatabase).C(collWriter.targetCollection)
@@ -121,16 +125,27 @@ func (mongo *MongoDatastore) Index() {
 				err := collection.EnsureIndex(mgo.Index{
 					Key: []string{index},
 				})
+
 				if err != nil {
-					mongo.logger.WithFields(log.Fields{
-						"error": err.Error(),
-					}).Error("Failed to create indeces")
+					collMap.rwLock.Unlock()
+					return err
 				}
 			}
 		}
 		collMap.rwLock.Unlock()
+
+		//Mark the database as fully imported
+		ritaDB, err := mongo.dbIndex.GetDatabase(database)
+		if err != nil {
+			return err
+		}
+
+		err = ritaDB.SetImportFinished(ssn)
+		if err != nil {
+			return err
+		}
 	}
-	mongo.writeMap.rwLock.Unlock()
+	return nil
 }
 
 //getCollectionMap returns a map from collection names to collection writers

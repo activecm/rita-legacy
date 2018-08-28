@@ -51,7 +51,13 @@ func analyze(inDb string, configFile string) error {
 			res.Log.Error(errStr)
 			return cli.NewExitError(errStr, 255)
 		}
-		toRunDirty = unanalyzedDBs
+
+		//ensure the databases have finished being imported
+		for i := range unanalyzedDBs {
+			if unanalyzedDBs[i].ImportFinished() {
+				toRunDirty = append(toRunDirty, unanalyzedDBs[i])
+			}
+		}
 	} else {
 		specifiedDB, err := res.DBIndex.GetDatabase(inDb)
 		if err != nil {
@@ -59,17 +65,21 @@ func analyze(inDb string, configFile string) error {
 			res.Log.Error(errStr)
 			return cli.NewExitError(errStr, 255)
 		}
+		if specifiedDB.Analyzed() {
+			errStr := fmt.Sprintf("Error: %s is already analyzed.", specifiedDB.Name())
+			res.Log.Error(errStr)
+			return cli.NewExitError(errStr, 255)
+		}
+		if !specifiedDB.ImportFinished() {
+			errStr := fmt.Sprintf("Error: %s hasn't finished importing.", specifiedDB.Name())
+			res.Log.Error(errStr)
+			return cli.NewExitError(errStr, 255)
+		}
 		toRunDirty = append(toRunDirty, specifiedDB)
 	}
 
-	// Check for problems
+	// Check for version problems
 	for i := range toRunDirty {
-		if toRunDirty[i].Analyzed() {
-			errStr := fmt.Sprintf("Error: %s is already analyzed.", toRunDirty[i].Name())
-			res.Log.Error(errStr)
-			fmt.Println(errStr)
-			continue
-		}
 		compatible, err := toRunDirty[i].CompatibleImportVersion(res.Config.R.Version)
 		if err != nil {
 			errStr := fmt.Sprintf("Error: %s is labelled with an incorrect version tag", toRunDirty[i].Name())

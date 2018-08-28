@@ -21,7 +21,8 @@ type (
 	// DBMetaInfo defines some information about the database
 	DBMetaInfo struct {
 		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
-		Name           string        `bson:"name"`            // Top level name of the database
+		Name           string        `bson:"name"`            // Name of the database
+		ImportFinished bool          `bson:"import_finished"` // Has this database finished being imported
 		Analyzed       bool          `bson:"analyzed"`        // Has this database been analyzed
 		ImportVersion  string        `bson:"import_version"`  // Rita version at import
 		AnalyzeVersion string        `bson:"analyze_version"` // Rita version at analyze
@@ -31,6 +32,11 @@ type (
 // Name returns the name of the database. Can be used with ssn.DB(_).
 func (r *RITADatabase) Name() string {
 	return r.indexDoc.Name
+}
+
+// ImportFinished returns whether a database is still being imported or not
+func (r *RITADatabase) ImportFinished() bool {
+	return r.indexDoc.ImportFinished
 }
 
 // Analyzed returns whether the database has been analyzed or not
@@ -66,6 +72,53 @@ func (r *RITADatabase) CompatibleAnalyzeVersion(version semver.Version) (bool, e
 		return false, err
 	}
 	return version.Major == analyzeVersion.Major, nil
+}
+
+// SetImportFinished marks this RITADatabase as being completely imported in the RITADatabaseIndex
+func (r *RITADatabase) SetImportFinished(ssn *mgo.Session) error {
+	err := ssn.DB(r.metaDatabaseName).C(r.indexCollectionName).Update(
+		bson.M{"name": r.indexDoc.Name},
+		bson.M{
+			"$set": bson.M{
+				"import_finished": true,
+			},
+		},
+	)
+
+	if err != nil {
+		r.log.WithFields(log.Fields{
+			"metadb":           r.metaDatabaseName,
+			"index_collection": r.indexCollectionName,
+			"database":         r.indexDoc.Name,
+			"error":            err.Error(),
+		}).Error("could not mark database imported in database index")
+		return err
+	}
+	return nil
+}
+
+// UnsetImportFinished marks this RITADatabase as not being completely imported in the RITADatabaseIndex
+func (r *RITADatabase) UnsetImportFinished(ssn *mgo.Session) error {
+	err := ssn.DB(r.metaDatabaseName).C(r.indexCollectionName).Update(
+		bson.M{"name": r.indexDoc.Name},
+		bson.M{
+			"$set": bson.M{
+				"import_finished": false,
+				"import_version":  "",
+			},
+		},
+	)
+
+	if err != nil {
+		r.log.WithFields(log.Fields{
+			"metadb":           r.metaDatabaseName,
+			"index_collection": r.indexCollectionName,
+			"database":         r.indexDoc.Name,
+			"error":            err.Error(),
+		}).Error("could not mark database as not imported in database index")
+		return err
+	}
+	return nil
 }
 
 // SetAnalyzed marks this RITADatabase as analyzed in the RITADatabaseIndex
@@ -112,7 +165,7 @@ func (r *RITADatabase) UnsetAnalyzed(ssn *mgo.Session) error {
 			"index_collection": r.indexCollectionName,
 			"database":         r.indexDoc.Name,
 			"error":            err.Error(),
-		}).Error("could not mark database unanalyzed in database index")
+		}).Error("could not mark database as not analyzed in database index")
 		return err
 	}
 	return nil

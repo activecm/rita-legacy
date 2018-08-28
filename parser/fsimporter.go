@@ -15,6 +15,7 @@ import (
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 )
 
 type (
@@ -37,7 +38,7 @@ func NewFSImporter(resources *resources.Resources,
 }
 
 //Run starts importing a given path into a datastore
-func (fs *FSImporter) Run(datastore Datastore) {
+func (fs *FSImporter) Run(datastore Datastore) error {
 	// track the time spent parsing
 	start := time.Now()
 	fs.res.Log.WithFields(
@@ -65,7 +66,10 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
-	datastore.Flush()
+	err := datastore.Flush()
+	if err != nil {
+		return cli.NewExitError("Error: could not finish writing data to MongoDB: "+err.Error(), 255)
+	}
 	updateFilesIndex(indexedFiles, fs.res.FileIndex, fs.res.Log)
 
 	progTime = time.Now()
@@ -75,8 +79,13 @@ func (fs *FSImporter) Run(datastore Datastore) {
 			"total_time":   progTime.Sub(start).String(),
 		},
 	).Info("Finished upload. Starting indexing")
+
 	fmt.Println("\t[-] Indexing log entries. This may take a while.")
-	datastore.Index()
+
+	err = datastore.Index()
+	if err != nil {
+		return cli.NewExitError("Error: could not finish indexing data in MongoDB: "+err.Error(), 255)
+	}
 
 	progTime = time.Now()
 	fs.res.Log.WithFields(
@@ -85,6 +94,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 			"total_time":   progTime.Sub(start).String(),
 		},
 	).Info("Finished importing log files")
+	return nil
 }
 
 // readDir recursively reads the directory looking for log and .gz files
