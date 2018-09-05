@@ -171,7 +171,7 @@ __install_installer_deps() {
 	# Update package cache
 	__load "$_SUBITEM Updating packages" __freshen_packages
 
-	for pkg in git curl make coreutils lsb-release; do
+	for pkg in curl coreutils lsb-release; do
 		__load "$_SUBITEM Ensuring $pkg is installed" __install_packages $pkg
 	done
 }
