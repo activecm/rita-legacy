@@ -168,7 +168,8 @@ __install() {
 	printf "$_IMPORTANT run '$_STOP_MONGO'. \n"
 	if [ "$_UBUNTU_VERSION" == "Release:	18.04" ]
 	then
-		printf "$_IMPORTANT Bro does not currently have a package for 18.04 and must be installed manually from the source.\n"
+		printf "$_IMPORTANT Bro does not currently have a package for 18.04 and must be installed\n"
+		printf "$_IMPORTANT manually from the source.\n"
 	fi
 	__title
 	printf "Thank you for installing RITA! Happy hunting! \n"
