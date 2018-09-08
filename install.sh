@@ -37,7 +37,7 @@ set -o pipefail
 # ENTRYPOINT
 __entry() {
 	_REINSTALL_RITA=false
-	printf "$_UBUNTU_VERSION\n"
+
 	# Optional Dependencies
 	if $_UBUNTU_VERSION == "Release:	18.04"; then
 		_INSTALL_BRO=false
