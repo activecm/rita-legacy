@@ -39,7 +39,7 @@ __entry() {
 	_REINSTALL_RITA=false
 
 	# Optional Dependencies
-	if $_UBUNTU_VERSION == "Release:	18.04"; then
+	if $_UBUNTU_VERSION=="Release:	18.04"; then
 		_INSTALL_BRO=false
 		_INSTALL_MONGO=false
 	else
