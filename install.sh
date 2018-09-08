@@ -14,7 +14,7 @@ _QUESTION="[?]"
 _SUBITEM="\t$_ITEM"
 _SUBIMPORTANT="\t$_IMPORTANT"
 _SUBQUESTION="\t$_QUESTION"
-
+_UBUNTU_VERSION="$lsb_release -r"
 
 # ERROR HANDLING
 __err() {
@@ -39,8 +39,14 @@ __entry() {
 	_REINSTALL_RITA=false
 
 	# Optional Dependencies
-	_INSTALL_BRO=true
-	_INSTALL_MONGO=true
+	if _UBUNTU_VERSION=="Release:	18.04"; then
+		printf "Bro does not currently have a package for 18.04 and must be installed manually from the source."
+		_INSTALL_BRO=false
+		_INSTALL_MONGO=false
+	else
+		_INSTALL_BRO=true
+		_INSTALL_MONGO=true
+	fi
 
 	# Install locations
 	_INSTALL_PREFIX=/usr/local
