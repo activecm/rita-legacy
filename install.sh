@@ -166,7 +166,7 @@ __install() {
 	printf "$_IMPORTANT '$_START_MONGO'. You can access the MongoDB shell with \n"
 	printf "$_IMPORTANT 'mongo'. If, at any time, you need to stop MongoDB, \n"
 	printf "$_IMPORTANT run '$_STOP_MONGO'. \n"
-	if [ $_UBUNTU_VERSION = "Release:	18.04"]
+	if [ "$_UBUNTU_VERSION" == "Release:	18.04" ]
 	then
 		printf "$_IMPORTANT Bro does not currently have a package for 18.04 and must be installed manually from the source.\n"
 	fi
