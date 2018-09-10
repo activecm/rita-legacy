@@ -154,12 +154,25 @@ __install() {
 		_STOP_MONGO="sudo service mongod stop"
 	fi
 
+	printf "$_IMPORTANT Enabling mongodb on startup. \n"
+	eval "sudo systemctl enable mongod.service"
+	eval "sudo systemctl daemon-reload"
+	printf "$_IMPORTANT Enabling mongodb on startup process completed.\n"
+
+	printf "$_IMPORTANT Starting mongodb. \n"
+	eval $_START_MONGO
+	printf "You can access the MongoDB shell with \n"
+	printf "$_IMPORTANT 'mongo'.\n If, at any time, you need to stop MongoDB, \n"
+	printf "$_IMPORTANT run '$_STOP_MONGO'. \n"
+
 	printf "$_IMPORTANT To finish the installation, reload the system profile with \n"
 	printf "$_IMPORTANT 'source /etc/profile'. Additionally, you may want to configure Bro \n"
-	printf "$_IMPORTANT by running 'sudo broctl deploy'. Finally, start MongoDB with \n"
-	printf "$_IMPORTANT '$_START_MONGO'. You can access the MongoDB shell with \n"
-	printf "$_IMPORTANT 'mongo'. If, at any time, you need to stop MongoDB, \n"
-	printf "$_IMPORTANT run '$_STOP_MONGO'. \n"
+	printf "$_IMPORTANT by running 'sudo broctl deploy'.\n"
+
+	printf "$_IMPORTANT Enabling Bro on startup.\n"
+	eval "(crontab -l 2>/dev/null; echo '*/5 * * * * /usr/local/bro/bin/broctl cron') | crontab -"
+	eval "broctl cron enable >/dev/null"
+	printf "$_IMPORTANT Enabling Bro on startup process completed.\n"
 
 	__title
 	printf "Thank you for installing RITA! Happy hunting! \n"
