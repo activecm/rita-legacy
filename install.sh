@@ -146,33 +146,9 @@ __install() {
 		printf "$_IMPORTANT \"rita test-config\" may be used to troubleshoot configuration issues. \n \n"
 	fi
 
-	# Ubuntu 14.04 uses Upstart for init
-        _START_MONGO="sudo systemctl start mongod"
-	_STOP_MONGO="sudo systemctl stop mongod"
-	if [ $_OS = "Ubuntu" -a $_OS_CODENAME = "trusty" ]; then
-		_START_MONGO="sudo service mongod start"
-		_STOP_MONGO="sudo service mongod stop"
-	fi
-
-	printf "$_IMPORTANT Enabling mongodb on startup. \n"
-	eval "sudo systemctl enable mongod.service"
-	eval "sudo systemctl daemon-reload"
-	printf "$_IMPORTANT Enabling mongodb on startup process completed.\n"
-
-	printf "$_IMPORTANT Starting mongodb. \n"
-	eval $_START_MONGO
-	printf "You can access the MongoDB shell with \n"
-	printf "$_IMPORTANT 'mongo'.\n If, at any time, you need to stop MongoDB, \n"
-	printf "$_IMPORTANT run '$_STOP_MONGO'. \n"
-
 	printf "$_IMPORTANT To finish the installation, reload the system profile with \n"
 	printf "$_IMPORTANT 'source /etc/profile'. Additionally, you may want to configure Bro \n"
 	printf "$_IMPORTANT by running 'sudo broctl deploy'.\n"
-
-	printf "$_IMPORTANT Enabling Bro on startup.\n"
-	eval "(crontab -l 2>/dev/null; echo '*/5 * * * * /usr/local/bro/bin/broctl cron') | crontab -"
-	eval "broctl cron enable >/dev/null"
-	printf "$_IMPORTANT Enabling Bro on startup process completed.\n"
 
 	__title
 	printf "Thank you for installing RITA! Happy hunting! \n"
@@ -190,6 +166,12 @@ __install_installer_deps() {
 }
 
 __install_bro() {
+	# Configure Bro
+	wget -q "https://raw.githubusercontent.com/activecm/bro-install/master/gen-node-cfg.sh" -O "./gen-node-cfg"
+	wget -q "https://raw.githubusercontent.com/activecm/bro-install/master/node.cfg-template" -O "./node.cfg-template"
+	chmod 755 ./gen-node-cfg
+	sudo ./gen-node-cfg
+
 	case "$_OS" in
 		Ubuntu)
 			__add_deb_repo "deb http://download.opensuse.org/repositories/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
@@ -208,6 +190,11 @@ __install_bro() {
 	chmod 2755 /opt/bro/logs
 	_BRO_PKG_INSTALLED=true
 	_BRO_PATH="/opt/bro/bin"
+
+	printf "\n$_IMPORTANT Enabling Bro on startup.\n"
+	eval "(crontab -l 2>/dev/null; echo '*/5 * * * * /opt/bro/bin/broctl cron') | crontab -"
+	eval "broctl cron enable >/dev/null"
+	printf "$_IMPORTANT Enabling Bro on startup process completed.\n"
 }
 
 __add_bro_to_path() {
@@ -237,6 +224,25 @@ __install_mongodb() {
 	esac
 	__install_packages mongodb-org
 	_MONGO_INSTALLED=true
+
+	# Ubuntu 14.04 uses Upstart for init
+    _START_MONGO="sudo systemctl start mongod"
+	_STOP_MONGO="sudo systemctl stop mongod"
+	if [ $_OS = "Ubuntu" -a $_OS_CODENAME = "trusty" ]; then
+		_START_MONGO="sudo service mongod start"
+		_STOP_MONGO="sudo service mongod stop"
+	fi
+
+	printf "$_IMPORTANT Enabling mongodb on startup. \n"
+	eval "sudo systemctl enable mongod.service"
+	eval "sudo systemctl daemon-reload"
+	printf "$_IMPORTANT Enabling mongodb on startup process completed.\n"
+
+	printf "$_IMPORTANT Starting mongodb. \n"
+	eval $_START_MONGO
+	printf "You can access the MongoDB shell with \n"
+	printf "$_IMPORTANT 'mongo'.\n If, at any time, you need to stop MongoDB, \n"
+	printf "$_IMPORTANT run '$_STOP_MONGO'. \n"
 }
 
 __install_rita() {
