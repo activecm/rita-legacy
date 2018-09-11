@@ -305,7 +305,7 @@ func (m *MetaDB) AddParsedFiles(files []*fpt.IndexedFile) error {
 /////////////////////
 
 // isBuilt checks to see if a file table exists, as the existence of parsed files is prerequisite
-// to the existance of anything else.
+// to the existence of anything else.
 func (m *MetaDB) isBuilt() bool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
