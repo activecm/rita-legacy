@@ -7,7 +7,7 @@ import (
 
 // DNS provides a data structure for entries in the bro DNS log
 type DNS struct {
-	// ID contians the id set by mongodb
+	// ID contains the id set by mongodb
 	ID bson.ObjectId `bson:"_id,omitempty"`
 	// TimeStamp of this connection
 	TimeStamp int64 `bson:"ts" bro:"ts" brotype:"time"`
@@ -28,7 +28,7 @@ type DNS struct {
 	TransID int64 `bson:"trans_id" bro:"trans_id" brotype:"count"`
 	// RTT contains the round trip time of this request / response
 	RTT float64 `bson:"rtt" bro:"rtt" brotype:"interval"`
-	// Query contians the query string
+	// Query contains the query string
 	Query string `bson:"query" bro:"query" brotype:"string"`
 	// QClass contains a the qclass of the query
 	QClass int64 `bson:"qclass" bro:"qclass" brotype:"count"`
@@ -54,7 +54,7 @@ type DNS struct {
 	Z int64 `bson:"Z" bro:"Z" brotype:"count"`
 	// Answers contains the set of resource descriptions in the query answer
 	Answers []string `bson:"answers" bro:"answers" brotype:"vector[string]"`
-	// TTLs contians a vector of interval type time to live values
+	// TTLs contains a vector of interval type time to live values
 	TTLs []float64 `bson:"TTLs" bro:"TTLs" brotype:"vector[interval]"`
 	// Rejected indicates if this query was rejected or not
 	Rejected bool `bson:"rejected" bro:"rejected" brotype:"bool"`

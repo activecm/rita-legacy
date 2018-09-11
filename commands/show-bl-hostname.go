@@ -27,7 +27,7 @@ func init() {
 			blSortFlag,
 			configFlag,
 		},
-		Usage:  "Print blacklisted hostnames which recieved connections",
+		Usage:  "Print blacklisted hostnames which received connections",
 		Action: printBLHostnames,
 	}
 

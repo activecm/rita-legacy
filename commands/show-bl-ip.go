@@ -41,7 +41,7 @@ func init() {
 			blSortFlag,
 			configFlag,
 		},
-		Usage:  "Print blacklisted IPs which recieved connections",
+		Usage:  "Print blacklisted IPs which received connections",
 		Action: printBLDestIPs,
 	}
 

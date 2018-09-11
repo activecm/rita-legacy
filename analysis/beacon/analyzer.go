@@ -147,8 +147,8 @@ func (a *analyzer) start() {
 			intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
 			dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(data.origIPBytes)
 
-			//more skewed distributions recieve a lower score
-			//less skewed distributions recieve a higher score
+			//more skewed distributions receive a lower score
+			//less skewed distributions receive a higher score
 			tsSkewScore := 1.0 - math.Abs(tsSkew) //smush tsSkew
 			dsSkewScore := 1.0 - math.Abs(dsSkew) //smush dsSkew
 

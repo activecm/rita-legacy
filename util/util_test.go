@@ -33,7 +33,7 @@ func TestFileExists(t *testing.T) {
 
 	currBinary, err := os.Executable()
 	assert.Nil(t, err)
-	badPath := path.Join(currBinary, "non-existant-file")
+	badPath := path.Join(currBinary, "non-existent-file")
 
 	_, err = Exists(badPath)
 	assert.NotNil(t, err)
