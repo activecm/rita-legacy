@@ -30,7 +30,7 @@ func NewBroDataFactory(fileType string) func() BroData {
 
 // Further documentation on bros datatypes can be found on the bro website at:
 // https://www.bro.org/sphinx/script-reference/types.html
-// It is of value to note that many of theese types have applications specific
+// It is of value to note that many of these types have applications specific
 // to bro script and will likely never be implemented as types with any meaning
 // in ai-hunt.
 const (
@@ -44,12 +44,12 @@ const (
 
 	// INT is a numeric type representing an INT_64 represetned by a string
 	// of digits preceded by either a '+' or a '-'. Note that INT may also
-	// be expressed in hex and will maintian its leading sign ('-0xff')
+	// be expressed in hex and will maintain its leading sign ('-0xff')
 	Int = "int"
 
 	// DOUBLE is a numeric type representing a double-precision float.
 	// Representation is a string of digits with an optional decimal point
-	// as well as optional '+' or '-' proceding the number. The number may
+	// as well as optional '+' or '-' proceeding the number. The number may
 	// also be optionally scaled with e notation. So 1234 123.4 -123.4
 	// +1.234 and .003E-23 are examples of valid double types.
 	Double = "double"
@@ -96,8 +96,8 @@ const (
 	Enum = "enum"
 
 	// TABLE represents an associated array that maps from one set of
-	// values to another. Values being mapped are refered to as indices and
-	// the resulting map the yield.
+	// values to another. Values being mapped are referred to as indices
+	// and the resulting map the yield.
 	//TABLE = "table"
 
 	// SET is like table but the collection of indicies do not have to map
