@@ -212,13 +212,13 @@ __add_bro_to_path() {
 __install_mongodb() {
 	case "$_OS" in
 		Ubuntu)
-			__add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/3.4 multiverse" \
+			__add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/3.6 multiverse" \
 				"MongoDB" \
-				"https://www.mongodb.org/static/pgp/server-3.4.asc"
+				"https://www.mongodb.org/static/pgp/server-3.6.asc"
 			;;
 		CentOS)
-			if [ ! -s /etc/yum.repos.d/mongodb-org-3.4.repo ]; then
-				echo -e '[mongodb-org-3.4]\nname=MongoDB Repository\nbaseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/3.4/x86_64/\ngpgcheck=1\nenabled=1\ngpgkey=https://www.mongodb.org/static/pgp/server-3.4.asc' | tee /etc/yum.repos.d/mongodb-org-3.4.repo > /dev/null
+			if [ ! -s /etc/yum.repos.d/mongodb-org-3.6.repo ]; then
+				echo -e '[mongodb-org-3.6]\nname=MongoDB Repository\nbaseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/3.6/x86_64/\ngpgcheck=1\nenabled=1\ngpgkey=https://www.mongodb.org/static/pgp/server-3.6.asc' | tee /etc/yum.repos.d/mongodb-org-3.6.repo > /dev/null
 			fi
 			;;
 	esac
