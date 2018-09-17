@@ -126,16 +126,24 @@ __install() {
 			printf "$_ITEM Bro IDS is already installed \n"
 		fi
 
+		if [ "$_BRO_INSTALLED" = "true" ]; then
+			__configure_bro
+		fi
+
 		if [ "$_BRO_IN_PATH" = "false" ]; then
 			__add_bro_to_path
 		fi
 	fi
 
-	if [ $_INSTALL_MONGO = "true" ]; then
-		if [ $_MONGO_INSTALLED = "false" ]; then
+	if [ "$_INSTALL_MONGO" = "true" ]; then
+		if [ "$_MONGO_INSTALLED" = "false" ]; then
 			__load "$_ITEM Installing MongoDB" __install_mongodb
 		else
 			printf "$_ITEM MongoDB is already installed \n"
+		fi
+
+		if [ "$_MONGO_INSTALLED" = "true" ]; then
+			__configure_mongodb
 		fi
 	fi
 
@@ -147,8 +155,7 @@ __install() {
 	fi
 
 	printf "$_IMPORTANT To finish the installation, reload the system profile with \n"
-	printf "$_IMPORTANT 'source /etc/profile'. Additionally, you may want to configure Bro \n"
-	printf "$_IMPORTANT by running 'sudo broctl deploy'.\n"
+	printf "$_IMPORTANT 'source /etc/profile'.\n"
 
 	__title
 	printf "Thank you for installing RITA! Happy hunting! \n"
@@ -166,12 +173,6 @@ __install_installer_deps() {
 }
 
 __install_bro() {
-	# Configure Bro
-	wget -q "https://raw.githubusercontent.com/activecm/bro-install/master/gen-node-cfg.sh" -O "./gen-node-cfg"
-	wget -q "https://raw.githubusercontent.com/activecm/bro-install/master/node.cfg-template" -O "./node.cfg-template"
-	chmod 755 ./gen-node-cfg
-	sudo ./gen-node-cfg
-
 	case "$_OS" in
 		Ubuntu)
 			__add_deb_repo "deb http://download.opensuse.org/repositories/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
@@ -189,12 +190,37 @@ __install_bro() {
 	__install_packages bro broctl
 	chmod 2755 /opt/bro/logs
 	_BRO_PKG_INSTALLED=true
+	_BRO_INSTALLED=true
 	_BRO_PATH="/opt/bro/bin"
+}
 
-	printf "\n$_IMPORTANT Enabling Bro on startup.\n"
-	eval "(crontab -l 2>/dev/null; echo '*/5 * * * * /opt/bro/bin/broctl cron') | crontab -"
-	eval "broctl cron enable >/dev/null"
-	printf "$_IMPORTANT Enabling Bro on startup process completed.\n"
+__configure_bro() {
+	# Configure Bro
+	wget -q "https://raw.githubusercontent.com/activecm/bro-install/master/gen-node-cfg.sh" -O "./gen-node-cfg"
+	wget -q "https://raw.githubusercontent.com/activecm/bro-install/master/node.cfg-template" -O "./node.cfg-template"
+	chmod 755 ./gen-node-cfg
+	_BRO_CONFIGURED=true
+	./gen-node-cfg || _BRO_CONFIGURED=false
+
+	if [ "$_BRO_CONFIGURED" = "true" ]; then
+		printf "\n$_IMPORTANT Enabling Bro on startup.\n"
+		# don't add a new line if broctl is already in cron
+		if [ $(crontab -l 2>/dev/null | grep 'broctl cron' | wc -l) -eq 0 ]; then 
+			# Append an entry to an existing crontab
+			# crontab -l will print to stderr and exit with code 1 if no crontab exists
+			# Ignore stderr and force a successfull exit code to prevent an install error			
+			(crontab -l 2>/dev/null || true; echo "*/5 * * * * $_BRO_PATH/broctl cron") | crontab
+		fi
+		$_BRO_PATH/broctl cron enable > /dev/null
+		printf "$_IMPORTANT Enabling Bro on startup process completed.\n"
+
+		printf "$_IMPORTANT Starting Bro. \n"
+		$_BRO_PATH/broctl deploy
+	else
+		printf "$_IMPORTANT Automatic Bro configuration failed. \n"
+		printf "$_IMPORTANT Please edit /opt/bro/etc/node.cfg and run \n"
+		printf "$_IMPORTANT 'sudo broctl deploy' to start Bro. \n"
+	fi
 }
 
 __add_bro_to_path() {
@@ -225,23 +251,42 @@ __install_mongodb() {
 	__install_packages mongodb-org
 	_MONGO_INSTALLED=true
 
-	# Ubuntu 14.04 uses Upstart for init
-    _START_MONGO="sudo systemctl start mongod"
-	_STOP_MONGO="sudo systemctl stop mongod"
-	if [ $_OS = "Ubuntu" -a $_OS_CODENAME = "trusty" ]; then
-		_START_MONGO="sudo service mongod start"
+}
+
+__configure_mongodb() {
+	printf "$_IMPORTANT Enabling MongoDB on startup. \n"
+	if [ $_OS = "Ubuntu" ]; then
+		if [ $_OS_CODENAME = "trusty" ]; then
+			# Ubuntu 14.04 uses Upstart for init
+			# https://www.digitalocean.com/community/tutorials/how-to-configure-a-linux-service-to-start-automatically-after-a-crash-or-reboot-part-1-practical-examples#auto-start-checklist-for-upstart
+			initctl stop service > /dev/null
+			initctl start service > /dev/null
+		else 
+			systemctl enable mongod.service > /dev/null
+			systemctl daemon-reload > /dev/null
+		fi
+	elif [ $_OS = "CentOS" ]; then
+		chkconfig mongod on > /dev/null
+	fi
+	printf "$_IMPORTANT Enabling MongoDB on startup process completed.\n"
+
+	printf "$_IMPORTANT Starting MongoDB. \n"
+	if [ $_OS = "Ubuntu" ]; then
+		if [ $_OS_CODENAME = "trusty" ]; then
+			# Ubuntu 14.04 uses Upstart for init
+			service mongod start > /dev/null
+			_STOP_MONGO="sudo service mongod start"
+		else 
+			systemctl start mongod > /dev/null
+			_STOP_MONGO="sudo systemctl start mongod"
+		fi
+	elif [ $_OS = "CentOS" ]; then
+		service mongod start > /dev/null
 		_STOP_MONGO="sudo service mongod stop"
 	fi
 
-	printf "$_IMPORTANT Enabling mongodb on startup. \n"
-	eval "sudo systemctl enable mongod.service"
-	eval "sudo systemctl daemon-reload"
-	printf "$_IMPORTANT Enabling mongodb on startup process completed.\n"
-
-	printf "$_IMPORTANT Starting mongodb. \n"
-	eval $_START_MONGO
-	printf "You can access the MongoDB shell with \n"
-	printf "$_IMPORTANT 'mongo'.\n If, at any time, you need to stop MongoDB, \n"
+	printf "$_IMPORTANT You can access the MongoDB shell with 'mongo'. \n"
+	printf "$_IMPORTANT If you need to stop MongoDB, \n"
 	printf "$_IMPORTANT run '$_STOP_MONGO'. \n"
 }
 
