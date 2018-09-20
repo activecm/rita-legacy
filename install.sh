@@ -196,8 +196,8 @@ __install_bro() {
 
 __configure_bro() {
 	# Configure Bro
-	wget -q "https://raw.githubusercontent.com/activecm/bro-install/master/gen-node-cfg.sh" -O "./gen-node-cfg"
-	wget -q "https://raw.githubusercontent.com/activecm/bro-install/master/node.cfg-template" -O "./node.cfg-template"
+	curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/gen-node-cfg.sh" -o "./gen-node-cfg"
+	curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/node.cfg-template" -o "./node.cfg-template"
 	chmod 755 ./gen-node-cfg
 	_BRO_CONFIGURED=true
 	./gen-node-cfg || _BRO_CONFIGURED=false
