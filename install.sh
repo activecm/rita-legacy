@@ -201,6 +201,8 @@ __configure_bro() {
 	chmod 755 ./gen-node-cfg
 	_BRO_CONFIGURED=true
 	./gen-node-cfg || _BRO_CONFIGURED=false
+	rm -f "./gen-node-cfg"
+	rm -f "./node.cfg-template"
 
 	if [ "$_BRO_CONFIGURED" = "true" ]; then
 		printf "\n$_IMPORTANT Enabling Bro on startup.\n"
