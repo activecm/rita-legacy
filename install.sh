@@ -263,12 +263,12 @@ __configure_mongodb() {
 			# https://www.digitalocean.com/community/tutorials/how-to-configure-a-linux-service-to-start-automatically-after-a-crash-or-reboot-part-1-practical-examples#auto-start-checklist-for-upstart
 			initctl stop mongod > /dev/null
 			initctl start mongod > /dev/null
-			_STOP_MONGO="sudo service mongod start"
+			_STOP_MONGO="sudo service mongod stop"
 		else 
 			systemctl enable mongod.service > /dev/null
 			systemctl daemon-reload > /dev/null
 			systemctl start mongod > /dev/null
-			_STOP_MONGO="sudo systemctl start mongod"
+			_STOP_MONGO="sudo systemctl stop mongod"
 		fi
 	elif [ $_OS = "CentOS" ]; then
 		chkconfig mongod on > /dev/null
