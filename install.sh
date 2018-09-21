@@ -196,13 +196,18 @@ __install_bro() {
 
 __configure_bro() {
 	# Configure Bro
-	curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/gen-node-cfg.sh" -o "./gen-node-cfg"
-	curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/node.cfg-template" -o "./node.cfg-template"
-	chmod 755 ./gen-node-cfg
+	tmpdir=`mktemp -d -q "/tmp/rita.XXXXXXXX" < /dev/null`
+	if [ ! -d "$tmpdir" ]; then
+		tmpdir=.
+	fi
+	curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/gen-node-cfg.sh" -o "$tmpdir/gen-node-cfg.sh"
+	curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/node.cfg-template" -o "$tmpdir/node.cfg-template"
+	chmod 755 "$tmpdir/gen-node-cfg.sh"
 	_BRO_CONFIGURED=true
-	./gen-node-cfg || _BRO_CONFIGURED=false
-	rm -f "./gen-node-cfg"
-	rm -f "./node.cfg-template"
+	"$tmpdir/gen-node-cfg.sh" || _BRO_CONFIGURED=false
+	# Clean up the files in case they ended up in the current directory
+	rm -f "$tmpdir/gen-node-cfg.sh"
+	rm -f "$tmpdir/node.cfg-template"
 
 	if [ "$_BRO_CONFIGURED" = "true" ]; then
 		printf "\n$_IMPORTANT Enabling Bro on startup.\n"
