@@ -238,6 +238,8 @@ __configure_bro() {
 		printf "$_IMPORTANT Automatic Bro configuration failed. \n"
 		printf "$_IMPORTANT Please edit /opt/bro/etc/node.cfg and run \n"
 		printf "$_IMPORTANT 'sudo broctl deploy' to start Bro. \n"
+		printf "$_IMPORTANT Pausing for 20 seconds before continuing. \n"
+		sleep 20
 	fi
 }
 
