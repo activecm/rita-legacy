@@ -256,36 +256,26 @@ __install_mongodb() {
 }
 
 __configure_mongodb() {
-	printf "$_IMPORTANT Enabling MongoDB on startup. \n"
+	printf "$_IMPORTANT Starting MongoDB and enabling on startup. \n"
 	if [ $_OS = "Ubuntu" ]; then
 		if [ $_OS_CODENAME = "trusty" ]; then
 			# Ubuntu 14.04 uses Upstart for init
 			# https://www.digitalocean.com/community/tutorials/how-to-configure-a-linux-service-to-start-automatically-after-a-crash-or-reboot-part-1-practical-examples#auto-start-checklist-for-upstart
-			initctl stop service > /dev/null
-			initctl start service > /dev/null
+			initctl stop mongod > /dev/null
+			initctl start mongod > /dev/null
+			_STOP_MONGO="sudo service mongod start"
 		else 
 			systemctl enable mongod.service > /dev/null
 			systemctl daemon-reload > /dev/null
-		fi
-	elif [ $_OS = "CentOS" ]; then
-		chkconfig mongod on > /dev/null
-	fi
-	printf "$_IMPORTANT Enabling MongoDB on startup process completed.\n"
-
-	printf "$_IMPORTANT Starting MongoDB. \n"
-	if [ $_OS = "Ubuntu" ]; then
-		if [ $_OS_CODENAME = "trusty" ]; then
-			# Ubuntu 14.04 uses Upstart for init
-			service mongod start > /dev/null
-			_STOP_MONGO="sudo service mongod start"
-		else 
 			systemctl start mongod > /dev/null
 			_STOP_MONGO="sudo systemctl start mongod"
 		fi
 	elif [ $_OS = "CentOS" ]; then
+		chkconfig mongod on > /dev/null
 		service mongod start > /dev/null
 		_STOP_MONGO="sudo service mongod stop"
 	fi
+	printf "$_IMPORTANT Starting MongoDB process completed.\n"
 
 	printf "$_IMPORTANT You can access the MongoDB shell with 'mongo'. \n"
 	printf "$_IMPORTANT If you need to stop MongoDB, \n"
