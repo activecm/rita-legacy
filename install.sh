@@ -198,7 +198,7 @@ __configure_bro() {
 	_BRO_CONFIGURED=false
 
 	# Attempt to detect if Bro is already configured away from its defaults
-	if [ -s "$BRO_PATH/../etc/node.cfg" ] && grep -q '^type=worker' "$BRO_PATH/../etc/node.cfg" ; then
+	if [ -s "$_BRO_PATH/../etc/node.cfg" ] && grep -q '^type=worker' "$_BRO_PATH/../etc/node.cfg" ; then
 		_BRO_CONFIGURED=true
 	fi
 
@@ -289,9 +289,13 @@ __configure_mongodb() {
 			_STOP_MONGO="sudo systemctl stop mongod"
 		fi
 	elif [ $_OS = "CentOS" ]; then
-		chkconfig mongod on > /dev/null
-		service mongod start > /dev/null
-		_STOP_MONGO="sudo service mongod stop"
+		systemctl enable mongod.service > /dev/null
+		systemctl daemon-reload > /dev/null
+		systemctl start mongod > /dev/null
+		_STOP_MONGO="sudo systemctl stop mongod"
+		#chkconfig mongod on > /dev/null
+		#service mongod start > /dev/null
+		#_STOP_MONGO="sudo service mongod stop"
 	fi
 	printf "$_IMPORTANT Starting MongoDB process completed.\n"
 
