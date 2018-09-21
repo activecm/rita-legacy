@@ -53,7 +53,7 @@ source $BATS_TEST_DIRNAME/helpers.sh
 }
 
 @test "bro is configured to start on boot" {
-	if [ $(sudo crontab -l | grep 'broctl cron' | wc -l) -ne 1 ]; then
+	if [ $(sudo crontab -l | grep 'broctl cron' | wc -l) -eq 0 ]; then
 		echo "broctl crontab entry does not exist"
 		exit 1
 	fi
