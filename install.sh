@@ -167,7 +167,7 @@ __install_installer_deps() {
 	# Update package cache
 	__load "$_SUBITEM Updating packages" __freshen_packages
 
-	for pkg in curl coreutils lsb-release; do
+	for pkg in curl coreutils lsb-release yum-utils; do
 		__load "$_SUBITEM Ensuring $pkg is installed" __install_packages $pkg
 	done
 }
@@ -457,14 +457,19 @@ __install_packages() {
 		local pkg="$1"
 		# Translation layer
 		# apt -> yum
-		if [ $_PKG_MGR -eq 2 ]; then
+		if [ $_PKG_MGR -eq 1 ]; then
 			case "$pkg" in
-				"lsb-release")
-					pkg="redhat-lsb-core"
-					;;
-				realpath)
-					pkg="coreutils"
-					;;
+			"yum-utils")
+				continue		#No equivalent to yum-utils in an apt environment
+				;;
+		elif [ $_PKG_MGR -eq 2 ]; then
+			case "$pkg" in
+			"lsb-release")
+				pkg="redhat-lsb-core"
+				;;
+			realpath)
+				pkg="coreutils"
+				;;
 			esac
 		fi
 		eval $_PKG_INSTALL $pkg >/dev/null 2>&1
