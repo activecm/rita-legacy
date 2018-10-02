@@ -4,7 +4,7 @@
 # activecountermeasures.com
 
 # CONSTANTS
-_RITA_VERSION="v1.0.2"
+_RITA_VERSION="v1.0.3"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
 _SUCCESS="\e[92mSUCCESS\e[0m"
@@ -126,16 +126,24 @@ __install() {
 			printf "$_ITEM Bro IDS is already installed \n"
 		fi
 
+		if [ "$_BRO_INSTALLED" = "true" ]; then
+			__configure_bro
+		fi
+
 		if [ "$_BRO_IN_PATH" = "false" ]; then
 			__add_bro_to_path
 		fi
 	fi
 
-	if [ $_INSTALL_MONGO = "true" ]; then
-		if [ $_MONGO_INSTALLED = "false" ]; then
+	if [ "$_INSTALL_MONGO" = "true" ]; then
+		if [ "$_MONGO_INSTALLED" = "false" ]; then
 			__load "$_ITEM Installing MongoDB" __install_mongodb
 		else
 			printf "$_ITEM MongoDB is already installed \n"
+		fi
+
+		if [ "$_MONGO_INSTALLED" = "true" ]; then
+			__configure_mongodb
 		fi
 	fi
 
@@ -146,20 +154,8 @@ __install() {
 		printf "$_IMPORTANT \"rita test-config\" may be used to troubleshoot configuration issues. \n \n"
 	fi
 
-	# Ubuntu 14.04 uses Upstart for init
-        _START_MONGO="sudo systemctl start mongod"
-	_STOP_MONGO="sudo systemctl stop mongod"
-	if [ $_OS = "Ubuntu" -a $_OS_CODENAME = "trusty" ]; then
-		_START_MONGO="sudo service mongod start"
-		_STOP_MONGO="sudo service mongod stop"
-	fi
-
 	printf "$_IMPORTANT To finish the installation, reload the system profile with \n"
-	printf "$_IMPORTANT 'source /etc/profile'. Additionally, you may want to configure Bro \n"
-	printf "$_IMPORTANT by running 'sudo broctl deploy'. Finally, start MongoDB with \n"
-	printf "$_IMPORTANT '$_START_MONGO'. You can access the MongoDB shell with \n"
-	printf "$_IMPORTANT 'mongo'. If, at any time, you need to stop MongoDB, \n"
-	printf "$_IMPORTANT run '$_STOP_MONGO'. \n"
+	printf "$_IMPORTANT 'source /etc/profile'.\n"
 
 	__title
 	printf "Thank you for installing RITA! Happy hunting! \n"
@@ -171,7 +167,7 @@ __install_installer_deps() {
 	# Update package cache
 	__load "$_SUBITEM Updating packages" __freshen_packages
 
-	for pkg in curl coreutils lsb-release; do
+	for pkg in curl coreutils lsb-release yum-utils; do
 		__load "$_SUBITEM Ensuring $pkg is installed" __install_packages $pkg
 	done
 }
@@ -194,7 +190,57 @@ __install_bro() {
 	__install_packages bro broctl
 	chmod 2755 /opt/bro/logs
 	_BRO_PKG_INSTALLED=true
+	_BRO_INSTALLED=true
 	_BRO_PATH="/opt/bro/bin"
+}
+
+__configure_bro() {
+	_BRO_CONFIGURED=false
+
+	# Attempt to detect if Bro is already configured away from its defaults
+	if [ -s "$_BRO_PATH/../etc/node.cfg" ] && grep -q '^type=worker' "$_BRO_PATH/../etc/node.cfg" ; then
+		_BRO_CONFIGURED=true
+	fi
+
+	# Attempt to configure Bro interactively
+	if [ "$_BRO_CONFIGURED" = "false" ]; then
+		# Configure Bro
+		tmpdir=`mktemp -d -q "/tmp/rita.XXXXXXXX" < /dev/null`
+		if [ ! -d "$tmpdir" ]; then
+			tmpdir=.
+		fi
+		curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/gen-node-cfg.sh" -o "$tmpdir/gen-node-cfg.sh"
+		curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/node.cfg-template" -o "$tmpdir/node.cfg-template"
+		chmod 755 "$tmpdir/gen-node-cfg.sh"
+		if "$tmpdir/gen-node-cfg.sh" ; then
+			_BRO_CONFIGURED=true
+		fi
+		# Clean up the files in case they ended up in the current directory
+		rm -f "$tmpdir/gen-node-cfg.sh"
+		rm -f "$tmpdir/node.cfg-template"
+	fi
+
+	if [ "$_BRO_CONFIGURED" = "true" ]; then
+		printf "\n$_IMPORTANT Enabling Bro on startup.\n"
+		# don't add a new line if broctl is already in cron
+		if [ $(crontab -l 2>/dev/null | grep 'broctl cron' | wc -l) -eq 0 ]; then 
+			# Append an entry to an existing crontab
+			# crontab -l will print to stderr and exit with code 1 if no crontab exists
+			# Ignore stderr and force a successfull exit code to prevent an install error			
+			(crontab -l 2>/dev/null || true; echo "*/5 * * * * $_BRO_PATH/broctl cron") | crontab
+		fi
+		$_BRO_PATH/broctl cron enable > /dev/null
+		printf "$_IMPORTANT Enabling Bro on startup process completed.\n"
+
+		printf "$_IMPORTANT Starting Bro. \n"
+		$_BRO_PATH/broctl deploy
+	else
+		printf "$_IMPORTANT Automatic Bro configuration failed. \n"
+		printf "$_IMPORTANT Please edit /opt/bro/etc/node.cfg and run \n"
+		printf "$_IMPORTANT 'sudo broctl deploy' to start Bro. \n"
+		printf "$_IMPORTANT Pausing for 20 seconds before continuing. \n"
+		sleep 20
+	fi
 }
 
 __add_bro_to_path() {
@@ -224,6 +270,38 @@ __install_mongodb() {
 	esac
 	__install_packages mongodb-org
 	_MONGO_INSTALLED=true
+
+}
+
+__configure_mongodb() {
+	printf "$_IMPORTANT Starting MongoDB and enabling on startup. \n"
+	if [ $_OS = "Ubuntu" ]; then
+		if [ $_OS_CODENAME = "trusty" ]; then
+			# Ubuntu 14.04 uses Upstart for init
+			# https://www.digitalocean.com/community/tutorials/how-to-configure-a-linux-service-to-start-automatically-after-a-crash-or-reboot-part-1-practical-examples#auto-start-checklist-for-upstart
+			initctl stop mongod > /dev/null
+			initctl start mongod > /dev/null
+			_STOP_MONGO="sudo service mongod stop"
+		else 
+			systemctl enable mongod.service > /dev/null
+			systemctl daemon-reload > /dev/null
+			systemctl start mongod > /dev/null
+			_STOP_MONGO="sudo systemctl stop mongod"
+		fi
+	elif [ $_OS = "CentOS" ]; then
+		systemctl enable mongod.service > /dev/null
+		systemctl daemon-reload > /dev/null
+		systemctl start mongod > /dev/null
+		_STOP_MONGO="sudo systemctl stop mongod"
+		#chkconfig mongod on > /dev/null
+		#service mongod start > /dev/null
+		#_STOP_MONGO="sudo service mongod stop"
+	fi
+	printf "$_IMPORTANT Starting MongoDB process completed.\n"
+
+	printf "$_IMPORTANT You can access the MongoDB shell with 'mongo'. \n"
+	printf "$_IMPORTANT If you need to stop MongoDB, \n"
+	printf "$_IMPORTANT run '$_STOP_MONGO'. \n"
 }
 
 __install_rita() {
@@ -400,13 +478,23 @@ __install_packages() {
 	while [ ! -z "$1" ]; do
 		local pkg="$1"
 		# Translation layer
+		# yum -> apt
+		if [ $_PKG_MGR -eq 1 ]; then
+			case "$pkg" in
+				"yum-utils")
+					# required for yum-config-manager
+					# Ubuntu equivalent is apt-key which is already installed
+					shift
+					continue
+					;;
+			esac
 		# apt -> yum
-		if [ $_PKG_MGR -eq 2 ]; then
+		elif [ $_PKG_MGR -eq 2 ]; then
 			case "$pkg" in
 				"lsb-release")
 					pkg="redhat-lsb-core"
 					;;
-				realpath)
+				"realpath")
 					pkg="coreutils"
 					;;
 			esac
