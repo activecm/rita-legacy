@@ -30,7 +30,9 @@ func init() {
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			return analyze(c.Args().Get(0), c.String("config"))
+			r := analyze(c.Args().Get(0), c.String("config"))
+			fmt.Printf( UpdateCheck( c.String("config")))
+			return r
 		},
 	}
 

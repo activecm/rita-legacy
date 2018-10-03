@@ -1,3 +1,6 @@
+UserConfig:
+    # Number of days before checking for a new version of RITA.
+    UpdateCheckFrequency: 14
 MongoDB:
     # See https://docs.mongodb.com/manual/reference/connection-string/
     ConnectionString: mongodb://localhost:27017
