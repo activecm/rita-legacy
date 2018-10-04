@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/activecm/rita/database"
 	htmlTempl "github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
@@ -20,16 +21,15 @@ import (
 // a directory named after the selected dataset, or `rita-html-report` if
 // mupltiple were selected, within the current working directory,
 // mongodb must be running to call this command, will exit on any writing error
-func PrintHTML(dbsIn []string, res *resources.Resources) error {
+func PrintHTML(dbsIn []database.RITADatabase, res *resources.Resources) error {
 	if len(dbsIn) == 0 {
 		return errors.New("no analyzed databases to report on")
 	}
 
 	var dbs []string
-	for _, db := range dbsIn {
-		info, err := res.MetaDB.GetDBMetaInfo(db)
-		if err == nil && info.Analyzed {
-			dbs = append(dbs, db)
+	for i := range dbsIn {
+		if dbsIn[i].Analyzed() {
+			dbs = append(dbs, dbsIn[i].Name())
 		}
 	}
 	if len(dbs) == 0 {

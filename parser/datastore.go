@@ -5,8 +5,8 @@ import "github.com/activecm/rita/parser/parsetypes"
 //Datastore allows RITA to store bro data in a database
 type Datastore interface {
 	Store(*ImportedData)
-	Flush()
-	Index()
+	Flush() error
+	Index() error
 }
 
 //ImportedData directs BroData to a specific database and collection

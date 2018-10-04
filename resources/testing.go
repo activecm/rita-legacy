@@ -1,11 +1,11 @@
 package resources
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/activecm/mgorus"
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 )
@@ -39,24 +39,33 @@ func InitIntegrationTestingResources(t *testing.T) *Resources {
 		t.Fatal(err)
 	}
 
-	// Allows code to create and remove tracked databases
-	metaDB := database.NewMetaDB(conf, db.Session, log)
+	// Allows code to keep track of database metadata
+	databaseIndex, err := database.NewRITADatabaseIndex(
+		db.Session, conf.S.Bro.MetaDB, conf.T.Meta.DatabasesTable, log,
+	)
 
-	//Begin logging to the metadatabase
-	if conf.S.Log.LogToDB {
-		log.Hooks.Add(
-			mgorus.NewHookerFromSession(
-				db.Session, conf.S.Bro.MetaDB, conf.T.Log.RitaLogTable,
-			),
-		)
+	if err != nil {
+		fmt.Printf("Failed to load RITA database index: %s\n", err.Error())
+		t.Fatal(err)
+	}
+
+	// Allows code to keep track of which files have already been imported
+	fileIndex, err := database.NewImportedFilesIndex(
+		db.Session, conf.S.Bro.MetaDB, conf.T.Meta.FilesTable, log,
+	)
+
+	if err != nil {
+		fmt.Printf("Failed to load the index of imported files: %s\n", err.Error())
+		t.Fatal(err)
 	}
 
 	//bundle up the system resources
 	r := &Resources{
-		Config: conf,
-		Log:    log,
-		DB:     db,
-		MetaDB: metaDB,
+		Config:    conf,
+		Log:       log,
+		DB:        db,
+		DBIndex:   databaseIndex,
+		FileIndex: fileIndex,
 	}
 	return r
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/blang/semver"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/activecm/rita/database"
@@ -39,32 +40,43 @@ type collectionWriter struct {
 //MongoDatastore provides a backend for storing bro data in MongoDB
 type MongoDatastore struct {
 	session       *mgo.Session
-	metaDB        *database.MetaDB
+	dbIndex       database.RITADatabaseIndex
 	bufferSize    int
+	importVersion semver.Version
 	logger        *log.Logger
 	writerWG      *sync.WaitGroup
 	writeMap      storeMap
-	analyzedDBs   []string
-	unanalyzedDBs []string
+	analyzedDBs   []database.RITADatabase
+	unanalyzedDBs []database.RITADatabase
 }
 
 //NewMongoDatastore returns a new MongoDatastore and caches the existing
 //db names
-func NewMongoDatastore(session *mgo.Session, metaDB *database.MetaDB,
-	bufferSize int, logger *log.Logger) *MongoDatastore {
+func NewMongoDatastore(session *mgo.Session, dbIndex database.RITADatabaseIndex,
+	bufferSize int, importVersion semver.Version, logger *log.Logger) (*MongoDatastore, error) {
+
+	analyzedDBs, err := dbIndex.GetAnalyzedDatabases()
+	if err != nil {
+		return nil, err
+	}
+	unanalyzedDBs, err := dbIndex.GetUnanalyzedDatabases()
+	if err != nil {
+		return nil, err
+	}
 	return &MongoDatastore{
-		session:    session,
-		metaDB:     metaDB,
-		bufferSize: bufferSize,
-		logger:     logger,
-		writerWG:   new(sync.WaitGroup),
+		session:       session,
+		dbIndex:       dbIndex,
+		bufferSize:    bufferSize,
+		importVersion: importVersion,
+		logger:        logger,
+		writerWG:      new(sync.WaitGroup),
 		writeMap: storeMap{
 			databases: make(map[string]*collectionMap),
 			rwLock:    new(sync.Mutex),
 		},
-		analyzedDBs:   metaDB.GetAnalyzedDatabases(),
-		unanalyzedDBs: metaDB.GetUnAnalyzedDatabases(),
-	}
+		analyzedDBs:   analyzedDBs,
+		unanalyzedDBs: unanalyzedDBs,
+	}, nil
 }
 
 //Store saves parsed Bro data to MongoDB.
@@ -79,8 +91,8 @@ func (mongo *MongoDatastore) Store(data *ImportedData) {
 	collWriter.writeChannel <- data
 }
 
-//Flush waits for all writing to finish
-func (mongo *MongoDatastore) Flush() {
+//Flush waits for all writing to finish and closes the datastore object
+func (mongo *MongoDatastore) Flush() error {
 	mongo.writeMap.rwLock.Lock()
 	for _, collMap := range mongo.writeMap.databases {
 		collMap.rwLock.Lock()
@@ -91,17 +103,21 @@ func (mongo *MongoDatastore) Flush() {
 	}
 	mongo.writeMap.rwLock.Unlock()
 	mongo.writerWG.Wait()
+	return nil
 }
 
 //Index ensures that the data is searchable
-func (mongo *MongoDatastore) Index() {
+func (mongo *MongoDatastore) Index() error {
 	//NOTE: We do this one by one in order to prevent individual indexing
 	//operations from taking too long
 	ssn := mongo.session.Copy()
 	defer ssn.Close()
 
 	mongo.writeMap.rwLock.Lock()
-	for _, collMap := range mongo.writeMap.databases {
+	defer mongo.writeMap.rwLock.Unlock()
+
+	for database, collMap := range mongo.writeMap.databases {
+		//Add search indexes to collections
 		collMap.rwLock.Lock()
 		for _, collWriter := range collMap.collections {
 			collection := ssn.DB(collWriter.targetDatabase).C(collWriter.targetCollection)
@@ -109,16 +125,27 @@ func (mongo *MongoDatastore) Index() {
 				err := collection.EnsureIndex(mgo.Index{
 					Key: []string{index},
 				})
+
 				if err != nil {
-					mongo.logger.WithFields(log.Fields{
-						"error": err.Error(),
-					}).Error("Failed to create indeces")
+					collMap.rwLock.Unlock()
+					return err
 				}
 			}
 		}
 		collMap.rwLock.Unlock()
+
+		//Mark the database as fully imported
+		ritaDB, err := mongo.dbIndex.GetDatabase(database)
+		if err != nil {
+			return err
+		}
+
+		err = ritaDB.SetImportFinished(ssn)
+		if err != nil {
+			return err
+		}
 	}
-	mongo.writeMap.rwLock.Unlock()
+	return nil
 }
 
 //getCollectionMap returns a map from collection names to collection writers
@@ -140,22 +167,22 @@ func (mongo *MongoDatastore) getCollectionMap(data *ImportedData) (*collectionMa
 	//iterate over indices to save RAM
 	//nolint: golint
 	for i, _ := range mongo.analyzedDBs {
-		if mongo.analyzedDBs[i] == data.TargetDatabase {
+		if mongo.analyzedDBs[i].Name() == data.TargetDatabase {
 			return nil, errors.New("cannot import bro data into already analyzed database")
 		}
 	}
 
 	//check if the database was created in an earlier parse
-	targetDBExists := false
+	var targetDB *database.RITADatabase
 	//nolint: golint
 	for i, _ := range mongo.unanalyzedDBs {
-		if mongo.unanalyzedDBs[i] == data.TargetDatabase {
-			targetDBExists = true
+		if mongo.unanalyzedDBs[i].Name() == data.TargetDatabase {
+			targetDB = &mongo.unanalyzedDBs[i]
 		}
 	}
 
-	if targetDBExists {
-		compatible, err := mongo.metaDB.CheckCompatibleImport(data.TargetDatabase)
+	if targetDB != nil {
+		compatible, err := targetDB.CompatibleImportVersion(mongo.importVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -164,11 +191,11 @@ func (mongo *MongoDatastore) getCollectionMap(data *ImportedData) (*collectionMa
 		}
 	} else {
 		//create the database if it doesn't exist
-		err := mongo.metaDB.AddNewDB(data.TargetDatabase)
+		newDB, err := mongo.dbIndex.RegisterNewDatabase(data.TargetDatabase, mongo.importVersion)
 		if err != nil {
 			return nil, err
 		}
-		mongo.unanalyzedDBs = append(mongo.unanalyzedDBs, data.TargetDatabase)
+		mongo.unanalyzedDBs = append(mongo.unanalyzedDBs, newDB)
 	}
 
 	mongo.writeMap.databases[data.TargetDatabase] = &collectionMap{

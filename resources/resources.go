@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/activecm/mgorus"
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	log "github.com/sirupsen/logrus"
@@ -16,7 +15,9 @@ type (
 		Config *config.Config
 		Log    *log.Logger
 		DB     *database.DB
-		MetaDB *database.MetaDB
+
+		DBIndex   database.RITADatabaseIndex
+		FileIndex database.ImportedFilesIndex
 	}
 )
 
@@ -25,38 +26,64 @@ type (
 func InitResources(userConfig string) *Resources {
 	conf, err := config.LoadConfig(userConfig)
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "Failed to config: %s\n", err.Error())
+		fmt.Fprintf(os.Stdout, "Failed to load configuration: %s\n", err.Error())
 		os.Exit(-1)
 	}
 
 	// Fire up the logging system
 	log := initLogger(&conf.S.Log)
 
+	if conf.S.Log.LogToFile {
+		err = addFileLogger(log, conf.S.Log.RitaLogPath)
+		if err != nil {
+			fmt.Printf("Could not initialize file logger: %s\n", err.Error())
+			os.Exit(-1)
+		}
+	}
+
 	// Allows code to interact with the database
 	db, err := database.NewDB(conf, log)
 	if err != nil {
-		fmt.Printf("Failed to connect to database: %s\n", err.Error())
+		fmt.Printf("Failed to connect to MongoDB: %s\n", err.Error())
 		os.Exit(-1)
 	}
 
-	// Allows code to create and remove tracked databases
-	metaDB := database.NewMetaDB(conf, db.Session, log)
+	// Allows code to keep track of database metadata
+	databaseIndex, err := database.NewRITADatabaseIndex(
+		db.Session, conf.S.Bro.MetaDB, conf.T.Meta.DatabasesTable, log,
+	)
+
+	if err != nil {
+		fmt.Printf("Failed to load RITA database index: %s\n", err.Error())
+		os.Exit(-1)
+	}
+
+	// Allows code to keep track of which files have already been imported
+	fileIndex, err := database.NewImportedFilesIndex(
+		db.Session, conf.S.Bro.MetaDB, conf.T.Meta.FilesTable, log,
+	)
+
+	if err != nil {
+		fmt.Printf("Failed to load the index of imported files: %s\n", err.Error())
+		os.Exit(-1)
+	}
 
 	//Begin logging to the metadatabase
 	if conf.S.Log.LogToDB {
-		log.Hooks.Add(
-			mgorus.NewHookerFromSession(
-				db.Session, conf.S.Bro.MetaDB, conf.T.Log.RitaLogTable,
-			),
-		)
+		err = addMongoLogger(log, db.Session, conf.S.Bro.MetaDB, conf.T.Log.RitaLogTable)
+		if err != nil {
+			fmt.Printf("Could not initialize MongoDB logger: %s\n", err.Error())
+			os.Exit(-1)
+		}
 	}
 
 	//bundle up the system resources
 	r := &Resources{
-		Config: conf,
-		Log:    log,
-		DB:     db,
-		MetaDB: metaDB,
+		Config:    conf,
+		Log:       log,
+		DB:        db,
+		DBIndex:   databaseIndex,
+		FileIndex: fileIndex,
 	}
 	return r
 }

@@ -59,9 +59,20 @@ func doImport(c *cli.Context) error {
 	res.Log.Infof("Importing %s\n", res.Config.S.Bro.ImportDirectory)
 	fmt.Println("[+] Importing " + res.Config.S.Bro.ImportDirectory)
 	importer := parser.NewFSImporter(res, threads, threads)
-	datastore := parser.NewMongoDatastore(res.DB.Session, res.MetaDB,
-		res.Config.S.Bro.ImportBuffer, res.Log)
-	importer.Run(datastore)
+	datastore, err := parser.NewMongoDatastore(
+		res.DB.Session,
+		res.DBIndex,
+		res.Config.S.Bro.ImportBuffer,
+		res.Config.R.Version,
+		res.Log,
+	)
+	if err != nil {
+		return cli.NewExitError("Error: could not set up connection with MongoDB: "+err.Error(), -1)
+	}
+	err = importer.Run(datastore)
+	if err != nil {
+		return err
+	}
 	res.Log.Infof("Finished importing %s\n", res.Config.S.Bro.ImportDirectory)
 	return nil
 }

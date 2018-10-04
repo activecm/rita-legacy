@@ -3,7 +3,6 @@ package commands
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -41,10 +40,21 @@ func resetAnalysis(database string, res *resources.Resources) error {
 	http := res.Config.T.Structure.HTTPTable
 	dns := res.Config.T.Structure.DNSTable
 
-	names, err := res.DB.Session.DB(database).CollectionNames()
-	if err != nil || len(names) == 0 {
-		return cli.NewExitError("Failed to find analysis results", -1)
+	ritaDB, err := res.DBIndex.GetDatabase(database)
+	if err != nil {
+		return cli.NewExitError("Failed to find database "+database+".", -1)
 	}
+
+	/*
+		Sometimes analysis fails and we need to reset a database which
+		hasn't been properly marked analyzed.
+
+		Alternatively, we create a flag for analysis start in the metadb
+
+		if !ritaDB.Analyzed() {
+			return cli.NewExitError("Database "+database+" has not been analyzed.", -1)
+		}
+	*/
 
 	fmt.Print("Are you sure you want to reset analysis for ", database, " [y/N] ")
 
@@ -52,13 +62,18 @@ func resetAnalysis(database string, res *resources.Resources) error {
 
 	response, err := read.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		return cli.NewExitError("Error: could not read response: "+err.Error(), -1)
 	}
 	response = strings.ToLower(strings.TrimSpace(response))
 	if response == "y" || response == "yes" {
 		fmt.Println("Resetting database:", database)
 	} else {
 		return cli.NewExitError("Database "+database+" was not reset.", 0)
+	}
+
+	names, err := res.DB.Session.DB(database).CollectionNames()
+	if err != nil {
+		return cli.NewExitError("Error: could not list analysis results: "+err.Error(), -1)
 	}
 
 	//check if we had an issue dropping a collection
@@ -70,21 +85,21 @@ func resetAnalysis(database string, res *resources.Resources) error {
 		default:
 			err2 := res.DB.Session.DB(database).C(name).DropCollection()
 			if err2 != nil {
-				fmt.Fprintf(os.Stderr, "Failed to drop collection: %s\n", err2.Error())
+				fmt.Fprintf(os.Stderr, "Error: failed to drop collection: %s\n", err2.Error())
 				err2Flag = err2
 			}
 		}
 	}
+	if err2Flag != nil {
+		return cli.NewExitError("Error: could not remove some analysis results", -1)
+	}
 
 	//change metadb
-	err3 := res.MetaDB.MarkDBAnalyzed(database, false)
-
-	if err3 != nil {
-		return cli.NewExitError("Failed to update metadb", -1)
+	err = ritaDB.UnsetAnalyzed(res.DB.Session)
+	if err != nil {
+		return cli.NewExitError("Error: could not mark database "+database+" as not analyzed: "+err.Error(), -1)
 	}
 
-	if err == nil && err2Flag == nil && err3 == nil {
-		fmt.Fprintf(os.Stdout, "Successfully reset analysis of %s.\n", database)
-	}
+	fmt.Fprintf(os.Stdout, "Successfully reset analysis of %s.\n", database)
 	return nil
 }

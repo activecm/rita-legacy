@@ -17,8 +17,12 @@ func init() {
 		},
 		Action: func(c *cli.Context) error {
 			res := resources.InitResources(c.String("config"))
-			for _, name := range res.MetaDB.GetDatabases() {
-				fmt.Println(name)
+			dbs, err := res.DBIndex.GetDatabases()
+			if err != nil {
+				return cli.NewExitError("Error: could not list databases: "+err.Error(), -1)
+			}
+			for i := range dbs {
+				fmt.Println(dbs[i].Name())
 			}
 			return nil
 		},

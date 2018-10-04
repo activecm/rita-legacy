@@ -15,6 +15,7 @@ import (
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 )
 
 type (
@@ -37,7 +38,7 @@ func NewFSImporter(resources *resources.Resources,
 }
 
 //Run starts importing a given path into a datastore
-func (fs *FSImporter) Run(datastore Datastore) {
+func (fs *FSImporter) Run(datastore Datastore) error {
 	// track the time spent parsing
 	start := time.Now()
 	fs.res.Log.WithFields(
@@ -61,12 +62,15 @@ func (fs *FSImporter) Run(datastore Datastore) {
 		},
 	).Info("Finished collecting file details. Starting upload.")
 
-	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
+	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.FileIndex, fs.res.Log)
 
 	parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
-	datastore.Flush()
-	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
+	err := datastore.Flush()
+	if err != nil {
+		return cli.NewExitError("Error: could not finish writing data to MongoDB: "+err.Error(), 255)
+	}
+	updateFilesIndex(indexedFiles, fs.res.FileIndex, fs.res.Log)
 
 	progTime = time.Now()
 	fs.res.Log.WithFields(
@@ -75,8 +79,13 @@ func (fs *FSImporter) Run(datastore Datastore) {
 			"total_time":   progTime.Sub(start).String(),
 		},
 	).Info("Finished upload. Starting indexing")
+
 	fmt.Println("\t[-] Indexing log entries. This may take a while.")
-	datastore.Index()
+
+	err = datastore.Index()
+	if err != nil {
+		return cli.NewExitError("Error: could not finish indexing data in MongoDB: "+err.Error(), 255)
+	}
 
 	progTime = time.Now()
 	fs.res.Log.WithFields(
@@ -85,6 +94,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 			"total_time":   progTime.Sub(start).String(),
 		},
 	).Info("Finished importing log files")
+	return nil
 }
 
 // readDir recursively reads the directory looking for log and .gz files
@@ -219,9 +229,9 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore D
 }
 
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
-	metaDatabase *database.MetaDB, logger *log.Logger) []*fpt.IndexedFile {
+	filesIndex database.ImportedFilesIndex, logger *log.Logger) []*fpt.IndexedFile {
 	var toReturn []*fpt.IndexedFile
-	oldFiles, err := metaDatabase.GetFiles()
+	oldFiles, err := filesIndex.GetFiles()
 	if err != nil {
 		logger.WithFields(log.Fields{
 			"error": err.Error(),
@@ -254,9 +264,9 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 }
 
 //updateFilesIndex updates the files collection in the metaDB with the newly parsed files
-func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.MetaDB,
+func updateFilesIndex(indexedFiles []*fpt.IndexedFile, filesIndex database.ImportedFilesIndex,
 	logger *log.Logger) {
-	err := metaDatabase.AddParsedFiles(indexedFiles)
+	err := filesIndex.RegisterFiles(indexedFiles)
 	if err != nil {
 		logger.Error("Could not update the list of parsed files")
 	}
