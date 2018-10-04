@@ -7,9 +7,9 @@ import (
 	"github.com/activecm/rita/config"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/blang/semver"
-	log "github.com/sirupsen/logrus"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -26,6 +26,7 @@ type (
 	DBMetaInfo struct {
 		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
 		Name           string        `bson:"name"`            // Top level name of the database
+		ImportFinished bool          `bson:"import_finished"` // Has this database been entirely imported
 		Analyzed       bool          `bson:"analyzed"`        // Has this database been analyzed
 		ImportVersion  string        `bson:"import_version"`  // Rita version at import
 		AnalyzeVersion string        `bson:"analyze_version"` // Rita version at analyze
@@ -57,9 +58,10 @@ func (m *MetaDB) AddNewDB(name string) error {
 
 	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Insert(
 		DBMetaInfo{
-			Name:          name,
-			Analyzed:      false,
-			ImportVersion: m.config.S.Version,
+			Name:           name,
+			ImportFinished: false,
+			Analyzed:       false,
+			ImportVersion:  m.config.S.Version,
 		},
 	)
 	if err != nil {
@@ -107,6 +109,45 @@ func (m *MetaDB) DeleteDB(name string) error {
 		return err
 	}
 
+	return nil
+}
+
+// MarkDBImported marks a database as having been completely imported
+func (m *MetaDB) MarkDBImported(name string, complete bool) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	dbr := DBMetaInfo{}
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+		Find(bson.M{"name": name}).One(&dbr)
+
+	if err != nil {
+		m.log.WithFields(log.Fields{
+			"database_requested": name,
+			"error":              err.Error(),
+		}).Error("database not found in metadata directory")
+		return err
+	}
+
+	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+		Update(bson.M{"_id": dbr.ID}, bson.M{
+			"$set": bson.D{
+				{"import_finished", complete},
+			},
+		})
+
+	if err != nil {
+		m.log.WithFields(log.Fields{
+			"metadb_attempted":   m.config.S.Bro.MetaDB,
+			"database_requested": name,
+			"_id":                dbr.ID.Hex,
+			"error":              err.Error(),
+		}).Error("could not update database entry in meta")
+		return err
+	}
 	return nil
 }
 
@@ -224,6 +265,27 @@ func (m *MetaDB) GetUnAnalyzedDatabases() []string {
 	var results []string
 	var cur DBMetaInfo
 	iter := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"analyzed": false}).Iter()
+	for iter.Next(&cur) {
+		results = append(results, cur.Name)
+	}
+	return results
+}
+
+// GetAnalyzeReadyDatabases builds a list of database names which are ready to be analyzed
+func (m *MetaDB) GetAnalyzeReadyDatabases() []string {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	var results []string
+	var cur DBMetaInfo
+	iter := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(
+		bson.M{
+			"analyzed":        false,
+			"import_finished": true,
+		},
+	).Iter()
 	for iter.Next(&cur) {
 		results = append(results, cur.Name)
 	}

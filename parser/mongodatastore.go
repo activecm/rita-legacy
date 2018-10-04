@@ -101,7 +101,7 @@ func (mongo *MongoDatastore) Index() {
 	defer ssn.Close()
 
 	mongo.writeMap.rwLock.Lock()
-	for _, collMap := range mongo.writeMap.databases {
+	for database, collMap := range mongo.writeMap.databases {
 		collMap.rwLock.Lock()
 		for _, collWriter := range collMap.collections {
 			collection := ssn.DB(collWriter.targetDatabase).C(collWriter.targetCollection)
@@ -117,6 +117,14 @@ func (mongo *MongoDatastore) Index() {
 			}
 		}
 		collMap.rwLock.Unlock()
+
+		err := mongo.metaDB.MarkDBImported(database, true)
+		if err != nil {
+			mongo.logger.WithFields(log.Fields{
+				"database": database,
+				"error":    err.Error(),
+			}).Error("Failed to mark import of database as finished")
+		}
 	}
 	mongo.writeMap.rwLock.Unlock()
 }
