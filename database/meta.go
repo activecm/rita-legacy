@@ -280,7 +280,26 @@ func (m *MetaDB) GetAnalyzeReadyDatabases() []string {
 
 	var results []string
 	var cur DBMetaInfo
+
+	//migrate old datasets without the import_finished field
 	iter := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(
+		bson.M{
+			"import_finished": bson.M{"$exists": false},
+		},
+	).Iter()
+	for iter.Next(&cur) {
+		m.lock.Unlock()
+		err := m.MarkDBImported(cur.Name, true)
+		m.lock.Lock()
+		if err != nil {
+			m.log.WithFields(log.Fields{
+				"err": err,
+			}).Error("Could not add import_finished field to old databases")
+		}
+	}
+	//end migratoin
+
+	iter = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(
 		bson.M{
 			"analyzed":        false,
 			"import_finished": true,
