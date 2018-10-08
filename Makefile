@@ -1,5 +1,6 @@
 VERSION := $(shell git describe --abbrev=0 --tags)
 EXACT_VERSION := $(shell git describe --always --long --dirty --tags)
+AUTOPATH := /etc/bash_completion.d/rita
 GOPATH := $(GOPATH)
 BINARY := rita
 
@@ -18,8 +19,12 @@ cache = $(if $(cached-$1),,$(eval cached-$1 := 1)$(eval cache-$1 := $($1)))$(cac
 $(BINARY): vendor $(SRC)
 	go build ${LDFLAGS}
 
+$(AUTOPATH):
+	mkdir -p /etc/bash_completion.d/
+	sudo cp vendor/github.com/urfave/cli/autocomplete/bash_autocomplete $(AUTOPATH)
+
 .PHONY: install
-install: $(BINARY)
+install: $(BINARY) $(AUTOPATH)
 	mv $(BINARY) $(GOPATH)/bin/$(BINARY)
 
 .PHONY: docker-check
