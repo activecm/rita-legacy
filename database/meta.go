@@ -77,17 +77,19 @@ func (m *MetaDB) AddNewDB(name string) error {
 
 // DeleteDB removes a database managed by RITA
 func (m *MetaDB) DeleteDB(name string) error {
+	_, err := m.GetDBMetaInfo(name)
+	if err != nil {
+		m.log.WithFields(log.Fields{
+			"database_requested": name,
+			"error":              err.Error(),
+		}).Error("database not found in metadata directory")
+		return err
+	}
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
-
-	//get the record
-	var db DBMetaInfo
-	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"name": name}).One(&db)
-	if err != nil {
-		return err
-	}
 
 	//delete the record
 	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Remove(bson.M{"name": name})
@@ -114,15 +116,7 @@ func (m *MetaDB) DeleteDB(name string) error {
 
 // MarkDBImported marks a database as having been completely imported
 func (m *MetaDB) MarkDBImported(name string, complete bool) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	ssn := m.dbHandle.Copy()
-	defer ssn.Close()
-
-	dbr := DBMetaInfo{}
-	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
-		Find(bson.M{"name": name}).One(&dbr)
+	dbr, err := m.GetDBMetaInfo(name)
 
 	if err != nil {
 		m.log.WithFields(log.Fields{
@@ -131,6 +125,12 @@ func (m *MetaDB) MarkDBImported(name string, complete bool) error {
 		}).Error("database not found in metadata directory")
 		return err
 	}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
 
 	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
 		Update(bson.M{"_id": dbr.ID}, bson.M{
@@ -153,15 +153,7 @@ func (m *MetaDB) MarkDBImported(name string, complete bool) error {
 
 // MarkDBAnalyzed marks a database as having been analyzed
 func (m *MetaDB) MarkDBAnalyzed(name string, complete bool) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	ssn := m.dbHandle.Copy()
-	defer ssn.Close()
-
-	dbr := DBMetaInfo{}
-	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
-		Find(bson.M{"name": name}).One(&dbr)
+	dbr, err := m.GetDBMetaInfo(name)
 
 	if err != nil {
 		m.log.WithFields(log.Fields{
@@ -177,6 +169,12 @@ func (m *MetaDB) MarkDBAnalyzed(name string, complete bool) error {
 	} else {
 		versionTag = ""
 	}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
 
 	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
 		Update(bson.M{"_id": dbr.ID}, bson.M{
@@ -196,22 +194,6 @@ func (m *MetaDB) MarkDBAnalyzed(name string, complete bool) error {
 		return err
 	}
 	return nil
-}
-
-// GetDBMetaInfo returns a meta db entry. This is the only function which
-// returns DBMetaInfo to code outside of meta.go.
-func (m *MetaDB) GetDBMetaInfo(name string) (DBMetaInfo, error) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	ssn := m.dbHandle.Copy()
-	defer ssn.Close()
-	var result DBMetaInfo
-	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"name": name}).One(&result)
-	if err != nil {
-		return result, err
-	}
-	result, err = migrateDBMetaInfo(result)
-	return result, err
 }
 
 //migrateDBMetaInfo is used to ensure compatibility with previous database schemas.
@@ -236,19 +218,52 @@ func migrateDBMetaInfo(inInfo DBMetaInfo) (DBMetaInfo, error) {
 	return inInfo, nil
 }
 
-// GetDatabases returns a list of databases being tracked in metadb or an empty array on failure
-func (m *MetaDB) GetDatabases() []string {
+// runDBMetaInfoQuery runs a MongoDB query against the MetaDB Databases Table
+// and performs any necessary data migration
+func (m *MetaDB) runDBMetaInfoQuery(queryDoc bson.M) ([]DBMetaInfo, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	iter := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(nil).Iter()
+	var results []DBMetaInfo
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(queryDoc).All(&results)
+	if err != nil {
+		return results, err
+	}
 
+	for i := range results {
+		results[i], err = migrateDBMetaInfo(results[i])
+		if err != nil {
+			return results, err
+		}
+	}
+
+	return results, nil
+}
+
+// GetDBMetaInfo returns a meta db entry. This is the only function which
+// returns DBMetaInfo to code outside of meta.go.
+func (m *MetaDB) GetDBMetaInfo(name string) (DBMetaInfo, error) {
+	results, err := m.runDBMetaInfoQuery(bson.M{"name": name})
+	if err != nil {
+		return DBMetaInfo{}, err
+	}
+	if len(results) == 0 {
+		return DBMetaInfo{}, mgo.ErrNotFound
+	}
+	return results[0], nil
+}
+
+// GetDatabases returns a list of databases being tracked in metadb or an empty array on failure
+func (m *MetaDB) GetDatabases() []string {
+	dbs, err := m.runDBMetaInfoQuery(nil)
+	if err != nil {
+		return nil
+	}
 	var results []string
-	var db DBMetaInfo
-	for iter.Next(&db) {
+	for _, db := range dbs {
 		results = append(results, db.Name)
 	}
 	return results
@@ -284,56 +299,46 @@ func (m *MetaDB) CheckCompatibleAnalyze(targetDatabase string) (bool, error) {
 
 // GetUnAnalyzedDatabases builds a list of database names which have yet to be analyzed
 func (m *MetaDB) GetUnAnalyzedDatabases() []string {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	ssn := m.dbHandle.Copy()
-	defer ssn.Close()
-
+	dbs, err := m.runDBMetaInfoQuery(bson.M{"analyzed": false})
+	if err != nil {
+		return nil
+	}
 	var results []string
-	var cur DBMetaInfo
-	iter := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"analyzed": false}).Iter()
-	for iter.Next(&cur) {
-		results = append(results, cur.Name)
+	for _, db := range dbs {
+		results = append(results, db.Name)
 	}
 	return results
 }
 
 // GetAnalyzeReadyDatabases builds a list of database names which are ready to be analyzed
 func (m *MetaDB) GetAnalyzeReadyDatabases() []string {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	ssn := m.dbHandle.Copy()
-	defer ssn.Close()
-
-	var results []string
-	var cur DBMetaInfo
-
 	//note import_finished is queried as {"$ne": false} rather than just true
 	//since prior to version 1.1.0, the field did not exist.
-	iter := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(
+	dbs, err := m.runDBMetaInfoQuery(
 		bson.M{
 			"analyzed":        false,
 			"import_finished": bson.M{"$ne": false},
 		},
-	).Iter()
-	for iter.Next(&cur) {
-		results = append(results, cur.Name)
+	)
+	if err != nil {
+		return nil
+	}
+	var results []string
+	for _, db := range dbs {
+		results = append(results, db.Name)
 	}
 	return results
 }
 
 // GetAnalyzedDatabases builds a list of database names which have been analyzed
 func (m *MetaDB) GetAnalyzedDatabases() []string {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	ssn := m.dbHandle.Copy()
-	defer ssn.Close()
-
+	dbs, err := m.runDBMetaInfoQuery(bson.M{"analyzed": true})
+	if err != nil {
+		return nil
+	}
 	var results []string
-	var cur DBMetaInfo
-	iter := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"analyzed": true}).Iter()
-	for iter.Next(&cur) {
-		results = append(results, cur.Name)
+	for _, db := range dbs {
+		results = append(results, db.Name)
 	}
 	return results
 }
