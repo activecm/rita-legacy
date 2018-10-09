@@ -118,13 +118,10 @@ func (mongo *MongoDatastore) Index() {
 		}
 		collMap.rwLock.Unlock()
 
-		err := mongo.metaDB.MarkDBImported(database, true)
-		if err != nil {
-			mongo.logger.WithFields(log.Fields{
-				"database": database,
-				"error":    err.Error(),
-			}).Error("Failed to mark import of database as finished")
-		}
+		//swallow err as err is logged in metadb
+		//the current code cannot recover from this error without
+		//a bit of a rewrite
+		mongo.metaDB.MarkDBImported(database, true)
 	}
 	mongo.writeMap.rwLock.Unlock()
 }

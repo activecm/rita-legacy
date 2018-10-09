@@ -198,7 +198,8 @@ func (m *MetaDB) MarkDBAnalyzed(name string, complete bool) error {
 	return nil
 }
 
-// GetDBMetaInfo returns a meta db entry
+// GetDBMetaInfo returns a meta db entry. This is the only function which
+// returns DBMetaInfo to code outside of meta.go.
 func (m *MetaDB) GetDBMetaInfo(name string) (DBMetaInfo, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -206,7 +207,33 @@ func (m *MetaDB) GetDBMetaInfo(name string) (DBMetaInfo, error) {
 	defer ssn.Close()
 	var result DBMetaInfo
 	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"name": name}).One(&result)
+	if err != nil {
+		return result, err
+	}
+	result, err = migrateDBMetaInfo(result)
 	return result, err
+}
+
+//migrateDBMetaInfo is used to ensure compatibility with previous database schemas.
+//migrateDBMetaInfo does not migrate any data in the database. Rather,
+//it converts old DBMetaInfo representations into new ones in memory.
+//We follow the reasoning that RITA should be able to read documents from
+//older versions.
+func migrateDBMetaInfo(inInfo DBMetaInfo) (DBMetaInfo, error) {
+	inVersion, err := semver.ParseTolerant(inInfo.ImportVersion)
+	if err != nil {
+		return inInfo, err
+	}
+	if inVersion.LT(semver.Version{Major: 1, Minor: 1, Patch: 0}) {
+		/*
+		*	Before version 1.1.0, database records in the MetaDB lacked
+		* the ImportFinished flag. The flag was introduced to prevent
+		* the simultaneous import and analysis of a database.
+		* See: https://github.com/activecm/rita/blob/9fd7ed84a1bad3aba879e890fad83152266c8156/database/meta.go#L26
+		 */
+		inInfo.ImportFinished = true
+	}
+	return inInfo, nil
 }
 
 // GetDatabases returns a list of databases being tracked in metadb or an empty array on failure
@@ -281,28 +308,12 @@ func (m *MetaDB) GetAnalyzeReadyDatabases() []string {
 	var results []string
 	var cur DBMetaInfo
 
-	//migrate old datasets without the import_finished field
+	//note import_finished is queried as {"$ne": false} rather than just true
+	//since prior to version 1.1.0, the field did not exist.
 	iter := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(
 		bson.M{
-			"import_finished": bson.M{"$exists": false},
-		},
-	).Iter()
-	for iter.Next(&cur) {
-		m.lock.Unlock()
-		err := m.MarkDBImported(cur.Name, true)
-		m.lock.Lock()
-		if err != nil {
-			m.log.WithFields(log.Fields{
-				"err": err,
-			}).Error("Could not add import_finished field to old databases")
-		}
-	}
-	//end migratoin
-
-	iter = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(
-		bson.M{
 			"analyzed":        false,
-			"import_finished": true,
+			"import_finished": bson.M{"$ne": false},
 		},
 	).Iter()
 	for iter.Next(&cur) {
