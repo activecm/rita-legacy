@@ -18,6 +18,7 @@ func main() {
 	// Change the version string with updates so that a quick help command will
 	// let the testers know what version of HT they're on
 	app.Version = config.Version
+	app.EnableBashCompletion = true
 
 	// Define commands used with this application
 	app.Commands = commands.Commands()
