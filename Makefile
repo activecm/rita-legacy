@@ -19,7 +19,7 @@ cache = $(if $(cached-$1),,$(eval cached-$1 := 1)$(eval cache-$1 := $($1)))$(cac
 $(BINARY): vendor $(SRC)
 	go build ${LDFLAGS}
 
-$(AUTOPATH):
+$(AUTOPATH): vendor
 	mkdir -p /etc/bash_completion.d/
 	sudo cp vendor/github.com/urfave/cli/autocomplete/bash_autocomplete $(AUTOPATH)
 

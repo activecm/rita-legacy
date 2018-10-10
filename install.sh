@@ -340,6 +340,7 @@ __install_rita() {
 	chmod 755 "$_VAR_PATH"
 	chmod 666 "$_VAR_PATH/safebrowsing"
 
+	mkdir -p /etc/bash_completion.d/
 	curl -sSL "https://raw.githubusercontent.com/urfave/cli/master/autocomplete/bash_autocomplete" -o "/etc/bash_completion.d/rita"
 }
 
