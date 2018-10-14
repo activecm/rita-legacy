@@ -27,7 +27,7 @@ type (
 
 	//UserCfgStaticCfg contains
 	UserCfgStaticCfg struct {
-		UpdateCheckFrequency    int    `yaml:"UpdateCheckFrequency"`
+		UpdateCheckFrequency    *int   `yaml:"UpdateCheckFrequency,omitempty"`
 	}
 
 

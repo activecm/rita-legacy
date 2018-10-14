@@ -1,6 +1,3 @@
-UserConfig:
-    # Number of days before checking for a new version of RITA.
-    UpdateCheckFrequency: 14
 MongoDB:
     # See https://docs.mongodb.com/manual/reference/connection-string/
     ConnectionString: mongodb://localhost:27017
@@ -54,6 +51,11 @@ Bro:
     # the size of the buffer will improve import timings at the expense
     # of using more RAM.
     ImportBuffer: 30000
+
+UserConfig:
+    # Number of days before checking for a new version of RITA.
+    # A value of zero here will disable checking.
+    UpdateCheckFrequency: 14
 
 BlackListed:
     # These are blacklists built into rita-blacklist. Set these to false
