@@ -57,14 +57,21 @@ func NewMetaDB(config *config.Config, dbHandle *mgo.Session,
 	return metaDB
 }
 
-func (m *MetaDB) LastCheck() (time.Time, string) {
+func (m *MetaDB) LastCheck() (time.Time, semver.Version) {
 	ssn := m.dbHandle.Copy();
 
 	iter := ssn.DB(m.config.S.Bro.MetaDB).C("logs").Find(bson.M{"Message":"Checking versions..."}).Sort("-Time").Iter();
 
 	var db LogInfo
 	iter.Next(&db)
-	return db.Time, db.Version
+
+	retVersion , err := semver.ParseTolerant( db.Version )
+
+	if err == nil {
+		return db.Time, retVersion
+	}
+
+	return time.Time{}, semver.Version{}
 }
 
 // AddNewDB adds a new database to the DBMetaInfo table

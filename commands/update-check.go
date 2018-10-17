@@ -3,22 +3,37 @@ package commands
 import (
 	"time"
 	"strings"
-	"strconv"
 	"context"
+	"fmt"
 
+	"github.com/blang/semver"
+	"github.com/urfave/cli"
 	"github.com/google/go-github/github"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/config"
 	log "github.com/sirupsen/logrus"
 )
 
+//Strings used for informing the user of a new version.
+var informFmtStr string = "\nTheres a new %s version of RITA %s available at:\nhttps://github.com/activecm/rita/releases\n"
+var versions = []string{ "Major", "Minor", "Patch" }
+
+func GetVersionPrinter() func( *cli.Context){
+	return  func(c *cli.Context) {
+		fmt.Printf("%s version %s\n", c.App.Name, c.App.Version)
+		fmt.Printf( updateCheck(c.String("config")) )
+	}
+}
+
 // UpdateCheck Performs a check for the new version of RITA against the git repository and
 //returns a string indicating the new version if available
-func UpdateCheck( configFile string) string {
+func updateCheck( configFile string) string {
 	res := resources.InitResources( configFile )
 	deltaPtr := res.Config.S.UserConfig.UpdateCheckFrequency
-	var version string
+	var newVersion semver.Version
+	var err error
 	var delta int
+	var timestamp time.Time
 
 	if deltaPtr == nil {
 		delta = 14
@@ -32,12 +47,12 @@ func UpdateCheck( configFile string) string {
 
 	//Check Logs for Versioning
 	m := res.MetaDB
-	timestamp, version := m.LastCheck()
+	timestamp, newVersion = m.LastCheck()
 
 	days := time.Now().Sub( timestamp ).Hours()/24
 
 	if days > float64(delta) {
-		version, err := getRemoteVersion()
+		newVersion, err = getRemoteVersion()
 
 		if err != nil {
 			return ""
@@ -47,75 +62,54 @@ func UpdateCheck( configFile string) string {
 		res.Log.WithFields(log.Fields{
 			"Message":  "Checking versions...",
 			"LastUpdateCheck": time.Now(),
-			"NewestVersion": version,
+			"NewestVersion": fmt.Sprint(newVersion),
 		}).Info("Checking for new version")
+
 	}
 
-	index, err := versionCmp( version, config.Version )
-	if err == nil  && index != -1 {
-		return informUser( version, index )
+	configVersion ,err := semver.ParseTolerant( config.Version )
+	if err != nil {
+		return ""
+	}
+
+	if newVersion.GT(configVersion) {
+		return informUser( configVersion, newVersion )
 	}
 
 	return ""
 }
 
-// Checks if s1 is newer than s2
-// Returns the first index where s1 is greater than s2
-// Returns -1 if s2 is newer than s1
-func versionCmp( s1 string, s2 string) (int, error) {
-	arr1 := parseVersion( s1 )
-	arr2 := parseVersion( s2 )
-	var i int
+// Returns the first index where v1 is greater than v2
+func versionDiffIndex( v1 semver.Version, v2 semver.Version) int {
 
-	for i = 0; i < len(arr1) || i < len(arr2); i++ {
-
-		val1, err1 := strconv.Atoi( arr1[i] )
-		if err1 != nil {
-			return -1, err1
-		}
-
-		val2, err2 := strconv.Atoi( arr2[i] )
-		if err2 != nil {
-			return -1, err2
-		}
-
-		if  val1 > val2 {
-			return i, nil
-		}
+	if v1.Major > v2.Major {
+		return 0
+	}
+	if v1.Minor > v2.Minor {
+		return 1
 	}
 
-	return -1, nil
+	return 2
 }
 
-// Versions look like "v#.#.#". Returns just the numbers.
-func parseVersion( s string ) []string {
-	t := strings.Trim(s, "v\n")
-	return strings.Split( t, "." )
-}
-
-func getRemoteVersion() (string, error){
+func getRemoteVersion() (semver.Version, error){
 	client := github.NewClient(nil)
 	refs, _, err := client.Git.GetRefs( context.Background(), "activecm", "rita", "refs/tags/v")
 
 	if err == nil {
 		s := strings.TrimPrefix( *refs[len(refs)-1].Ref, "refs/tags/")
-		return s, nil
+		return semver.ParseTolerant(s)
 	} else {
-		return "", err
+		return semver.Version{}, err
 	}
 }
 
 // Assembles a notice for the user informing them of an upgrade.
 // The return value is printed regardless so, "" is returned on errror.
-func informUser( verStr string, index int ) string {
-	var ret string;
-	var versions [3]string;
-	versions[0] = "Major "
-	versions[1] = "Minor "
-	versions[2] = "Patch "
+//func informUser( verStr string, index int ) string {
+func informUser( local semver.Version, remote semver.Version ) string {
 
-	ret += "\nTheres a new " + versions[index]
-	ret += "version of RITA " + verStr + " available at:\n"
-	ret += "https://github.com/activecm/rita\n"
-	return ret
+	return fmt.Sprintf(informFmtStr,
+			versions[versionDiffIndex(remote,local)],
+			fmt.Sprint(remote))
 }

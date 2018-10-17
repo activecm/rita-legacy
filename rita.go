@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"runtime"
-	"fmt"
 
 	"github.com/activecm/rita/commands"
 	"github.com/activecm/rita/config"
@@ -16,10 +15,7 @@ func main() {
 	app.Name = "rita"
 	app.Usage = "Look for evil needles in big haystacks."
 
-	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Printf("%s version %s\n", c.App.Name, c.App.Version)
-		fmt.Printf( commands.UpdateCheck(c.String("config")) )
-	}
+	cli.VersionPrinter = commands.GetVersionPrinter();
 
 	// Change the version string with updates so that a quick help command will
 	// let the testers know what version of HT they're on

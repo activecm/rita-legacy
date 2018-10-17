@@ -26,7 +26,7 @@ func init() {
 		},
 		Action: func( c* cli.Context) error{
 				r := doImport( c )
-				fmt.Printf( UpdateCheck( c.String("config")))
+				fmt.Printf( updateCheck( c.String("config")))
 				return r
 			},
 	}
