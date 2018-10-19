@@ -59,6 +59,7 @@ func NewMetaDB(config *config.Config, dbHandle *mgo.Session,
 
 func (m *MetaDB) LastCheck() (time.Time, semver.Version) {
 	ssn := m.dbHandle.Copy();
+	defer ssn.Close()
 
 	iter := ssn.DB(m.config.S.Bro.MetaDB).C("logs").Find(bson.M{"Message":"Checking versions..."}).Sort("-Time").Iter();
 
