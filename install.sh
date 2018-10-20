@@ -5,6 +5,7 @@
 
 # CONSTANTS
 _RITA_VERSION="v1.1.0"
+_MONGO_VERSION="3.6"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
 _SUCCESS="\e[92mSUCCESS\e[0m"
@@ -138,6 +139,8 @@ __install() {
 	if [ "$_INSTALL_MONGO" = "true" ]; then
 		if [ "$_MONGO_INSTALLED" = "false" ]; then
 			__load "$_ITEM Installing MongoDB" __install_mongodb
+		elif ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_VERSION" ; then
+			__load "$_ITEM Updating MongoDB" __install_mongodb
 		else
 			printf "$_ITEM MongoDB is already installed \n"
 		fi
@@ -258,14 +261,16 @@ __add_bro_to_path() {
 __install_mongodb() {
 	case "$_OS" in
 		Ubuntu)
-			__add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/3.6 multiverse" \
-				"MongoDB" \
-				"https://www.mongodb.org/static/pgp/server-3.6.asc"
+			__add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/${_MONGO_VERSION} multiverse" \
+				"mongodb-org-${_MONGO_VERSION}" \
+				"https://www.mongodb.org/static/pgp/server-${_MONGO_VERSION}.asc"
 			;;
 		CentOS)
-			if [ ! -s /etc/yum.repos.d/mongodb-org-3.6.repo ]; then
-				echo -e '[mongodb-org-3.6]\nname=MongoDB Repository\nbaseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/3.6/x86_64/\ngpgcheck=1\nenabled=1\ngpgkey=https://www.mongodb.org/static/pgp/server-3.6.asc' | tee /etc/yum.repos.d/mongodb-org-3.6.repo > /dev/null
+			# __add_rpm_repo "https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/${_MONGO_VERSION}/x86_64/"
+			if [ ! -s /etc/yum.repos.d/mongodb-org-${_MONGO_VERSION}.repo ]; then
+				echo -e '[mongodb-org-${_MONGO_VERSION}]\nname=MongoDB Repository\nbaseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/${_MONGO_VERSION}/x86_64/\ngpgcheck=1\nenabled=1\ngpgkey=https://www.mongodb.org/static/pgp/server-${_MONGO_VERSION}.asc' | tee /etc/yum.repos.d/mongodb-org-${_MONGO_VERSION}.repo > /dev/null
 			fi
+			__freshen_packages
 			;;
 	esac
 	__install_packages mongodb-org
@@ -420,6 +425,7 @@ __gather_mongo() {
 	_MONGO_INSTALLED=false
 	if __package_installed mongodb-org; then
 		_MONGO_INSTALLED=true
+		_MONGO_INSTALLED_VERSION="$(__package_version mongodb-org)"
 	fi
 }
 
@@ -521,6 +527,59 @@ __package_installed() {
 		dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q "ok installed"
 	elif [ $_PKG_MGR -eq 2 ]; then # yum and dnf
 		rpm -q "$1" >/dev/null
+	fi
+}
+
+__package_version() {
+	if ! __package_installed "$1"; then
+		echo ""
+	fi
+
+	if [ $_PKG_MGR -eq 1 ]; then # apt
+		echo $(dpkg-query -W -f '${Version}' "$1")
+	elif [ $_PKG_MGR -eq 2 ]; then # yum and dnf
+		echo $(rpm -qa --queryformat='%{VERSION}' "$1")
+	fi
+}
+
+__satisfies_version() {
+	local installed="$1"
+	local desired="$2"
+	local installed_major="$(echo $installed | cut -d'.' -f1)"
+	local installed_minor="$(echo $installed | cut -d'.' -f2)"
+	local installed_patch="$(echo $installed | cut -d'.' -f3)"
+	local desired_major="$(echo $desired | cut -d'.' -f1)"
+	local desired_minor="$(echo $desired | cut -d'.' -f2)"
+	local desired_patch="$(echo $desired | cut -d'.' -f3)"
+
+	# Set any empty values to 0. echo > /dev/null is to prevent invoking values as commands
+	# http://wiki.bash-hackers.org/syntax/pe#assign_a_default_value
+	echo ${installed_major:=0} > /dev/null
+	echo ${installed_minor:=0} > /dev/null
+	echo ${installed_patch:=0} > /dev/null
+	echo ${desired_major:=0} > /dev/null
+	echo ${desired_minor:=0} > /dev/null
+	echo ${desired_patch:=0} > /dev/null
+
+	if [ "$installed_major" -lt "$desired_major" ]; then
+		false; return
+	elif [ "$installed_major" -gt "$desired_major" ]; then
+		true; return
+	fi
+	# else major versions are equal and we need to check minor
+	if [ "$installed_minor" -lt "$desired_minor" ]; then
+		false; return
+	elif [ "$installed_minor" -gt "$desired_minor" ]; then
+		true; return
+	fi
+	# else minor versions are equal and we need to check patch
+	if [ "$installed_patch" -lt "$desired_patch" ]; then
+		false; return
+	elif [ "$installed_patch" -gt "$desired_patch" ]; then
+		true; return
+	else
+		# installed version is exactly equal to desired version
+		true; return
 	fi
 }
 
