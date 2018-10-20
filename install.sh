@@ -542,9 +542,14 @@ __package_version() {
 	fi
 }
 
+# Compares two version strings to determine if the first is
+# less than or equal to the second. Version strings are expected
+# to be in the form: 1.2.3, 1.2, or 1
 __satisfies_version() {
 	local installed="$1"
 	local desired="$2"
+
+	# Break apart version strings like 1.2.3 into major.minor.patch
 	local installed_major="$(echo $installed | cut -d'.' -f1)"
 	local installed_minor="$(echo $installed | cut -d'.' -f2)"
 	local installed_patch="$(echo $installed | cut -d'.' -f3)"
@@ -552,14 +557,13 @@ __satisfies_version() {
 	local desired_minor="$(echo $desired | cut -d'.' -f2)"
 	local desired_patch="$(echo $desired | cut -d'.' -f3)"
 
-	# Set any empty values to 0. echo > /dev/null is to prevent invoking values as commands
-	# http://wiki.bash-hackers.org/syntax/pe#assign_a_default_value
-	echo ${installed_major:=0} > /dev/null
-	echo ${installed_minor:=0} > /dev/null
-	echo ${installed_patch:=0} > /dev/null
-	echo ${desired_major:=0} > /dev/null
-	echo ${desired_minor:=0} > /dev/null
-	echo ${desired_patch:=0} > /dev/null
+	# Set any empty values to 0
+	if [ -z "$installed_major" ]; then installed_major=0; fi
+	if [ -z "$installed_minor" ]; then installed_minor=0; fi
+	if [ -z "$installed_patch" ]; then installed_patch=0; fi
+	if [ -z "$desired_major" ]; then desired_major=0; fi
+	if [ -z "$desired_minor" ]; then desired_minor=0; fi
+	if [ -z "$desired_patch" ]; then desired_patch=0; fi
 
 	if [ "$installed_major" -lt "$desired_major" ]; then
 		false; return
