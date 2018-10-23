@@ -4,7 +4,7 @@
 # activecountermeasures.com
 
 # CONSTANTS
-_RITA_VERSION="v1.0.3"
+_RITA_VERSION="v1.1.0"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
 _SUCCESS="\e[92mSUCCESS\e[0m"
@@ -339,6 +339,9 @@ __install_rita() {
 	touch "$_VAR_PATH/safebrowsing"
 	chmod 755 "$_VAR_PATH"
 	chmod 666 "$_VAR_PATH/safebrowsing"
+
+	mkdir -p /etc/bash_completion.d/
+	curl -sSL "https://raw.githubusercontent.com/urfave/cli/master/autocomplete/bash_autocomplete" -o "/etc/bash_completion.d/rita"
 }
 
 # INFORMATION GATHERING

@@ -47,7 +47,7 @@ func analyze(inDb string, configFile string) error {
 	// Check to see if we want to run a full database or just one off the command line
 	if inDb == "" {
 		res.Log.Info("Running analysis against all databases")
-		toRunDirty = append(toRun, res.MetaDB.GetUnAnalyzedDatabases()...)
+		toRunDirty = append(toRun, res.MetaDB.GetAnalyzeReadyDatabases()...)
 	} else {
 		toRunDirty = append(toRun, inDb)
 	}
@@ -57,6 +57,12 @@ func analyze(inDb string, configFile string) error {
 		info, err := res.MetaDB.GetDBMetaInfo(possDB)
 		if err != nil {
 			errStr := fmt.Sprintf("Error: %s not found.", possDB)
+			res.Log.Errorf(errStr)
+			fmt.Println(errStr)
+			continue
+		}
+		if !info.ImportFinished {
+			errStr := fmt.Sprintf("Error: %s hasn't finished being imported.", possDB)
 			res.Log.Errorf(errStr)
 			fmt.Println(errStr)
 			continue
