@@ -3,6 +3,7 @@ package database
 import (
 	"os"
 	"sync"
+	"time"
 
 	"github.com/activecm/rita/config"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
@@ -20,6 +21,14 @@ type (
 		config   *config.Config // configuration info
 		dbHandle *mgo.Session   // Database handle
 		log      *log.Logger    // Logging object
+	}
+
+        // LogInfo defines information about the UpdateChecker log
+	LogInfo struct {
+		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
+		Time           time.Time     `bson:"LastUpdateCheck"` // Top level name of the database
+		Message        string        `bson:"Message"`            // Top level name of the database
+		Version        string        `bson:"NewestVersion"`      // Top level name of the database
 	}
 
 	// DBMetaInfo defines some information about the database
@@ -47,6 +56,24 @@ func NewMetaDB(config *config.Config, dbHandle *mgo.Session,
 		metaDB.createMetaDB()
 	}
 	return metaDB
+}
+
+func (m *MetaDB) LastCheck() (time.Time, semver.Version) {
+	ssn := m.dbHandle.Copy();
+	defer ssn.Close()
+
+	iter := ssn.DB(m.config.S.Bro.MetaDB).C("logs").Find(bson.M{"Message":"Checking versions..."}).Sort("-Time").Iter();
+
+	var db LogInfo
+	iter.Next(&db)
+
+	retVersion , err := semver.ParseTolerant( db.Version )
+
+	if err == nil {
+		return db.Time, retVersion
+	}
+
+	return time.Time{}, semver.Version{}
 }
 
 // AddNewDB adds a new database to the DBMetaInfo table

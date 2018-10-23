@@ -15,6 +15,8 @@ func main() {
 	app.Name = "rita"
 	app.Usage = "Look for evil needles in big haystacks."
 
+	cli.VersionPrinter = commands.GetVersionPrinter();
+
 	// Change the version string with updates so that a quick help command will
 	// let the testers know what version of HT they're on
 	app.Version = config.Version

@@ -41,16 +41,16 @@
   version = "v3.5.1"
 
 [[projects]]
-  digest = "1:56c130d885a4aacae1dd9c7b71cfe39912c7ebc1ff7d2b46083c8812996dc43b"
+  digest = "1:0deddd908b6b4b768cfc272c16ee61e7088a60f7fe2f06c547bd3d8e1f8b8e77"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   pruneopts = ""
-  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
-  version = "v1.1.0"
+  revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
+  version = "v1.1.1"
 
 [[projects]]
   branch = "master"
-  digest = "1:c1e35087694b689ce1cf4f4277612b6ac0b55725fa791271ae0e3ddcd1cc0c7b"
+  digest = "1:e9ffb9315dce0051beb757d0f0fc25db57c4da654efc4eada4ea109c2d9da815"
   name = "github.com/globalsign/mgo"
   packages = [
     ".",
@@ -60,45 +60,69 @@
     "internal/scram",
   ]
   pruneopts = ""
-  revision = "113d3961e7311526535a1ef7042196563d442761"
+  revision = "eeefdecb41b842af6dc652aaea4026e8403e62df"
 
 [[projects]]
-  digest = "1:f958a1c137db276e52f0b50efee41a1a389dcdded59a69711f3e872757dab34b"
+  digest = "1:3dd078fda7500c341bc26cfbc6c6a34614f295a2457149fc1045cab767cbcf18"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
     "ptypes/duration",
   ]
   pruneopts = ""
-  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
-  version = "v1.1.0"
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
+
+[[projects]]
+  digest = "1:4f646745e87604d6ac39bd2a96b3c2f4a898d1866069fff26b8281d6f84b919e"
+  name = "github.com/google/go-github"
+  packages = ["github"]
+  pruneopts = ""
+  revision = "f55b50f38167644bb7e4be03d9a2bde71d435239"
+  version = "v18.2.0"
+
+[[projects]]
+  digest = "1:cea4aa2038169ee558bf507d5ea02c94ca85bcca28a4c7bb99fd59b31e43a686"
+  name = "github.com/google/go-querystring"
+  packages = ["query"]
+  pruneopts = ""
+  revision = "44c6ddd0a2342c386950e880b658017258da92fc"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
-  digest = "1:e6606f5d677a5d893782794ba17f843057bbcea4151c87ca60eef47c6bd8a1dd"
+  digest = "1:7453365fbe13392fa8d3e893d62b8e8dff70c19b979c45ffaf54a7e6b6ec7064"
   name = "github.com/google/safebrowsing"
   packages = [
     ".",
     "internal/safebrowsing_proto",
   ]
   pruneopts = ""
-  revision = "fe6951d7ef01b4e46d3008e8a08b55bcdf3c0ee6"
+  revision = "456c2058968cdccc138b8ec0b27a76114fe82ce7"
 
 [[projects]]
-  digest = "1:81e673df85e765593a863f67cba4544cf40e8919590f04d67664940786c2b61a"
+  digest = "1:6a874e3ddfb9db2b42bd8c85b6875407c702fa868eed20634ff489bc896ccfd3"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = ""
+  revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
+  version = "v1.0.1"
+
+[[projects]]
+  digest = "1:82b912465c1da0668582a7d1117339c278e786c2536b3c3623029a0c7141c2d0"
   name = "github.com/mattn/go-runewidth"
   packages = ["."]
   pruneopts = ""
-  revision = "9e777a8366cce605130a531d2cd6363d07ad7317"
-  version = "v0.0.2"
+  revision = "ce7b0b5c7b45a81508558cd1dba6bb1e4ddb51bb"
+  version = "v0.0.3"
 
 [[projects]]
   branch = "master"
-  digest = "1:816e800c7b5689e114c0dc6acf494553d1e7a52575764c5d6de67fb32bd8bbb2"
+  digest = "1:171c1337a8ad95624633b9a66fe318b4a1de286440c7efccdc21c86c773674ad"
   name = "github.com/olekukonko/tablewriter"
   packages = ["."]
   pruneopts = ""
-  revision = "d4647c9c7a84d847478d890b816b7d8b62b0b279"
+  revision = "be2c049b30ccd4d3fd795d6bf7dce74e42eeedaa"
 
 [[projects]]
   digest = "1:256484dbbcd271f9ecebc6795b2df8cad4c458dd0f5fd82a8c2fa0c29f233411"
@@ -109,20 +133,20 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:dbcda8b78eff6b96910dae77e3d05d2b0766ed18554a3f668b2d37f25c044685"
+  digest = "1:463cf5034cda51cdb4ce56d317c1c1343be898c2bb5e576666394d53f4ba28cd"
   name = "github.com/rifflock/lfshook"
   packages = ["."]
   pruneopts = ""
-  revision = "bf539943797a1f34c1f502d07de419b5238ae6c6"
-  version = "v2.3"
+  revision = "b9218ef580f59a2e72dad1aa33d660150445d05a"
+  version = "v2.4"
 
 [[projects]]
-  digest = "1:8cf46b6c18a91068d446e26b67512cf16f1540b45d90b28b9533706a127f0ca6"
+  digest = "1:5f48b818f16848d05cf74f4cbdd0cbe9e0dcddb3c459b4c510c6e2c8e1b4dff1"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = ""
-  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
-  version = "v1.0.5"
+  revision = "ad15b42461921f1fb3529b058c6786c6a45d5162"
+  version = "v1.1.1"
 
 [[projects]]
   branch = "master"
@@ -153,30 +177,30 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6ef14be530be39b6b9d75d54ce1d546ae9231e652d9e3eef198cbb19ce8ed3e7"
+  digest = "1:78f41d38365ccef743e54ed854a2faf73313ba0750c621116a8eeb0395590bd0"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
   pruneopts = ""
-  revision = "a49355c7e3f8fe157a85be2f77e6e269a0f89602"
+  revision = "0c41d7ab0a0ee717d4590a44bcb987dfd9e183eb"
 
 [[projects]]
   branch = "master"
-  digest = "1:7a2d59e5fc661ccf4ae7dc301c1a7332ec59b2ee435f78aa3eaa65cacb256370"
+  digest = "1:6543c75ddc1efc0041202dd49378ee2e5711b7cc82c2845c0437eef6276cc984"
   name = "golang.org/x/net"
   packages = ["idna"]
   pruneopts = ""
-  revision = "d0887baf81f4598189d4e12a37c6da86f0bba4d0"
+  revision = "04a2e542c03f1d053ab3e4d6e5abcd4b66e2be8e"
 
 [[projects]]
   branch = "master"
-  digest = "1:19f072f12708aaafef9064b49432953e3f813a98fcb356b30831cf2b0f5272b3"
+  digest = "1:03a1b1f2bfb0a6b2291c4161032429b1e8a1f23cc68530ad64358f8b493ead5f"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = ""
-  revision = "1b2967e3c290b7c545b3db0deeda16e9be4f98a2"
+  revision = "8a28ead16f52c8aaeffbf79239b251dfdf6c4f96"
 
 [[projects]]
   digest = "1:5acd3512b047305d49e8763eef7ba423901e85d5dd2fd1e71778a0ea8de10bd4"
@@ -223,6 +247,7 @@
     "github.com/blang/semver",
     "github.com/globalsign/mgo",
     "github.com/globalsign/mgo/bson",
+    "github.com/google/go-github/github",
     "github.com/olekukonko/tablewriter",
     "github.com/rifflock/lfshook",
     "github.com/sirupsen/logrus",

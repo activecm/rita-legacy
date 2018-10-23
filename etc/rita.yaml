@@ -52,6 +52,11 @@ Bro:
     # of using more RAM.
     ImportBuffer: 30000
 
+UserConfig:
+    # Number of days before checking for a new version of RITA.
+    # A value of zero here will disable checking.
+    UpdateCheckFrequency: 14
+
 BlackListed:
     # These are blacklists built into rita-blacklist. Set these to false
     # to disable checks against them.
