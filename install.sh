@@ -141,6 +141,8 @@ __install() {
 			__load "$_ITEM Installing MongoDB" __install_mongodb
 		elif ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_VERSION" ; then
 			__load "$_ITEM Updating MongoDB" __install_mongodb
+			# Need to also install all the components of the mongodb-org metapackage for Ubuntu
+			__install_packages mongodb-org-mongos mongodb-org-server mongodb-org-shell mongodb-org-tools
 		else
 			printf "$_ITEM MongoDB is already installed \n"
 		fi
