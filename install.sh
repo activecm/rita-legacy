@@ -266,9 +266,15 @@ __install_mongodb() {
 				"https://www.mongodb.org/static/pgp/server-${_MONGO_VERSION}.asc"
 			;;
 		CentOS)
-			# __add_rpm_repo "https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/${_MONGO_VERSION}/x86_64/"
 			if [ ! -s /etc/yum.repos.d/mongodb-org-${_MONGO_VERSION}.repo ]; then
-				echo -e '[mongodb-org-${_MONGO_VERSION}]\nname=MongoDB Repository\nbaseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/${_MONGO_VERSION}/x86_64/\ngpgcheck=1\nenabled=1\ngpgkey=https://www.mongodb.org/static/pgp/server-${_MONGO_VERSION}.asc' | tee /etc/yum.repos.d/mongodb-org-${_MONGO_VERSION}.repo > /dev/null
+				cat << EOF > /etc/yum.repos.d/mongodb-org-${_MONGO_VERSION}.repo
+[mongodb-org-${_MONGO_VERSION}]
+name=MongoDB Repository
+baseurl=https://repo.mongodb.org/yum/redhat/\$releasever/mongodb-org/${_MONGO_VERSION}/x86_64/
+gpgcheck=1
+enabled=1
+gpgkey=https://www.mongodb.org/static/pgp/server-${_MONGO_VERSION}.asc
+EOF
 			fi
 			__freshen_packages
 			;;
