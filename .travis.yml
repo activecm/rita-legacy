@@ -36,4 +36,4 @@ script:
   - go test -v -race ./...
   # Test the installer
   # todo: Run as a cron job
-  - bash yes '' | sudo ./install.sh --disable-bro
+  #- bash ./test-install.sh
