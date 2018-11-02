@@ -20,7 +20,7 @@ func TestWriter(t *testing.T) {
 	}
 	writer.close()
 
-	var writtenData []dataBeacon.BeaconAnalysisOutput
+	var writtenData []dataBeacon.AnalysisOutput
 	res.DB.Session.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(nil).All(&writtenData)
 	require.ElementsMatch(t, writerTestDataList, writtenData)
 }

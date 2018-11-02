@@ -139,7 +139,7 @@ func (mongo *MongoDatastore) getCollectionMap(data *ImportedData) (*collectionMa
 
 	//iterate over indices to save RAM
 	//nolint: golint
-	for i, _ := range mongo.analyzedDBs {
+	for i := range mongo.analyzedDBs {
 		if mongo.analyzedDBs[i] == data.TargetDatabase {
 			return nil, errors.New("cannot import bro data into already analyzed database")
 		}
@@ -148,7 +148,7 @@ func (mongo *MongoDatastore) getCollectionMap(data *ImportedData) (*collectionMa
 	//check if the database was created in an earlier parse
 	targetDBExists := false
 	//nolint: golint
-	for i, _ := range mongo.unanalyzedDBs {
+	for i := range mongo.unanalyzedDBs {
 		if mongo.unanalyzedDBs[i] == data.TargetDatabase {
 			targetDBExists = true
 		}

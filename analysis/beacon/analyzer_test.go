@@ -12,12 +12,12 @@ import (
 
 func TestAnalyzer(t *testing.T) {
 	for _, val := range analyzerTestDataList {
-		analyzedChan := make(chan *dataBeacon.BeaconAnalysisOutput, 1)
+		analyzedChan := make(chan *dataBeacon.AnalysisOutput, 1)
 
 		analyzer := newAnalyzer(
 			5,                                //connection threshold
 			val.ts[0], val.ts[len(val.ts)-1], //min max times,
-			func(output *dataBeacon.BeaconAnalysisOutput) {
+			func(output *dataBeacon.AnalysisOutput) {
 				analyzedChan <- output
 			}, func() {
 				close(analyzedChan)

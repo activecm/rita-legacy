@@ -24,7 +24,7 @@ func printBeacons(db string, res *resources.Resources) error {
 	}
 
 	res.DB.SelectDB(db)
-	var data []beaconData.BeaconAnalysisView
+	var data []beaconData.AnalysisView
 	ssn := res.DB.Session.Copy()
 	beacon.GetBeaconResultsView(res, ssn, 0).All(&data)
 	ssn.Close()
@@ -37,11 +37,11 @@ func printBeacons(db string, res *resources.Resources) error {
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getBeaconWriter(beacons []beaconData.BeaconAnalysisView) (string, error) {
+func getBeaconWriter(beacons []beaconData.AnalysisView) (string, error) {
 	tmpl := "<tr><td>{{printf \"%.3f\" .Score}}</td><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.Connections}}</td><td>{{printf \"%.3f\" .AvgBytes}}</td><td>"
-	tmpl += "{{.TS_iRange}}</td><td>{{.DS_range}}</td><td>{{.TS_iMode}}</td><td>{{.DS_mode}}</td><td>{{.TS_iModeCount}}</td><td>{{.DS_modeCount}}<td>"
-	tmpl += "{{printf \"%.3f\" .TS_iSkew}}</td><td>{{printf \"%.3f\" .DS_skew}}</td><td>{{.TS_iDispersion}}</td><td>{{.DS_dispersion}}</td><td>"
-	tmpl += "{{printf \"%.3f\" .TS_duration}}</tr>\n"
+	tmpl += "{{.TSIRange}}</td><td>{{.DSRange}}</td><td>{{.TSIMode}}</td><td>{{.DSMode}}</td><td>{{.TSIModeCount}}</td><td>{{.DSModeCount}}<td>"
+	tmpl += "{{printf \"%.3f\" .TSISkew}}</td><td>{{printf \"%.3f\" .DSSkew}}</td><td>{{.TSIDispersion}}</td><td>{{.DSDispersion}}</td><td>"
+	tmpl += "{{printf \"%.3f\" .TSDuration}}</tr>\n"
 
 	out, err := template.New("beacon").Parse(tmpl)
 	if err != nil {

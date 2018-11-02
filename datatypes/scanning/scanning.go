@@ -1,6 +1,7 @@
 package scanning
 
 type (
+	// Scan contains scan data
 	Scan struct {
 		ConnectionCount int     `bson:"connection_count"`
 		Src             string  `bson:"src"`
