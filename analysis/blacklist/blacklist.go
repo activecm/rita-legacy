@@ -13,8 +13,8 @@ import (
 	"github.com/activecm/rita-bl/sources/rpc"
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/resources"
-	log "github.com/sirupsen/logrus"
 	mgo "github.com/globalsign/mgo"
+	log "github.com/sirupsen/logrus"
 )
 
 type resultsChan chan map[string][]blDB.BlacklistResult

@@ -11,10 +11,10 @@ import (
 type (
 	//writer simply writes AnalysisOutput objects to the beacons collection
 	writer struct {
-		db           *database.DB                          // provides access to MongoDB
-		conf         *config.Config                        // contains details needed to access MongoDB
+		db           *database.DB                    // provides access to MongoDB
+		conf         *config.Config                  // contains details needed to access MongoDB
 		writeChannel chan *dataBeacon.AnalysisOutput // holds analyzed data
-		writeWg      sync.WaitGroup                        // wait for writing to finish
+		writeWg      sync.WaitGroup                  // wait for writing to finish
 	}
 )
 

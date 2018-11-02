@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/activecm/rita/parser/parsetypes"
-	"github.com/stretchr/testify/assert"
 	"github.com/globalsign/mgo/bson"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSanitizeHTTPRecord(t *testing.T) {

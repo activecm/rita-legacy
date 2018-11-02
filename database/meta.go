@@ -7,9 +7,9 @@ import (
 	"github.com/activecm/rita/config"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/blang/semver"
-	log "github.com/sirupsen/logrus"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
 )
 
 type (

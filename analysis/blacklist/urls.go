@@ -10,9 +10,9 @@ import (
 	data "github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/datatypes/urls"
 	"github.com/activecm/rita/resources"
-	log "github.com/sirupsen/logrus"
 	mgo "github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
 )
 
 type (

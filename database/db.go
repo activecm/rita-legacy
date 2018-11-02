@@ -7,9 +7,9 @@ import (
 	"github.com/activecm/mgosec"
 	"github.com/activecm/rita/config"
 	"github.com/blang/semver"
-	log "github.com/sirupsen/logrus"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
 )
 
 //MinMongoDBVersion is the lower, inclusive bound on the

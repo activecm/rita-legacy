@@ -14,13 +14,13 @@ type (
 	// analyzer implements the bulk of beaconing analysis, creating the scores
 	// for a given set of timestamps and data sizes
 	analyzer struct {
-		connectionThreshold int                                    // the minimum number of connections to be considered a beacon
-		minTime             int64                                  // beginning of the observation period
-		maxTime             int64                                  // ending of the observation period
+		connectionThreshold int                              // the minimum number of connections to be considered a beacon
+		minTime             int64                            // beginning of the observation period
+		maxTime             int64                            // ending of the observation period
 		analyzedCallback    func(*dataBeacon.AnalysisOutput) // called on each analyzed result
-		closedCallback      func()                                 // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel     chan *beaconAnalysisInput              // holds unanalyzed data
-		analysisWg          sync.WaitGroup                         // wait for analysis to finish
+		closedCallback      func()                           // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel     chan *beaconAnalysisInput        // holds unanalyzed data
+		analysisWg          sync.WaitGroup                   // wait for analysis to finish
 	}
 )
 
@@ -167,13 +167,13 @@ func (a *analyzer) start() {
 			tsDurationScore := duration
 
 			//smaller data sizes receive a higher score
-			dsSmallnessScore := 1.0 - (float64(dsMode) / 65535.0)
+			dsSmallnessScore := 1.0 - float64(dsMode)/65535.0
 			if dsSmallnessScore < 0 {
 				dsSmallnessScore = 0
 			}
 
 			output := &dataBeacon.AnalysisOutput{
-				UconnID:           data.uconnID,
+				UconnID:          data.uconnID,
 				TSISkew:          tsSkew,
 				TSIDispersion:    tsMadm,
 				TSDuration:       duration,
@@ -192,8 +192,8 @@ func (a *analyzer) start() {
 			}
 
 			//score numerators
-			tsSum := (tsSkewScore + tsMadmScore + tsDurationScore)
-			dsSum := (dsSkewScore + dsMadmScore + dsSmallnessScore)
+			tsSum := tsSkewScore + tsMadmScore + tsDurationScore
+			dsSum := dsSkewScore + dsMadmScore + dsSmallnessScore
 
 			//score averages
 			output.TSScore = tsSum / 3.0

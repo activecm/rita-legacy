@@ -7,7 +7,7 @@ import (
 
 var writerTestDataList = []dataBeacon.AnalysisOutput{
 	dataBeacon.AnalysisOutput{
-		UconnID:           bson.NewObjectId(),
+		UconnID:          bson.NewObjectId(),
 		TSIRange:         1,
 		TSIMode:          1,
 		TSIModeCount:     1,
@@ -25,10 +25,10 @@ var writerTestDataList = []dataBeacon.AnalysisOutput{
 		DSDispersion:     1,
 		DSSkew:           1.5,
 		DSScore:          1.5,
-		Score:             1.5,
+		Score:            1.5,
 	},
 	dataBeacon.AnalysisOutput{
-		UconnID:           bson.NewObjectId(),
+		UconnID:          bson.NewObjectId(),
 		TSIRange:         2,
 		TSIMode:          2,
 		TSIModeCount:     2,
@@ -46,10 +46,10 @@ var writerTestDataList = []dataBeacon.AnalysisOutput{
 		DSDispersion:     2,
 		DSSkew:           2.5,
 		DSScore:          2.5,
-		Score:             2.5,
+		Score:            2.5,
 	},
 	dataBeacon.AnalysisOutput{
-		UconnID:           bson.NewObjectId(),
+		UconnID:          bson.NewObjectId(),
 		TSIRange:         3,
 		TSIMode:          3,
 		TSIModeCount:     3,
@@ -67,6 +67,6 @@ var writerTestDataList = []dataBeacon.AnalysisOutput{
 		DSDispersion:     3,
 		DSSkew:           3.5,
 		DSScore:          3.5,
-		Score:             3.5,
+		Score:            3.5,
 	},
 }

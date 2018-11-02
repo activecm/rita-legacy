@@ -11,9 +11,9 @@ import (
 	"github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/datatypes/structure"
 	"github.com/activecm/rita/resources"
+	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
-	"github.com/globalsign/mgo/bson"
 )
 
 func init() {
