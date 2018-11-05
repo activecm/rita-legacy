@@ -13,6 +13,7 @@ import (
 type (
 	//StaticCfg is the container for other static config sections
 	StaticCfg struct {
+		UserConfig   UserCfgStaticCfg     `yaml:"UserConfig"`
 		MongoDB      MongoDBStaticCfg     `yaml:"MongoDB"`
 		Log          LogStaticCfg         `yaml:"LogConfig"`
 		Blacklisted  BlacklistedStaticCfg `yaml:"BlackListed"`
@@ -23,6 +24,12 @@ type (
 		Version      string
 		ExactVersion string
 	}
+
+	//UserCfgStaticCfg contains
+	UserCfgStaticCfg struct {
+		UpdateCheckFrequency    *int   `yaml:"UpdateCheckFrequency,omitempty"`
+	}
+
 
 	//MongoDBStaticCfg contains the means for connecting to MongoDB
 	MongoDBStaticCfg struct {
