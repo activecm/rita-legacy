@@ -23,12 +23,12 @@ type (
 		log      *log.Logger    // Logging object
 	}
 
-        // LogInfo defines information about the UpdateChecker log
+	// LogInfo defines information about the UpdateChecker log
 	LogInfo struct {
-		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
-		Time           time.Time     `bson:"LastUpdateCheck"` // Top level name of the database
-		Message        string        `bson:"Message"`            // Top level name of the database
-		Version        string        `bson:"NewestVersion"`      // Top level name of the database
+		ID      bson.ObjectId `bson:"_id,omitempty"`   // Ident
+		Time    time.Time     `bson:"LastUpdateCheck"` // Top level name of the database
+		Message string        `bson:"Message"`         // Top level name of the database
+		Version string        `bson:"NewestVersion"`   // Top level name of the database
 	}
 
 	// DBMetaInfo defines some information about the database
@@ -58,16 +58,17 @@ func NewMetaDB(config *config.Config, dbHandle *mgo.Session,
 	return metaDB
 }
 
+//LastCheck returns most recent version check
 func (m *MetaDB) LastCheck() (time.Time, semver.Version) {
-	ssn := m.dbHandle.Copy();
+	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	iter := ssn.DB(m.config.S.Bro.MetaDB).C("logs").Find(bson.M{"Message":"Checking versions..."}).Sort("-Time").Iter();
+	iter := ssn.DB(m.config.S.Bro.MetaDB).C("logs").Find(bson.M{"Message": "Checking versions..."}).Sort("-Time").Iter()
 
 	var db LogInfo
 	iter.Next(&db)
 
-	retVersion , err := semver.ParseTolerant( db.Version )
+	retVersion, err := semver.ParseTolerant(db.Version)
 
 	if err == nil {
 		return db.Time, retVersion

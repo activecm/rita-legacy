@@ -31,7 +31,7 @@ func init() {
 		},
 		Action: func(c *cli.Context) error {
 			r := analyze(c.Args().Get(0), c.String("config"))
-			fmt.Printf( updateCheck( c.String("config")))
+			fmt.Printf(updateCheck(c.String("config")))
 			return r
 		},
 	}
