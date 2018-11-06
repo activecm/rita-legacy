@@ -1,54 +1,70 @@
 
 ### Installation
 
-1. What you'll need:
-    * Bro [https://www.bro.org](https://www.bro.org)
-    * MongoDB [https://www.mongodb.com](https://www.mongodb.com)
-    * Golang [https://www.golang.org](https://www.golang.org)
-1. Install Bro [Optional]:
-    1. Follow the directions at [https://www.bro.org/sphinx/install/install.html](https://www.bro.org/sphinx/install/install.html)
-    1. Test that bro is working by firing up bro and ensuring that it's spitting out logs. If you're having some trouble with bro configuration or use, here are some helpful links:
-        * Bro quick start [https://www.bro.org/sphinx-git/quickstart/index.html](https://www.bro.org/sphinx-git/quickstart/index.html)
-        * broctl [https://www.bro.org/sphinx/components/broctl/README.html](https://www.bro.org/sphinx/components/broctl/README.html)
-1. Install MongoDB (You will need a version between 3.2.0 and 3.7.0 which is not included by default in the Ubuntu 16.04 package manager.)
-    * Follow the MongoDB installation guide at https://docs.mongodb.com/manual/installation/
-    * Download a version >= 3.2.0, but < 3.7.0 at https://www.mongodb.com/download-center?jmp=nav#community
-    * Ensure MongoDB is running before continuing  
-1. Install GoLang using the instructions at [https://golang.org/doc/install](https://golang.org/doc/install)
-    1. After the install we need to set a local GOPATH for our user. So lets set up a directory in our HomeDir
-        * ```mkdir -p $HOME/go/{src,pkg,bin}```
-    1. Now we must add the GoPath to our .bashrc file
-        * ```echo 'export GOPATH="$HOME/go"' >> $HOME/.bashrc```
-    1. We will also want to add our bin folder to the path for this user.
-        * ```echo 'export PATH="$PATH:$GOPATH/bin"' >> $HOME/.bashrc```
-    1. Load your new configurations with source.
-        * ```source $HOME/.bashrc```
-1. Getting RITA and building it
-  	1. First we want to use the go to grab sources and deps for rita.
-    	* ```go get github.com/activecm/rita```
-  	1. Now lets change to the rita directory.
-    	* ```cd $GOPATH/src/github.com/activecm/rita```
-  	1. Finally we'll build and install the rita binary.
-  		* ```make install```
-		* This will install to `$GOPATH/bin/rita` not `/usr/local/bin/rita`
-1. Configuring the system
-    1. Create a configuration directory at `/etc/rita`
-        * ```sudo mkdir /etc/rita```
-    1. Allow users to read the configuration directory
-        * ```sudo chmod 755 /etc/rita```
-    1. Create a runtime directory for rita at `/var/lib/rita`
-        * ```sudo mkdir -p /var/lib/rita/logs```
-    1. Allow users to write to the runtime directory
-        * ```sudo chmod 755 /var/lib/rita```
-        * ```sudo chmod 777 /var/lib/rita/logs```
-    1. Create the safebrowsing database file
-        * ```sudo touch /var/lib/rita/safebrowsing```
-    1. Allow users to write to the safebrowsing file
-        * ```sudo chmod 666 /var/lib/rita/safebrowsing```
-    1. Install the config file
-        * ```sudo cp etc/rita.yaml /etc/rita/config.yaml```
-    1. Allow users to write to the RITA config file
-        * ```sudo chmod 666 /etc/rita/config.yaml```
-    1. You can test a configuration file with ```rita test-config -c PATH/TO/FILE```
-        * There will be empty quotes or 0's assigned to empty fields
-    1. Follow the documentation in the Readme.md for configuring RITA
+This guide walks through installing several components.
+
+* [Bro/Zeek](https://www.bro.org)
+* [MongoDB](https://www.mongodb.com)
+* [RITA](https://github.com/activecm/rita/)
+
+#### Bro/Zeek
+
+Installing Bro is recommended. RITA needs Bro logs as input so if you already have Bro or its logs you can skip installing Bro.
+
+1. Follow the directions at [https://www.bro.org/sphinx/install/install.html](https://www.bro.org/sphinx/install/install.html).
+1. Use Bro's quick start guide to configure [https://www.bro.org/sphinx-git/quickstart/index.html](https://www.bro.org/sphinx-git/quickstart/index.html).
+
+#### MongoDB
+
+RITA requires Mongo for storing and processing data. The current recommended version is 3.6, but anything >= 3.2.0 and < 3.7.0 should work.
+
+1. Follow the MongoDB installation guide at https://docs.mongodb.com/manual/installation/
+    * Alternatively, this is a direct link to the [download page](https://www.mongodb.com/download-center?jmp=nav#community)
+1. Ensure MongoDB is running before running RITA.  
+
+#### RITA
+
+You have a few options for installing RITA.
+1. The main install script. You can disable Bro and Mongo from being installed with the `--disable-bro` and `--disable-mongo` flags.
+1. A prebuilt binary is available for download on [RITA's release page](https://github.com/activecm/rita/releases). In this case you will need to download the config file and create some directories manually, as described below in the "Configuring the system" section.
+1. [Use RITA with docker](Docker%20Usage.md)
+1. Compile RITA manually from source. See below.
+
+##### Installing Golang
+
+In order to compile RITA manually you will need to install both [Golang](https://golang.org) and [Dep](https://github.com/golang/dep).
+
+1. Install Golang using the instructions at [https://golang.org/doc/install](https://golang.org/doc/install)
+1. After the install we need to create a local Go development environment for our user. This is typically done in `$HOME/go` which is what the directions here will use.
+    1. ```mkdir -p $HOME/go/{src,pkg,bin}```
+1. Now we must add the `GOPATH` to our .bashrc file. We will also want to add our bin folder to the path for this user.
+    1. ```echo 'export GOPATH="$HOME/go"' >> $HOME/.bashrc```
+    1. ```echo 'export PATH="$PATH:$GOPATH/bin"' >> $HOME/.bashrc```
+    1. ```source $HOME/.bashrc```
+1. Install the depenency manager dep using [these instructions](https://golang.github.io/dep/docs/installation.html)
+
+##### Building RITA
+
+At this point we can build RITA from source code.
+
+1. ```go get github.com/activecm/rita```
+1. ```cd $GOPATH/src/github.com/activecm/rita```
+1. ```make```
+
+This will yield a `rita` binary in the current directory. You can use `make install` to install the binary to `$GOPATH/bin/rita` or manually copy/link it to `/usr/local/bin/rita` or another location you desire.
+
+##### Configuring the system
+
+RITA requires a few directories to be created for it to function correctly.
+
+1. ```sudo mkdir /etc/rita && sudo chmod 755 /etc/rita```
+1. ```sudo mkdir -p /var/lib/rita/logs && sudo chmod -R 755 /var/lib/rita```
+1. ```sudo touch /var/lib/rita/safebrowsing && sudo chmod 666 /var/lib/rita/safebrowsing```
+
+In addition, RITA's config file must be downloaded and installed. You can download the config file from Github, but be sure to get the correct version for the version of RITA you are working with.
+* ```sudo wget -O /etc/rita/config.yaml https://github.com/activecm/rita/raw/master/etc/rita.yaml && sudo chmod 666 /etc/rita/config.yaml ```
+
+Alternatively, copy the config file from your local RITA source code.
+* ```sudo cp $GOPATH/src/github.com/activecm/rita/etc/rita.yaml /etc/rita/config.yaml && sudo chmod 666 /etc/rita/config.yaml```
+
+At this point, you can modify the config file as needed and test using the ```rita test-config``` command. There will be empty quotes or 0's assigned to empty fields. [RITA's readme](../Readme.md) has more information on changing the configuration.
