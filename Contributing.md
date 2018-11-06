@@ -2,11 +2,11 @@
 ---
 ## Want to help? We would love that!
 Here are some ways to get involved, ranging in
-difficulty from easiest to hardest.
+difficulty from easiest to hardest
 
 ## Bug Hunting
 Run the software and tell us when it breaks. We are happy to receive bug
-reports.
+reports
 
 Just be sure to do the following:
 * Check if the bug is already accounted for on the
@@ -40,22 +40,22 @@ Before diving in, follow the [Manual Installation Instructions](docs/Manual%20In
 * Add new features:
   * If you would like to become involved in the development effort, please hop
    on our [OFTC channel at #activecm](https://webchat.oftc.net/?channels=activecm)
-   and chat about what is currently being worked on.
+   and chat about what is currently being worked on
 
 ### Running Static Tests
 * Golint
   * Install [golint](https://github.com/golang/lint)
-  * Run `golint ./...` from the root RITA directory.
-  * Fix any errors and run golint again to verify.
+  * Run `golint ./...` from the root RITA directory
+  * Fix any errors and run golint again to verify
 * Gofmt
-  * Run `gofmt -l .` from the root RITA directory to identify files containing styling errors.
-  * Run `gofmt -w .` to automatically resolve gofmt errors.
+  * Run `gofmt -l .` from the root RITA directory to identify files containing styling errors
+  * Run `gofmt -w .` to automatically resolve gofmt errors
 * Go vet
-  * Run `go tool vet $(find . -name '*.go' | grep -v '/vendor/'` from the root RITA directory.
-  * Fix any errors and run golint again to verify.
+  * Run `go tool vet $(find . -name '*.go' | grep -v '/vendor/'` from the root RITA directory
+  * Fix any errors and run golint again to verify
 * Go test
-  * Run `go test -v -race ./...` from the root RITA directory.
-  * Ensure that all unit tests have passed.
+  * Run `go test -v -race ./...` from the root RITA directory
+  * Ensure that all unit tests have passed
 
 ### Reviewing Automated Test Results
 Automated tests are run against each commit on Travis-CI. Build results may be viewed here: https://travis-ci.org/activecm/rita
@@ -72,4 +72,4 @@ your feature branch off of it
 
 ### Common Issues
 * Building Rita using `go install` or `go build` yields a RITA version of `UNDEFINED`
-  * Use `make` or `make install`.
+  * Use `make` or `make install`
