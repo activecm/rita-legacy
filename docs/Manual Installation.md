@@ -49,7 +49,7 @@ At this point we can build RITA from source code.
 
 1. ```go get github.com/activecm/rita```
 1. ```cd $GOPATH/src/github.com/activecm/rita```
-1. ```make```
+1. ```make``` (Note that you will need to have `make` installed. You can use your system's package manager to install it.)
 
 This will yield a `rita` binary in the current directory. You can use `make install` to install the binary to `$GOPATH/bin/rita` or manually copy/link it to `/usr/local/bin/rita` or another location you desire.
 
