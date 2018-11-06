@@ -2,7 +2,7 @@
 language: go
 
 go:
-  - "1.11.1"
+  - "1.10"
 
 go_import_path: github.com/activecm/rita
 
@@ -34,6 +34,5 @@ script:
   - bash static-tests.sh
   # Run unit tests and integration tests
   - go test -v -race ./...
-  # Test the installer
-  # todo: Run as a cron job
+  # Test the installer. Disabled until unattended installs are possible 
   #- bash ./test-install.sh
