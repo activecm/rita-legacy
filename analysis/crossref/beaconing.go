@@ -29,7 +29,7 @@ func (s BeaconingSelector) Select(res *resources.Resources) (<-chan string, <-ch
 
 		//this will produce duplicates if multiple sources beaconed to the same dest
 		//however, this is accounted for in the finalizing step of xref
-		var data dataBeacon.BeaconAnalysisView
+		var data dataBeacon.AnalysisView
 		for iter.Next(&data) {
 			sourceHosts <- data.Src
 			destHosts <- data.Dst

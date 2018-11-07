@@ -34,7 +34,7 @@ func showBeacons(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
-	var data []beaconData.BeaconAnalysisView
+	var data []beaconData.AnalysisView
 
 	ssn := res.DB.Session.Copy()
 	resultsView := beacon.GetBeaconResultsView(res, ssn, 0)
@@ -59,7 +59,7 @@ func showBeacons(c *cli.Context) error {
 	return nil
 }
 
-func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
+func showBeaconReport(data []beaconData.AnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
 		"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
@@ -70,9 +70,9 @@ func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
 		table.Append(
 			[]string{
 				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
-				i(d.TS_iRange), i(d.DS_range), i(d.TS_iMode), i(d.DS_mode),
-				i(d.TS_iModeCount), i(d.DS_modeCount), f(d.TS_iSkew), f(d.DS_skew),
-				i(d.TS_iDispersion), i(d.DS_dispersion), f(d.TS_duration),
+				i(d.TSIRange), i(d.DSRange), i(d.TSIMode), i(d.DSMode),
+				i(d.TSIModeCount), i(d.DSModeCount), f(d.TSISkew), f(d.DSSkew),
+				i(d.TSIDispersion), i(d.DSDispersion), f(d.TSDuration),
 			},
 		)
 	}
@@ -80,7 +80,7 @@ func showBeaconReport(data []beaconData.BeaconAnalysisView) error {
 	return nil
 }
 
-func showBeaconCsv(data []beaconData.BeaconAnalysisView) error {
+func showBeaconCsv(data []beaconData.AnalysisView) error {
 	csvWriter := csv.NewWriter(os.Stdout)
 	headers := []string{
 		"Score", "Source", "Destination", "Connections",
@@ -94,9 +94,9 @@ func showBeaconCsv(data []beaconData.BeaconAnalysisView) error {
 		csvWriter.Write(
 			[]string{
 				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
-				i(d.TS_iRange), i(d.DS_range), i(d.TS_iMode), i(d.DS_mode),
-				i(d.TS_iModeCount), i(d.DS_modeCount), f(d.TS_iSkew), f(d.DS_skew),
-				i(d.TS_iDispersion), i(d.DS_dispersion), f(d.TS_duration),
+				i(d.TSIRange), i(d.DSRange), i(d.TSIMode), i(d.DSMode),
+				i(d.TSIModeCount), i(d.DSModeCount), f(d.TSISkew), f(d.DSSkew),
+				i(d.TSIDispersion), i(d.DSDispersion), f(d.TSDuration),
 			},
 		)
 	}

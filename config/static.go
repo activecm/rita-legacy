@@ -27,9 +27,8 @@ type (
 
 	//UserCfgStaticCfg contains
 	UserCfgStaticCfg struct {
-		UpdateCheckFrequency    *int   `yaml:"UpdateCheckFrequency,omitempty"`
+		UpdateCheckFrequency *int `yaml:"UpdateCheckFrequency,omitempty"`
 	}
-
 
 	//MongoDBStaticCfg contains the means for connecting to MongoDB
 	MongoDBStaticCfg struct {

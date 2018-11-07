@@ -1,0 +1,38 @@
+# Set up Go
+language: go
+
+go:
+  - "1.10"
+
+go_import_path: github.com/activecm/rita
+
+# Set up Docker
+sudo: required
+
+services:
+  - docker
+
+# Only clone the most recent commit.
+git:
+  depth: 1
+
+# Don't email the test results
+notifications:
+  email: false
+
+before_install:
+  # Get RITA go dependencies
+  - wget -q -O ${GOPATH}/bin/dep https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 && chmod +x ${GOPATH}/bin/dep
+  - dep ensure --no-vendor
+  - go get -t ./...
+  # Get testing dependencies
+  - go get -v github.com/stretchr/testify
+  - go get -v golang.org/x/lint/golint
+
+script:
+  # Run static tests
+  - bash static-tests.sh
+  # Run unit tests and integration tests
+  - go test -v -race ./...
+  # Test the installer. Disabled until unattended installs are possible 
+  #- bash ./test-install.sh

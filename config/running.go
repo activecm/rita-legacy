@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/blang/semver"
 	"github.com/activecm/mgosec"
+	"github.com/blang/semver"
 )
 
 type (

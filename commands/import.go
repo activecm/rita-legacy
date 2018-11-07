@@ -24,11 +24,11 @@ func init() {
 			threadFlag,
 			configFlag,
 		},
-		Action: func( c* cli.Context) error{
-				r := doImport( c )
-				fmt.Printf( updateCheck( c.String("config")))
-				return r
-			},
+		Action: func(c *cli.Context) error {
+			r := doImport(c)
+			fmt.Printf(updateCheck(c.String("config")))
+			return r
+		},
 	}
 
 	bootstrapCommands(importCommand)

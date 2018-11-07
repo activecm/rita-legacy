@@ -10,9 +10,9 @@ import (
 
 	bl "github.com/activecm/rita-bl"
 	data "github.com/activecm/rita/datatypes/blacklist"
-	log "github.com/sirupsen/logrus"
 	mgo "github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
 )
 
 type hostnameShort struct {

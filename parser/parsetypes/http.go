@@ -1,11 +1,9 @@
 package parsetypes
 
 import (
-
 	"github.com/activecm/rita/config"
 	"github.com/globalsign/mgo/bson"
 )
-
 
 // HTTP provides a data structure for entries in bro's HTTP log file
 type HTTP struct {

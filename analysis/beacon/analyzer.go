@@ -14,19 +14,19 @@ type (
 	// analyzer implements the bulk of beaconing analysis, creating the scores
 	// for a given set of timestamps and data sizes
 	analyzer struct {
-		connectionThreshold int                                    // the minimum number of connections to be considered a beacon
-		minTime             int64                                  // beginning of the observation period
-		maxTime             int64                                  // ending of the observation period
-		analyzedCallback    func(*dataBeacon.BeaconAnalysisOutput) // called on each analyzed result
-		closedCallback      func()                                 // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel     chan *beaconAnalysisInput              // holds unanalyzed data
-		analysisWg          sync.WaitGroup                         // wait for analysis to finish
+		connectionThreshold int                              // the minimum number of connections to be considered a beacon
+		minTime             int64                            // beginning of the observation period
+		maxTime             int64                            // ending of the observation period
+		analyzedCallback    func(*dataBeacon.AnalysisOutput) // called on each analyzed result
+		closedCallback      func()                           // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel     chan *beaconAnalysisInput        // holds unanalyzed data
+		analysisWg          sync.WaitGroup                   // wait for analysis to finish
 	}
 )
 
 // newAnalyzer creates a new analyzer for computing beaconing scores.
 func newAnalyzer(connectionThreshold int, minTime, maxTime int64,
-	analyzedCallback func(*dataBeacon.BeaconAnalysisOutput), closedCallback func()) *analyzer {
+	analyzedCallback func(*dataBeacon.AnalysisOutput), closedCallback func()) *analyzer {
 	return &analyzer{
 		connectionThreshold: connectionThreshold,
 		minTime:             minTime,
@@ -167,37 +167,37 @@ func (a *analyzer) start() {
 			tsDurationScore := duration
 
 			//smaller data sizes receive a higher score
-			dsSmallnessScore := 1.0 - (float64(dsMode) / 65535.0)
+			dsSmallnessScore := 1.0 - float64(dsMode)/65535.0
 			if dsSmallnessScore < 0 {
 				dsSmallnessScore = 0
 			}
 
-			output := &dataBeacon.BeaconAnalysisOutput{
-				UconnID:           data.uconnID,
-				TS_iSkew:          tsSkew,
-				TS_iDispersion:    tsMadm,
-				TS_duration:       duration,
-				TS_iRange:         tsIntervalRange,
-				TS_iMode:          tsMode,
-				TS_iModeCount:     tsModeCount,
-				TS_intervals:      intervals,
-				TS_intervalCounts: intervalCounts,
-				DS_skew:           dsSkew,
-				DS_dispersion:     dsMadm,
-				DS_range:          dsRange,
-				DS_sizes:          dsSizes,
-				DS_sizeCounts:     dsCounts,
-				DS_mode:           dsMode,
-				DS_modeCount:      dsModeCount,
+			output := &dataBeacon.AnalysisOutput{
+				UconnID:          data.uconnID,
+				TSISkew:          tsSkew,
+				TSIDispersion:    tsMadm,
+				TSDuration:       duration,
+				TSIRange:         tsIntervalRange,
+				TSIMode:          tsMode,
+				TSIModeCount:     tsModeCount,
+				TSIntervals:      intervals,
+				TSIntervalCounts: intervalCounts,
+				DSSkew:           dsSkew,
+				DSDispersion:     dsMadm,
+				DSRange:          dsRange,
+				DSSizes:          dsSizes,
+				DSSizeCounts:     dsCounts,
+				DSMode:           dsMode,
+				DSModeCount:      dsModeCount,
 			}
 
 			//score numerators
-			tsSum := (tsSkewScore + tsMadmScore + tsDurationScore)
-			dsSum := (dsSkewScore + dsMadmScore + dsSmallnessScore)
+			tsSum := tsSkewScore + tsMadmScore + tsDurationScore
+			dsSum := dsSkewScore + dsMadmScore + dsSmallnessScore
 
 			//score averages
-			output.TS_score = tsSum / 3.0
-			output.DS_score = dsSum / 3.0
+			output.TSScore = tsSum / 3.0
+			output.DSScore = dsSum / 3.0
 			output.Score = (tsSum + dsSum) / 6.0
 			a.analyzedCallback(output)
 		}
