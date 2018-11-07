@@ -26,7 +26,7 @@ RITA requires Mongo for storing and processing data. The current recommended ver
 
 You have a few options for installing RITA.
 1. The main install script. You can disable Bro and Mongo from being installed with the `--disable-bro` and `--disable-mongo` flags.
-1. A prebuilt binary is available for download on [RITA's release page](https://github.com/activecm/rita/releases). In this case you will need to download the config file and create some directories manually, as described below in the "Configuring the system" section.
+1. A prebuilt binary is available for download on [RITA's release page](https://github.com/activecm/rita/releases). In this case you will need to download the config file from the same release and create some directories manually, as described below in the "Configuring the system" section.
 1. [Use RITA with docker](Docker%20Usage.md)
 1. Compile RITA manually from source. See below.
 
@@ -61,10 +61,7 @@ RITA requires a few directories to be created for it to function correctly.
 1. ```sudo mkdir -p /var/lib/rita/logs && sudo chmod -R 755 /var/lib/rita```
 1. ```sudo touch /var/lib/rita/safebrowsing && sudo chmod 666 /var/lib/rita/safebrowsing```
 
-In addition, RITA's config file must be downloaded and installed. You can download the config file from Github, but be sure to get the correct version for the version of RITA you are working with.
-* ```sudo wget -O /etc/rita/config.yaml https://github.com/activecm/rita/raw/master/etc/rita.yaml && sudo chmod 666 /etc/rita/config.yaml ```
-
-Alternatively, copy the config file from your local RITA source code.
+Copy the config file from your local RITA source code.
 * ```sudo cp $GOPATH/src/github.com/activecm/rita/etc/rita.yaml /etc/rita/config.yaml && sudo chmod 666 /etc/rita/config.yaml```
 
 At this point, you can modify the config file as needed and test using the ```rita test-config``` command. There will be empty quotes or 0's assigned to empty fields. [RITA's readme](../Readme.md) has more information on changing the configuration.
