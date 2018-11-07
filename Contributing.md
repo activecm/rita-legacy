@@ -14,7 +14,6 @@ Just be sure to do the following:
   * If an issue already exists, add the relevant info in a comment
   * If not, create an issue and include the relevant info
 * Give very specific descriptions of how to reproduce the bug
-  * Log files can be found at ~/.rita/logs
 * Include the output of `rita --version`
 * Include a description of your hardware (e.g. CPU, RAM, filesystems)
 * Tell us about the size of the test and the physical resources available
@@ -30,8 +29,7 @@ Before diving in, follow the [Manual Installation Instructions](docs/Manual%20In
   * All too often code developed to meet milestones only undergoes
   empirical, human testing
   * We would love to see unit tests throughout RITA
-  * Currently we only have unit tests for Beacon check under analysis/beacon to
-  see how tests can be written neatly and easily
+  * There are a few sections of this project that currently have unit tests. 
   * Also when writing tests it is advisable to work backwards, start with what
   result you want to get and then work backwards through the code
   * When you're ready to test code run `go test ./...` from the root directory
@@ -45,13 +43,13 @@ Before diving in, follow the [Manual Installation Instructions](docs/Manual%20In
 ### Running Static Tests
 * Golint
   * Install [golint](https://github.com/golang/lint)
-  * Run `golint ./...` from the root RITA directory
+  * Run `golint ./... | grep -v '^vendor/'` from the root RITA directory
   * Fix any errors and run golint again to verify
 * Gofmt
-  * Run `gofmt -l .` from the root RITA directory to identify files containing styling errors
+  * Run `gofmt -l . | grep -v '^vendor/'` from the root RITA directory to identify files containing styling errors
   * Run `gofmt -w .` to automatically resolve gofmt errors
 * Go vet
-  * Run `go tool vet $(find . -name '*.go' | grep -v '/vendor/'` from the root RITA directory
+  * Run `go tool vet $(find . -name '*.go' | grep -v '/vendor/')` from the root RITA directory
   * Fix any errors and run golint again to verify
 * Go test
   * Run `go test -v -race ./...` from the root RITA directory

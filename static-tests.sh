@@ -17,7 +17,7 @@ fi
 echo "Running static test - go tool vet"
 GOVET_ERRORS=$(go tool vet $(find . -name '*.go' | grep -v '/vendor/') 2>&1)
 if [ -n "${GOVET_ERRORS}" ]; then
-  printf >&2 "go vet failed for the following reasons:\n%s\n\nplease run "go tool vet *.go" on your changes before committing.\n" "${GOVET_ERRORS}"
+  printf >&2 "go vet failed for the following reasons:\n%s\n\nplease run "go tool vet $(find . -name '*.go' | grep -v '/vendor/'" on your changes before committing.\n" "${GOVET_ERRORS}"
   TEST_STATUS=FAIL
 fi
 
