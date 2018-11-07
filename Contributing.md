@@ -56,7 +56,7 @@ Before diving in, follow the [Manual Installation Instructions](docs/Manual%20In
   * Ensure that all unit tests have passed
 
 ### Reviewing Automated Test Results
-Automated tests are run against each commit on Travis CI. Build results may be viewed here: https://travis-ci.org/activecm/rita
+Automated tests are run against each commit on Travis CI. Build results may be viewed [here](https://travis-ci.org/activecm/rita).
 
 ### Gittiquette Summary
 * In order to contribute to RITA, you must fork it
