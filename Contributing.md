@@ -29,7 +29,7 @@ Before diving in, follow the [Manual Installation Instructions](docs/Manual%20In
   * All too often code developed to meet milestones only undergoes
   empirical, human testing
   * We would love to see unit tests throughout RITA
-  * There are a few sections of this project that currently have unit tests. 
+  * There are a few sections of this project that currently have unit tests. [Here](https://github.com/activecm/rita/blob/master/analysis/beacon/analyzer_test.go) is a good example of an existing unit test.
   * Also when writing tests it is advisable to work backwards, start with what
   result you want to get and then work backwards through the code
   * When you're ready to test code run `go test ./...` from the root directory
