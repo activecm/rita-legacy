@@ -35,9 +35,9 @@ You have a few options for installing RITA.
 In order to compile RITA manually you will need to install both [Golang](https://golang.org) and [Dep](https://github.com/golang/dep).
 
 1. Install Golang using the instructions at [https://golang.org/doc/install](https://golang.org/doc/install)
-1. After the install we need to create a local Go development environment for our user. This is typically done in `$HOME/go` which is what the directions here will use.
+1. After the install you need to create a local Go development environment for your user. This is typically done in `$HOME/go` which is what the directions here will use.
     1. ```mkdir -p $HOME/go/{src,pkg,bin}```
-1. Now we must add the `GOPATH` to our .bashrc file. We will also want to add our bin folder to the path for this user.
+1. Now you must add the `GOPATH` to your .bashrc file. You will also want to add your bin folder to the path for this user.
     1. ```echo 'export GOPATH="$HOME/go"' >> $HOME/.bashrc```
     1. ```echo 'export PATH="$PATH:$GOPATH/bin"' >> $HOME/.bashrc```
     1. ```source $HOME/.bashrc```
@@ -45,7 +45,7 @@ In order to compile RITA manually you will need to install both [Golang](https:/
 
 ##### Building RITA
 
-At this point we can build RITA from source code.
+At this point you can build RITA from source code.
 
 1. ```go get github.com/activecm/rita```
 1. ```cd $GOPATH/src/github.com/activecm/rita```
