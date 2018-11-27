@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,11 @@ type (
 		res             *resources.Resources
 		indexingThreads int
 		parseThreads    int
+	}
+
+	uconnPair struct {
+		src string
+		dst string
 	}
 )
 
@@ -63,7 +69,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
-	parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+	fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
 	datastore.Flush()
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
@@ -152,7 +158,9 @@ func indexFiles(files []string, indexingThreads int,
 //threads to use to parse the files, whether or not to sort data by date,
 // a MogoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
-func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) {
+func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) {
+	// var connMap = make(map[uconnPair]int)
+
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
@@ -199,6 +207,20 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore D
 						targetCollection := indexedFiles[j].TargetCollection
 						targetDB := indexedFiles[j].TargetDatabase
 
+						if targetCollection == fs.res.Config.T.Structure.ConnTable {
+							parseConn := reflect.ValueOf(data).Elem()
+
+							var tempy uconnPair
+							tempy.src = parseConn.Field(3).Interface().(string)
+							tempy.dst = parseConn.Field(5).Interface().(string)
+							// connMap[tempy]
+
+							fmt.Println(tempy)
+							// reflect.ValueOf(x).Interface().(string)
+							// fmt.Printf("%+v\n", data)
+							// connMap[]
+						}
+
 						datastore.Store(&ImportedData{
 							BroData:          data,
 							TargetDatabase:   targetDB,
@@ -216,6 +238,8 @@ func parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore D
 		}(indexedFiles, logger, parsingWG, i, parsingThreads, n)
 	}
 	parsingWG.Wait()
+
+	// fmt.Println(connMap)
 }
 
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,

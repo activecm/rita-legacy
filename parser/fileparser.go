@@ -292,5 +292,9 @@ func parseLine(lineString string, header *fpt.BroHeader,
 			}).Error("Encountered unhandled type in log")
 		}
 	}
+	// if (data.Type() == reflect.TypeOf(pt.Conn{})) {
+	// 	fmt.Println(data.Field(3), data.Field(5))
+	// }
+
 	return dat
 }
