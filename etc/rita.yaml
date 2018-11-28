@@ -84,10 +84,6 @@ BlackListed:
     CustomIPBlacklists: []
     # Lists containing hostnames, domain names, and FQDNs are acceptable
     CustomHostnameBlacklists: []
-    # URLs must each contain a protocol, a host, and a resource
-    # Ex: http://google.com/
-    # Ex: ftp://myftpserver.com/a/file/over/here.txt
-    CustomURLBlacklists: []
 
 Crossref:
     BeaconThreshold: .7

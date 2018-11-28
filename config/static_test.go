@@ -35,7 +35,6 @@ BlackListed:
         Database: /var/lib/rita/safebrowsing
     CustomIPBlacklists: [test1]
     CustomHostnameBlacklists: [test2]
-    CustomURLBlacklists: [test3]
 Crossref:
     BeaconThreshold: .7
 Beacon:
@@ -75,7 +74,6 @@ var testConfigFullExp = StaticCfg{
 		},
 		IPBlacklists:       []string{"test1"},
 		HostnameBlacklists: []string{"test2"},
-		URLBlacklists:      []string{"test3"},
 	},
 	Crossref: CrossrefStaticCfg{
 		BeaconThreshold: .7,

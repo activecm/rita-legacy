@@ -173,10 +173,7 @@ func writeDB(db string, wd string, res *resources.Resources) error {
 	if err != nil {
 		return err
 	}
-	err = printBLURLs(db, res)
-	if err != nil {
-		return err
-	}
+
 	err = printBeacons(db, res)
 	if err != nil {
 		return err

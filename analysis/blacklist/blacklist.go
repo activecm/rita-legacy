@@ -10,7 +10,6 @@ import (
 	blDB "github.com/activecm/rita-bl/database"
 	"github.com/activecm/rita-bl/list"
 	"github.com/activecm/rita-bl/sources/lists"
-	"github.com/activecm/rita-bl/sources/rpc"
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/resources"
 	mgo "github.com/globalsign/mgo"
@@ -22,8 +21,7 @@ type resultsChan chan map[string][]blDB.BlacklistResult
 const ritaBLBufferSize = 1000
 
 //BuildBlacklistedCollections builds the blacklisted sources,
-//blacklisted destinations, blacklist hostnames, and blacklisted urls
-//collections
+//blacklisted destinations, and blacklist hostnames collections
 func BuildBlacklistedCollections(res *resources.Resources) {
 	//capture the current value for the error closure below
 	currentDB := res.DB.GetSelectedDB()
@@ -62,9 +60,6 @@ func BuildBlacklistedCollections(res *resources.Resources) {
 	//set up the lists to check against
 	ritaBL.SetLists(buildBlacklists(res.Config)...)
 
-	//set up remote calls to check against
-	ritaBL.SetRPCs(buildBlacklistRPCS(res)...)
-
 	//update the lists
 	ritaBL.Update()
 
@@ -87,16 +82,13 @@ func BuildBlacklistedCollections(res *resources.Resources) {
 	)
 	hostnamesIter := ssn.DB(currentDB).C(res.Config.T.DNS.HostnamesTable).
 		Find(nil).Iter()
-	urlIter := ssn.DB(currentDB).C(res.Config.T.Urls.UrlsTable).
-		Find(nil).Iter()
 
 	//create the collections
 	sourceIPs := res.Config.T.Blacklisted.SourceIPsTable
 	destIPs := res.Config.T.Blacklisted.DestIPsTable
 	hostnames := res.Config.T.Blacklisted.HostnamesTable
-	urls := res.Config.T.Blacklisted.UrlsTable
 
-	collections := []string{sourceIPs, destIPs, hostnames, urls}
+	collections := []string{sourceIPs, destIPs, hostnames}
 	for _, collection := range collections {
 		ssn.DB(currentDB).C(collection).Create(&mgo.CollectionInfo{
 			DisableIdIndex: true,
@@ -110,8 +102,6 @@ func BuildBlacklistedCollections(res *resources.Resources) {
 	buildBlacklistedIPs(uniqueDestIter, res, ritaBL, ritaBLBufferSize, false)
 
 	buildBlacklistedHostnames(hostnamesIter, res, ritaBL, ritaBLBufferSize)
-
-	buildBlacklistedURLs(urlIter, res, ritaBL, ritaBLBufferSize, "http://")
 
 	//index the data
 	for _, collection := range collections {
@@ -128,9 +118,7 @@ func BuildBlacklistedCollections(res *resources.Resources) {
 	ssn.DB(currentDB).C(hostnames).EnsureIndex(mgo.Index{
 		Key: []string{"$hashed:hostname"},
 	})
-	ssn.DB(currentDB).C(urls).EnsureIndex(mgo.Index{
-		Key: []string{"host", "resource"},
-	})
+
 }
 
 //ensureBLIndexes ensures the sortable fields are indexed
@@ -172,13 +160,9 @@ func buildBlacklists(conf *config.Config) []list.List {
 		conf.S.Blacklisted.HostnameBlacklists,
 	)
 
-	urlLists := buildCustomBlacklists(
-		list.BlacklistedURLType,
-		conf.S.Blacklisted.URLBlacklists,
-	)
 	blacklists = append(blacklists, ipLists...)
 	blacklists = append(blacklists, hostLists...)
-	blacklists = append(blacklists, urlLists...)
+
 	return blacklists
 }
 
@@ -214,24 +198,4 @@ func tryOpenFileThenURL(path string) func() (io.ReadCloser, error) {
 		}
 		return resp.Body, nil
 	}
-}
-
-//buildBlacklistRPCS gathers the remote procedures to check against
-func buildBlacklistRPCS(res *resources.Resources) []rpc.RPC {
-	var rpcs []rpc.RPC
-	//set up google url checker
-	if len(res.Config.S.Blacklisted.SafeBrowsing.APIKey) > 0 &&
-		len(res.Config.S.Blacklisted.SafeBrowsing.Database) > 0 {
-		googleRPC, err := rpc.NewGoogleSafeBrowsingURLsRPC(
-			res.Config.S.Blacklisted.SafeBrowsing.APIKey,
-			res.Config.S.Blacklisted.SafeBrowsing.Database,
-			res.Log.Writer(),
-		)
-		if err == nil {
-			rpcs = append(rpcs, googleRPC)
-		} else {
-			res.Log.Warn("could not open up google safebrowsing for blacklist checks")
-		}
-	}
-	return rpcs
 }

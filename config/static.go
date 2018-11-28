@@ -60,7 +60,6 @@ type (
 		SafeBrowsing       SafeBrowsingStaticCfg `yaml:"SafeBrowsing"`
 		IPBlacklists       []string              `yaml:"CustomIPBlacklists"`
 		HostnameBlacklists []string              `yaml:"CustomHostnameBlacklists"`
-		URLBlacklists      []string              `yaml:"CustomURLBlacklists"`
 	}
 
 	//CrossrefStaticCfg is used to control the crossref analysis module
