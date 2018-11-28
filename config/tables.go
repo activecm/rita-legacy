@@ -37,7 +37,6 @@ type (
 		SourceIPsTable    string
 		DestIPsTable      string
 		HostnamesTable    string
-		UrlsTable         string
 	}
 
 	//DNSTableCfg is used to control the dns analysis module
@@ -98,7 +97,6 @@ func loadTableConfig() *TableCfg {
 	config.Blacklisted.SourceIPsTable = "blSourceIPs"
 	config.Blacklisted.DestIPsTable = "blDestIPs"
 	config.Blacklisted.HostnamesTable = "blHostnames"
-	config.Blacklisted.UrlsTable = "blUrls"
 
 	config.DNS.ExplodedDNSTable = "explodedDns"
 	config.DNS.HostnamesTable = "hostnames"

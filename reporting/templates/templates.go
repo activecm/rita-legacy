@@ -142,16 +142,6 @@ var BLHostnameTempl = dbHeader + `
 </div>
 `
 
-// BLURLTempl is our blacklisted url html template
-var BLURLTempl = dbHeader + `
-<div class="container">
-  <table>
-  <tr><th>Host</th><th>Resource</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Lists</th><th>Sources</th><tr>
-    {{.Writer}}
-  </table>
-</div>
-`
-
 // LongConnsTempl is our long connections html template
 var LongConnsTempl = dbHeader + `
 <div class="container">
