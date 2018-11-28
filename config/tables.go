@@ -7,7 +7,6 @@ type (
 		Blacklisted BlacklistedTableCfg
 		DNS         DNSTableCfg
 		Crossref    CrossrefTableCfg
-		Scanning    ScanningTableCfg
 		Structure   StructureTableCfg
 		Beacon      BeaconTableCfg
 		Urls        UrlsTableCfg
@@ -50,11 +49,6 @@ type (
 	CrossrefTableCfg struct {
 		SourceTable string
 		DestTable   string
-	}
-
-	//ScanningTableCfg is used to control the scanning analysis module
-	ScanningTableCfg struct {
-		ScanTable string
 	}
 
 	//BeaconTableCfg is used to control the beaconing analysis module
@@ -105,8 +99,6 @@ func loadTableConfig() *TableCfg {
 
 	config.Crossref.SourceTable = "sourceXREF"
 	config.Crossref.DestTable = "destXREF"
-
-	config.Scanning.ScanTable = "scan"
 
 	config.Beacon.BeaconTable = "beacon"
 

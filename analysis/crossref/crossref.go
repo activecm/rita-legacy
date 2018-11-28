@@ -13,11 +13,10 @@ import (
 // getXRefSelectors is a place to add new selectors to the crossref module
 func getXRefSelectors() []dataXRef.XRefSelector {
 	beaconing := BeaconingSelector{}
-	scanning := ScanningSelector{}
 	blSourceIPs := BLSourceIPSelector{}
 	blDestIPs := BLDestIPSelector{}
 
-	return []dataXRef.XRefSelector{beaconing, scanning, blSourceIPs, blDestIPs}
+	return []dataXRef.XRefSelector{beaconing, blSourceIPs, blDestIPs}
 }
 
 // BuildXRefCollection runs threaded crossref analysis

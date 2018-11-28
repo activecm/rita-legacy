@@ -18,7 +18,6 @@ type (
 		Log          LogStaticCfg         `yaml:"LogConfig"`
 		Blacklisted  BlacklistedStaticCfg `yaml:"BlackListed"`
 		Crossref     CrossrefStaticCfg    `yaml:"Crossref"`
-		Scanning     ScanningStaticCfg    `yaml:"Scanning"`
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
 		Bro          BroStaticCfg         `yaml:"Bro"`
 		Version      string
@@ -73,11 +72,6 @@ type (
 	SafeBrowsingStaticCfg struct {
 		APIKey   string `yaml:"APIKey"`
 		Database string `yaml:"Database"`
-	}
-
-	//ScanningStaticCfg is used to control the scanning analysis module
-	ScanningStaticCfg struct {
-		ScanThreshold int `yaml:"ScanThreshold"`
 	}
 
 	//BeaconStaticCfg is used to control the beaconing analysis module
