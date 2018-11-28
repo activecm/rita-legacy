@@ -28,7 +28,6 @@ BlackListed:
         Database: null
     CustomIPBlacklists: []
     CustomHostnameBlacklists: []
-    CustomURLBlacklists: []
 Crossref:
     BeaconThreshold: .7
 Scanning:

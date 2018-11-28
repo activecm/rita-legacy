@@ -243,7 +243,6 @@
     "github.com/activecm/rita-bl/database",
     "github.com/activecm/rita-bl/list",
     "github.com/activecm/rita-bl/sources/lists",
-    "github.com/activecm/rita-bl/sources/rpc",
     "github.com/blang/semver",
     "github.com/globalsign/mgo",
     "github.com/globalsign/mgo/bson",
