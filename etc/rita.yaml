@@ -97,3 +97,7 @@ Scanning:
 
 Beacon:
     DefaultConnectionThresh: 24
+
+Filtering:
+    AlwaysInclude: []
+    InternalSubnets: []

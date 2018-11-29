@@ -42,6 +42,10 @@ Scanning:
     ScanThreshold: 50
 Beacon:
     DefaultConnectionThresh: 24
+Filtering:
+    AlwaysInclude: ["8.8.8.8"]
+    InternalSubnets: ["10.0.0.0-10.255.255.255","172.16.0.0-172.31.255.255","192.168.0.0-192.168.255.255"]
+
 `
 
 var testConfigFullExp = StaticCfg{
@@ -87,6 +91,10 @@ var testConfigFullExp = StaticCfg{
 	},
 	Beacon: BeaconStaticCfg{
 		DefaultConnectionThresh: 24,
+	},
+	Filtering: FilteringStaticCfg{
+		AlwaysInclude: []string{"8.8.8.8"},
+		InternalSubnets: []string{"10.0.0.0-10.255.255.255","172.16.0.0-172.31.255.255","192.168.0.0-192.168.255.255"},
 	},
 }
 
