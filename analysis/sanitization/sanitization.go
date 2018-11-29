@@ -1,6 +1,7 @@
 package sanitization
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -79,6 +80,8 @@ func sanitizeHTTPRecord(httpRec *parsetypes.HTTP) bson.M {
 	if err == nil && parsedURL.IsAbs() {
 		newURI = parsedURL.RequestURI()
 	}
+
+	fmt.Println(newURI, httpRec.URI)
 
 	if newURI == httpRec.URI {
 		return nil
