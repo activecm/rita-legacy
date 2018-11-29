@@ -165,6 +165,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
 
+	// Counts the number of uconns per source-destination pair
+	connMap := make(map[uconnPair]int)
+	// Creates a mutex for locking map keys during read-write operations
+	var mutex = &sync.Mutex{}
+
 	for i := 0; i < parsingThreads; i++ {
 		parsingWG.Add(1)
 
@@ -213,9 +218,14 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							var tempy uconnPair
 							tempy.src = parseConn.Field(3).Interface().(string)
 							tempy.dst = parseConn.Field(5).Interface().(string)
-							// connMap[tempy]
 
+							//connMap[tempy] = 1
+							mutex.Lock()
+							connMap[tempy] = connMap[tempy] + 1
 							fmt.Println(tempy)
+							fmt.Println(connMap[tempy])
+							mutex.Unlock()
+							//fmt.Println(connMap[tempy])
 							// reflect.ValueOf(x).Interface().(string)
 							// fmt.Printf("%+v\n", data)
 							// connMap[]
