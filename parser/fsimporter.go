@@ -206,6 +206,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						indexedFiles[j].GetBroDataFactory(),
 						logger,
 					)
+					// The number of conns in a uconn
+					connCount := 0
+					// The maximum number of conns that will be stored
+					// We need to move this somewhere where the importer & analyzer can both access it
+					connLimit := 50
 
 					if data != nil {
 						//figure out what database this line is heading for
@@ -215,27 +220,28 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						if targetCollection == fs.res.Config.T.Structure.ConnTable {
 							parseConn := reflect.ValueOf(data).Elem()
 
-							var tempy uconnPair
-							tempy.src = parseConn.Field(3).Interface().(string)
-							tempy.dst = parseConn.Field(5).Interface().(string)
+							var uconn uconnPair
 
-							//connMap[tempy] = 1
+							uconn.src = parseConn.Field(3).Interface().(string)
+							uconn.dst = parseConn.Field(5).Interface().(string)
+
+							// Safely store the number of conns for this uconn 
 							mutex.Lock()
-							connMap[tempy] = connMap[tempy] + 1
-							fmt.Println(tempy)
-							fmt.Println(connMap[tempy])
+							connMap[uconn] = connMap[uconn] + 1
+							connCount = connMap[uconn]
+							fmt.Println(uconn)
 							mutex.Unlock()
-							//fmt.Println(connMap[tempy])
-							// reflect.ValueOf(x).Interface().(string)
-							// fmt.Printf("%+v\n", data)
-							// connMap[]
 						}
 
-						datastore.Store(&ImportedData{
-							BroData:          data,
-							TargetDatabase:   targetDB,
-							TargetCollection: targetCollection,
-						})
+						// Do not store more than the connLimit
+						if connCount <= connLimit  {
+							fmt.Println(connCount)
+							datastore.Store(&ImportedData{
+								BroData:          data,
+								TargetDatabase:   targetDB,
+								TargetCollection: targetCollection,
+							})
+						}
 					}
 				}
 				indexedFiles[j].ParseTime = time.Now()
