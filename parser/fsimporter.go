@@ -167,6 +167,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 	// Counts the number of uconns per source-destination pair
 	connMap := make(map[uconnPair]int)
+
+	// map to hold the too many connections uconns
+	var filterHugeUconnsMap []uconnPair
+
 	// Creates a mutex for locking map keys during read-write operations
 	var mutex = &sync.Mutex{}
 
@@ -217,6 +221,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						targetCollection := indexedFiles[j].TargetCollection
 						targetDB := indexedFiles[j].TargetDatabase
 
+						// if target collection is the conns table we want to limit
+						// conns entries to unique connection pairs with fewer than connLimit
+						// records
 						if targetCollection == fs.res.Config.T.Structure.ConnTable {
 							parseConn := reflect.ValueOf(data).Elem()
 
@@ -225,23 +232,42 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							uconn.src = parseConn.Field(3).Interface().(string)
 							uconn.dst = parseConn.Field(5).Interface().(string)
 
-							// Safely store the number of conns for this uconn 
+							// Safely store the number of conns for this uconn
 							mutex.Lock()
 							connMap[uconn] = connMap[uconn] + 1
 							connCount = connMap[uconn]
-							fmt.Println(uconn)
-							mutex.Unlock()
-						}
 
-						// Do not store more than the connLimit
-						if connCount <= connLimit  {
-							fmt.Println(connCount)
-							datastore.Store(&ImportedData{
+							// Do not store more than the connLimit
+							if connCount < connLimit {
+								// fmt.Println(connCount)
+								datastore.Store(&ImportedData{
+									BroData:          data,
+									TargetDatabase:   targetDB,
+									TargetCollection: targetCollection,
+								})
+							} else if connCount == connLimit {
+
+								filterHugeUconnsMap = append(filterHugeUconnsMap, uconn)
+								// fmt.Println(uconn.src, uconn.dst, connCount)
+								// datastore.Store(&ImportedData{
+								// 	BroData:          data,
+								// 	TargetDatabase:   targetDB,
+								// 	TargetCollection: "temp",
+								// })
+							}
+
+							mutex.Unlock()
+
+						} else {
+
+							// fmt.Println(connCount)
+							datastore.Store({
 								BroData:          data,
 								TargetDatabase:   targetDB,
 								TargetCollection: targetCollection,
 							})
 						}
+
 					}
 				}
 				indexedFiles[j].ParseTime = time.Now()
@@ -255,7 +281,21 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
+	fmt.Println(len(filterHugeUconnsMap))
+
+	fs.bulkRemoveHugeUconns(datastore, indexedFiles[0].TargetDatabase, filterHugeUconnsMap, connMap)
 	// fmt.Println(connMap)
+}
+
+func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string, filterHugeUconnsMap []uconnPair, connMap map[uconnPair]int) {
+	for _, uconn := range filterHugeUconnsMap {
+		fmt.Println(parsetypes.NewBroDataFactory("temp"))
+		// datastore.Store(&ImportedData{
+		// 	BroData:          &BroData{},
+		// 	TargetDatabase:   targetDB,
+		// 	TargetCollection: "temp",
+		// })
+	}
 }
 
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,

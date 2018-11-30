@@ -29,6 +29,7 @@ type (
 		HostTable       string
 		IPv4Table       string
 		IPv6Table       string
+		TempTable       string
 	}
 
 	//BlacklistedTableCfg is used to control the blacklisted analysis module
@@ -93,6 +94,7 @@ func loadTableConfig() *TableCfg {
 	config.Structure.HostTable = "host"
 	config.Structure.IPv4Table = "ipv4"
 	config.Structure.IPv6Table = "ipv6"
+	config.Structure.TempTable = "temp"
 
 	config.Blacklisted.BlacklistDatabase = "rita-blacklist"
 	config.Blacklisted.SourceIPsTable = "blSourceIPs"
