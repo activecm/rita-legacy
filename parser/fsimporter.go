@@ -17,6 +17,7 @@ import (
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type (
@@ -296,6 +297,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 //
 func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string, filterHugeUconnsMap []uconnPair, connMap map[uconnPair]int) {
 	var temp []*parsetypes.Temp
+	resDB := fs.res.DB
+	resConf := fs.res.Config
+	var deleteQuery bson.M
+
 	for _, uconn := range filterHugeUconnsMap {
 		// fmt.Println(uconn)
 		temp = append(temp, &parsetypes.Temp{
@@ -304,12 +309,31 @@ func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string,
 			ConnectionCount: connMap[uconn],
 		})
 
-	}
+		deleteQuery = bson.M{
+			"$and": []bson.M{
+				bson.M{"id_orig_h": uconn.src},
+				bson.M{"id_resp_h": uconn.dst},
+			}}
 
-	resDB := fs.res.DB
-	resConf := fs.res.Config
-	// fmt.Println()
+		bulkDeleteMany(deleteQuery, resDB, resConf, targetDB, resConf.T.Structure.ConnTable)
+
+	}
 	writerTemp(temp, resDB, resConf, targetDB)
+
+	// fmt.Println()
+
+}
+
+// db.getCollection('conn').deleteMany({$and:[{id_orig_h:"XXX.XXX.XXX.XXX"},{id_resp_h:"XXX.XXX.XXX.XXX"}]})
+func bulkDeleteMany(query bson.M, resDB *database.DB, resConf *config.Config, targetDB string, targetCL string) {
+	ssn := resDB.Session.Copy()
+	defer ssn.Close()
+
+	info, err := ssn.DB(targetDB).C(targetCL).RemoveAll(query)
+
+	if err != nil {
+		fmt.Println("error! ", err, info)
+	}
 }
 
 func writerTemp(output []*parsetypes.Temp, resDB *database.DB, resConf *config.Config, targetDB string) {

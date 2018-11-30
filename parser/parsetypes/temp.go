@@ -9,8 +9,8 @@ type (
 	Temp struct {
 		// ID is the id coming out of mongodb
 		// ID              bson.ObjectId `bson:"_id,omitempty"`
-		Source          string `bson:"id_orig_h" bro:"id.orig_h" brotype:"addr"`
-		Destination     string `bson:"id_resp_h" bro:"id.resp_h" brotype:"addr"`
+		Source          string `bson:"src" bro:"id.orig_h" brotype:"addr"`
+		Destination     string `bson:"dst" bro:"id.resp_h" brotype:"addr"`
 		ConnectionCount int    `bson:"connection_count" bro:"connection_count" brotype:"connection_count"`
 	}
 )
