@@ -261,7 +261,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						} else {
 
 							// fmt.Println(connCount)
-							datastore.Store({
+							datastore.Store(&ImportedData{
 								BroData:          data,
 								TargetDatabase:   targetDB,
 								TargetCollection: targetCollection,
@@ -289,7 +289,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string, filterHugeUconnsMap []uconnPair, connMap map[uconnPair]int) {
 	for _, uconn := range filterHugeUconnsMap {
-		fmt.Println(parsetypes.NewBroDataFactory("temp"))
+		fmt.Println(uconn)
 		// datastore.Store(&ImportedData{
 		// 	BroData:          &BroData{},
 		// 	TargetDatabase:   targetDB,
