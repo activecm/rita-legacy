@@ -13,6 +13,7 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
@@ -202,6 +203,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 					if fileScanner.Err() != nil {
 						break
 					}
+
 					//parse the line
 					data := parseLine(
 						fileScanner.Text(),
@@ -287,15 +289,84 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	// fmt.Println(connMap)
 }
 
+// robomongo verification stuf:
+// pre-bulk delete conns should have exactly [connLimit - 1] number of records
+// of each src dst pair entry found in new temp collection:
+// db.getCollection('conn').find({$and:[{id_orig_h:"XXX.XXX.XXX.XXX"},{id_resp_h:"XXX.XXX.XXX.XXX"}]}).count()
+//
 func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string, filterHugeUconnsMap []uconnPair, connMap map[uconnPair]int) {
+	var temp []*parsetypes.Temp
 	for _, uconn := range filterHugeUconnsMap {
-		fmt.Println(uconn)
-		// datastore.Store(&ImportedData{
-		// 	BroData:          &BroData{},
-		// 	TargetDatabase:   targetDB,
-		// 	TargetCollection: "temp",
-		// })
+		// fmt.Println(uconn)
+		temp = append(temp, &parsetypes.Temp{
+			Source:          uconn.src,
+			Destination:     uconn.dst,
+			ConnectionCount: connMap[uconn],
+		})
+
 	}
+
+	resDB := fs.res.DB
+	resConf := fs.res.Config
+	// fmt.Println()
+	writerTemp(temp, resDB, resConf, targetDB)
+}
+
+func writerTemp(output []*parsetypes.Temp, resDB *database.DB, resConf *config.Config, targetDB string) {
+
+	// buffer length controls amount of ram used while exporting
+	bufferLen := resConf.S.Bro.ImportBuffer
+
+	// //Create a buffer to hold a portion of the results
+	buffer := make([]interface{}, 0, bufferLen)
+	//
+	// //while we can still iterate through the data add to the buffer
+	// var datum interface{}
+	// for iter.Next(&datum) {
+	for _, data := range output {
+
+		// fmt.Println(data)
+		// if the buffer is full, send to the remote database and clear buffer
+		if len(buffer) == bufferLen {
+
+			err := bulkWriteTemp(buffer, resDB, resConf, targetDB)
+			if err != nil && err.Error() != "invalid BulkError instance: no errors" {
+				fmt.Println("write error 1", err)
+			}
+
+			buffer = buffer[:0]
+		}
+
+		buffer = append(buffer, data)
+	}
+
+	//send any data left in the buffer to the remote database
+	//
+	err := bulkWriteTemp(buffer, resDB, resConf, targetDB)
+	if err != nil && err.Error() != "invalid BulkError instance: no errors" {
+		fmt.Println(buffer)
+		fmt.Println("write error 2", err)
+	}
+
+}
+
+func bulkWriteTemp(buffer []interface{}, resDB *database.DB, resConf *config.Config, targetDB string) error {
+	ssn := resDB.Session.Copy()
+	defer ssn.Close()
+	// bulk := remoteSession.DB(remoteDB).C(name).Bulk()
+	// set up for bulk write to database
+	bulk := ssn.DB(targetDB).C("temp").Bulk()
+	// writes can be sent out of order
+	bulk.Unordered()
+	// inserts everything in the buffer into the bulk write object as a list
+	// of single interfaces
+	bulk.Insert(buffer...)
+
+	// runs all queued operations
+	_, err := bulk.Run()
+
+	return err
+
 }
 
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
