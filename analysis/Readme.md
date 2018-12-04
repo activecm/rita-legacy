@@ -19,8 +19,6 @@ Rita contains several analysis packages designed to extract useful intelligence 
   - Provides a list of ip addresses and domain names that were blacklisted by other authorities
 - User Agent
   - Provides a list of the user agent strings in the dataset and how many times they were used
-- Scanning
-  - Provides a list of source, destination pairs where the source may have scanned the destination
 - Internal Cross Reference
   - Provides an aggregate view of the other modules which are related to internal hosts
 - External Cross Reference
