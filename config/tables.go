@@ -9,7 +9,6 @@ type (
 		Crossref    CrossrefTableCfg
 		Structure   StructureTableCfg
 		Beacon      BeaconTableCfg
-		Urls        UrlsTableCfg
 		UserAgent   UserAgentTableCfg
 		Meta        MetaTableCfg
 	}
@@ -55,12 +54,7 @@ type (
 		BeaconTable string
 	}
 
-	//UrlsTableCfg is used to control the urls analysis module
-	UrlsTableCfg struct {
-		UrlsTable string
-	}
-
-	//UserAgentTableCfg is used to control the urls analysis module
+	//UserAgentTableCfg is used to control the useragent analysis module
 	UserAgentTableCfg struct {
 		UserAgentTable string
 	}
@@ -99,8 +93,6 @@ func loadTableConfig() *TableCfg {
 	config.Crossref.DestTable = "destXREF"
 
 	config.Beacon.BeaconTable = "beacon"
-
-	config.Urls.UrlsTable = "urls"
 
 	config.UserAgent.UserAgentTable = "useragent"
 

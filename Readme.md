@@ -11,7 +11,6 @@ The framework ingests [Bro Logs](https://www.bro.org/), and currently supports t
  - **Beaconing Detection**: Search for signs of beaconing behavior in and out of your network
  - **DNS Tunneling Detection** Search for signs of DNS based covert channels
  - **Blacklist Checking**: Query blacklists to search for suspicious domains and hosts
- - **URL Length Analysis**: Search for lengthy URLs indicative of malware
 
 Additional functionality is being developed and will be included soon.
 

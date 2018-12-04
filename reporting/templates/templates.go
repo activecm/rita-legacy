@@ -28,9 +28,7 @@ var dbHeader = `
   <li><a href="bl-source-ips.html">BL Source IPs</a></li>
 	<li><a href="bl-dest-ips.html">BL Dest. IPs</a></li>
 	<li><a href="bl-hostnames.html">BL Hostnames</a></li>
-	<li><a href="bl-urls.html">BL URLs</a></li>
 	<li><a href="long-conns.html">Long Connections</a></li>
-	<li><a href="long-urls.html">Long URLs</a></li>
 	<li><a href="useragents.html">User Agents</a></li>
 	<li style="float:right">
     <a href="https://github.com/activecm/rita" target="_blank">RITA on
@@ -136,16 +134,6 @@ var LongConnsTempl = dbHeader + `
 <div class="container">
   <table>
 	<tr><th>Source</th><th>Source Port</th><th>Destination</th><th>Destination Port</th><th>Duration</th><th>Protocol</th></tr>
-	  {{.Writer}}
-	</table>
-</div>
-`
-
-// LongURLsTempl is our long urls html template
-var LongURLsTempl = dbHeader + `
-<div class="container">
-  <table>
-	<tr><th>URL</th><th>URI</th><th>Length</th><th>Times Visited</th></tr>
 	  {{.Writer}}
 	</table>
 </div>
