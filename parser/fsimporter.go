@@ -296,14 +296,19 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 // db.getCollection('conn').find({$and:[{id_orig_h:"XXX.XXX.XXX.XXX"},{id_resp_h:"XXX.XXX.XXX.XXX"}]}).count()
 //
 func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string, filterHugeUconnsMap []uconnPair, connMap map[uconnPair]int) {
+	t := time.Now()
 	var temp []*parsetypes.Temp
 	resDB := fs.res.DB
 	resConf := fs.res.Config
 	var deleteQuery bson.M
-	fmt.Println("Removing unused connection info.")
-	go func() {
-		for _, uconn := range filterHugeUconnsMap {
-			// fmt.Println(uconn)
+	removalWG := new(sync.WaitGroup)
+	fmt.Println(len(filterHugeUconnsMap))
+	fmt.Println("\t[-] Removing unused connection info.")
+	removalWG.Add(len(filterHugeUconnsMap))
+	for _, uconn := range filterHugeUconnsMap {
+		// Increment the wait group for every loop iteration
+		go func() {
+			defer removalWG.Done()
 			temp = append(temp, &parsetypes.Temp{
 				Source:          uconn.src,
 				Destination:     uconn.dst,
@@ -316,10 +321,12 @@ func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string,
 					bson.M{"id_resp_h": uconn.dst},
 				}}
 			bulkDeleteMany(deleteQuery, resDB, resConf, targetDB, resConf.T.Structure.ConnTable)
-
-		}
-	}()
+		}()
+	}
+	// Wait for all the removals to finish
+	removalWG.Wait()
 	writerTemp(temp, resDB, resConf, targetDB)
+	fmt.Println(time.Since(t))
 }
 
 // db.getCollection('conn').deleteMany({$and:[{id_orig_h:"XXX.XXX.XXX.XXX"},{id_resp_h:"XXX.XXX.XXX.XXX"}]})
