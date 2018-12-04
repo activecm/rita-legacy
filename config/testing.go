@@ -23,9 +23,6 @@ BlackListed:
     myIP.ms: false
     MalwareDomains.com: false
     MalwareDomainList.com: false
-    SafeBrowsing:
-        APIKey: null
-        Database: null
     CustomIPBlacklists: []
     CustomHostnameBlacklists: []
 Crossref:

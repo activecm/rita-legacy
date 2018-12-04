@@ -7,7 +7,6 @@ source $BATS_TEST_DIRNAME/helpers.sh
 @test "rita is installed" {
 	_rita_binary="/usr/local/bin/rita"
 	_rita_config="/etc/rita/config.yaml"
-	_safebrowsing="/var/lib/rita/safebrowsing"
 	_rita_logs="/var/lib/rita/logs"
 
 	ensure_file			$_rita_binary
@@ -17,10 +16,6 @@ source $BATS_TEST_DIRNAME/helpers.sh
 	ensure_file			$_rita_config
 	ensure_readable		$_rita_config
 	ensure_writable		$_rita_config
-
-	ensure_file			$_safebrowsing
-	ensure_readable		$_safebrowsing
-	ensure_writable		$_safebrowsing
 
 	ensure_directory	$_rita_logs
 	ensure_readable 	$_rita_logs

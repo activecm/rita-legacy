@@ -30,9 +30,6 @@ BlackListed:
     myIP.ms: true
     MalwareDomains.com: true
     MalwareDomainList.com: true
-    SafeBrowsing:
-        APIKey: "asdf"
-        Database: /var/lib/rita/safebrowsing
     CustomIPBlacklists: [test1]
     CustomHostnameBlacklists: [test2]
 Crossref:
@@ -70,10 +67,6 @@ var testConfigFullExp = StaticCfg{
 		UseIPms:  true,
 		UseMDL:   true,
 		UseDNSBH: true,
-		SafeBrowsing: SafeBrowsingStaticCfg{
-			APIKey:   "asdf",
-			Database: "/var/lib/rita/safebrowsing",
-		},
 		IPBlacklists:       []string{"test1"},
 		HostnameBlacklists: []string{"test2"},
 	},
@@ -102,18 +95,10 @@ LogConfig:
     RitaLogPath: /var/lib/rita/incorrect/./../logs/
 Bro:
     ImportDirectory: /opt/bro/incorrect/./../../bro/logs/
-BlackListed:
-    SafeBrowsing:
-        Database: /var/lib/rita/incorrect/./../safebrowsing
 `
 	testConfigExp := StaticCfg{
 		Log: LogStaticCfg{
 			RitaLogPath: "/var/lib/rita/logs",
-		},
-		Blacklisted: BlacklistedStaticCfg{
-			SafeBrowsing: SafeBrowsingStaticCfg{
-				Database: "/var/lib/rita/safebrowsing",
-			},
 		},
 		Bro: BroStaticCfg{
 			ImportDirectory: "/opt/bro/logs",
