@@ -17,7 +17,7 @@ import (
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo/bson"
 )
 
 type (
@@ -300,28 +300,26 @@ func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string,
 	resDB := fs.res.DB
 	resConf := fs.res.Config
 	var deleteQuery bson.M
+	fmt.Println("Removing unused connection info.")
+	go func() {
+		for _, uconn := range filterHugeUconnsMap {
+			// fmt.Println(uconn)
+			temp = append(temp, &parsetypes.Temp{
+				Source:          uconn.src,
+				Destination:     uconn.dst,
+				ConnectionCount: connMap[uconn],
+			})
 
-	for _, uconn := range filterHugeUconnsMap {
-		// fmt.Println(uconn)
-		temp = append(temp, &parsetypes.Temp{
-			Source:          uconn.src,
-			Destination:     uconn.dst,
-			ConnectionCount: connMap[uconn],
-		})
+			deleteQuery = bson.M{
+				"$and": []bson.M{
+					bson.M{"id_orig_h": uconn.src},
+					bson.M{"id_resp_h": uconn.dst},
+				}}
+			bulkDeleteMany(deleteQuery, resDB, resConf, targetDB, resConf.T.Structure.ConnTable)
 
-		deleteQuery = bson.M{
-			"$and": []bson.M{
-				bson.M{"id_orig_h": uconn.src},
-				bson.M{"id_resp_h": uconn.dst},
-			}}
-
-		bulkDeleteMany(deleteQuery, resDB, resConf, targetDB, resConf.T.Structure.ConnTable)
-
-	}
+		}
+	}()
 	writerTemp(temp, resDB, resConf, targetDB)
-
-	// fmt.Println()
-
 }
 
 // db.getCollection('conn').deleteMany({$and:[{id_orig_h:"XXX.XXX.XXX.XXX"},{id_resp_h:"XXX.XXX.XXX.XXX"}]})
