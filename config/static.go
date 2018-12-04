@@ -55,11 +55,11 @@ type (
 
 	//BlacklistedStaticCfg is used to control the blacklisted analysis module
 	BlacklistedStaticCfg struct {
-		UseIPms            bool                  `yaml:"myIP.ms"`
-		UseDNSBH           bool                  `yaml:"MalwareDomains.com"`
-		UseMDL             bool                  `yaml:"MalwareDomainList.com"`
-		IPBlacklists       []string              `yaml:"CustomIPBlacklists"`
-		HostnameBlacklists []string              `yaml:"CustomHostnameBlacklists"`
+		UseIPms            bool     `yaml:"myIP.ms"`
+		UseDNSBH           bool     `yaml:"MalwareDomains.com"`
+		UseMDL             bool     `yaml:"MalwareDomainList.com"`
+		IPBlacklists       []string `yaml:"CustomIPBlacklists"`
+		HostnameBlacklists []string `yaml:"CustomHostnameBlacklists"`
 	}
 
 	//CrossrefStaticCfg is used to control the crossref analysis module

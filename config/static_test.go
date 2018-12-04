@@ -64,9 +64,9 @@ var testConfigFullExp = StaticCfg{
 		ImportBuffer:    100000,
 	},
 	Blacklisted: BlacklistedStaticCfg{
-		UseIPms:  true,
-		UseMDL:   true,
-		UseDNSBH: true,
+		UseIPms:            true,
+		UseMDL:             true,
+		UseDNSBH:           true,
 		IPBlacklists:       []string{"test1"},
 		HostnameBlacklists: []string{"test2"},
 	},
