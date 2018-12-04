@@ -21,15 +21,3 @@ type BlacklistedHostname struct {
 	Lists             []string `bson:"lists"`
 	ConnectedHosts    []string `bson:",omitempty"`
 }
-
-//BlacklistedURL holds information on a blacklisted URL and the
-//summary statistics associated with the hosts behind the url
-type BlacklistedURL struct {
-	Host              string   `bson:"host"`
-	Resource          string   `bson:"resource"`
-	Connections       int      `bson:"conn"`
-	UniqueConnections int      `bson:"uconn"`
-	TotalBytes        int      `bson:"total_bytes"`
-	Lists             []string `bson:"lists"`
-	ConnectedHosts    []string `bson:",omitempty"`
-}
