@@ -34,6 +34,7 @@ BlackListed:
         APIKey: "asdf"
         Database: /var/lib/rita/safebrowsing
     CustomIPBlacklists: [test1]
+    CustomHostnameBlacklists: [test2]
 Crossref:
     BeaconThreshold: .7
 Beacon:
