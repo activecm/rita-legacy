@@ -9,7 +9,6 @@ import (
 	"github.com/activecm/rita/analysis/crossref"
 	"github.com/activecm/rita/analysis/dns"
 	"github.com/activecm/rita/analysis/sanitization"
-	"github.com/activecm/rita/analysis/scanning"
 	"github.com/activecm/rita/analysis/structure"
 	"github.com/activecm/rita/analysis/urls"
 	"github.com/activecm/rita/analysis/useragent"
@@ -138,9 +137,6 @@ func analyze(inDb string, configFile string) error {
 		)
 		logAnalysisFunc("Beaconing", td, res,
 			beacon.BuildBeaconCollection,
-		)
-		logAnalysisFunc("Scanning", td, res,
-			scanning.BuildScanningCollection,
 		)
 		logAnalysisFunc("Cross Reference", td, res,
 			crossref.BuildXRefCollection,

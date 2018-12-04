@@ -12,7 +12,6 @@ The framework ingests [Bro Logs](https://www.bro.org/), and currently supports t
  - **DNS Tunneling Detection** Search for signs of DNS based covert channels
  - **Blacklist Checking**: Query blacklists to search for suspicious domains and hosts
  - **URL Length Analysis**: Search for lengthy URLs indicative of malware
- - **Scanning Detection**: Search for signs of port scans in your network
 
 Additional functionality is being developed and will be included soon.
 
@@ -35,10 +34,10 @@ You can specify the location for the configuration file with the **-c** command 
 ### Getting Started
 #### System Requirements
 * Operating System - The preferred platform is 64-bit Ubuntu 16.04 LTS. The system should be patched and up to date using apt-get.
-* Processor (when also using Bro) - Two cores plus an additional core for every 100 Mb of traffic being captured. (three cores minimum). This should be dedicated hardware, as resource congestion with other VMs can cause packets to be dropped or missed. 
+* Processor (when also using Bro) - Two cores plus an additional core for every 100 Mb of traffic being captured. (three cores minimum). This should be dedicated hardware, as resource congestion with other VMs can cause packets to be dropped or missed.
 * Memory - 16GB minimum. 64GB if monitoring 100Mb or more of network traffic. 128GB if monitoring 1Gb or more of network traffic.
-* Storage - 300GB minimum. 1TB or more is recommended to reduce log maintenance. 
-* Network - In order to capture traffic with Bro, you will need at least 2 network interface cards (NICs). One will be for management of the system and the other will be the dedicated capture port. Intel NICs perform well and are recommended. 
+* Storage - 300GB minimum. 1TB or more is recommended to reduce log maintenance.
+* Network - In order to capture traffic with Bro, you will need at least 2 network interface cards (NICs). One will be for management of the system and the other will be the dedicated capture port. Intel NICs perform well and are recommended.
 
 #### Obtaining Data (Generating Bro Logs):
   * **Option 1**: Generate PCAPs outside of Bro

@@ -29,7 +29,6 @@ var dbHeader = `
 	<li><a href="bl-dest-ips.html">BL Dest. IPs</a></li>
 	<li><a href="bl-hostnames.html">BL Hostnames</a></li>
 	<li><a href="bl-urls.html">BL URLs</a></li>
-	<li><a href="scans.html">Scans</a></li>
 	<li><a href="long-conns.html">Long Connections</a></li>
 	<li><a href="long-urls.html">Long URLs</a></li>
 	<li><a href="useragents.html">User Agents</a></li>
@@ -58,16 +57,6 @@ var homeHeader = `
     </a>
   </li>
 </ul>
-`
-
-// ScansTempl is our scans html template
-var ScansTempl = dbHeader + `
-<div class="container">
-  <table>
-    <tr><th>Source</th><th>Destination</th><th>Port Count</th><th>Port Set</th></tr>
-      {{.Writer}}
-  </table>
-</div>
 `
 
 // Hometempl is our home template html

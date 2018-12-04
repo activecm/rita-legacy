@@ -27,8 +27,6 @@ BlackListed:
     CustomHostnameBlacklists: []
 Crossref:
     BeaconThreshold: .7
-Scanning:
-    ScanThreshold: 50
 Beacon:
     DefaultConnectionThresh: 24
 `

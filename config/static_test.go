@@ -34,8 +34,6 @@ BlackListed:
     CustomHostnameBlacklists: [test2]
 Crossref:
     BeaconThreshold: .7
-Scanning:
-    ScanThreshold: 50
 Beacon:
     DefaultConnectionThresh: 24
 `
@@ -72,9 +70,6 @@ var testConfigFullExp = StaticCfg{
 	},
 	Crossref: CrossrefStaticCfg{
 		BeaconThreshold: .7,
-	},
-	Scanning: ScanningStaticCfg{
-		ScanThreshold: 50,
 	},
 	Beacon: BeaconStaticCfg{
 		DefaultConnectionThresh: 24,

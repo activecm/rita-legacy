@@ -156,10 +156,6 @@ func writeDB(db string, wd string, res *resources.Resources) error {
 	if err != nil {
 		return err
 	}
-	err = printScans(db, res)
-	if err != nil {
-		return err
-	}
 
 	err = printDNS(db, res)
 	if err != nil {

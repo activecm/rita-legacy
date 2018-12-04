@@ -18,7 +18,6 @@ type (
 		Log          LogStaticCfg         `yaml:"LogConfig"`
 		Blacklisted  BlacklistedStaticCfg `yaml:"BlackListed"`
 		Crossref     CrossrefStaticCfg    `yaml:"Crossref"`
-		Scanning     ScanningStaticCfg    `yaml:"Scanning"`
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
 		Bro          BroStaticCfg         `yaml:"Bro"`
 		Version      string
@@ -65,11 +64,6 @@ type (
 	//CrossrefStaticCfg is used to control the crossref analysis module
 	CrossrefStaticCfg struct {
 		BeaconThreshold float64 `yaml:"BeaconThreshold"`
-	}
-
-	//ScanningStaticCfg is used to control the scanning analysis module
-	ScanningStaticCfg struct {
-		ScanThreshold int `yaml:"ScanThreshold"`
 	}
 
 	//BeaconStaticCfg is used to control the beaconing analysis module
