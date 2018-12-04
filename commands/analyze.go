@@ -8,7 +8,6 @@ import (
 	"github.com/activecm/rita/analysis/blacklist"
 	"github.com/activecm/rita/analysis/crossref"
 	"github.com/activecm/rita/analysis/dns"
-	"github.com/activecm/rita/analysis/scanning"
 	"github.com/activecm/rita/analysis/structure"
 	"github.com/activecm/rita/analysis/useragent"
 	"github.com/activecm/rita/resources"
@@ -123,7 +122,6 @@ func analyze(inDb string, configFile string) error {
 		logAnalysisFunc("Exploded DNS", td, res,
 			dns.BuildExplodedDNSCollection,
 		)
-
 		logAnalysisFunc("User Agent", td, res,
 			useragent.BuildUserAgentCollection,
 		)
@@ -132,9 +130,6 @@ func analyze(inDb string, configFile string) error {
 		)
 		logAnalysisFunc("Beaconing", td, res,
 			beacon.BuildBeaconCollection,
-		)
-		logAnalysisFunc("Scanning", td, res,
-			scanning.BuildScanningCollection,
 		)
 		logAnalysisFunc("Cross Reference", td, res,
 			crossref.BuildXRefCollection,
