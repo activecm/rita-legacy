@@ -53,5 +53,7 @@ type (
 		TotalBytes      int           `bson:"total_bytes"`
 		AverageBytes    float32       `bson:"average_bytes"`
 		TotalDuration   float32       `bson:"total_duration"`
+		Ts              []int64       `bson:"ts_list"`         // Connection timestamps for this src, dst pair
+		OrigIPBytes     []int64       `bson:"orig_bytes_list"` // Src to dst connection sizes for each connection
 	}
 )

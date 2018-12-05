@@ -109,6 +109,7 @@ func analyze(inDb string, configFile string) error {
 		logAnalysisFunc("Unique Connections", td, res,
 			structure.BuildUniqueConnectionsCollection,
 		)
+
 		logAnalysisFunc("Unique Hosts", td, res,
 			func(innerRes *resources.Resources) {
 				structure.BuildHostsCollection(innerRes)
@@ -169,4 +170,5 @@ func logAnalysisFunc(analysisName string, databaseName string,
 		"end_time": end.Format(util.TimeFormat),
 		"duration": end.Sub(start),
 	}).Infof("Analysis complete")
+	fmt.Println("\t[-] Duration: ", end.Sub(start))
 }
