@@ -169,5 +169,4 @@ func logAnalysisFunc(analysisName string, databaseName string,
 		"end_time": end.Format(util.TimeFormat),
 		"duration": end.Sub(start),
 	}).Infof("Analysis complete")
-	fmt.Println("analysis :", analysisName, "| duration: ", end.Sub(start))
 }
