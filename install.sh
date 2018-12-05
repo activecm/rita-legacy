@@ -4,7 +4,7 @@
 # activecountermeasures.com
 
 # CONSTANTS
-_RITA_VERSION="v1.1.0"
+_RITA_VERSION="v1.1.1"
 _MONGO_VERSION="3.6"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
@@ -332,6 +332,7 @@ __install_rita() {
 
 	mkdir -p "$_CONFIG_PATH"
 	mkdir -p "$_VAR_PATH"
+	chmod 755 "$_VAR_PATH"
 	mkdir -p "$_VAR_PATH/logs"
 	chmod 777 "$_VAR_PATH/logs"
 
@@ -348,10 +349,6 @@ __install_rita() {
 
 	# All users can read and write rita's config file
 	chmod 755 "$_CONFIG_PATH"
-
-	touch "$_VAR_PATH/safebrowsing"
-	chmod 755 "$_VAR_PATH"
-	chmod 666 "$_VAR_PATH/safebrowsing"
 
 	mkdir -p /etc/bash_completion.d/
 	curl -sSL "https://raw.githubusercontent.com/urfave/cli/master/autocomplete/bash_autocomplete" -o "/etc/bash_completion.d/rita"

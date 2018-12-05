@@ -64,13 +64,6 @@ BlackListed:
     MalwareDomains.com: true
     MalwareDomainList.com: true
 
-    # Google SafeBrowsing requires an api key and a file to cache the results in.
-    # If either APIKey or Database is an empty string, Google SafeBrowsing will
-    # not be queried.
-    SafeBrowsing:
-        APIKey: ""
-        Database: /var/lib/rita/safebrowsing
-
     # These are custom blacklists that you may define. They are lists of either
     # file paths or urls. These custom blacklists are expected to be simple,
     # line separated text documents containing a list of blacklisted entries.

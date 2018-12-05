@@ -54,23 +54,16 @@ type (
 
 	//BlacklistedStaticCfg is used to control the blacklisted analysis module
 	BlacklistedStaticCfg struct {
-		UseIPms            bool                  `yaml:"myIP.ms"`
-		UseDNSBH           bool                  `yaml:"MalwareDomains.com"`
-		UseMDL             bool                  `yaml:"MalwareDomainList.com"`
-		SafeBrowsing       SafeBrowsingStaticCfg `yaml:"SafeBrowsing"`
-		IPBlacklists       []string              `yaml:"CustomIPBlacklists"`
-		HostnameBlacklists []string              `yaml:"CustomHostnameBlacklists"`
+		UseIPms            bool     `yaml:"myIP.ms"`
+		UseDNSBH           bool     `yaml:"MalwareDomains.com"`
+		UseMDL             bool     `yaml:"MalwareDomainList.com"`
+		IPBlacklists       []string `yaml:"CustomIPBlacklists"`
+		HostnameBlacklists []string `yaml:"CustomHostnameBlacklists"`
 	}
 
 	//CrossrefStaticCfg is used to control the crossref analysis module
 	CrossrefStaticCfg struct {
 		BeaconThreshold float64 `yaml:"BeaconThreshold"`
-	}
-
-	//SafeBrowsingStaticCfg contains the details for contacting Google's safebrowsing api
-	SafeBrowsingStaticCfg struct {
-		APIKey   string `yaml:"APIKey"`
-		Database string `yaml:"Database"`
 	}
 
 	//BeaconStaticCfg is used to control the beaconing analysis module
@@ -120,7 +113,6 @@ func parseStaticConfig(cfgFile []byte) (*StaticCfg, error) {
 
 	// clean all filepaths
 	config.Log.RitaLogPath = filepath.Clean(config.Log.RitaLogPath)
-	config.Blacklisted.SafeBrowsing.Database = filepath.Clean(config.Blacklisted.SafeBrowsing.Database)
 	config.Bro.ImportDirectory = filepath.Clean(config.Bro.ImportDirectory)
 
 	// grab the version constants set by the build process
