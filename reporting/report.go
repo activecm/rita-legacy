@@ -182,10 +182,6 @@ func writeDB(db string, wd string, res *resources.Resources) error {
 	if err != nil {
 		return err
 	}
-	err = printLongURLs(db, res)
-	if err != nil {
-		return err
-	}
 	err = printUserAgents(db, res)
 	if err != nil {
 		return err

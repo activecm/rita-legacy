@@ -7,8 +7,6 @@ Rita contains several analysis packages designed to extract useful intelligence 
   - Provides a list of who talked to whom in the dataset
 - Hosts
   - Provides a list of ip addresses in the dataset
-- Urls
-  - Provides a list of url + uri pairs in the dataset
 - Hostnames
   - Provides a mapping from hostnames to ip addresses
 - Exploded DNS
