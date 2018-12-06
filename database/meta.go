@@ -1,7 +1,6 @@
 package database
 
 import (
-	"os"
 	"sync"
 	"time"
 
@@ -51,10 +50,7 @@ func NewMetaDB(config *config.Config, dbHandle *mgo.Session,
 		dbHandle: dbHandle,
 		log:      log,
 	}
-	//Build Meta collection
-	if !metaDB.isBuilt() {
-		metaDB.createMetaDB()
-	}
+
 	return metaDB
 }
 
@@ -130,11 +126,6 @@ func (m *MetaDB) DeleteDB(name string) error {
 
 	//delete any parsed file records associated
 	_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.FilesTable).RemoveAll(bson.M{"database": name})
-	if err != nil {
-		return err
-	}
-
-	_, err = ssn.DB(m.config.S.Bro.MetaDB).C("files").RemoveAll(bson.M{"database": name})
 	if err != nil {
 		return err
 	}
@@ -425,90 +416,4 @@ func (m *MetaDB) AddParsedFiles(files []*fpt.IndexedFile) error {
 		return err
 	}
 	return nil
-}
-
-/////////////////////
-
-// isBuilt checks to see if a file table exists, as the existence of parsed files is prerequisite
-// to the existence of anything else.
-func (m *MetaDB) isBuilt() bool {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	ssn := m.dbHandle.Copy()
-	defer ssn.Close()
-
-	coll, err := ssn.DB(m.config.S.Bro.MetaDB).CollectionNames()
-	if err != nil {
-		m.log.WithFields(log.Fields{
-			"error": err.Error(),
-		}).Error("error when looking up metadata collections")
-		return false
-	}
-
-	for _, name := range coll {
-		if name == m.config.T.Meta.FilesTable {
-			return true
-		}
-	}
-
-	return false
-}
-
-// createMetaDB creates a new metadata database failure is not an option,
-// if this function fails it will bring down the system.
-func (m *MetaDB) createMetaDB() {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	errchk := func(err error) {
-		if err == nil {
-			return
-		}
-		m.log.WithFields(log.Fields{
-			"error": err.Error(),
-		}).Error("newMetaDBHandle failed to build database (aborting)")
-		os.Exit(-1)
-	}
-
-	ssn := m.dbHandle.Copy()
-	defer ssn.Close()
-
-	// Create the files collection
-	myCol := mgo.CollectionInfo{
-		DisableIdIndex: false,
-		Capped:         false,
-	}
-
-	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Log.RitaLogTable).Create(&myCol)
-	errchk(err)
-
-	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.FilesTable).Create(&myCol)
-	errchk(err)
-
-	idx := mgo.Index{
-		Key:        []string{"hash", "database"},
-		Unique:     true,
-		DropDups:   true,
-		Background: true,
-		Name:       "hashindex",
-	}
-
-	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.FilesTable).EnsureIndex(idx)
-	errchk(err)
-
-	// Create the database collection
-	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Create(&myCol)
-	errchk(err)
-
-	idx = mgo.Index{
-		Key:        []string{"name"},
-		Unique:     true,
-		DropDups:   true,
-		Background: true,
-		Name:       "nameindex",
-	}
-
-	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).EnsureIndex(idx)
-	errchk(err)
-
 }
