@@ -1,6 +1,6 @@
 # Move Logs From Separate Bro IDS/ Zeek Systems To RITA
 
-If you would like to run Bro IDS/ Zeek on a a separate system from RITA,
+If you would like to run Bro IDS/ Zeek on a separate system from RITA,
 the scripts in this directory will help you automatically transfer the logs
 collected by Bro IDS/ Zeek to your RITA installation and kick off the
 RITA import and analysis process.
@@ -36,13 +36,13 @@ Bro IDS/ Zeek system.
         - This guide sets [watcher.sh](./watcher.sh) to run at 12:10 a.m.
         - Add `10 0 * * * /usr/local/bin/watcher.sh` to the end of the user's crontab
 1. Install [logpush.bash](./logpush.bash) on each Bro IDS/ Zeek System
-    - Edit [logpush.bash])(./logpush.bash)
+    - Edit [logpush.bash](./logpush.bash)
         - Set `USER` to the name of the user account determined in the first step
         - Set `REMOTE` to the hostname/ IP address of the RITA system
         - Set `REMOTE_LOG_DIR` to the same value as `LOG_DIR` in the second step
-        - Set `LOCAL_LOG_DIR` to the directory containing your bro logs
+        - Set `LOCAL_LOG_DIR` to the directory containing your Bro IDS/ Zeek logs
         - Set `COLLECTOR` the name of this Bro IDS/ Zeek System. This will be used to name the RITA datasets which originate from this system.
-        - Set `KEYFILE` to the path to the SSH key that will be used to connect to the RITA system
+        - Set `KEYFILE` to the path of the SSH key that will be used to connect to the RITA system
     - Copy the edited script to the Bro IDS/ Zeek system
         - This guide assumes the watcher script is placed at `/usr/local/bin/logpush.bash`
     - Ensure the script is executable
@@ -57,3 +57,6 @@ Bro IDS/ Zeek system.
 If all goes well, logs will be transferred from the Bro IDS/ Zeek box at 12:05 a.m. The watcher script will kick off at 12:10 a.m., wait for the transfers to finish, and begin analyzing the data.
 
 NOTE: There is a bug at the moment which requires [logpush.bash](./logpush.bash) to be able to create a file in the working directory. If [logpush.bash](./logpush.bash) is placed in `/usr/local/bin` the script must be ran as root. A patch will soon be available which will create the needed file in a `/tmp` directory.
+
+NOTE: [logpush.bash](./logpush.bash) and [watcher.sh](./watcher.sh) will not work if the directory referenced by
+`LOG_DIR`/ `REMOTE_LOG_DIR` is stored within a NFS filesystem. NFS does not properly support `flock`.
