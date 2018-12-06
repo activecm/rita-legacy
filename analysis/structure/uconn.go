@@ -64,14 +64,14 @@ func getUniqueConnectionsScript(conf *config.Config) (string, string, []mgo.Inde
 		{Key: []string{"connection_count"}},
 	}
 
-	// Aggregation to calculate various metrics (shown in the $project stage) that 
+	// Aggregation to calculate various metrics (shown in the $project stage) that
 	// occur between a unique IP pair. That is, all individual connections between two
 	// given IPs will be summarized into a single entry in the resulting uconn collection.
-	// We only process connections between IPs that cross the network border, 
+	// We only process connections between IPs that cross the network border,
 	// i.e. internal <-> external traffic.
 	// This is mainly for performance (not having to process int<->int or ext<->ext)
 	// but is also to reduce false positives as we are specifically looking for command
-	// & control channels where a compromised internal system is communicating with an 
+	// & control channels where a compromised internal system is communicating with an
 	// attacker's server on the internet.
 	pipeline := []bson.D{
 		{
@@ -95,15 +95,16 @@ func getUniqueConnectionsScript(conf *config.Config) (string, string, []mgo.Inde
 		{
 			{"$group", bson.D{
 				{"_id", bson.D{
-					// Each of these should be a static value per
-					// entry in the collection. In addition to defining
-					// the entry's key, putting them here makes them available
+					// In addition to defining the entry's key,
+					// putting these here makes them available
 					// for storing in the $project stage through $_id.*
 					{"src", "$id_orig_h"},
 					{"dst", "$id_resp_h"},
-					{"ls", "$local_orig"},
-					{"ld", "$local_resp"},
 				}},
+				// local_* is set per IP so we just need to know
+				// any one of the connections' values
+				{"ls", bson.D{{"$first", "$local_orig"}}},
+				{"ld", bson.D{{"$first", "$local_resp"}}},
 				// Total number of connections between two hosts
 				{"conns", bson.D{
 					{"$sum", 1},
@@ -126,10 +127,6 @@ func getUniqueConnectionsScript(conf *config.Config) (string, string, []mgo.Inde
 						}},
 					}},
 				}},
-				// Total sum of all connection durations
-				{"tdur", bson.D{
-					{"$sum", "$duration"},
-				}},
 				// Array of all connection timestamps
 				{"ts", bson.D{{"$push", "$ts"}}},
 				// Array of bytes sent from origin in each connection
@@ -142,11 +139,10 @@ func getUniqueConnectionsScript(conf *config.Config) (string, string, []mgo.Inde
 				{"connection_count", "$conns"},
 				{"src", "$_id.src"},
 				{"dst", "$_id.dst"},
-				{"local_src", "$_id.ls"},
-				{"local_dst", "$_id.ld"},
+				{"local_src", "$ls"},
+				{"local_dst", "$ld"},
 				{"total_bytes", "$tbytes"},
 				{"avg_bytes", "$abytes"},
-				{"total_duration", "$tdur"},
 				{"ts_list", "$ts"},
 				{"orig_bytes_list", "$orig_bytes"},
 			}},
