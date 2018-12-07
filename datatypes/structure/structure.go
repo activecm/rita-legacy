@@ -52,7 +52,7 @@ type (
 		LocalDst        bool          `bson:"local_dst"`
 		TotalBytes      int           `bson:"total_bytes"`
 		AverageBytes    float32       `bson:"average_bytes"`
-		Ts              []int64       `bson:"ts_list"`         // Connection timestamps for this src, dst pair
+		TsList          []int64       `bson:"ts_list"`         // Connection timestamps for this src, dst pair
 		OrigIPBytes     []int64       `bson:"orig_bytes_list"` // Src to dst connection sizes for each connection
 	}
 )

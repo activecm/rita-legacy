@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	dataBeacon "github.com/activecm/rita/datatypes/beacon"
+	"github.com/activecm/rita/datatypes/beacon"
 	"github.com/activecm/rita/util"
 
 	"github.com/stretchr/testify/require"
@@ -12,23 +12,22 @@ import (
 
 func TestAnalyzer(t *testing.T) {
 	for _, val := range analyzerTestDataList {
-		analyzedChan := make(chan *dataBeacon.AnalysisOutput, 1)
+		analyzedChan := make(chan *beacon.AnalysisOutput, 1)
 
 		analyzer := newAnalyzer(
-			5,                                //connection threshold
 			val.ts[0], val.ts[len(val.ts)-1], //min max times,
-			func(output *dataBeacon.AnalysisOutput) {
+			func(output *beacon.AnalysisOutput) {
 				analyzedChan <- output
 			}, func() {
 				close(analyzedChan)
 			},
 		)
 		analyzer.start()
-		analyzer.analyze(&beaconAnalysisInput{
-			src:         "0.0.0.0",
-			dst:         "0.0.0.0",
-			ts:          val.ts, //these are the timestamps
-			origIPBytes: val.ds, //these are the data sizes
+		analyzer.analyze(&beacon.AnalysisInput{
+			Src:         "0.0.0.0",
+			Dst:         "0.0.0.0",
+			TsList:      val.ts, //these are the timestamps
+			OrigIPBytes: val.ds, //these are the data sizes
 		})
 		analyzer.close()
 

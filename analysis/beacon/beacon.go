@@ -8,22 +8,11 @@ import (
 	"github.com/globalsign/mgo/bson"
 
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/datatypes/structure"
+	"github.com/activecm/rita/datatypes/beacon"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 
 	log "github.com/sirupsen/logrus"
-)
-
-type (
-	//beaconAnalysisInput binds a src, dst pair with their analysis data
-	beaconAnalysisInput struct {
-		src         string        // Source IP
-		dst         string        // Destination IP
-		uconnID     bson.ObjectId // Unique Connection ID
-		ts          []int64       // Connection timestamps for this src, dst pair
-		origIPBytes []int64       // Src to dst connection sizes for each connection
-	}
 )
 
 // BuildBeaconCollection pulls data from the unique connections collection
@@ -55,32 +44,62 @@ func BuildBeaconCollection(res *resources.Resources) {
 		minTime, maxTime,
 		writerWorker.write, writerWorker.close,
 	)
-	collectorWorker := newCollector(
-		res.DB, res.Config,
-		analyzerWorker.analyze, analyzerWorker.close,
-	)
 
 	//kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
-		collectorWorker.start()
+		// collectorWorker.start()
 		analyzerWorker.start()
 		writerWorker.start()
 	}
 
-	// Feed local addresses to the collector
-	session := res.DB.Session.Copy()
-	var host structure.Host
-	localIter := session.DB(res.DB.GetSelectedDB()).
-		C(res.Config.T.Structure.HostTable).
-		Find(bson.M{"local": true}).Iter()
+	thresh := util.Max(20, res.Config.S.Beacon.DefaultConnectionThresh)
 
-	for localIter.Next(&host) {
-		collectorWorker.collect(host.IP)
+	// copy session
+	session := res.DB.Session.Copy()
+
+	// create find query
+	// first two lines: limit results to connection counts of min 20 and max 150k
+	// third line: analysis needs at least four delta times to analyze
+	// (Q1, Q2, Q3, Q4). This verifies at least 5 unique timestamps (connections may
+	// result in duplicates, ts_list is a unique set)
+	uconnsFindQuery := bson.M{
+		"$and": []bson.M{
+			bson.M{"connection_count": bson.M{"$gt": thresh}},
+			bson.M{"connection_count": bson.M{"$lt": 150000}},
+			bson.M{"ts_list.4": bson.M{"$exists": true}},
+		}}
+
+	// create result variable to receive query result
+	var uconnRes struct {
+		ID          bson.ObjectId `bson:"_id,omitempty"`
+		Src         string        `bson:"src"`
+		Dst         string        `bson:"dst"`
+		TsList      []int64       `bson:"ts_list"`
+		OrigIPBytes []int64       `bson:"orig_bytes_list"`
+	}
+
+	// execute query
+	uconnIter := session.DB(res.DB.GetSelectedDB()).
+		C(res.Config.T.Structure.UniqueConnTable).
+		Find(uconnsFindQuery).Iter()
+
+	// iterate over results and send to analysis worker
+	for uconnIter.Next(&uconnRes) {
+		// Note for Ethan: for some reason not doing the part below and reading directly into the
+		// beacon analysis input structure with identically named fields and bson tags
+		// causes incorrect information and huge errors, that's why its being typecast
+		// below. Does not seem to impact performance
+		newInput := &beacon.AnalysisInput{
+			ID:          uconnRes.ID,
+			Src:         uconnRes.Src,
+			Dst:         uconnRes.Dst,
+			TsList:      uconnRes.TsList,
+			OrigIPBytes: uconnRes.OrigIPBytes,
+		}
+		analyzerWorker.analyze(newInput)
 	}
 	session.Close()
 
-	// Wait for things to finish
-	collectorWorker.close()
 }
 
 // db.getCollection('uconn').aggregate([
@@ -244,3 +263,49 @@ func getViewPipeline(res *resources.Resources, cuttoff float64) []bson.D {
 		},
 	}
 }
+
+// uconnsQuery := []bson.D{
+// 	{
+// 		{"$match", bson.D{
+// 			{"connection_count", bson.D{
+// 				{"$gt", thresh},
+// 			}},
+// 			{"connection_count", bson.D{
+// 				{"$lt", 150000},
+// 			}},
+// 		}},
+// 	},
+// }
+//
+// uconnsFindQuery := bson.M{
+// 	"$and": []bson.M{
+// 		bson.M{"connection_count": bson.M{"$gt": thresh}},
+// 		bson.M{"connection_count": bson.M{"$lt": 150000}},
+// 	}}
+//
+// start1 := time.Now()
+// count1, _ := res.DB.Session.DB(res.DB.GetSelectedDB()).
+// 	C(res.Config.T.Structure.UniqueConnTable).
+// 	Find(bson.M{"connection_count": bson.M{"$gt": thresh, "$lt": 150000}}).
+// 	Count()
+// dur1 := time.Since(start1)
+// start2 := time.Now()
+// count2, _ := res.DB.Session.DB(res.DB.GetSelectedDB()).
+// 	C(res.Config.T.Structure.UniqueConnTable).
+// 	Find(uconnsFindQuery).
+// 	Count()
+// dur2 := time.Since(start2)
+// var temp []interface{}
+//
+// start3 := time.Now()
+// _ = session.DB(res.DB.GetSelectedDB()).
+// 	C(res.Config.T.Structure.UniqueConnTable).
+// 	Pipe(uconnsQuery).All(&temp)
+//
+// count3 := len(temp)
+//
+// dur3 := time.Since(start3)
+//
+// fmt.Println("count1: ", count1, " duration: ", dur1)
+// fmt.Println("count2: ", count2, " duration: ", dur2)
+// fmt.Println("count3: ", count3, " duration: ", dur3)
