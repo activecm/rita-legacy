@@ -218,7 +218,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 					connCount := 0
 					// The maximum number of conns that will be stored
 					// We need to move this somewhere where the importer & analyzer can both access it
-					connLimit := 50
+					connLimit := 250000
 
 					if data != nil {
 						//figure out what database this line is heading for
