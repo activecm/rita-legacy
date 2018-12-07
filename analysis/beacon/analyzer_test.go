@@ -7,6 +7,7 @@ import (
 	"github.com/activecm/rita/datatypes/beacon"
 	"github.com/activecm/rita/util"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,4 +69,32 @@ func TestCreateCountMap(t *testing.T) {
 	}
 	require.Equal(t, int64(0), mode)
 	require.Equal(t, int64(5), modeCount)
+}
+
+func TestCountAndRemoveConsecutiveDuplicates(t *testing.T) {
+	allSame := []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	allSameExp := []int64{0}
+	outOfOrder := []int64{5, 5, 1, 5, 5, 1, 5, 5}
+	outOfOrderExp := []int64{5, 1, 5, 1, 5}
+	normal := []int64{1, 2, 3, 3, 3, 4, 4, 4, 5, 6, 10}
+	normalExp := []int64{1, 2, 3, 4, 5, 6, 10}
+	allSameTest, allSameCounts := countAndRemoveConsecutiveDuplicates(allSame)
+	assert.Equal(t, allSameExp, allSameTest)
+	assert.Equal(t, int64(len(allSame)), allSameCounts[0])
+
+	outOfOrderTest, outOfOrderCounts := countAndRemoveConsecutiveDuplicates(outOfOrder)
+	assert.Equal(t, outOfOrderExp, outOfOrderTest)
+	assert.Equal(t, int64(6), outOfOrderCounts[5])
+	assert.Equal(t, int64(2), outOfOrderCounts[1])
+
+	normalTest, normalCounts := countAndRemoveConsecutiveDuplicates(normal)
+	assert.Equal(t, normalExp, normalTest)
+	assert.True(t, sort.IsSorted(util.SortableInt64(normalTest)))
+	assert.Equal(t, int64(1), normalCounts[1])
+	assert.Equal(t, int64(1), normalCounts[2])
+	assert.Equal(t, int64(3), normalCounts[3])
+	assert.Equal(t, int64(3), normalCounts[4])
+	assert.Equal(t, int64(1), normalCounts[5])
+	assert.Equal(t, int64(1), normalCounts[6])
+	assert.Equal(t, int64(1), normalCounts[10])
 }
