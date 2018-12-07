@@ -18,6 +18,7 @@ import (
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/globalsign/mgo/bson"
+	"github.com/globalsign/mgo"
 )
 
 type (
@@ -242,7 +243,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// Do not store more than the connLimit
 							if connCount < connLimit {
-								// fmt.Println(connCount)
 								datastore.Store(&ImportedData{
 									BroData:          data,
 									TargetDatabase:   targetDB,
@@ -263,7 +263,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 						} else {
 
-							// fmt.Println(connCount)
 							datastore.Store(&ImportedData{
 								BroData:          data,
 								TargetDatabase:   targetDB,
@@ -284,10 +283,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	fmt.Println(len(filterHugeUconnsMap))
-
 	fs.bulkRemoveHugeUconns(datastore, indexedFiles[0].TargetDatabase, filterHugeUconnsMap, connMap)
-	// fmt.Println(connMap)
 }
 
 // robomongo verification stuf:
@@ -296,37 +292,27 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 // db.getCollection('conn').find({$and:[{id_orig_h:"XXX.XXX.XXX.XXX"},{id_resp_h:"XXX.XXX.XXX.XXX"}]}).count()
 //
 func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string, filterHugeUconnsMap []uconnPair, connMap map[uconnPair]int) {
-	t := time.Now()
 	var temp []*parsetypes.Temp
 	resDB := fs.res.DB
 	resConf := fs.res.Config
-	var deleteQuery bson.M
-	removalWG := new(sync.WaitGroup)
-	fmt.Println(len(filterHugeUconnsMap))
-	fmt.Println("\t[-] Removing unused connection info.")
-	removalWG.Add(len(filterHugeUconnsMap))
-	for _, uconn := range filterHugeUconnsMap {
-		// Increment the wait group for every loop iteration
-		go func() {
-			defer removalWG.Done()
-			temp = append(temp, &parsetypes.Temp{
-				Source:          uconn.src,
-				Destination:     uconn.dst,
-				ConnectionCount: connMap[uconn],
-			})
 
-			deleteQuery = bson.M{
-				"$and": []bson.M{
-					bson.M{"id_orig_h": uconn.src},
-					bson.M{"id_resp_h": uconn.dst},
-				}}
-			bulkDeleteMany(deleteQuery, resDB, resConf, targetDB, resConf.T.Structure.ConnTable)
-		}()
+	fmt.Println("\t[-] Removing unused connection info.")
+	for _, uconn := range filterHugeUconnsMap {
+		defer removalWG.Done()
+		temp = append(temp, &parsetypes.Temp{
+			Source:          uconn.src,
+			Destination:     uconn.dst,
+			ConnectionCount: connMap[uconn],
+		})
+
+		deleteQuery = bson.M{
+			"$and": []bson.M{
+				bson.M{"id_orig_h": uconn.src},
+				bson.M{"id_resp_h": uconn.dst},
+			}}
+		bulkDeleteMany(deleteQuery, resDB, resConf, targetDB, resConf.T.Structure.ConnTable)
 	}
-	// Wait for all the removals to finish
-	removalWG.Wait()
 	writerTemp(temp, resDB, resConf, targetDB)
-	fmt.Println(time.Since(t))
 }
 
 // db.getCollection('conn').deleteMany({$and:[{id_orig_h:"XXX.XXX.XXX.XXX"},{id_resp_h:"XXX.XXX.XXX.XXX"}]})
@@ -346,43 +332,75 @@ func writerTemp(output []*parsetypes.Temp, resDB *database.DB, resConf *config.C
 	// buffer length controls amount of ram used while exporting
 	bufferLen := resConf.S.Bro.ImportBuffer
 
-	// //Create a buffer to hold a portion of the results
+	// Create a buffer to hold a portion of the results
 	buffer := make([]interface{}, 0, bufferLen)
-	//
-	// //while we can still iterate through the data add to the buffer
-	// var datum interface{}
-	// for iter.Next(&datum) {
+	// while we can still iterate through the data add to the buffer
 	for _, data := range output {
 
-		// fmt.Println(data)
 		// if the buffer is full, send to the remote database and clear buffer
 		if len(buffer) == bufferLen {
 
 			err := bulkWriteTemp(buffer, resDB, resConf, targetDB)
+
 			if err != nil && err.Error() != "invalid BulkError instance: no errors" {
-				fmt.Println("write error 1", err)
+				fmt.Println(buffer)
+				fmt.Println("write error 2", err)
 			}
 
 			buffer = buffer[:0]
+
 		}
 
 		buffer = append(buffer, data)
 	}
 
 	//send any data left in the buffer to the remote database
-	//
 	err := bulkWriteTemp(buffer, resDB, resConf, targetDB)
 	if err != nil && err.Error() != "invalid BulkError instance: no errors" {
 		fmt.Println(buffer)
 		fmt.Println("write error 2", err)
 	}
 
+	err = createTempIndexes(resDB, resConf, targetDB)
+
+}
+
+// Create indexes for the temporary database
+func createTempIndexes(resDB *database.DB, resConf *config.Config, targetDB string) error {
+	ssn := resDB.Session.Copy()
+	defer ssn.Close()
+	coll := ssn.DB(targetDB).C("temp")
+
+	// Use the source destination pair as a composite index
+	srcDstIndex := mgo.Index{
+		Key:        []string{"src", "dst"},
+		Name:       "srcDstPair",
+	}
+
+	err := coll.EnsureIndex(srcDstIndex)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	connCountIndex := mgo.Index{
+		Key:		[]string{"connection_count"},
+		Name:		"connCount",
+	}
+
+	err = coll.EnsureIndex(connCountIndex)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return err
 }
 
 func bulkWriteTemp(buffer []interface{}, resDB *database.DB, resConf *config.Config, targetDB string) error {
 	ssn := resDB.Session.Copy()
 	defer ssn.Close()
-	// bulk := remoteSession.DB(remoteDB).C(name).Bulk()
+
 	// set up for bulk write to database
 	bulk := ssn.DB(targetDB).C("temp").Bulk()
 	// writes can be sent out of order
@@ -393,9 +411,8 @@ func bulkWriteTemp(buffer []interface{}, resDB *database.DB, resConf *config.Con
 
 	// runs all queued operations
 	_, err := bulk.Run()
-
+	
 	return err
-
 }
 
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
