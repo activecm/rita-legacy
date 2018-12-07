@@ -16,9 +16,9 @@ import (
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
-	log "github.com/sirupsen/logrus"
-	"github.com/globalsign/mgo/bson"
 	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -374,8 +374,8 @@ func createTempIndexes(resDB *database.DB, resConf *config.Config, targetDB stri
 
 	// Use the source destination pair as a composite index
 	srcDstIndex := mgo.Index{
-		Key:        []string{"src", "dst"},
-		Name:       "srcDstPair",
+		Key:  []string{"src", "dst"},
+		Name: "srcDstPair",
 	}
 
 	err := coll.EnsureIndex(srcDstIndex)
@@ -385,8 +385,8 @@ func createTempIndexes(resDB *database.DB, resConf *config.Config, targetDB stri
 	}
 
 	connCountIndex := mgo.Index{
-		Key:		[]string{"connection_count"},
-		Name:		"connCount",
+		Key:  []string{"connection_count"},
+		Name: "connCount",
 	}
 
 	err = coll.EnsureIndex(connCountIndex)
@@ -412,7 +412,7 @@ func bulkWriteTemp(buffer []interface{}, resDB *database.DB, resConf *config.Con
 
 	// runs all queued operations
 	_, err := bulk.Run()
-	
+
 	return err
 }
 
