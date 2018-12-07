@@ -22,8 +22,9 @@ func BuildBeaconCollection(res *resources.Resources) {
 	// create the actual collection
 	collectionName := res.Config.T.Beacon.BeaconTable
 	collectionKeys := []mgo.Index{
-		// {Key: []string{"uconn_id"}, Unique: true},
 		{Key: []string{"score"}},
+		{Key: []string{"$hashed:src"}},
+		{Key: []string{"$hashed:dst"}},
 	}
 	err := res.DB.CreateCollection(collectionName, collectionKeys)
 	if err != nil {
@@ -51,10 +52,6 @@ func BuildBeaconCollection(res *resources.Resources) {
 		writerWorker.start()
 	}
 
-	// beacons must be limited to a minimum of 20 connections, but if the user
-	// selected a higher threshold, it will be used.
-	thresh := util.Max(20, res.Config.S.Beacon.DefaultConnectionThresh)
-
 	// copy session
 	session := res.DB.Session.Copy()
 
@@ -65,7 +62,7 @@ func BuildBeaconCollection(res *resources.Resources) {
 	// result in duplicates, ts_list is a unique set)
 	uconnsFindQuery := bson.M{
 		"$and": []bson.M{
-			bson.M{"connection_count": bson.M{"$gt": thresh}},
+			bson.M{"connection_count": bson.M{"$gt": res.Config.S.Beacon.DefaultConnectionThresh}},
 			bson.M{"connection_count": bson.M{"$lt": 150000}},
 			bson.M{"ts_list.4": bson.M{"$exists": true}},
 		}}
@@ -86,9 +83,9 @@ func BuildBeaconCollection(res *resources.Resources) {
 
 	// iterate over results and send to analysis worker
 	for uconnIter.Next(&uconnRes) {
-		// Note for Ethan: for some reason not doing the part below and reading directly into the
+		// for some reason not doing the part below and reading directly into the
 		// beacon analysis input structure with identically named fields and bson tags
-		// causes incorrect information and huge errors, that's why its being typecast
+		// causes incorrect information and huge errors, that's why it's being typecast
 		// below. Does not seem to impact performance
 		newInput := &beacon.AnalysisInput{
 			ID:          uconnRes.ID,
@@ -103,6 +100,17 @@ func BuildBeaconCollection(res *resources.Resources) {
 
 }
 
+// findAnalysisPeriod returns the lowest and highest timestamps in the
+// uconnCollection. These values are only used in calculating the
+// duration metric. This implementation uses the uconn collection rather
+// than conn because there could be many more entries in the conn collection
+// which represent internal to internal or external to external traffic.
+// These connections are filtered out before creating uconn. A more
+// correct implementation might use conn, but duration's usefulness as a
+// metric is currently under review and may be changing or going away shortly.
+// A better solution, if these values are needed in the future, would be
+// to calculate and store them in the database during import time or the
+// creation of uconn collection.
 func findAnalysisPeriod(db *database.DB, uconnCollection string,
 	logger *log.Logger) (tsMin int64, tsMax int64) {
 	session := db.Session.Copy()
@@ -120,19 +128,23 @@ func findAnalysisPeriod(db *database.DB, uconnCollection string,
 	// Build query for aggregation
 	tsMinQuery := []bson.D{
 		{
+			// include the "ts_list" field from every document
 			{"$project", bson.D{
 				{"ts_list", 1},
 			}},
 		},
 		{
+			// concat all the lists together
 			{"$unwind", "$ts_list"},
 		},
 		{
+			// sort all the timestamps from low to high
 			{"$sort", bson.D{
 				{"ts_list", 1},
 			}},
 		},
 		{
+			// take the lowest
 			{"$limit", 1},
 		},
 	}
@@ -153,19 +165,23 @@ func findAnalysisPeriod(db *database.DB, uconnCollection string,
 	// Build query for aggregation
 	tsMaxQuery := []bson.D{
 		{
+			// include the "ts_list" field from every document
 			{"$project", bson.D{
 				{"ts_list", 1},
 			}},
 		},
 		{
+			// concat all the lists together
 			{"$unwind", "$ts_list"},
 		},
 		{
+			// sort all the timestamps from high to low
 			{"$sort", bson.D{
 				{"ts_list", -1},
 			}},
 		},
 		{
+			// take the highest
 			{"$limit", 1},
 		},
 	}
@@ -179,13 +195,6 @@ func findAnalysisPeriod(db *database.DB, uconnCollection string,
 	} else {
 		tsMax = res.Timestamp
 	}
-
-	// troubleshooting:
-	//
-	// fmt.Println("\t[-] First and last timestamps via uconns found: ")
-	// fmt.Println("\t\t first: ", tsMin)
-	// fmt.Println("\t\t last: ", tsMax)
-	// fmt.Println("\t\t duration: ", time.Since(start))
 
 	logger.WithFields(log.Fields{
 		"time_elapsed": time.Since(start),
@@ -257,49 +266,3 @@ func getViewPipeline(res *resources.Resources, cuttoff float64) []bson.D {
 		},
 	}
 }
-
-// uconnsQuery := []bson.D{
-// 	{
-// 		{"$match", bson.D{
-// 			{"connection_count", bson.D{
-// 				{"$gt", thresh},
-// 			}},
-// 			{"connection_count", bson.D{
-// 				{"$lt", 150000},
-// 			}},
-// 		}},
-// 	},
-// }
-//
-// uconnsFindQuery := bson.M{
-// 	"$and": []bson.M{
-// 		bson.M{"connection_count": bson.M{"$gt": thresh}},
-// 		bson.M{"connection_count": bson.M{"$lt": 150000}},
-// 	}}
-//
-// start1 := time.Now()
-// count1, _ := res.DB.Session.DB(res.DB.GetSelectedDB()).
-// 	C(res.Config.T.Structure.UniqueConnTable).
-// 	Find(bson.M{"connection_count": bson.M{"$gt": thresh, "$lt": 150000}}).
-// 	Count()
-// dur1 := time.Since(start1)
-// start2 := time.Now()
-// count2, _ := res.DB.Session.DB(res.DB.GetSelectedDB()).
-// 	C(res.Config.T.Structure.UniqueConnTable).
-// 	Find(uconnsFindQuery).
-// 	Count()
-// dur2 := time.Since(start2)
-// var temp []interface{}
-//
-// start3 := time.Now()
-// _ = session.DB(res.DB.GetSelectedDB()).
-// 	C(res.Config.T.Structure.UniqueConnTable).
-// 	Pipe(uconnsQuery).All(&temp)
-//
-// count3 := len(temp)
-//
-// dur3 := time.Since(start3)
-//
-// fmt.Println("count1: ", count1, " duration: ", dur1)
-// fmt.Println("count2: ", count2, " duration: ", dur2)
-// fmt.Println("count3: ", count3, " duration: ", dur3)

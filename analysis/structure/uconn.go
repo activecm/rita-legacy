@@ -128,8 +128,14 @@ func getUniqueConnectionsScript(conf *config.Config) (string, string, []mgo.Inde
 					}},
 				}},
 				// Array of all connection timestamps
+				// $addToSet is used to ensure uniqueness of the values.
+				// Duplicate values would result in the difference between
+				// consecutive values being 0 in the beacon analysis and
+				// would throw off the algorithm.
 				{"ts", bson.D{{"$addToSet", "$ts"}}},
 				// Array of bytes sent from origin in each connection
+				// Here we want $push because every size is used as-is
+				// instead of the difference of consecutive timestamps.
 				{"orig_bytes", bson.D{{"$push", "$orig_ip_bytes"}}},
 			}},
 		},
