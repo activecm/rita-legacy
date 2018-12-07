@@ -295,10 +295,11 @@ func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string,
 	var temp []*parsetypes.Temp
 	resDB := fs.res.DB
 	resConf := fs.res.Config
+	var deleteQuery bson.M
 
-	fmt.Println("\t[-] Removing unused connection info.")
+	fmt.Println("\t[-] Removing unused connection info. This may take a while.")
 	for _, uconn := range filterHugeUconnsMap {
-		defer removalWG.Done()
+
 		temp = append(temp, &parsetypes.Temp{
 			Source:          uconn.src,
 			Destination:     uconn.dst,
