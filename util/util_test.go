@@ -56,49 +56,6 @@ func TestSortableInt64(t *testing.T) {
 	assert.Equal(t, int64(3434), ints[3])
 }
 
-func TestRemoveConsecutiveDuplicates(t *testing.T) {
-	allSame := []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	allSameExp := []int64{0}
-	normal := []int64{1, 2, 3, 3, 3, 4, 4, 4, 5, 6, 10}
-	normalExp := []int64{1, 2, 3, 4, 5, 6, 10}
-	outOfOrder := []int64{5, 5, 1, 5, 5, 1, 5, 5}
-	outOfOrderExp := []int64{5, 1, 5, 1, 5}
-	allSameTest := RemoveConsecutiveDuplicates(allSame)
-	assert.Equal(t, allSameExp, allSameTest)
-	normalTest := RemoveConsecutiveDuplicates(normal)
-	assert.Equal(t, normalExp, normalTest)
-	outOfOrderTest := RemoveConsecutiveDuplicates(outOfOrder)
-	assert.Equal(t, outOfOrderExp, outOfOrderTest)
-}
-
-func TestCountAndRemoveConsecutiveDuplicates(t *testing.T) {
-	allSame := []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	allSameExp := []int64{0}
-	outOfOrder := []int64{5, 5, 1, 5, 5, 1, 5, 5}
-	outOfOrderExp := []int64{5, 1, 5, 1, 5}
-	normal := []int64{1, 2, 3, 3, 3, 4, 4, 4, 5, 6, 10}
-	normalExp := []int64{1, 2, 3, 4, 5, 6, 10}
-	allSameTest, allSameCounts := CountAndRemoveConsecutiveDuplicates(allSame)
-	assert.Equal(t, allSameExp, allSameTest)
-	assert.Equal(t, int64(len(allSame)), allSameCounts[0])
-
-	outOfOrderTest, outOfOrderCounts := CountAndRemoveConsecutiveDuplicates(outOfOrder)
-	assert.Equal(t, outOfOrderExp, outOfOrderTest)
-	assert.Equal(t, int64(6), outOfOrderCounts[5])
-	assert.Equal(t, int64(2), outOfOrderCounts[1])
-
-	normalTest, normalCounts := CountAndRemoveConsecutiveDuplicates(normal)
-	assert.Equal(t, normalExp, normalTest)
-	assert.True(t, sort.IsSorted(SortableInt64(normalTest)))
-	assert.Equal(t, int64(1), normalCounts[1])
-	assert.Equal(t, int64(1), normalCounts[2])
-	assert.Equal(t, int64(3), normalCounts[3])
-	assert.Equal(t, int64(3), normalCounts[4])
-	assert.Equal(t, int64(1), normalCounts[5])
-	assert.Equal(t, int64(1), normalCounts[6])
-	assert.Equal(t, int64(1), normalCounts[10])
-}
-
 func TestAbs(t *testing.T) {
 	max := int64(math.MaxInt64)
 	pos := int64(1)

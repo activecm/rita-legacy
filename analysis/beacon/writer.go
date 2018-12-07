@@ -5,16 +5,16 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
-	dataBeacon "github.com/activecm/rita/datatypes/beacon"
+	"github.com/activecm/rita/datatypes/beacon"
 )
 
 type (
 	//writer simply writes AnalysisOutput objects to the beacons collection
 	writer struct {
-		db           *database.DB                    // provides access to MongoDB
-		conf         *config.Config                  // contains details needed to access MongoDB
-		writeChannel chan *dataBeacon.AnalysisOutput // holds analyzed data
-		writeWg      sync.WaitGroup                  // wait for writing to finish
+		db           *database.DB                // provides access to MongoDB
+		conf         *config.Config              // contains details needed to access MongoDB
+		writeChannel chan *beacon.AnalysisOutput // holds analyzed data
+		writeWg      sync.WaitGroup              // wait for writing to finish
 	}
 )
 
@@ -24,13 +24,13 @@ func newWriter(db *database.DB, conf *config.Config) *writer {
 	return &writer{
 		db:           db,
 		conf:         conf,
-		writeChannel: make(chan *dataBeacon.AnalysisOutput),
+		writeChannel: make(chan *beacon.AnalysisOutput),
 	}
 }
 
 //write queues up a AnalysisOutput to be written to the beacons collection
 //Note: this function may block
-func (w *writer) write(data *dataBeacon.AnalysisOutput) {
+func (w *writer) write(data *beacon.AnalysisOutput) {
 	w.writeChannel <- data
 }
 

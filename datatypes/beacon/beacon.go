@@ -5,9 +5,20 @@ import (
 )
 
 type (
-	//AnalysisOutput contains the summary statistics of a unique connection
+	//AnalysisInput contains the summary statistics of a unique connection
+	AnalysisInput struct {
+		ID          bson.ObjectId `bson:"_id,omitempty"`   // Unique Connection ID
+		Src         string        `bson:"src"`             // Source IP
+		Dst         string        `bson:"dst"`             // Destination IP
+		TsList      []int64       `bson:"ts_list"`         // Connection timestamps for this src, dst pair
+		OrigIPBytes []int64       `bson:"orig_bytes_list"` // Src to dst connection sizes for each connection
+	}
+
+	//AnalysisOutput contains the summary statistics of a unique beacon
 	AnalysisOutput struct {
 		UconnID          bson.ObjectId `bson:"uconn_id"`
+		Src              string        `bson:"src"`
+		Dst              string        `bson:"dst"`
 		TSIRange         int64         `bson:"ts_iRange"`
 		TSIMode          int64         `bson:"ts_iMode"`
 		TSIModeCount     int64         `bson:"ts_iMode_count"`

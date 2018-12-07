@@ -8,23 +8,11 @@ import (
 	"github.com/globalsign/mgo/bson"
 
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/datatypes/data"
-	"github.com/activecm/rita/datatypes/structure"
+	"github.com/activecm/rita/datatypes/beacon"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 
 	log "github.com/sirupsen/logrus"
-)
-
-type (
-	//beaconAnalysisInput binds a src, dst pair with their analysis data
-	beaconAnalysisInput struct {
-		src         string        // Source IP
-		dst         string        // Destination IP
-		uconnID     bson.ObjectId // Unique Connection ID
-		ts          []int64       // Connection timestamps for this src, dst pair
-		origIPBytes []int64       // Src to dst connection sizes for each connection
-	}
 )
 
 // BuildBeaconCollection pulls data from the unique connections collection
@@ -34,8 +22,9 @@ func BuildBeaconCollection(res *resources.Resources) {
 	// create the actual collection
 	collectionName := res.Config.T.Beacon.BeaconTable
 	collectionKeys := []mgo.Index{
-		{Key: []string{"uconn_id"}, Unique: true},
-		{Key: []string{"ts_score"}},
+		{Key: []string{"score"}},
+		{Key: []string{"$hashed:src"}},
+		{Key: []string{"$hashed:dst"}},
 	}
 	err := res.DB.CreateCollection(collectionName, collectionKeys)
 	if err != nil {
@@ -43,87 +32,177 @@ func BuildBeaconCollection(res *resources.Resources) {
 		return
 	}
 
-	// If the threshold is incorrectly specified, fix it up.
-	// We require at least four delta times to analyze
-	// (Q1, Q2, Q3, Q4). So we need at least 5 connections
-	thresh := res.Config.S.Beacon.DefaultConnectionThresh
-	if thresh < 5 {
-		thresh = 5
-	}
-
 	//Find the observation period
 	minTime, maxTime := findAnalysisPeriod(
 		res.DB,
-		res.Config.T.Structure.ConnTable,
+		res.Config.T.Structure.UniqueConnTable,
 		res.Log,
 	)
 
 	//Create the workers
 	writerWorker := newWriter(res.DB, res.Config)
 	analyzerWorker := newAnalyzer(
-		thresh, minTime, maxTime,
+		minTime, maxTime,
 		writerWorker.write, writerWorker.close,
-	)
-	collectorWorker := newCollector(
-		res.DB, res.Config, thresh,
-		analyzerWorker.analyze, analyzerWorker.close,
 	)
 
 	//kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
-		collectorWorker.start()
 		analyzerWorker.start()
 		writerWorker.start()
 	}
 
-	// Feed local addresses to the collector
+	// copy session
 	session := res.DB.Session.Copy()
-	var host structure.Host
-	localIter := session.DB(res.DB.GetSelectedDB()).
-		C(res.Config.T.Structure.HostTable).
-		Find(bson.M{"local": true}).Iter()
 
-	for localIter.Next(&host) {
-		collectorWorker.collect(host.IP)
+	// create find query
+	// first two lines: limit results to connection counts of min 20 and max 150k
+	// third line: analysis needs at least four delta times to analyze
+	// (Q1, Q2, Q3, Q4). This verifies at least 5 unique timestamps (connections may
+	// result in duplicates, ts_list is a unique set)
+	uconnsFindQuery := bson.M{
+		"$and": []bson.M{
+			bson.M{"connection_count": bson.M{"$gt": res.Config.S.Beacon.DefaultConnectionThresh}},
+			bson.M{"connection_count": bson.M{"$lt": 150000}},
+			bson.M{"ts_list.4": bson.M{"$exists": true}},
+		}}
+
+	// create result variable to receive query result
+	var uconnRes struct {
+		ID          bson.ObjectId `bson:"_id,omitempty"`
+		Src         string        `bson:"src"`
+		Dst         string        `bson:"dst"`
+		TsList      []int64       `bson:"ts_list"`
+		OrigIPBytes []int64       `bson:"orig_bytes_list"`
+	}
+
+	// execute query
+	uconnIter := session.DB(res.DB.GetSelectedDB()).
+		C(res.Config.T.Structure.UniqueConnTable).
+		Find(uconnsFindQuery).Iter()
+
+	// iterate over results and send to analysis worker
+	for uconnIter.Next(&uconnRes) {
+		// for some reason not doing the part below and reading directly into the
+		// beacon analysis input structure with identically named fields and bson tags
+		// causes incorrect information and huge errors, that's why it's being typecast
+		// below. Does not seem to impact performance
+		newInput := &beacon.AnalysisInput{
+			ID:          uconnRes.ID,
+			Src:         uconnRes.Src,
+			Dst:         uconnRes.Dst,
+			TsList:      uconnRes.TsList,
+			OrigIPBytes: uconnRes.OrigIPBytes,
+		}
+		analyzerWorker.analyze(newInput)
 	}
 	session.Close()
 
-	// Wait for things to finish
-	collectorWorker.close()
 }
 
-func findAnalysisPeriod(db *database.DB, connCollection string,
-	logger *log.Logger) (int64, int64) {
+// findAnalysisPeriod returns the lowest and highest timestamps in the
+// uconnCollection. These values are only used in calculating the
+// duration metric. This implementation uses the uconn collection rather
+// than conn because there could be many more entries in the conn collection
+// which represent internal to internal or external to external traffic.
+// These connections are filtered out before creating uconn. A more
+// correct implementation might use conn, but duration's usefulness as a
+// metric is currently under review and may be changing or going away shortly.
+// A better solution, if these values are needed in the future, would be
+// to calculate and store them in the database during import time or the
+// creation of uconn collection.
+func findAnalysisPeriod(db *database.DB, uconnCollection string,
+	logger *log.Logger) (tsMin int64, tsMax int64) {
 	session := db.Session.Copy()
 	defer session.Close()
 
-	//Find first time
-	logger.Debug("Looking for first connection timestamp")
+	// Structure to store the results of queries
+	var res struct {
+		Timestamp int64 `bson:"ts_list"`
+	}
+
+	// Get min timestamp
+	logger.Debug("Looking for earliest (min) timestamp")
 	start := time.Now()
 
-	//In practice having mongo do two lookups is
-	//faster than pulling the whole collection
-	//This could be optimized with an aggregation
-	var conn data.Conn
-	session.DB(db.GetSelectedDB()).
-		C(connCollection).
-		Find(nil).Limit(1).Sort("ts").Iter().Next(&conn)
+	// Build query for aggregation
+	tsMinQuery := []bson.D{
+		{
+			// include the "ts_list" field from every document
+			{"$project", bson.D{
+				{"ts_list", 1},
+			}},
+		},
+		{
+			// concat all the lists together
+			{"$unwind", "$ts_list"},
+		},
+		{
+			// sort all the timestamps from low to high
+			{"$sort", bson.D{
+				{"ts_list", 1},
+			}},
+		},
+		{
+			// take the lowest
+			{"$limit", 1},
+		},
+	}
 
-	minTime := conn.Ts
+	// Execute query
+	err := session.DB(db.GetSelectedDB()).C(uconnCollection).Pipe(tsMinQuery).One(&res)
 
-	logger.Debug("Looking for last connection timestamp")
-	session.DB(db.GetSelectedDB()).
-		C(connCollection).
-		Find(nil).Limit(1).Sort("-ts").Iter().Next(&conn)
+	// Check for errors and parse results
+	if err != nil {
+		logger.Error("Error retrieving min ts info")
+	} else {
+		tsMin = res.Timestamp
+	}
 
-	maxTime := conn.Ts
+	// Get max timestamp
+	logger.Debug("Looking for latest (max) timestamp")
+
+	// Build query for aggregation
+	tsMaxQuery := []bson.D{
+		{
+			// include the "ts_list" field from every document
+			{"$project", bson.D{
+				{"ts_list", 1},
+			}},
+		},
+		{
+			// concat all the lists together
+			{"$unwind", "$ts_list"},
+		},
+		{
+			// sort all the timestamps from high to low
+			{"$sort", bson.D{
+				{"ts_list", -1},
+			}},
+		},
+		{
+			// take the highest
+			{"$limit", 1},
+		},
+	}
+
+	// Execute query
+	err2 := session.DB(db.GetSelectedDB()).C(uconnCollection).Pipe(tsMaxQuery).One(&res)
+
+	// Check for errors and parse results
+	if err2 != nil {
+		logger.Error("Error retrieving min ts info")
+	} else {
+		tsMax = res.Timestamp
+	}
 
 	logger.WithFields(log.Fields{
 		"time_elapsed": time.Since(start),
-		"first":        minTime,
-		"last":         maxTime,
+		"first":        tsMin,
+		"last":         tsMax,
 	}).Debug("First and last timestamps found")
-	return minTime, maxTime
+
+	return
 }
 
 //GetBeaconResultsView finds beacons greater than a given cutoffScore
