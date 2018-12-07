@@ -47,11 +47,12 @@ func BuildBeaconCollection(res *resources.Resources) {
 
 	//kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
-		// collectorWorker.start()
 		analyzerWorker.start()
 		writerWorker.start()
 	}
 
+	// beacons must be limited to a minimum of 20 connections, but if the user
+	// selected a higher threshold, it will be used.
 	thresh := util.Max(20, res.Config.S.Beacon.DefaultConnectionThresh)
 
 	// copy session
@@ -101,13 +102,6 @@ func BuildBeaconCollection(res *resources.Resources) {
 	session.Close()
 
 }
-
-// db.getCollection('uconn').aggregate([
-//     {$project:{"ts_list":1}},
-//     {$unwind:"$ts_list"},
-//     {$sort:{"ts_list":-1}},
-//     {$limit:1}
-// ]);
 
 func findAnalysisPeriod(db *database.DB, uconnCollection string,
 	logger *log.Logger) (tsMin int64, tsMax int64) {

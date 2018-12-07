@@ -17,6 +17,8 @@ type (
 	//AnalysisOutput contains the summary statistics of a unique beacon
 	AnalysisOutput struct {
 		UconnID          bson.ObjectId `bson:"uconn_id"`
+		Src              string        `bson:"src"`
+		Dst              string        `bson:"dst"`
 		TSIRange         int64         `bson:"ts_iRange"`
 		TSIMode          int64         `bson:"ts_iMode"`
 		TSIModeCount     int64         `bson:"ts_iMode_count"`

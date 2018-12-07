@@ -8,6 +8,8 @@ import (
 var writerTestDataList = []beacon.AnalysisOutput{
 	beacon.AnalysisOutput{
 		UconnID:          bson.NewObjectId(),
+		Src:              "0.0.0.0",
+		Dst:              "0.0.0.0",
 		TSIRange:         1,
 		TSIMode:          1,
 		TSIModeCount:     1,
@@ -29,6 +31,8 @@ var writerTestDataList = []beacon.AnalysisOutput{
 	},
 	beacon.AnalysisOutput{
 		UconnID:          bson.NewObjectId(),
+		Src:              "0.0.0.0",
+		Dst:              "0.0.0.0",
 		TSIRange:         2,
 		TSIMode:          2,
 		TSIModeCount:     2,
@@ -50,6 +54,8 @@ var writerTestDataList = []beacon.AnalysisOutput{
 	},
 	beacon.AnalysisOutput{
 		UconnID:          bson.NewObjectId(),
+		Src:              "0.0.0.0",
+		Dst:              "0.0.0.0",
 		TSIRange:         3,
 		TSIMode:          3,
 		TSIModeCount:     3,

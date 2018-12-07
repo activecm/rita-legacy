@@ -167,6 +167,8 @@ func (a *analyzer) start() {
 
 			output := &beacon.AnalysisOutput{
 				UconnID:          data.ID,
+				Src:              data.Src,
+				Dst:              data.Dst,
 				TSISkew:          tsSkew,
 				TSIDispersion:    tsMadm,
 				TSDuration:       duration,
@@ -202,7 +204,7 @@ func (a *analyzer) start() {
 // and the number of times the mode occured
 func createCountMap(sortedIn []int64) ([]int64, []int64, int64, int64) {
 	//Since the data is already sorted, we can call this without fear
-	distinct, countsMap := util.CountAndRemoveConsecutiveDuplicates(sortedIn)
+	distinct, countsMap := countAndRemoveConsecutiveDuplicates(sortedIn)
 	countsArr := make([]int64, len(distinct))
 	mode := distinct[0]
 	max := countsMap[mode]
@@ -215,4 +217,28 @@ func createCountMap(sortedIn []int64) ([]int64, []int64, int64, int64) {
 		}
 	}
 	return distinct, countsArr, mode, max
+}
+
+//CountAndRemoveConsecutiveDuplicates removes consecutive
+//duplicates in an array of integers and counts how many
+//instances of each number exist in the array.
+//Similar to `uniq -c`, but counts all duplicates, not just
+//consecutive duplicates.
+func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64]int64) {
+	//Avoid some reallocations
+	result := make([]int64, 0, len(numberList)/2)
+	counts := make(map[int64]int64)
+
+	last := numberList[0]
+	result = append(result, last)
+	counts[last]++
+
+	for idx := 1; idx < len(numberList); idx++ {
+		if last != numberList[idx] {
+			result = append(result, numberList[idx])
+		}
+		last = numberList[idx]
+		counts[last]++
+	}
+	return result, counts
 }
