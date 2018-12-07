@@ -25,15 +25,14 @@ type (
 )
 
 // newAnalyzer creates a new analyzer for computing beaconing scores.
-func newAnalyzer(connectionThreshold int, minTime, maxTime int64,
+func newAnalyzer(minTime, maxTime int64,
 	analyzedCallback func(*dataBeacon.AnalysisOutput), closedCallback func()) *analyzer {
 	return &analyzer{
-		connectionThreshold: connectionThreshold,
-		minTime:             minTime,
-		maxTime:             maxTime,
-		analyzedCallback:    analyzedCallback,
-		closedCallback:      closedCallback,
-		analysisChannel:     make(chan *beaconAnalysisInput),
+		minTime:          minTime,
+		maxTime:          maxTime,
+		analyzedCallback: analyzedCallback,
+		closedCallback:   closedCallback,
+		analysisChannel:  make(chan *beaconAnalysisInput),
 	}
 }
 
@@ -55,6 +54,11 @@ func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
 		for data := range a.analysisChannel {
+
+			if data.ts == nil {
+				continue
+			}
+
 			//sort the size and timestamps since they may have arrived out of order
 			sort.Sort(util.SortableInt64(data.ts))
 			sort.Sort(util.SortableInt64(data.origIPBytes))
@@ -64,9 +68,9 @@ func (a *analyzer) start() {
 			//subsecond beacon finding *may* be implemented later on...
 			data.ts = util.RemoveConsecutiveDuplicates(data.ts)
 
-			//If removing duplicates lowered the conn count under the threshold,
-			//remove this data from the analysis
-			if len(data.ts) < a.connectionThreshold {
+			// // We require at least four delta times to analyze
+			// // (Q1, Q2, Q3, Q4). So we need at least 5 connections
+			if len(data.ts) < 5 {
 				continue
 			}
 

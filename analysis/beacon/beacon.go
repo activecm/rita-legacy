@@ -8,7 +8,6 @@ import (
 	"github.com/globalsign/mgo/bson"
 
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/datatypes/data"
 	"github.com/activecm/rita/datatypes/structure"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
@@ -34,8 +33,8 @@ func BuildBeaconCollection(res *resources.Resources) {
 	// create the actual collection
 	collectionName := res.Config.T.Beacon.BeaconTable
 	collectionKeys := []mgo.Index{
-		{Key: []string{"uconn_id"}, Unique: true},
-		{Key: []string{"ts_score"}},
+		// {Key: []string{"uconn_id"}, Unique: true},
+		{Key: []string{"score"}},
 	}
 	err := res.DB.CreateCollection(collectionName, collectionKeys)
 	if err != nil {
@@ -43,29 +42,21 @@ func BuildBeaconCollection(res *resources.Resources) {
 		return
 	}
 
-	// If the threshold is incorrectly specified, fix it up.
-	// We require at least four delta times to analyze
-	// (Q1, Q2, Q3, Q4). So we need at least 5 connections
-	thresh := res.Config.S.Beacon.DefaultConnectionThresh
-	if thresh < 5 {
-		thresh = 5
-	}
-
 	//Find the observation period
 	minTime, maxTime := findAnalysisPeriod(
 		res.DB,
-		res.Config.T.Structure.ConnTable,
+		res.Config.T.Structure.UniqueConnTable,
 		res.Log,
 	)
 
 	//Create the workers
 	writerWorker := newWriter(res.DB, res.Config)
 	analyzerWorker := newAnalyzer(
-		thresh, minTime, maxTime,
+		minTime, maxTime,
 		writerWorker.write, writerWorker.close,
 	)
 	collectorWorker := newCollector(
-		res.DB, res.Config, thresh,
+		res.DB, res.Config,
 		analyzerWorker.analyze, analyzerWorker.close,
 	)
 
@@ -92,38 +83,104 @@ func BuildBeaconCollection(res *resources.Resources) {
 	collectorWorker.close()
 }
 
-func findAnalysisPeriod(db *database.DB, connCollection string,
-	logger *log.Logger) (int64, int64) {
+// db.getCollection('uconn').aggregate([
+//     {$project:{"ts_list":1}},
+//     {$unwind:"$ts_list"},
+//     {$sort:{"ts_list":-1}},
+//     {$limit:1}
+// ]);
+
+func findAnalysisPeriod(db *database.DB, uconnCollection string,
+	logger *log.Logger) (tsMin int64, tsMax int64) {
 	session := db.Session.Copy()
 	defer session.Close()
 
-	//Find first time
-	logger.Debug("Looking for first connection timestamp")
+	// Structure to store the results of queries
+	var res struct {
+		Timestamp int64 `bson:"ts_list"`
+	}
+
+	// Get min timestamp
+	logger.Debug("Looking for earliest (min) timestamp")
 	start := time.Now()
 
-	//In practice having mongo do two lookups is
-	//faster than pulling the whole collection
-	//This could be optimized with an aggregation
-	var conn data.Conn
-	session.DB(db.GetSelectedDB()).
-		C(connCollection).
-		Find(nil).Limit(1).Sort("ts").Iter().Next(&conn)
+	// Build query for aggregation
+	tsMinQuery := []bson.D{
+		{
+			{"$project", bson.D{
+				{"ts_list", 1},
+			}},
+		},
+		{
+			{"$unwind", "$ts_list"},
+		},
+		{
+			{"$sort", bson.D{
+				{"ts_list", 1},
+			}},
+		},
+		{
+			{"$limit", 1},
+		},
+	}
 
-	minTime := conn.Ts
+	// Execute query
+	err := session.DB(db.GetSelectedDB()).C(uconnCollection).Pipe(tsMinQuery).One(&res)
 
-	logger.Debug("Looking for last connection timestamp")
-	session.DB(db.GetSelectedDB()).
-		C(connCollection).
-		Find(nil).Limit(1).Sort("-ts").Iter().Next(&conn)
+	// Check for errors and parse results
+	if err != nil {
+		logger.Error("Error retrieving min ts info")
+	} else {
+		tsMin = res.Timestamp
+	}
 
-	maxTime := conn.Ts
+	// Get max timestamp
+	logger.Debug("Looking for latest (max) timestamp")
+
+	// Build query for aggregation
+	tsMaxQuery := []bson.D{
+		{
+			{"$project", bson.D{
+				{"ts_list", 1},
+			}},
+		},
+		{
+			{"$unwind", "$ts_list"},
+		},
+		{
+			{"$sort", bson.D{
+				{"ts_list", -1},
+			}},
+		},
+		{
+			{"$limit", 1},
+		},
+	}
+
+	// Execute query
+	err2 := session.DB(db.GetSelectedDB()).C(uconnCollection).Pipe(tsMaxQuery).One(&res)
+
+	// Check for errors and parse results
+	if err2 != nil {
+		logger.Error("Error retrieving min ts info")
+	} else {
+		tsMax = res.Timestamp
+	}
+
+	// troubleshooting:
+	//
+	// fmt.Println("\t[-] First and last timestamps via uconns found: ")
+	// fmt.Println("\t\t first: ", tsMin)
+	// fmt.Println("\t\t last: ", tsMax)
+	// fmt.Println("\t\t duration: ", time.Since(start))
 
 	logger.WithFields(log.Fields{
 		"time_elapsed": time.Since(start),
-		"first":        minTime,
-		"last":         maxTime,
+		"first":        tsMin,
+		"last":         tsMax,
 	}).Debug("First and last timestamps found")
-	return minTime, maxTime
+
+	return
 }
 
 //GetBeaconResultsView finds beacons greater than a given cutoffScore

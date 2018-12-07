@@ -128,7 +128,7 @@ func getUniqueConnectionsScript(conf *config.Config) (string, string, []mgo.Inde
 					}},
 				}},
 				// Array of all connection timestamps
-				{"ts", bson.D{{"$push", "$ts"}}},
+				{"ts", bson.D{{"$addToSet", "$ts"}}},
 				// Array of bytes sent from origin in each connection
 				{"orig_bytes", bson.D{{"$push", "$orig_ip_bytes"}}},
 			}},

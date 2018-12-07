@@ -27,15 +27,14 @@ type (
 // newCollector creates a new collector for creating beaconAnalysisInput objects
 // which group the given source, a detected destination, and all of their
 // connection analysis details (timestamps, data sizes, etc.)
-func newCollector(db *database.DB, conf *config.Config, connectionThreshold int,
+func newCollector(db *database.DB, conf *config.Config,
 	collectedCallback func(*beaconAnalysisInput), closedCallback func()) *collector {
 	return &collector{
-		db:                  db,
-		conf:                conf,
-		connectionThreshold: connectionThreshold,
-		collectedCallback:   collectedCallback,
-		closedCallback:      closedCallback,
-		collectChannel:      make(chan string),
+		db:                db,
+		conf:              conf,
+		collectedCallback: collectedCallback,
+		closedCallback:    closedCallback,
+		collectChannel:    make(chan string),
 	}
 }
 
