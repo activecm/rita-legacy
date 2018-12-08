@@ -159,7 +159,7 @@ func indexFiles(files []string, indexingThreads int,
 
 //parseFiles takes in a list of indexed bro files, the number of
 //threads to use to parse the files, whether or not to sort data by date,
-// a MogoDB datastore object to store the bro data in, and a logger to report
+//a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) {
 	//set up parallel parsing
@@ -231,6 +231,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							var uconn uconnPair
 
+							// Use reflection to access the conn entry's fields. At this point inside
+							// the if statement we know parseConn is a "conn" instance, but the code
+							// assumes a generic "BroType" interface.
 							uconn.src = parseConn.FieldByName("Source").Interface().(string)
 							uconn.dst = parseConn.FieldByName("Destination").Interface().(string)
 
@@ -247,12 +250,18 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									TargetCollection: targetCollection,
 								})
 							} else if connCount == connLimit {
+								// Once we know a uconn has passed the connLimit not only
+								// do we want to avoid storing any more, but we want to 
+								// remove all entries already added. The first time we pass
+								// the limit put an entry in filterHugeUconnsMap in order
+								// to run a bulk delete later.
 								filterHugeUconnsMap = append(filterHugeUconnsMap, uconn)
 							}
 
 							mutex.Unlock()
 
 						} else {
+							// We do not limit any of the other log types
 
 							datastore.Store(&ImportedData{
 								BroData:          data,
@@ -277,7 +286,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	fs.bulkRemoveHugeUconns(datastore, indexedFiles[0].TargetDatabase, filterHugeUconnsMap, connMap)
 }
 
-
+// bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
+// entries in the "conn" collection.
 func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string, filterHugeUconnsMap []uconnPair, connMap map[uconnPair]int) {
 	var temp []*parsetypes.Temp
 	resDB := fs.res.DB
@@ -304,6 +314,7 @@ func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string,
 }
 
 // db.getCollection('conn').deleteMany({$and:[{id_orig_h:"XXX.XXX.XXX.XXX"},{id_resp_h:"XXX.XXX.XXX.XXX"}]})
+// bulkDeleteMany removes many documents at once from a collection.
 func bulkDeleteMany(query bson.M, resDB *database.DB, resConf *config.Config, targetDB string, targetCL string) {
 	ssn := resDB.Session.Copy()
 	defer ssn.Close()
