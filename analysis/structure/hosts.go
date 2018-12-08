@@ -1,7 +1,12 @@
 package structure
 
 import (
+	"fmt"
+	"net"
+
 	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/datatypes/structure"
 	"github.com/activecm/rita/resources"
 	mgo "github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
@@ -10,45 +15,44 @@ import (
 // BuildHostsCollection builds the 'host' collection for this timeframe.
 // Runs via mongodb aggregation. Sourced from the 'conn' table.
 func BuildHostsCollection(res *resources.Resources) {
-	// Create the aggregate command
-	sourceCollectionName,
-		newCollectionName,
-		newCollectionKeys,
-		pipeline := getHosts(res.Config)
 
-	// Aggregate it!
-	errorCheck := res.DB.CreateCollection(newCollectionName, newCollectionKeys)
-	if errorCheck != nil {
-		res.Log.Error("Failed: ", newCollectionName, errorCheck)
-		return
-	}
-
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
-}
-
-//getHosts aggregates the individual hosts from the conn collection and
-//labels them as private or public as well as ipv4 or ipv6. The aggregation
-//includes padding for a binary encoding of the ip address.
-func getHosts(conf *config.Config) (string, string, []mgo.Index, []bson.D) {
 	// Name of source collection which will be aggregated into the new collection
-	sourceCollectionName := conf.T.Structure.UniqueConnTable
+	sourceCollectionName := res.Config.T.Structure.UniqueConnTable
 
 	// Name of the new collection
-	newCollectionName := conf.T.Structure.HostTable
+	newCollectionName := res.Config.T.Structure.HostTable
 
 	// Desired indeces
 	keys := []mgo.Index{
 		{Key: []string{"ip"}, Unique: true},
 		{Key: []string{"local"}},
 		{Key: []string{"ipv4"}},
+		{Key: []string{"ipv4_binary"}},
 	}
+
+	// Aggregate it!
+	errorCheck := res.DB.CreateCollection(newCollectionName, keys)
+	if errorCheck != nil {
+		res.Log.Error("Failed: ", newCollectionName, errorCheck)
+		return
+	}
+
+	getHosts(res, res.Config, sourceCollectionName, newCollectionName)
+
+	// res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
+}
+
+//getHosts aggregates the individual hosts from the conn collection and
+//labels them as private or public as well as ipv4 or ipv6. The aggregation
+//includes padding for a binary encoding of the ip address.
+func getHosts(res *resources.Resources, conf *config.Config, sourceCollection string, targetCollection string) { //(string, string, []mgo.Index, []bson.D) {
+
+	session := res.DB.Session.Copy()
+	defer session.Close()
 
 	// Aggregation script
 	// nolint: vet
-	pipeline := []bson.D{
+	uconnsFindQuery := []bson.D{
 		{
 			{"$project", bson.D{
 				{"hosts", []interface{}{
@@ -115,51 +119,103 @@ func getHosts(conf *config.Config) (string, string, []mgo.Index, []bson.D) {
 				}},
 			}},
 		},
-		{
-			{"$out", newCollectionName},
-		},
+		// {
+		// 	{"$out", newCollectionName},
+		// },
 	}
 
-	return sourceCollectionName, newCollectionName, keys, pipeline
+	var queryRes struct {
+		ID       bson.ObjectId `bson:"_id,omitempty"`
+		IP       string        `bson:"ip"`
+		Local    bool          `bson:"local"`
+		IPv4     bool          `bson:"ipv4"`
+		CountSrc int32         `bson:"count_src"`
+		CountDst int32         `bson:"count_dst"`
+	}
+
+	// execute query
+	uconnIter := session.DB(res.DB.GetSelectedDB()).
+		C(sourceCollection).
+		Pipe(uconnsFindQuery).Iter()
+
+	var output []*structure.Host
+	// iterate over results and send to analysis worker
+	for uconnIter.Next(&queryRes) {
+
+		entry := &structure.Host{
+			IP:       queryRes.IP,
+			Local:    queryRes.Local,
+			IPv4:     queryRes.IPv4,
+			CountSrc: queryRes.CountSrc,
+			CountDst: queryRes.CountDst,
+		}
+
+		ip := net.ParseIP(queryRes.IP)
+		if queryRes.IPv4 {
+			entry.IPv4Binary = ipv4ToBinary(ip)
+		} // else {       // *** Note: for future ipv6 support *** //
+		// 	entry.IPv6Binary = ipv6ToBinary(ip)
+		// }
+
+		output = append(output, entry)
+
+	}
+
+	writerTemp(output, res.DB, conf, targetCollection)
+
+	// return sourceCollectionName, newCollectionName, keys, pipeline
 }
 
-// troubleshooting:
-//
-// db.getCollection('uconn').aggregate([
-//     {"$project":{
-//             "hosts": [
-//                     {
-//                             "ip": "$src",
-//                             "local": "$local_src",
-//                             "src" : true,
-//                     },
-//                     {
-//                             "ip": "$dst",
-//                             "local": "$local_dst",
-//                             "dst":true,
-//                     },
-//             ],
-//     }},
-//     {"$unwind": "$hosts"},
-//     {"$group":{
-//             "_id": "$hosts.ip",
-//             "src":{$push:"$hosts.src"},
-//             "dst":{$push:"$hosts.dst"},
-// //             "count":{$sum:1},
-//             "local": {"$first": "$hosts.local"},
-//     }},
-//     {"$project":{
-//             "_id": 0,
-//             "ip": "$_id",
-//             "local": 1,
-//             "count_src":{$size:"$src"},
-//             "count_dst":{$size:"$dst"},
-//             "ipv4": {$cond:{
-//                             if:{"$eq": [{"$indexOfCP": ["$_id", ":"]},-1]},
-//                             then: {"$literal":true},
-//                             else:{"$literal": false},
-//                         }},
-//
-//     }},
-//     {$sort:{"count_src":-1}}
-// ])
+func writerTemp(output []*structure.Host, resDB *database.DB, resConf *config.Config, targetCollection string) {
+
+	// buffer length controls amount of ram used while exporting
+	bufferLen := resConf.S.Bro.ImportBuffer
+
+	// Create a buffer to hold a portion of the results
+	buffer := make([]interface{}, 0, bufferLen)
+	// while we can still iterate through the data add to the buffer
+	for _, data := range output {
+
+		// if the buffer is full, send to the remote database and clear buffer
+		if len(buffer) == bufferLen {
+
+			err := bulkWriteHosts(buffer, resDB, resConf, targetCollection)
+
+			if err != nil && err.Error() != "invalid BulkError instance: no errors" {
+				fmt.Println(buffer)
+				fmt.Println("write error 2", err)
+			}
+
+			buffer = buffer[:0]
+
+		}
+
+		buffer = append(buffer, data)
+	}
+
+	//send any data left in the buffer to the remote database
+	err := bulkWriteHosts(buffer, resDB, resConf, targetCollection)
+	if err != nil && err.Error() != "invalid BulkError instance: no errors" {
+		fmt.Println(buffer)
+		fmt.Println("write error 2", err)
+	}
+
+}
+
+func bulkWriteHosts(buffer []interface{}, resDB *database.DB, resConf *config.Config, targetCollection string) error {
+	ssn := resDB.Session.Copy()
+	defer ssn.Close()
+
+	// set up for bulk write to database
+	bulk := ssn.DB(resDB.GetSelectedDB()).C(targetCollection).Bulk()
+	// writes can be sent out of order
+	bulk.Unordered()
+	// inserts everything in the buffer into the bulk write object as a list
+	// of single interfaces
+	bulk.Insert(buffer...)
+
+	// runs all queued operations
+	_, err := bulk.Run()
+
+	return err
+}
