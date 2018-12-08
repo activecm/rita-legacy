@@ -25,6 +25,7 @@ func BuildBeaconCollection(res *resources.Resources) {
 		{Key: []string{"score"}},
 		{Key: []string{"$hashed:src"}},
 		{Key: []string{"$hashed:dst"}},
+		{Key: []string{"connection_count"}},
 	}
 	err := res.DB.CreateCollection(collectionName, collectionKeys)
 	if err != nil {
@@ -69,11 +70,12 @@ func BuildBeaconCollection(res *resources.Resources) {
 
 	// create result variable to receive query result
 	var uconnRes struct {
-		ID          bson.ObjectId `bson:"_id,omitempty"`
-		Src         string        `bson:"src"`
-		Dst         string        `bson:"dst"`
-		TsList      []int64       `bson:"ts_list"`
-		OrigIPBytes []int64       `bson:"orig_bytes_list"`
+		ID              bson.ObjectId `bson:"_id,omitempty"`
+		Src             string        `bson:"src"`
+		Dst             string        `bson:"dst"`
+		TsList          []int64       `bson:"ts_list"`
+		OrigIPBytes     []int64       `bson:"orig_bytes_list"`
+		ConnectionCount int           `bson:"connection_count"`
 	}
 
 	// execute query
@@ -88,11 +90,12 @@ func BuildBeaconCollection(res *resources.Resources) {
 		// causes incorrect information and huge errors, that's why it's being typecast
 		// below. Does not seem to impact performance
 		newInput := &beacon.AnalysisInput{
-			ID:          uconnRes.ID,
-			Src:         uconnRes.Src,
-			Dst:         uconnRes.Dst,
-			TsList:      uconnRes.TsList,
-			OrigIPBytes: uconnRes.OrigIPBytes,
+			ID:              uconnRes.ID,
+			Src:             uconnRes.Src,
+			Dst:             uconnRes.Dst,
+			TsList:          uconnRes.TsList,
+			OrigIPBytes:     uconnRes.OrigIPBytes,
+			ConnectionCount: uconnRes.ConnectionCount,
 		}
 		analyzerWorker.analyze(newInput)
 	}
