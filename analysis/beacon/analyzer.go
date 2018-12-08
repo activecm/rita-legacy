@@ -169,6 +169,7 @@ func (a *analyzer) start() {
 				UconnID:          data.ID,
 				Src:              data.Src,
 				Dst:              data.Dst,
+				ConnectionCount:  data.ConnectionCount,
 				TSISkew:          tsSkew,
 				TSIDispersion:    tsMadm,
 				TSDuration:       duration,
