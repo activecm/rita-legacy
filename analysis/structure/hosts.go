@@ -12,8 +12,7 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
-// BuildHostsCollection builds the 'host' collection for this timeframe.
-// Runs via mongodb aggregation. Sourced from the 'conn' table.
+// BuildHostsCollection builds the 'host' collection from the `uconn` collection.
 func BuildHostsCollection(res *resources.Resources) {
 
 	// Name of source collection which will be aggregated into the new collection
@@ -22,7 +21,7 @@ func BuildHostsCollection(res *resources.Resources) {
 	// Name of the new collection
 	newCollectionName := res.Config.T.Structure.HostTable
 
-	// Desired indeces
+	// Desired indexes
 	keys := []mgo.Index{
 		{Key: []string{"ip"}, Unique: true},
 		{Key: []string{"local"}},
@@ -42,15 +41,15 @@ func BuildHostsCollection(res *resources.Resources) {
 	// res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
 }
 
-//getHosts aggregates the individual hosts from the conn collection and
+//getHosts aggregates the individual hosts from the source collection and
 //labels them as private or public as well as ipv4 or ipv6. The aggregation
 //includes padding for a binary encoding of the ip address.
-func getHosts(res *resources.Resources, conf *config.Config, sourceCollection string, targetCollection string) { //(string, string, []mgo.Index, []bson.D) {
+func getHosts(res *resources.Resources, conf *config.Config, sourceCollection string, targetCollection string) {
 
 	session := res.DB.Session.Copy()
 	defer session.Close()
 
-	// Aggregation script
+	// Aggregation to populate the hosts collection
 	// nolint: vet
 	uconnsFindQuery := []bson.D{
 		{
@@ -88,10 +87,14 @@ func getHosts(res *resources.Resources, conf *config.Config, sourceCollection st
 		},
 		{
 			{"$project", bson.D{
+				// Disable the normal _id field and use ip instead
 				{"_id", 0},
 				{"ip", "$_id"},
 				{"local", 1},
 				{"ipv4", bson.D{
+					// Determines if the ip (_id) is IPv4 rather than IPv6.
+					// If the ip does not contain the ':' character (IPv6 separator)
+					// it is IPv4.
 					{"$cond", bson.D{
 						{"if", bson.D{
 							{"$eq", []interface{}{
@@ -111,17 +114,18 @@ func getHosts(res *resources.Resources, conf *config.Config, sourceCollection st
 						}},
 					}},
 				}},
+				// Store the number of times the IP was the src of a connection
 				{"count_src", bson.D{
 					{"$size", "$src"},
 				}},
+				// Store the number of times the IP was the dst of a connection
 				{"count_dst", bson.D{
 					{"$size", "$dst"},
 				}},
 			}},
 		},
-		// {
-		// 	{"$out", newCollectionName},
-		// },
+		// Instead of sending this output directly to a new collection,
+		// we need to iterate in order to convert IPv4 strings to binary
 	}
 
 	var queryRes struct {
@@ -139,7 +143,7 @@ func getHosts(res *resources.Resources, conf *config.Config, sourceCollection st
 		Pipe(uconnsFindQuery).Iter()
 
 	var output []*structure.Host
-	// iterate over results and send to analysis worker
+	// iterate over results and convert IPv4 string to binary representation
 	for uconnIter.Next(&queryRes) {
 
 		entry := &structure.Host{
@@ -161,12 +165,11 @@ func getHosts(res *resources.Resources, conf *config.Config, sourceCollection st
 
 	}
 
-	writerTemp(output, res.DB, conf, targetCollection)
-
-	// return sourceCollectionName, newCollectionName, keys, pipeline
+	hostWriter(output, res.DB, conf, targetCollection)
 }
 
-func writerTemp(output []*structure.Host, resDB *database.DB, resConf *config.Config, targetCollection string) {
+// hostWriter inserts host entries into the database in bulk using buffer
+func hostWriter(output []*structure.Host, resDB *database.DB, resConf *config.Config, targetCollection string) {
 
 	// buffer length controls amount of ram used while exporting
 	bufferLen := resConf.S.Bro.ImportBuffer
@@ -202,6 +205,9 @@ func writerTemp(output []*structure.Host, resDB *database.DB, resConf *config.Co
 
 }
 
+// bulkWriteHosts uses MongoDB's Bulk API to insert entries into a collection.
+// It also allows out of order writes to speed things up. This is the fastest
+// way we know of to get data into the database.
 func bulkWriteHosts(buffer []interface{}, resDB *database.DB, resConf *config.Config, targetCollection string) error {
 	ssn := resDB.Session.Copy()
 	defer ssn.Close()

@@ -17,7 +17,7 @@ type (
 		I4 int64 `bson:"4"`
 	}
 
-	//Host describes a computer interface found in the
+	//Host describes an IP address found in the
 	//network traffic being analyzed
 	Host struct {
 		ID         bson.ObjectId `bson:"_id,omitempty"`
@@ -30,7 +30,7 @@ type (
 		// IPv6Binary IPv6Integers  `bson:"ipv6_binary"` // for future ipv6 support
 	}
 
-	//UniqueConnection describes a pair of computer interfaces which contacted
+	//UniqueConnection describes a pair of IP addresses which contacted
 	//each other over the observation period
 	UniqueConnection struct {
 		ID              bson.ObjectId `bson:"_id,omitempty"`
