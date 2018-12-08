@@ -113,8 +113,6 @@ func analyze(inDb string, configFile string) error {
 		logAnalysisFunc("Unique Hosts", td, res,
 			func(innerRes *resources.Resources) {
 				structure.BuildHostsCollection(innerRes)
-				structure.BuildIPv4Collection(innerRes)
-				structure.BuildIPv6Collection(innerRes)
 			},
 		)
 		logAnalysisFunc("Unique Hostnames", td, res,
