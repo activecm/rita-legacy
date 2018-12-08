@@ -137,6 +137,7 @@ func getUniqueConnectionsScript(conf *config.Config) (string, string, []mgo.Inde
 				// Here we want $push because every size is used as-is
 				// instead of the difference of consecutive timestamps.
 				{"orig_bytes", bson.D{{"$push", "$orig_ip_bytes"}}},
+				{"max_duration", bson.D{{"$max", "$duration"}}},
 			}},
 		},
 		{
@@ -151,6 +152,7 @@ func getUniqueConnectionsScript(conf *config.Config) (string, string, []mgo.Inde
 				{"avg_bytes", "$abytes"},
 				{"ts_list", "$ts"},
 				{"orig_bytes_list", "$orig_bytes"},
+				{"max_duration", "$max_duration"},
 			}},
 		},
 		{
