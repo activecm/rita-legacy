@@ -231,8 +231,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							var uconn uconnPair
 
-							uconn.src = parseConn.Field(3).Interface().(string)
-							uconn.dst = parseConn.Field(5).Interface().(string)
+							uconn.src = parseConn.FieldByName("Source").Interface().(string)
+							uconn.dst = parseConn.FieldByName("Destination").Interface().(string)
 
 							// Safely store the number of conns for this uconn
 							mutex.Lock()
