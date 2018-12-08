@@ -28,6 +28,7 @@ type (
 		CountDst   int32         `bson:"count_dst"`
 		IPv4Binary int64         `bson:"ipv4_binary"`
 		// IPv6Binary IPv6Integers  `bson:"ipv6_binary"` // for future ipv6 support
+		MaxDuration float32 `bson:"max_duration"`
 	}
 
 	//UniqueConnection describes a pair of computer interfaces which contacted
@@ -43,5 +44,6 @@ type (
 		AverageBytes    float32       `bson:"average_bytes"`
 		TsList          []int64       `bson:"ts_list"`         // Connection timestamps for this src, dst pair
 		OrigIPBytes     []int64       `bson:"orig_bytes_list"` // Src to dst connection sizes for each connection
+		MaxDuration     float32       `bson:"max_duration"`
 	}
 )

@@ -60,11 +60,13 @@ func getHosts(res *resources.Resources, conf *config.Config, sourceCollection st
 						{"ip", "$src"},
 						{"local", "$local_src"},
 						{"src", true},
+						{"max_duration", "$max_duration"},
 					},
 					bson.D{
 						{"ip", "$dst"},
 						{"local", "$local_dst"},
 						{"dst", true},
+						{"max_duration", "$max_duration"},
 					},
 				}},
 			}},
@@ -83,6 +85,9 @@ func getHosts(res *resources.Resources, conf *config.Config, sourceCollection st
 				}},
 				{"dst", bson.D{
 					{"$push", "$hosts.dst"},
+				}},
+				{"max_duration", bson.D{
+					{"$max", "$hosts.max_duration"},
 				}},
 			}},
 		},
@@ -117,20 +122,19 @@ func getHosts(res *resources.Resources, conf *config.Config, sourceCollection st
 				{"count_dst", bson.D{
 					{"$size", "$dst"},
 				}},
+				{"max_duration", 1},
 			}},
 		},
-		// {
-		// 	{"$out", newCollectionName},
-		// },
 	}
 
 	var queryRes struct {
-		ID       bson.ObjectId `bson:"_id,omitempty"`
-		IP       string        `bson:"ip"`
-		Local    bool          `bson:"local"`
-		IPv4     bool          `bson:"ipv4"`
-		CountSrc int32         `bson:"count_src"`
-		CountDst int32         `bson:"count_dst"`
+		ID          bson.ObjectId `bson:"_id,omitempty"`
+		IP          string        `bson:"ip"`
+		Local       bool          `bson:"local"`
+		IPv4        bool          `bson:"ipv4"`
+		CountSrc    int32         `bson:"count_src"`
+		CountDst    int32         `bson:"count_dst"`
+		MaxDuration float32       `bson:"max_duration"`
 	}
 
 	// execute query
@@ -143,11 +147,12 @@ func getHosts(res *resources.Resources, conf *config.Config, sourceCollection st
 	for uconnIter.Next(&queryRes) {
 
 		entry := &structure.Host{
-			IP:       queryRes.IP,
-			Local:    queryRes.Local,
-			IPv4:     queryRes.IPv4,
-			CountSrc: queryRes.CountSrc,
-			CountDst: queryRes.CountDst,
+			IP:          queryRes.IP,
+			Local:       queryRes.Local,
+			IPv4:        queryRes.IPv4,
+			CountSrc:    queryRes.CountSrc,
+			CountDst:    queryRes.CountDst,
+			MaxDuration: queryRes.MaxDuration,
 		}
 
 		ip := net.ParseIP(queryRes.IP)
