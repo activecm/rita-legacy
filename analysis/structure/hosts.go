@@ -37,8 +37,6 @@ func BuildHostsCollection(res *resources.Resources) {
 	}
 
 	getHosts(res, res.Config, sourceCollectionName, newCollectionName)
-
-	// res.DB.AggregateCollection(sourceCollectionName, ssn, pipeline)
 }
 
 //getHosts aggregates the individual hosts from the source collection and
@@ -138,9 +136,7 @@ func getHosts(res *resources.Resources, conf *config.Config, sourceCollection st
 	}
 
 	// execute query
-	uconnIter := session.DB(res.DB.GetSelectedDB()).
-		C(sourceCollection).
-		Pipe(uconnsFindQuery).Iter()
+	uconnIter := res.DB.AggregateCollection(sourceCollection, session, uconnsFindQuery)
 
 	var output []*structure.Host
 	// iterate over results and convert IPv4 string to binary representation
