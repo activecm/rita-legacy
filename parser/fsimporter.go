@@ -162,8 +162,6 @@ func indexFiles(files []string, indexingThreads int,
 // a MogoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) {
-	// var connMap = make(map[uconnPair]int)
-
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
@@ -249,14 +247,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									TargetCollection: targetCollection,
 								})
 							} else if connCount == connLimit {
-
 								filterHugeUconnsMap = append(filterHugeUconnsMap, uconn)
-								// fmt.Println(uconn.src, uconn.dst, connCount)
-								// datastore.Store(&ImportedData{
-								// 	BroData:          data,
-								// 	TargetDatabase:   targetDB,
-								// 	TargetCollection: "temp",
-								// })
 							}
 
 							mutex.Unlock()
@@ -286,11 +277,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	fs.bulkRemoveHugeUconns(datastore, indexedFiles[0].TargetDatabase, filterHugeUconnsMap, connMap)
 }
 
-// robomongo verification stuf:
-// pre-bulk delete conns should have exactly [connLimit - 1] number of records
-// of each src dst pair entry found in new temp collection:
-// db.getCollection('conn').find({$and:[{id_orig_h:"XXX.XXX.XXX.XXX"},{id_resp_h:"XXX.XXX.XXX.XXX"}]}).count()
-//
+
 func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string, filterHugeUconnsMap []uconnPair, connMap map[uconnPair]int) {
 	var temp []*parsetypes.Temp
 	resDB := fs.res.DB
