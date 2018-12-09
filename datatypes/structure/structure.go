@@ -31,10 +31,10 @@ type (
 		MaxDuration        float32 `bson:"max_duration"`
 		MaxBeaconScore     float64 `bson:"max_beacon_score"`
 		MaxBeaconConnCount int     `bson:"max_beacon_conn_count"`
-		BLSendCount        int32   `bson:"bl_send_count"`
-		BLRecvCount        int32   `bson:"bl_recv_count"`
-		BLSendAvgBytes     int32   `bson:"bl_send_avg_bytes"`
-		BLRecvAvgBytes     int32   `bson:"bl_recv_avg_bytes"`
+		BlOutCount         int32   `bson:"bl_out_count"`
+		BlInCount          int32   `bson:"bl_in_count"`
+		BlSumAvgBytes      int32   `bson:"bl_sum_avg_bytes"`
+		BlTotalBytes       int32   `bson:"bl_total_bytes"`
 		TxtQueryCount      int     `bson:"txt_query_count"`
 	}
 
