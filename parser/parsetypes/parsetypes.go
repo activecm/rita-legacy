@@ -1,6 +1,8 @@
 package parsetypes
 
-import "github.com/activecm/rita/config"
+import (
+	"github.com/activecm/rita/config"
+)
 
 //BroData holds a line of a bro log
 type BroData interface {
@@ -23,6 +25,10 @@ func NewBroDataFactory(fileType string) func() BroData {
 	case "http":
 		return func() BroData {
 			return &HTTP{}
+		}
+	case "temp":
+		return func() BroData {
+			return &Temp{}
 		}
 	}
 	return nil
