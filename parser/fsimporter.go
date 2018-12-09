@@ -3,13 +3,13 @@ package parser
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
-	"net"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -20,7 +20,6 @@ import (
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
-
 )
 
 type (
@@ -160,18 +159,18 @@ func indexFiles(files []string, indexingThreads int,
 }
 
 // Get internal subnets from the config file
-// todo: Error if a valid CIDR is not provided 
+// todo: Error if a valid CIDR is not provided
 func getInternalSubnets(fs *FSImporter) []*net.IPNet {
 	var internalIPSubnets []*net.IPNet
 
 	internalFilters := fs.res.Config.S.Filtering.InternalSubnets
 	for _, cidr := range internalFilters {
-        _, block, err := net.ParseCIDR(cidr)
-        internalIPSubnets = append(internalIPSubnets, block)
-        if (err != nil) {
-        	fmt.Println("Error parsing config file CIDR.")
-        	fmt.Println(err)
-        }
+		_, block, err := net.ParseCIDR(cidr)
+		internalIPSubnets = append(internalIPSubnets, block)
+		if err != nil {
+			fmt.Println("Error parsing config file CIDR.")
+			fmt.Println(err)
+		}
 	}
 
 	return internalIPSubnets
@@ -183,12 +182,12 @@ func getIncludedSubnets(fs *FSImporter) []*net.IPNet {
 	alwaysIncluded := fs.res.Config.S.Filtering.AlwaysInclude
 
 	for _, cidr := range alwaysIncluded {
-        _, block, err := net.ParseCIDR(cidr)
-        includedSubnets = append(includedSubnets, block)
-        if (err != nil) {
-        	fmt.Println("Error parsing config file CIDR.")
-        	fmt.Println(err)
-        }
+		_, block, err := net.ParseCIDR(cidr)
+		includedSubnets = append(includedSubnets, block)
+		if err != nil {
+			fmt.Println("Error parsing config file CIDR.")
+			fmt.Println(err)
+		}
 	}
 
 	fmt.Println(includedSubnets)
@@ -302,17 +301,17 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							isSrcIncluded := isAlwaysIncluded(alwaysIncluded, srcIP)
 							isDstIncluded := isAlwaysIncluded(alwaysIncluded, dstIP)
 
-							if (!(isSrcIncluded || isDstIncluded)) {
+							if !(isSrcIncluded || isDstIncluded) {
 								isSrcInternal := isInternalAddress(internal, srcIP)
 								isDstInternal := isInternalAddress(internal, dstIP)
 
 								// Filter internal-to-internal connections
-								if (isSrcInternal && isDstInternal) {
+								if isSrcInternal && isDstInternal {
 									break
 								}
 
 								// Filter external-to-external connections
-								if ((!isSrcInternal) && (!isDstInternal)) {
+								if (!isSrcInternal) && (!isDstInternal) {
 									break
 								}
 							}
