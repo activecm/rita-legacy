@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"net"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -19,6 +20,7 @@ import (
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
+
 )
 
 type (
@@ -157,12 +159,64 @@ func indexFiles(files []string, indexingThreads int,
 	return output
 }
 
+// Get internal subnets from the config file
+// todo: Error if a valid CIDR is not provided 
+func getInternalSubnets(fs *FSImporter) []*net.IPNet {
+	var internalIPSubnets []*net.IPNet
+
+	internalFilters := fs.res.Config.S.Filtering.InternalSubnets
+	for _, cidr := range internalFilters {
+        _, block, _ := net.ParseCIDR(cidr)
+        internalIPSubnets = append(internalIPSubnets, block)
+	}
+
+	return internalIPSubnets
+}
+
+// Get "always included" subnets from the config file
+// todo: Error if a valid CIDR is not provided 
+func getIncludedSubnets(fs *FSImporter) []*net.IPNet {
+	var includedSubnets []*net.IPNet
+	fmt.Println("!")
+	alwaysIncluded := fs.res.Config.S.Filtering.AlwaysInclude
+	fmt.Println(alwaysIncluded)
+	for _, cidr := range alwaysIncluded {
+        _, block, _ := net.ParseCIDR(cidr)
+        includedSubnets = append(includedSubnets, block)
+	}
+	fmt.Println("!!")
+	fmt.Println(includedSubnets)
+	return includedSubnets
+}
+
+// Check if a single IP address is internal
+func isInternalAddress(internal []*net.IPNet, ip net.IP) bool {
+	for _, block := range internal {
+		if block.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// Check if a single IP address should always be included
+func isAlwaysIncluded(alwaysIncluded []*net.IPNet, ip net.IP) bool {
+	for _, block := range alwaysIncluded {
+		if block.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
 //parseFiles takes in a list of indexed bro files, the number of
 //threads to use to parse the files, whether or not to sort data by date,
 // a MogoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) {
 	// var connMap = make(map[uconnPair]int)
+	internal := getInternalSubnets(fs)
+	alwaysIncluded := getIncludedSubnets(fs)
 
 	//set up parallel parsing
 	n := len(indexedFiles)
@@ -235,6 +289,27 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							uconn.src = parseConn.Field(3).Interface().(string)
 							uconn.dst = parseConn.Field(5).Interface().(string)
+
+							srcIP := net.ParseIP(uconn.src)
+							dstIP := net.ParseIP(uconn.dst)
+
+							isSrcIncluded := isAlwaysIncluded(alwaysIncluded, srcIP)
+							isDstIncluded := isAlwaysIncluded(alwaysIncluded, dstIP)
+
+							if (!(isSrcIncluded || isDstIncluded)) {
+								isSrcInternal := isInternalAddress(internal, srcIP)
+								isDstInternal := isInternalAddress(internal, dstIP)
+
+								// Filter internal-to-internal connections
+								if (isSrcInternal && isDstInternal) {
+									break
+								}
+
+								// Filter external-to-external connections
+								if ((!isSrcInternal) && (!isDstInternal)) {
+									break
+								}
+							}
 
 							// Safely store the number of conns for this uconn
 							mutex.Lock()
