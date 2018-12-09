@@ -165,6 +165,33 @@ func getHosts(res *resources.Resources, conf *config.Config, sourceCollection st
 		// 	entry.IPv6Binary = ipv6ToBinary(ip)
 		// }
 
+		if queryRes.Local {
+
+			// add highest beacon conncount and score
+			var beaconRes struct {
+				ConnectionCount int     `bson:"connection_count"`
+				Score           float64 `bson:"score"`
+			}
+			err1 := session.DB(res.DB.GetSelectedDB()).C(conf.T.Beacon.BeaconTable).Find(bson.M{"src": queryRes.IP}).Sort("-score").Limit(1).One(&beaconRes)
+			if err1 == nil {
+				entry.MaxBeaconScore = beaconRes.Score
+				entry.MaxBeaconConnCount = beaconRes.ConnectionCount
+			}
+
+			// Count how many times the host made a TXT query
+			txtCount, err2 := session.DB(res.DB.GetSelectedDB()).C(conf.T.Structure.DNSTable).
+				Find(bson.M{
+					"$and": []bson.M{
+						bson.M{"id_orig_h": queryRes.IP},
+						bson.M{"qtype_name": "TXT"},
+					}}).Count()
+
+			if err2 == nil {
+				entry.TxtQueryCount = txtCount
+			}
+
+		}
+
 		output = append(output, entry)
 
 	}
