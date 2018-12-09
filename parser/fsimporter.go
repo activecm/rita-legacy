@@ -166,25 +166,31 @@ func getInternalSubnets(fs *FSImporter) []*net.IPNet {
 
 	internalFilters := fs.res.Config.S.Filtering.InternalSubnets
 	for _, cidr := range internalFilters {
-        _, block, _ := net.ParseCIDR(cidr)
+        _, block, err := net.ParseCIDR(cidr)
         internalIPSubnets = append(internalIPSubnets, block)
+        if (err != nil) {
+        	fmt.Println("Error parsing config file CIDR.")
+        	fmt.Println(err)
+        }
 	}
 
 	return internalIPSubnets
 }
 
 // Get "always included" subnets from the config file
-// todo: Error if a valid CIDR is not provided 
 func getIncludedSubnets(fs *FSImporter) []*net.IPNet {
 	var includedSubnets []*net.IPNet
-	fmt.Println("!")
 	alwaysIncluded := fs.res.Config.S.Filtering.AlwaysInclude
-	fmt.Println(alwaysIncluded)
+
 	for _, cidr := range alwaysIncluded {
-        _, block, _ := net.ParseCIDR(cidr)
+        _, block, err := net.ParseCIDR(cidr)
         includedSubnets = append(includedSubnets, block)
+        if (err != nil) {
+        	fmt.Println("Error parsing config file CIDR.")
+        	fmt.Println(err)
+        }
 	}
-	fmt.Println("!!")
+
 	fmt.Println(includedSubnets)
 	return includedSubnets
 }
