@@ -22,14 +22,14 @@ type (
 
 	//StructureTableCfg contains the names of the base level collections
 	StructureTableCfg struct {
-		ConnTable       string
-		HTTPTable       string
-		DNSTable        string
-		UniqueConnTable string
-		HostTable       string
-		IPv4Table       string
-		IPv6Table       string
-		TempTable       string
+		ConnTable         string
+		HTTPTable         string
+		DNSTable          string
+		UniqueConnTable   string
+		HostTable         string
+		IPv4Table         string
+		IPv6Table         string
+		FrequentConnTable string
 	}
 
 	//BlacklistedTableCfg is used to control the blacklisted analysis module
@@ -94,7 +94,7 @@ func loadTableConfig() *TableCfg {
 	config.Structure.HostTable = "host"
 	config.Structure.IPv4Table = "ipv4"
 	config.Structure.IPv6Table = "ipv6"
-	config.Structure.TempTable = "temp"
+	config.Structure.FrequentConnTable = "freqConn"
 
 	config.Blacklisted.BlacklistDatabase = "rita-blacklist"
 	config.Blacklisted.SourceIPsTable = "blSourceIPs"

@@ -251,7 +251,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								})
 							} else if connCount == connLimit {
 								// Once we know a uconn has passed the connLimit not only
-								// do we want to avoid storing any more, but we want to 
+								// do we want to avoid storing any more, but we want to
 								// remove all entries already added. The first time we pass
 								// the limit put an entry in filterHugeUconnsMap in order
 								// to run a bulk delete later.
@@ -289,7 +289,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
 // entries in the "conn" collection.
 func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string, filterHugeUconnsMap []uconnPair, connMap map[uconnPair]int) {
-	var temp []*parsetypes.Temp
+	var freq []*parsetypes.Freq
 	resDB := fs.res.DB
 	resConf := fs.res.Config
 	var deleteQuery bson.M
@@ -297,7 +297,7 @@ func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string,
 	fmt.Println("\t[-] Removing unused connection info. This may take a while.")
 	for _, uconn := range filterHugeUconnsMap {
 
-		temp = append(temp, &parsetypes.Temp{
+		freq = append(freq, &parsetypes.Freq{
 			Source:          uconn.src,
 			Destination:     uconn.dst,
 			ConnectionCount: connMap[uconn],
@@ -310,7 +310,7 @@ func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string,
 			}}
 		bulkDeleteMany(deleteQuery, resDB, resConf, targetDB, resConf.T.Structure.ConnTable)
 	}
-	writerTemp(temp, resDB, resConf, targetDB)
+	freqConnWriter(freq, resDB, resConf, targetDB)
 }
 
 // db.getCollection('conn').deleteMany({$and:[{id_orig_h:"XXX.XXX.XXX.XXX"},{id_resp_h:"XXX.XXX.XXX.XXX"}]})
@@ -326,7 +326,7 @@ func bulkDeleteMany(query bson.M, resDB *database.DB, resConf *config.Config, ta
 	}
 }
 
-func writerTemp(output []*parsetypes.Temp, resDB *database.DB, resConf *config.Config, targetDB string) {
+func freqConnWriter(output []*parsetypes.Freq, resDB *database.DB, resConf *config.Config, targetDB string) {
 
 	// buffer length controls amount of ram used while exporting
 	bufferLen := resConf.S.Bro.ImportBuffer
@@ -339,7 +339,7 @@ func writerTemp(output []*parsetypes.Temp, resDB *database.DB, resConf *config.C
 		// if the buffer is full, send to the remote database and clear buffer
 		if len(buffer) == bufferLen {
 
-			err := bulkWriteTemp(buffer, resDB, resConf, targetDB)
+			err := bulkWriteFreq(buffer, resDB, resConf, targetDB)
 
 			if err != nil && err.Error() != "invalid BulkError instance: no errors" {
 				fmt.Println(buffer)
@@ -354,21 +354,21 @@ func writerTemp(output []*parsetypes.Temp, resDB *database.DB, resConf *config.C
 	}
 
 	//send any data left in the buffer to the remote database
-	err := bulkWriteTemp(buffer, resDB, resConf, targetDB)
+	err := bulkWriteFreq(buffer, resDB, resConf, targetDB)
 	if err != nil && err.Error() != "invalid BulkError instance: no errors" {
 		fmt.Println(buffer)
 		fmt.Println("write error 2", err)
 	}
 
-	err = createTempIndexes(resDB, resConf, targetDB)
+	err = createFreqIndexes(resDB, resConf, targetDB)
 
 }
 
-// Create indexes for the temporary database
-func createTempIndexes(resDB *database.DB, resConf *config.Config, targetDB string) error {
+// Create indexes for the frequent connections collection
+func createFreqIndexes(resDB *database.DB, resConf *config.Config, targetDB string) error {
 	ssn := resDB.Session.Copy()
 	defer ssn.Close()
-	coll := ssn.DB(targetDB).C("temp")
+	coll := ssn.DB(targetDB).C(resConf.T.Structure.FrequentConnTable)
 
 	// Use the source destination pair as a composite index
 	srcDstIndex := mgo.Index{
@@ -396,12 +396,12 @@ func createTempIndexes(resDB *database.DB, resConf *config.Config, targetDB stri
 	return err
 }
 
-func bulkWriteTemp(buffer []interface{}, resDB *database.DB, resConf *config.Config, targetDB string) error {
+func bulkWriteFreq(buffer []interface{}, resDB *database.DB, resConf *config.Config, targetDB string) error {
 	ssn := resDB.Session.Copy()
 	defer ssn.Close()
 
 	// set up for bulk write to database
-	bulk := ssn.DB(targetDB).C("temp").Bulk()
+	bulk := ssn.DB(targetDB).C(resConf.T.Structure.FrequentConnTable).Bulk()
 	// writes can be sent out of order
 	bulk.Unordered()
 	// inserts everything in the buffer into the bulk write object as a list
