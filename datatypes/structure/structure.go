@@ -28,7 +28,14 @@ type (
 		CountDst   int32         `bson:"count_dst"`
 		IPv4Binary int64         `bson:"ipv4_binary"`
 		// IPv6Binary IPv6Integers  `bson:"ipv6_binary"` // for future ipv6 support
-		MaxDuration float32 `bson:"max_duration"`
+		MaxDuration        float32 `bson:"max_duration"`
+		MaxBeaconScore     float64 `bson:"max_beacon_score"`
+		MaxBeaconConnCount int     `bson:"max_beacon_conn_count"`
+		BLSendCount        int32   `bson:"bl_send_count"`
+		BLRecvCount        int32   `bson:"bl_recv_count"`
+		BLSendAvgBytes     int32   `bson:"bl_send_avg_bytes"`
+		BLRecvAvgBytes     int32   `bson:"bl_recv_avg_bytes"`
+		TxtQueryCount      int     `bson:"txt_query_count"`
 	}
 
 	//UniqueConnection describes a pair of IP addresses which contacted
@@ -41,7 +48,7 @@ type (
 		LocalSrc        bool          `bson:"local_src"`
 		LocalDst        bool          `bson:"local_dst"`
 		TotalBytes      int           `bson:"total_bytes"`
-		AverageBytes    float32       `bson:"average_bytes"`
+		AverageBytes    float32       `bson:"avg_bytes"`
 		TsList          []int64       `bson:"ts_list"`         // Connection timestamps for this src, dst pair
 		OrigIPBytes     []int64       `bson:"orig_bytes_list"` // Src to dst connection sizes for each connection
 		MaxDuration     float32       `bson:"max_duration"`

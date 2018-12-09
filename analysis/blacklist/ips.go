@@ -95,6 +95,7 @@ func buildBlacklistedIPs(ips *mgo.Iter, res *resources.Resources,
 					continue
 				}
 				outputCollection.Insert(&blIP)
+
 			}
 		}
 	}
@@ -153,6 +154,14 @@ func fillBlacklistedIP(blIP *data.BlacklistedIP, db, uconnCollection string,
 		totalBytes += uconn.TotalBytes
 		totalConnections += uconn.ConnectionCount
 		uniqueConnCount++
+
+		if source {
+			ssn.DB(db).C("host").Update(bson.M{"ip": uconn.Dst}, bson.M{"$inc": bson.M{"bl_recv_count": 1}})
+			ssn.DB(db).C("host").Update(bson.M{"ip": uconn.Dst}, bson.M{"$inc": bson.M{"bl_recv_avg_bytes": uconn.AverageBytes}})
+		} else {
+			ssn.DB(db).C("host").Update(bson.M{"ip": uconn.Src}, bson.M{"$inc": bson.M{"bl_send_count": 1}})
+			ssn.DB(db).C("host").Update(bson.M{"ip": uconn.Src}, bson.M{"$inc": bson.M{"bl_send_avg_bytes": uconn.AverageBytes}})
+		}
 	}
 	blIP.Connections = totalConnections
 	blIP.UniqueConnections = uniqueConnCount

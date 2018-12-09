@@ -50,6 +50,7 @@ func (w *writer) start() {
 		//TODO: Implement bulk writes
 		for data := range w.writeChannel {
 			ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Beacon.BeaconTable).Insert(data)
+
 		}
 		w.writeWg.Done()
 	}()
