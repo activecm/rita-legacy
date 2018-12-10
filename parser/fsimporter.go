@@ -172,7 +172,7 @@ func getInternalSubnets(fs *FSImporter) []*net.IPNet {
 			fmt.Println(err)
 		}
 	}
-
+	fmt.Println(internalIPSubnets)
 	return internalIPSubnets
 }
 
@@ -189,7 +189,6 @@ func getIncludedSubnets(fs *FSImporter) []*net.IPNet {
 			fmt.Println(err)
 		}
 	}
-
 	fmt.Println(includedSubnets)
 	return includedSubnets
 }
@@ -301,46 +300,47 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							isSrcIncluded := isAlwaysIncluded(alwaysIncluded, srcIP)
 							isDstIncluded := isAlwaysIncluded(alwaysIncluded, dstIP)
 
-							if !(isSrcIncluded || isDstIncluded) {
-								isSrcInternal := isInternalAddress(internal, srcIP)
-								isDstInternal := isInternalAddress(internal, dstIP)
+							isSrcInternal := isInternalAddress(internal, srcIP)
+							isDstInternal := isInternalAddress(internal, dstIP)
+							
+							ignore := false
 
-								// Filter internal-to-internal connections
-								if isSrcInternal && isDstInternal {
-									break
-								}
-
-								// Filter external-to-external connections
-								if (!isSrcInternal) && (!isDstInternal) {
-									break
-								}
+							if (isSrcInternal && isDstInternal) {
+								ignore = true	
+							} else if ((!isSrcInternal) && (!isDstInternal)) {
+								ignore = true
 							}
 
-							// Safely store the number of conns for this uconn
-							mutex.Lock()
-							connMap[uconn] = connMap[uconn] + 1
-							connCount = connMap[uconn]
+							if (isSrcIncluded || isDstIncluded) {
+							 	ignore = false
+							 }
 
-							// Do not store more than the connLimit
-							if connCount < connLimit {
-								datastore.Store(&ImportedData{
-									BroData:          data,
-									TargetDatabase:   targetDB,
-									TargetCollection: targetCollection,
-								})
-							} else if connCount == connLimit {
+							if (!ignore) {
+								// Safely store the number of conns for this uconn
+								mutex.Lock()
+								connMap[uconn] = connMap[uconn] + 1
+								connCount = connMap[uconn]
 
-								filterHugeUconnsMap = append(filterHugeUconnsMap, uconn)
-								// fmt.Println(uconn.src, uconn.dst, connCount)
-								// datastore.Store(&ImportedData{
-								// 	BroData:          data,
-								// 	TargetDatabase:   targetDB,
-								// 	TargetCollection: "temp",
-								// })
+								// Do not store more than the connLimit
+								if connCount < connLimit {
+									datastore.Store(&ImportedData{
+										BroData:          data,
+										TargetDatabase:   targetDB,
+										TargetCollection: targetCollection,
+									})
+								} else if connCount == connLimit {
+
+									filterHugeUconnsMap = append(filterHugeUconnsMap, uconn)
+									// fmt.Println(uconn.src, uconn.dst, connCount)
+									// datastore.Store(&ImportedData{
+									// 	BroData:          data,
+									// 	TargetDatabase:   targetDB,
+									// 	TargetCollection: "temp",
+									// })
+								}
+
+								mutex.Unlock()
 							}
-
-							mutex.Unlock()
-
 						} else {
 
 							datastore.Store(&ImportedData{
