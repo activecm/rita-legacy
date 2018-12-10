@@ -174,7 +174,6 @@ func getInternalSubnets(fs *FSImporter) []*net.IPNet {
 			fmt.Println(err)
 		}
 	}
-	fmt.Println(internalIPSubnets)
 	return internalIPSubnets
 }
 
@@ -191,7 +190,6 @@ func getIncludedSubnets(fs *FSImporter) []*net.IPNet {
 			fmt.Println(err)
 		}
 	}
-	fmt.Println(includedSubnets)
 	return includedSubnets
 }
 
