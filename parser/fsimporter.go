@@ -16,7 +16,6 @@ import (
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
-	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 )
@@ -72,11 +71,11 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
-	targetDatabase, filterHugeUconnsMap, connMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+	filterHugeUconnsMap, connMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
 	// Must wait for all inserts to finish before attempting to delete
 	datastore.Flush()
-	fs.bulkRemoveHugeUconns(datastore, targetDatabase, filterHugeUconnsMap, connMap)
+	fs.bulkRemoveHugeUconns(indexedFiles[0].TargetDatabase, filterHugeUconnsMap, connMap)
 
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
@@ -164,8 +163,8 @@ func indexFiles(files []string, indexingThreads int,
 //threads to use to parse the files, whether or not to sort data by date,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
-func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) (string, []uconnPair, map[uconnPair]int) {
-	
+func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) ([]uconnPair, map[uconnPair]int) {
+
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
@@ -287,24 +286,39 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	return indexedFiles[0].TargetDatabase, filterHugeUconnsMap, connMap
+	return filterHugeUconnsMap, connMap
 }
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
-// entries in the "conn" collection.
-func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string, filterHugeUconnsMap []uconnPair, connMap map[uconnPair]int) {
-	var freq []*parsetypes.Freq
+// entries in the "conn" collection. It also creates new entries in the FrequentConnTable collection.
+func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap []uconnPair, connMap map[uconnPair]int) {
 	resDB := fs.res.DB
 	resConf := fs.res.Config
+	logger := fs.res.Log
 	var deleteQuery bson.M
+
+	// create a new datastore just for frequent connections since the old datastore
+	// will be Flushed by now and closed for writing
+	datastore := NewMongoDatastore(resDB.Session, fs.res.MetaDB,
+		resConf.S.Bro.ImportBuffer, logger)
+
+	// open a new database session for the bulk deletion
+	ssn := resDB.Session.Copy()
+	defer ssn.Close()
+
+	bulk := ssn.DB(targetDB).C(resConf.T.Structure.ConnTable).Bulk()
+	bulk.Unordered()
 
 	fmt.Println("\t[-] Removing unused connection info. This may take a while.")
 	for _, uconn := range filterHugeUconnsMap {
-
-		freq = append(freq, &parsetypes.Freq{
-			Source:          uconn.src,
-			Destination:     uconn.dst,
-			ConnectionCount: connMap[uconn],
+		datastore.Store(&ImportedData{
+			BroData: &parsetypes.Freq{
+				Source:          uconn.src,
+				Destination:     uconn.dst,
+				ConnectionCount: connMap[uconn],
+			},
+			TargetDatabase:   targetDB,
+			TargetCollection: resConf.T.Structure.FrequentConnTable,
 		})
 
 		deleteQuery = bson.M{
@@ -312,118 +326,21 @@ func (fs *FSImporter) bulkRemoveHugeUconns(datastore Datastore, targetDB string,
 				bson.M{"id_orig_h": uconn.src},
 				bson.M{"id_resp_h": uconn.dst},
 			}}
-		bulkDeleteMany(deleteQuery, resDB, resConf, targetDB, resConf.T.Structure.ConnTable)
+		bulk.RemoveAll(deleteQuery)
 	}
-	freqConnWriter(freq, resDB, resConf, targetDB)
-}
 
-// db.getCollection('conn').deleteMany({$and:[{id_orig_h:"XXX.XXX.XXX.XXX"},{id_resp_h:"XXX.XXX.XXX.XXX"}]})
-// bulkDeleteMany removes many documents at once from a collection.
-func bulkDeleteMany(query bson.M, resDB *database.DB, resConf *config.Config, targetDB string, targetCL string) {
-	ssn := resDB.Session.Copy()
-	defer ssn.Close()
+	// Flush the datastore to ensure that it finishes all of its writes
+	datastore.Flush()
+	datastore.Index()
 
-	info, err := ssn.DB(targetDB).C(targetCL).RemoveAll(query)
-
+	// Execute the bulk deletion
+	bulkResult, err := bulk.Run()
 	if err != nil {
-		fmt.Println("error! ", err, info)
+		logger.WithFields(log.Fields{
+			"bulkResult": bulkResult,
+			"error":      err.Error(),
+		}).Error("Could not delete frequent conn entries.")
 	}
-}
-
-func freqConnWriter(output []*parsetypes.Freq, resDB *database.DB, resConf *config.Config, targetDB string) {
-
-	// buffer length controls amount of ram used while exporting
-	bufferLen := resConf.S.Bro.ImportBuffer
-
-	// Create a buffer to hold a portion of the results
-	buffer := make([]interface{}, 0, bufferLen)
-	// while we can still iterate through the data add to the buffer
-	for _, data := range output {
-
-		// if the buffer is full, send to the remote database and clear buffer
-		if len(buffer) == bufferLen {
-
-			err := bulkWriteFreq(buffer, resDB, resConf, targetDB)
-
-			if err != nil && err.Error() != "invalid BulkError instance: no errors" {
-				fmt.Println(buffer)
-				fmt.Println("write error 2", err)
-			}
-
-			buffer = buffer[:0]
-
-		}
-
-		buffer = append(buffer, data)
-	}
-
-	//send any data left in the buffer to the remote database
-	err := bulkWriteFreq(buffer, resDB, resConf, targetDB)
-	if err != nil && err.Error() != "invalid BulkError instance: no errors" {
-		fmt.Println(buffer)
-		fmt.Println("write error 2", err)
-	}
-
-	err = createFreqIndexes(resDB, resConf, targetDB)
-
-}
-
-// Create indexes for the frequent connections collection
-func createFreqIndexes(resDB *database.DB, resConf *config.Config, targetDB string) error {
-	ssn := resDB.Session.Copy()
-	defer ssn.Close()
-	coll := ssn.DB(targetDB).C(resConf.T.Structure.FrequentConnTable)
-
-	// Use the source destination pair as a composite index
-	srcIndex := mgo.Index{
-		Key:  []string{"src"},
-	}
-
-	err := coll.EnsureIndex(srcIndex)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	dstIndex := mgo.Index{
-		Key:  []string{"dst"},
-	}
-
-	err = coll.EnsureIndex(dstIndex)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	connCountIndex := mgo.Index{
-		Key:  []string{"connection_count"},
-	}
-
-	err = coll.EnsureIndex(connCountIndex)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return err
-}
-
-func bulkWriteFreq(buffer []interface{}, resDB *database.DB, resConf *config.Config, targetDB string) error {
-	ssn := resDB.Session.Copy()
-	defer ssn.Close()
-
-	// set up for bulk write to database
-	bulk := ssn.DB(targetDB).C(resConf.T.Structure.FrequentConnTable).Bulk()
-	// writes can be sent out of order
-	bulk.Unordered()
-	// inserts everything in the buffer into the bulk write object as a list
-	// of single interfaces
-	bulk.Insert(buffer...)
-
-	// runs all queued operations
-	_, err := bulk.Run()
-
-	return err
 }
 
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
