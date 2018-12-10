@@ -1,13 +1,16 @@
 package beacon
 
 import (
-	dataBeacon "github.com/activecm/rita/datatypes/beacon"
+	"github.com/activecm/rita/datatypes/beacon"
 	"github.com/globalsign/mgo/bson"
 )
 
-var writerTestDataList = []dataBeacon.AnalysisOutput{
-	dataBeacon.AnalysisOutput{
+var writerTestDataList = []beacon.AnalysisOutput{
+	beacon.AnalysisOutput{
 		UconnID:          bson.NewObjectId(),
+		Src:              "0.0.0.0",
+		Dst:              "0.0.0.0",
+		ConnectionCount:  1,
 		TSIRange:         1,
 		TSIMode:          1,
 		TSIModeCount:     1,
@@ -27,8 +30,11 @@ var writerTestDataList = []dataBeacon.AnalysisOutput{
 		DSScore:          1.5,
 		Score:            1.5,
 	},
-	dataBeacon.AnalysisOutput{
+	beacon.AnalysisOutput{
 		UconnID:          bson.NewObjectId(),
+		Src:              "0.0.0.0",
+		Dst:              "0.0.0.0",
+		ConnectionCount:  2,
 		TSIRange:         2,
 		TSIMode:          2,
 		TSIModeCount:     2,
@@ -48,8 +54,11 @@ var writerTestDataList = []dataBeacon.AnalysisOutput{
 		DSScore:          2.5,
 		Score:            2.5,
 	},
-	dataBeacon.AnalysisOutput{
+	beacon.AnalysisOutput{
 		UconnID:          bson.NewObjectId(),
+		Src:              "0.0.0.0",
+		Dst:              "0.0.0.0",
+		ConnectionCount:  3,
 		TSIRange:         3,
 		TSIMode:          3,
 		TSIModeCount:     3,

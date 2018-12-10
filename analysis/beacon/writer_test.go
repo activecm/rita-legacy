@@ -5,7 +5,7 @@ package beacon
 import (
 	"testing"
 
-	dataBeacon "github.com/activecm/rita/datatypes/beacon"
+	"github.com/activecm/rita/datatypes/beacon"
 	"github.com/stretchr/testify/require"
 
 	"github.com/activecm/rita/resources"
@@ -20,7 +20,7 @@ func TestWriter(t *testing.T) {
 	}
 	writer.close()
 
-	var writtenData []dataBeacon.AnalysisOutput
+	var writtenData []beacon.AnalysisOutput
 	res.DB.Session.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(nil).All(&writtenData)
 	require.ElementsMatch(t, writerTestDataList, writtenData)
 }

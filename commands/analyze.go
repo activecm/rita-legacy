@@ -109,28 +109,32 @@ func analyze(inDb string, configFile string) error {
 		logAnalysisFunc("Unique Connections", td, res,
 			structure.BuildUniqueConnectionsCollection,
 		)
+		// must go after uconns
+		logAnalysisFunc("Beaconing", td, res,
+			beacon.BuildBeaconCollection,
+		)
+		// must go after beaconing
 		logAnalysisFunc("Unique Hosts", td, res,
 			func(innerRes *resources.Resources) {
 				structure.BuildHostsCollection(innerRes)
-				structure.BuildIPv4Collection(innerRes)
-				structure.BuildIPv6Collection(innerRes)
 			},
 		)
 		logAnalysisFunc("Unique Hostnames", td, res,
 			dns.BuildHostnamesCollection,
 		)
+
 		logAnalysisFunc("Exploded DNS", td, res,
 			dns.BuildExplodedDNSCollection,
 		)
+
 		logAnalysisFunc("User Agent", td, res,
 			useragent.BuildUserAgentCollection,
 		)
+
 		logAnalysisFunc("Blacklisted", td, res,
 			blacklist.BuildBlacklistedCollections,
 		)
-		logAnalysisFunc("Beaconing", td, res,
-			beacon.BuildBeaconCollection,
-		)
+
 		logAnalysisFunc("Cross Reference", td, res,
 			crossref.BuildXRefCollection,
 		)

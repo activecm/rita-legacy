@@ -83,6 +83,7 @@ func buildBlacklistedIPs(ips *mgo.Iter, res *resources.Resources,
 					&blIP,
 					res.DB.GetSelectedDB(),
 					res.Config.T.Structure.UniqueConnTable,
+					res.Config.T.Structure.HostTable,
 					ssn,
 					source,
 				)
@@ -95,6 +96,7 @@ func buildBlacklistedIPs(ips *mgo.Iter, res *resources.Resources,
 					continue
 				}
 				outputCollection.Insert(&blIP)
+
 			}
 		}
 	}
@@ -135,8 +137,12 @@ func checkRitaBlacklistIPs(ips *mgo.Iter, blHandle *bl.Blacklist,
 	close(resultsChannel)
 }
 
+// fillBlacklistedIP tallies the total number of bytes and connections
+// made to each blacklisted IP. It stores this information in the blIP
+// parameter. The source parameter is true if the blacklisted IP initiated
+// the connections or false if the blacklisted IP received the connections.
 func fillBlacklistedIP(blIP *data.BlacklistedIP, db, uconnCollection string,
-	ssn *mgo.Session, source bool) error {
+	hostCollection string, ssn *mgo.Session, source bool) error {
 	var connQuery bson.M
 	if source {
 		connQuery = bson.M{"src": blIP.IP}
@@ -149,11 +155,48 @@ func fillBlacklistedIP(blIP *data.BlacklistedIP, db, uconnCollection string,
 	var uniqueConnCount int
 	uniqueConnections := ssn.DB(db).C(uconnCollection).Find(connQuery).Iter()
 	var uconn structure.UniqueConnection
+
+	// Loop through uconn to add up the total number of bytes and connections
+	// Also update the non-blacklist side of the connection's host collection entry
 	for uniqueConnections.Next(&uconn) {
 		totalBytes += uconn.TotalBytes
 		totalConnections += uconn.ConnectionCount
 		uniqueConnCount++
+
+		// For every set of connections made to a blacklisted IP, we want to
+		// keep track of how much data (# of conns and # of bytes) was sent
+		// or received by the internal IP.
+		if source {
+			// If the blacklisted IP initiated the connection, then bl_in_count
+			// holds the number of unique blacklisted IPs connected to the given
+			// host.
+			// bl_sum_avg_bytes adds the average number of bytes over all
+			// individual connections between these two systems. This is an
+			// indication of how much data was transferred overall but not take
+			// into account the number of connections.
+			// bl_total_bytes adds the total number of bytes sent over all
+			// individual connections between the two systems.
+			ssn.DB(db).C(hostCollection).Update(
+				bson.M{"ip": uconn.Dst},
+				bson.D{
+					{"$inc", bson.M{"bl_in_count": 1}},
+					{"$inc", bson.M{"bl_sum_avg_bytes": uconn.AverageBytes}},
+					{"$inc", bson.M{"bl_total_bytes": uconn.TotalBytes}},
+				})
+		} else {
+			// If the internal system initiated the connection, then bl_out_count
+			// holds the number of unique blacklisted IPs the given host contacted.
+			// bl_sum_avg_bytes and bl_total_bytes are the same as above.
+			ssn.DB(db).C(hostCollection).Update(
+				bson.M{"ip": uconn.Src},
+				bson.D{
+					{"$inc", bson.M{"bl_out_count": 1}},
+					{"$inc", bson.M{"bl_sum_avg_bytes": uconn.AverageBytes}},
+					{"$inc", bson.M{"bl_total_bytes": uconn.TotalBytes}},
+				})
+		}
 	}
+
 	blIP.Connections = totalConnections
 	blIP.UniqueConnections = uniqueConnCount
 	blIP.TotalBytes = totalBytes

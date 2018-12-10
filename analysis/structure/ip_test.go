@@ -2,7 +2,6 @@ package structure
 
 import (
 	"net"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,34 +23,36 @@ func TestIPv4ToBinary(t *testing.T) {
 	assert.Equal(t, int64(1)<<24+2<<16+3<<8+4, diffInt)
 }
 
-func TestIPv6ToBinary(t *testing.T) {
-	max := net.ParseIP("FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF")
-	min := net.ParseIP("0000:0000:0000:0000:0000:0000:0000:0000")
-	diff := net.ParseIP("1234:5678:9ABC:DEF0:0FED:CBA9:8765:4321")
+// *** Note: for future ipv6 support *** //
 
-	maxInt1, maxInt2, maxInt3, maxInt4 := ipv6ToBinary(max)
-	assert.Equal(t, int64(1)<<32-1, maxInt1)
-	assert.Equal(t, int64(1)<<32-1, maxInt2)
-	assert.Equal(t, int64(1)<<32-1, maxInt3)
-	assert.Equal(t, int64(1)<<32-1, maxInt4)
-
-	minInt1, minInt2, minInt3, minInt4 := ipv6ToBinary(min)
-	assert.Equal(t, int64(0), minInt1)
-	assert.Equal(t, int64(0), minInt2)
-	assert.Equal(t, int64(0), minInt3)
-	assert.Equal(t, int64(0), minInt4)
-
-	diffInt1, diffInt2, diffInt3, diffInt4 := ipv6ToBinary(diff)
-
-	diffExpInt1, _ := strconv.ParseInt("12345678", 16, 64)
-	assert.Equal(t, diffExpInt1, diffInt1)
-
-	diffExpInt2, _ := strconv.ParseInt("9ABCDEF0", 16, 64)
-	assert.Equal(t, diffExpInt2, diffInt2)
-
-	diffExpInt3, _ := strconv.ParseInt("0FEDCBA9", 16, 64)
-	assert.Equal(t, diffExpInt3, diffInt3)
-
-	diffExpInt4, _ := strconv.ParseInt("87654321", 16, 64)
-	assert.Equal(t, diffExpInt4, diffInt4)
-}
+// func TestIPv6ToBinary(t *testing.T) {
+// 	max := net.ParseIP("FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF")
+// 	min := net.ParseIP("0000:0000:0000:0000:0000:0000:0000:0000")
+// 	diff := net.ParseIP("1234:5678:9ABC:DEF0:0FED:CBA9:8765:4321")
+//
+// 	maxInt := ipv6ToBinary(max)
+// 	assert.Equal(t, int64(1)<<32-1, maxInt.I1)
+// 	assert.Equal(t, int64(1)<<32-1, maxInt.I2)
+// 	assert.Equal(t, int64(1)<<32-1, maxInt.I3)
+// 	assert.Equal(t, int64(1)<<32-1, maxInt.I4)
+//
+// 	minInt := ipv6ToBinary(min)
+// 	assert.Equal(t, int64(0), minInt.I1)
+// 	assert.Equal(t, int64(0), minInt.I2)
+// 	assert.Equal(t, int64(0), minInt.I3)
+// 	assert.Equal(t, int64(0), minInt.I4)
+//
+// 	diffInt := ipv6ToBinary(diff)
+//
+// 	diffExpInt1, _ := strconv.ParseInt("12345678", 16, 64)
+// 	assert.Equal(t, diffExpInt1, diffInt.I1)
+//
+// 	diffExpInt2, _ := strconv.ParseInt("9ABCDEF0", 16, 64)
+// 	assert.Equal(t, diffExpInt2, diffInt.I2)
+//
+// 	diffExpInt3, _ := strconv.ParseInt("0FEDCBA9", 16, 64)
+// 	assert.Equal(t, diffExpInt3, diffInt.I3)
+//
+// 	diffExpInt4, _ := strconv.ParseInt("87654321", 16, 64)
+// 	assert.Equal(t, diffExpInt4, diffInt.I4)
+// }
