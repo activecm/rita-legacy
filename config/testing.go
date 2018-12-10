@@ -23,16 +23,10 @@ BlackListed:
     myIP.ms: false
     MalwareDomains.com: false
     MalwareDomainList.com: false
-    SafeBrowsing:
-        APIKey: null
-        Database: null
     CustomIPBlacklists: []
     CustomHostnameBlacklists: []
-    CustomURLBlacklists: []
 Crossref:
     BeaconThreshold: .7
-Scanning:
-    ScanThreshold: 50
 Beacon:
     DefaultConnectionThresh: 24
 Filtering:

@@ -7,10 +7,8 @@ type (
 		Blacklisted BlacklistedTableCfg
 		DNS         DNSTableCfg
 		Crossref    CrossrefTableCfg
-		Scanning    ScanningTableCfg
 		Structure   StructureTableCfg
 		Beacon      BeaconTableCfg
-		Urls        UrlsTableCfg
 		UserAgent   UserAgentTableCfg
 		Meta        MetaTableCfg
 	}
@@ -38,7 +36,6 @@ type (
 		SourceIPsTable    string
 		DestIPsTable      string
 		HostnamesTable    string
-		UrlsTable         string
 	}
 
 	//DNSTableCfg is used to control the dns analysis module
@@ -53,22 +50,12 @@ type (
 		DestTable   string
 	}
 
-	//ScanningTableCfg is used to control the scanning analysis module
-	ScanningTableCfg struct {
-		ScanTable string
-	}
-
 	//BeaconTableCfg is used to control the beaconing analysis module
 	BeaconTableCfg struct {
 		BeaconTable string
 	}
 
-	//UrlsTableCfg is used to control the urls analysis module
-	UrlsTableCfg struct {
-		UrlsTable string
-	}
-
-	//UserAgentTableCfg is used to control the urls analysis module
+	//UserAgentTableCfg is used to control the useragent analysis module
 	UserAgentTableCfg struct {
 		UserAgentTable string
 	}
@@ -100,7 +87,6 @@ func loadTableConfig() *TableCfg {
 	config.Blacklisted.SourceIPsTable = "blSourceIPs"
 	config.Blacklisted.DestIPsTable = "blDestIPs"
 	config.Blacklisted.HostnamesTable = "blHostnames"
-	config.Blacklisted.UrlsTable = "blUrls"
 
 	config.DNS.ExplodedDNSTable = "explodedDns"
 	config.DNS.HostnamesTable = "hostnames"
@@ -108,11 +94,7 @@ func loadTableConfig() *TableCfg {
 	config.Crossref.SourceTable = "sourceXREF"
 	config.Crossref.DestTable = "destXREF"
 
-	config.Scanning.ScanTable = "scan"
-
 	config.Beacon.BeaconTable = "beacon"
-
-	config.Urls.UrlsTable = "urls"
 
 	config.UserAgent.UserAgentTable = "useragent"
 

@@ -64,13 +64,6 @@ BlackListed:
     MalwareDomains.com: true
     MalwareDomainList.com: true
 
-    # Google SafeBrowsing requires an api key and a file to cache the results in.
-    # If either APIKey or Database is an empty string, Google SafeBrowsing will
-    # not be queried.
-    SafeBrowsing:
-        APIKey: ""
-        Database: /var/lib/rita/safebrowsing
-
     # These are custom blacklists that you may define. They are lists of either
     # file paths or urls. These custom blacklists are expected to be simple,
     # line separated text documents containing a list of blacklisted entries.
@@ -84,19 +77,21 @@ BlackListed:
     CustomIPBlacklists: []
     # Lists containing hostnames, domain names, and FQDNs are acceptable
     CustomHostnameBlacklists: []
-    # URLs must each contain a protocol, a host, and a resource
-    # Ex: http://google.com/
-    # Ex: ftp://myftpserver.com/a/file/over/here.txt
-    CustomURLBlacklists: []
 
 Crossref:
     BeaconThreshold: .7
 
-Scanning:
-    ScanThreshold: 50
-
 Beacon:
-    DefaultConnectionThresh: 24
+    # The default minimum number of connections used for beacons analysis. 
+    # Any two hosts connecting fewer than this number will not be analyzed.
+    # 20 was chosen as it is a little bit less than once per hour in a day,
+    # and allows for any packet loss that could occur.
+
+    # If you choose a lower value, this will significantly increase both
+    # the analysis time and the number of false positives. You can safely
+    # increase this value to improve performance if you are not concerned 
+    # about slow beacons.
+    DefaultConnectionThresh: 20
 
 Filtering:
     AlwaysInclude: []

@@ -8,10 +8,7 @@ import (
 	"github.com/activecm/rita/analysis/blacklist"
 	"github.com/activecm/rita/analysis/crossref"
 	"github.com/activecm/rita/analysis/dns"
-	"github.com/activecm/rita/analysis/sanitization"
-	"github.com/activecm/rita/analysis/scanning"
 	"github.com/activecm/rita/analysis/structure"
-	"github.com/activecm/rita/analysis/urls"
 	"github.com/activecm/rita/analysis/useragent"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
@@ -109,39 +106,35 @@ func analyze(inDb string, configFile string) error {
 		fmt.Println("[+] Analyzing " + td)
 		res.DB.SelectDB(td)
 
-		sanitization.SanitizeData(res)
-
 		logAnalysisFunc("Unique Connections", td, res,
 			structure.BuildUniqueConnectionsCollection,
 		)
+		// must go after uconns
+		logAnalysisFunc("Beaconing", td, res,
+			beacon.BuildBeaconCollection,
+		)
+		// must go after beaconing
 		logAnalysisFunc("Unique Hosts", td, res,
 			func(innerRes *resources.Resources) {
 				structure.BuildHostsCollection(innerRes)
-				structure.BuildIPv4Collection(innerRes)
-				structure.BuildIPv6Collection(innerRes)
 			},
 		)
 		logAnalysisFunc("Unique Hostnames", td, res,
 			dns.BuildHostnamesCollection,
 		)
+
 		logAnalysisFunc("Exploded DNS", td, res,
 			dns.BuildExplodedDNSCollection,
 		)
-		logAnalysisFunc("URL Length", td, res,
-			urls.BuildUrlsCollection,
-		)
+
 		logAnalysisFunc("User Agent", td, res,
 			useragent.BuildUserAgentCollection,
 		)
+
 		logAnalysisFunc("Blacklisted", td, res,
 			blacklist.BuildBlacklistedCollections,
 		)
-		logAnalysisFunc("Beaconing", td, res,
-			beacon.BuildBeaconCollection,
-		)
-		logAnalysisFunc("Scanning", td, res,
-			scanning.BuildScanningCollection,
-		)
+
 		logAnalysisFunc("Cross Reference", td, res,
 			crossref.BuildXRefCollection,
 		)

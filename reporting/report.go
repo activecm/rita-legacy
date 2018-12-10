@@ -156,10 +156,6 @@ func writeDB(db string, wd string, res *resources.Resources) error {
 	if err != nil {
 		return err
 	}
-	err = printScans(db, res)
-	if err != nil {
-		return err
-	}
 
 	err = printDNS(db, res)
 	if err != nil {
@@ -177,19 +173,12 @@ func writeDB(db string, wd string, res *resources.Resources) error {
 	if err != nil {
 		return err
 	}
-	err = printBLURLs(db, res)
-	if err != nil {
-		return err
-	}
+
 	err = printBeacons(db, res)
 	if err != nil {
 		return err
 	}
 	err = printLongConns(db, res)
-	if err != nil {
-		return err
-	}
-	err = printLongURLs(db, res)
 	if err != nil {
 		return err
 	}
