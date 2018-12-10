@@ -92,7 +92,3 @@ Beacon:
     # increase this value to improve performance if you are not concerned 
     # about slow beacons.
     DefaultConnectionThresh: 20
-
-Filtering:
-    AlwaysInclude: []
-    InternalSubnets: []
