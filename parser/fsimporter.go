@@ -72,9 +72,12 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
-	fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+	targetDatabase, filterHugeUconnsMap, connMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
+	// Must wait for all inserts to finish before attempting to delete
 	datastore.Flush()
+	fs.bulkRemoveHugeUconns(datastore, targetDatabase, filterHugeUconnsMap, connMap)
+
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
 	progTime = time.Now()
@@ -161,7 +164,8 @@ func indexFiles(files []string, indexingThreads int,
 //threads to use to parse the files, whether or not to sort data by date,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
-func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) {
+func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) (string, []uconnPair, map[uconnPair]int) {
+	
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
@@ -283,7 +287,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	fs.bulkRemoveHugeUconns(datastore, indexedFiles[0].TargetDatabase, filterHugeUconnsMap, connMap)
+	return indexedFiles[0].TargetDatabase, filterHugeUconnsMap, connMap
 }
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
