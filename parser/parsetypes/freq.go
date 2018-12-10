@@ -5,8 +5,8 @@ import (
 )
 
 type (
-	// Temp provides a data structure for bro's connection data
-	Temp struct {
+	// Freq provides a data structure for bro's connection data
+	Freq struct {
 		// ID is the id coming out of mongodb
 		// ID              bson.ObjectId `bson:"_id,omitempty"`
 		Source          string `bson:"src" bro:"id.orig_h" brotype:"addr"`
@@ -17,11 +17,11 @@ type (
 
 //TargetCollection returns the mongo collection this entry should be inserted
 //into
-func (in *Temp) TargetCollection(config *config.StructureTableCfg) string {
-	return config.TempTable
+func (in *Freq) TargetCollection(config *config.StructureTableCfg) string {
+	return config.FrequentConnTable
 }
 
 //Indices gives MongoDB indices that should be used with the collection
-func (in *Temp) Indices() []string {
+func (in *Freq) Indices() []string {
 	return []string{"$hashed:src", "$hashed:dst", "-connection_count"}
 }

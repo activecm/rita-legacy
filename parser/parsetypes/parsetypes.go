@@ -26,9 +26,9 @@ func NewBroDataFactory(fileType string) func() BroData {
 		return func() BroData {
 			return &HTTP{}
 		}
-	case "temp":
+	case "freq":
 		return func() BroData {
-			return &Temp{}
+			return &Freq{}
 		}
 	}
 	return nil
