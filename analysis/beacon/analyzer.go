@@ -170,6 +170,7 @@ func (a *analyzer) start() {
 				Src:              data.Src,
 				Dst:              data.Dst,
 				ConnectionCount:  data.ConnectionCount,
+				AverageBytes:     data.AverageBytes,
 				TSISkew:          tsSkew,
 				TSIDispersion:    tsMadm,
 				TSDuration:       duration,

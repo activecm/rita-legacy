@@ -22,10 +22,10 @@ func BuildBeaconCollection(res *resources.Resources) {
 	// create the actual collection
 	collectionName := res.Config.T.Beacon.BeaconTable
 	collectionKeys := []mgo.Index{
-		{Key: []string{"score"}},
+		{Key: []string{"-score"}},
 		{Key: []string{"$hashed:src"}},
 		{Key: []string{"$hashed:dst"}},
-		{Key: []string{"connection_count"}},
+		{Key: []string{"-connection_count"}},
 	}
 	err := res.DB.CreateCollection(collectionName, collectionKeys)
 	if err != nil {
@@ -76,6 +76,7 @@ func BuildBeaconCollection(res *resources.Resources) {
 		TsList          []int64       `bson:"ts_list"`
 		OrigIPBytes     []int64       `bson:"orig_bytes_list"`
 		ConnectionCount int           `bson:"connection_count"`
+		AverageBytes    float32       `bson:"avg_bytes"`
 	}
 
 	// execute query
@@ -96,6 +97,7 @@ func BuildBeaconCollection(res *resources.Resources) {
 			TsList:          uconnRes.TsList,
 			OrigIPBytes:     uconnRes.OrigIPBytes,
 			ConnectionCount: uconnRes.ConnectionCount,
+			AverageBytes:    uconnRes.AverageBytes,
 		}
 		analyzerWorker.analyze(newInput)
 	}
