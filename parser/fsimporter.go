@@ -371,12 +371,21 @@ func createFreqIndexes(resDB *database.DB, resConf *config.Config, targetDB stri
 	coll := ssn.DB(targetDB).C(resConf.T.Structure.FrequentConnTable)
 
 	// Use the source destination pair as a composite index
-	srcDstIndex := mgo.Index{
-		Key:  []string{"src", "dst"},
-		Name: "srcDstPair",
+	srcIndex := mgo.Index{
+		Key:  []string{"src"},
 	}
 
-	err := coll.EnsureIndex(srcDstIndex)
+	err := coll.EnsureIndex(srcIndex)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	dstIndex := mgo.Index{
+		Key:  []string{"dst"},
+	}
+
+	err = coll.EnsureIndex(dstIndex)
 
 	if err != nil {
 		fmt.Println(err)
@@ -384,7 +393,6 @@ func createFreqIndexes(resDB *database.DB, resConf *config.Config, targetDB stri
 
 	connCountIndex := mgo.Index{
 		Key:  []string{"connection_count"},
-		Name: "connCount",
 	}
 
 	err = coll.EnsureIndex(connCountIndex)
