@@ -302,20 +302,20 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							isSrcInternal := isInternalAddress(internal, srcIP)
 							isDstInternal := isInternalAddress(internal, dstIP)
-							
+
 							ignore := false
 
-							if (isSrcInternal && isDstInternal) {
-								ignore = true	
-							} else if ((!isSrcInternal) && (!isDstInternal)) {
+							if isSrcInternal && isDstInternal {
+								ignore = true
+							} else if (!isSrcInternal) && (!isDstInternal) {
 								ignore = true
 							}
 
-							if (isSrcIncluded || isDstIncluded) {
-							 	ignore = false
-							 }
+							if isSrcIncluded || isDstIncluded {
+								ignore = false
+							}
 
-							if (!ignore) {
+							if !ignore {
 								// Safely store the number of conns for this uconn
 								mutex.Lock()
 								connMap[uconn] = connMap[uconn] + 1
