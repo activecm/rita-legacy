@@ -421,6 +421,10 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 	}
 }
 
+//removeOldFilesFromIndex checks all indexedFiles passed in to ensure
+//that they have not previously been imported into the same database.
+//The files are compared based on their hashes (md5 of first 15000 bytes)
+//and the database they are slated to be imported into.
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 	metaDatabase *database.MetaDB, logger *log.Logger) []*fpt.IndexedFile {
 	var toReturn []*fpt.IndexedFile
