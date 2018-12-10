@@ -17,7 +17,6 @@ type (
 		MongoDB      MongoDBStaticCfg     `yaml:"MongoDB"`
 		Log          LogStaticCfg         `yaml:"LogConfig"`
 		Blacklisted  BlacklistedStaticCfg `yaml:"BlackListed"`
-		Crossref     CrossrefStaticCfg    `yaml:"Crossref"`
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
 		Bro          BroStaticCfg         `yaml:"Bro"`
 		Version      string
@@ -59,11 +58,6 @@ type (
 		UseMDL             bool     `yaml:"MalwareDomainList.com"`
 		IPBlacklists       []string `yaml:"CustomIPBlacklists"`
 		HostnameBlacklists []string `yaml:"CustomHostnameBlacklists"`
-	}
-
-	//CrossrefStaticCfg is used to control the crossref analysis module
-	CrossrefStaticCfg struct {
-		BeaconThreshold float64 `yaml:"BeaconThreshold"`
 	}
 
 	//BeaconStaticCfg is used to control the beaconing analysis module

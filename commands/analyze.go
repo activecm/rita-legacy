@@ -6,7 +6,6 @@ import (
 
 	"github.com/activecm/rita/analysis/beacon"
 	"github.com/activecm/rita/analysis/blacklist"
-	"github.com/activecm/rita/analysis/crossref"
 	"github.com/activecm/rita/analysis/dns"
 	"github.com/activecm/rita/analysis/structure"
 	"github.com/activecm/rita/analysis/useragent"
@@ -133,10 +132,6 @@ func analyze(inDb string, configFile string) error {
 
 		logAnalysisFunc("Blacklisted", td, res,
 			blacklist.BuildBlacklistedCollections,
-		)
-
-		logAnalysisFunc("Cross Reference", td, res,
-			crossref.BuildXRefCollection,
 		)
 
 		res.MetaDB.MarkDBAnalyzed(td, true)

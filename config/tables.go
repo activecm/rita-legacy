@@ -6,7 +6,6 @@ type (
 		Log         LogTableCfg
 		Blacklisted BlacklistedTableCfg
 		DNS         DNSTableCfg
-		Crossref    CrossrefTableCfg
 		Structure   StructureTableCfg
 		Beacon      BeaconTableCfg
 		UserAgent   UserAgentTableCfg
@@ -42,12 +41,6 @@ type (
 	DNSTableCfg struct {
 		ExplodedDNSTable string
 		HostnamesTable   string
-	}
-
-	//CrossrefTableCfg is used to control the crossref analysis module
-	CrossrefTableCfg struct {
-		SourceTable string
-		DestTable   string
 	}
 
 	//BeaconTableCfg is used to control the beaconing analysis module
@@ -90,9 +83,6 @@ func loadTableConfig() *TableCfg {
 
 	config.DNS.ExplodedDNSTable = "explodedDns"
 	config.DNS.HostnamesTable = "hostnames"
-
-	config.Crossref.SourceTable = "sourceXREF"
-	config.Crossref.DestTable = "destXREF"
 
 	config.Beacon.BeaconTable = "beacon"
 

@@ -78,17 +78,14 @@ BlackListed:
     # Lists containing hostnames, domain names, and FQDNs are acceptable
     CustomHostnameBlacklists: []
 
-Crossref:
-    BeaconThreshold: .7
-
 Beacon:
-    # The default minimum number of connections used for beacons analysis. 
+    # The default minimum number of connections used for beacons analysis.
     # Any two hosts connecting fewer than this number will not be analyzed.
     # 20 was chosen as it is a little bit less than once per hour in a day,
     # and allows for any packet loss that could occur.
 
     # If you choose a lower value, this will significantly increase both
     # the analysis time and the number of false positives. You can safely
-    # increase this value to improve performance if you are not concerned 
+    # increase this value to improve performance if you are not concerned
     # about slow beacons.
     DefaultConnectionThresh: 20

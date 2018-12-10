@@ -32,8 +32,6 @@ BlackListed:
     MalwareDomainList.com: true
     CustomIPBlacklists: [test1]
     CustomHostnameBlacklists: [test2]
-Crossref:
-    BeaconThreshold: .7
 Beacon:
     DefaultConnectionThresh: 24
 `
@@ -67,9 +65,6 @@ var testConfigFullExp = StaticCfg{
 		UseDNSBH:           true,
 		IPBlacklists:       []string{"test1"},
 		HostnameBlacklists: []string{"test2"},
-	},
-	Crossref: CrossrefStaticCfg{
-		BeaconThreshold: .7,
 	},
 	Beacon: BeaconStaticCfg{
 		DefaultConnectionThresh: 24,
