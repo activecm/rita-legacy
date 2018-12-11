@@ -20,104 +20,71 @@ type resultsChan chan map[string][]blDB.BlacklistResult
 
 const ritaBLBufferSize = 1000
 
-//BuildBlacklistedCollections builds the blacklisted sources,
-//blacklisted destinations, and blacklist hostnames collections
-func BuildBlacklistedCollections(res *resources.Resources) {
-	//capture the current value for the error closure below
+//AnalyzeBlacklistedConnections builds the blacklist master reference collection
+//and checks the uconn documents against that collection
+func AnalyzeBlacklistedConnections(res *resources.Resources) {
+	// set current dataset name
 	currentDB := res.DB.GetSelectedDB()
-	var err error
-	var blDatabase blDB.Handle
-	if res.Config.S.MongoDB.TLS.Enabled {
-		blDatabase, err = blDB.NewSecureMongoDB(
-			res.Config.S.MongoDB.ConnectionString,
-			res.Config.R.MongoDB.AuthMechanismParsed,
-			"rita-bl",
-			res.Config.R.MongoDB.TLS.TLSConfig,
-		)
-	} else {
-		blDatabase, err = blDB.NewMongoDB(
-			res.Config.S.MongoDB.ConnectionString,
-			res.Config.R.MongoDB.AuthMechanismParsed,
-			"rita-bl",
-		)
-	}
-	if err != nil {
-		res.Log.Error(err)
-		fmt.Println("\t[!] Could not connect to blacklist database")
-		return
-	}
 
-	//set up rita-blacklist
-	ritaBL := bl.NewBlacklist(
-		blDatabase,
-		func(err error) { //error handler
-			res.Log.WithFields(log.Fields{
-				"db": currentDB,
-			}).Error(err)
-		},
-	)
+	// build the blacklist reference collection from provided blacklist sources
+	// this will be the master list ips and hostnames will be checked against
+	ritaBL := buildBlacklistReferenceCollection(res, currentDB)
 
-	//set up the lists to check against
-	ritaBL.SetLists(buildBlacklists(res.Config)...)
-
-	//update the lists
-	ritaBL.Update()
-
-	//get our data sources
+	// Copy database session for this function
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	uniqueSourcesAggregation := getUniqueIPFromUconnPipeline("src")
+	// uniqueSourcesAggregation := getUniqueIPFromUconnPipeline("src")
 	uniqueDestAggregation := getUniqueIPFromUconnPipeline("dst")
 
-	uniqueSourceIter := res.DB.AggregateCollection(
-		res.Config.T.Structure.UniqueConnTable,
-		ssn,
-		uniqueSourcesAggregation,
-	)
+	// uniqueSourceIter := res.DB.AggregateCollection(
+	// 	res.Config.T.Structure.UniqueConnTable,
+	// 	ssn,
+	// 	uniqueSourcesAggregation,
+	// )
 	uniqueDestIter := res.DB.AggregateCollection(
 		res.Config.T.Structure.UniqueConnTable,
 		ssn,
 		uniqueDestAggregation,
 	)
-	hostnamesIter := ssn.DB(currentDB).C(res.Config.T.DNS.HostnamesTable).
-		Find(nil).Iter()
+	// hostnamesIter := ssn.DB(currentDB).C(res.Config.T.DNS.HostnamesTable).
+	// 	Find(nil).Iter()
+	//
+	// //create the collections
+	// sourceIPs := res.Config.T.Blacklisted.SourceIPsTable
+	// destIPs := res.Config.T.Blacklisted.DestIPsTable
+	// hostnames := res.Config.T.Blacklisted.HostnamesTable
+	//
+	// collections := []string{destIPs} //,sourceIPs,  hostnames}
+	// for _, collection := range collections {
+	// 	ssn.DB(currentDB).C(collection).Create(&mgo.CollectionInfo{
+	// 		DisableIdIndex: true,
+	// 	})
+	// }
 
-	//create the collections
-	sourceIPs := res.Config.T.Blacklisted.SourceIPsTable
-	destIPs := res.Config.T.Blacklisted.DestIPsTable
-	hostnames := res.Config.T.Blacklisted.HostnamesTable
-
-	collections := []string{sourceIPs, destIPs, hostnames}
-	for _, collection := range collections {
-		ssn.DB(currentDB).C(collection).Create(&mgo.CollectionInfo{
-			DisableIdIndex: true,
-		})
-	}
-
-	//create the data
-	//TODO: refactor these into modules
-	buildBlacklistedIPs(uniqueSourceIter, res, ritaBL, ritaBLBufferSize, true)
+	// //create the data
+	// //TODO: refactor these into modules
+	// buildBlacklistedIPs(uniqueSourceIter, res, ritaBL, ritaBLBufferSize, true)
 
 	buildBlacklistedIPs(uniqueDestIter, res, ritaBL, ritaBLBufferSize, false)
 
-	buildBlacklistedHostnames(hostnamesIter, res, ritaBL, ritaBLBufferSize)
-
+	// buildBlacklistedHostnames(hostnamesIter, res, ritaBL, ritaBLBufferSize)
+	//
 	//index the data
-	for _, collection := range collections {
-		ensureBLIndexes(ssn, currentDB, collection)
-	}
+	// for _, collection := range collections {
+	// 	ensureBLIndexes(ssn, currentDB, collection)
+	// }
 
-	ssn.DB(currentDB).C(sourceIPs).EnsureIndex(mgo.Index{
-		Key: []string{"$hashed:ip"},
-	})
+	// ssn.DB(currentDB).C(sourceIPs).EnsureIndex(mgo.Index{
+	// 	Key: []string{"$hashed:ip"},
+	// })
 
-	ssn.DB(currentDB).C(destIPs).EnsureIndex(mgo.Index{
-		Key: []string{"$hashed:ip"},
-	})
-	ssn.DB(currentDB).C(hostnames).EnsureIndex(mgo.Index{
-		Key: []string{"$hashed:hostname"},
-	})
+	// ssn.DB(currentDB).C(destIPs).EnsureIndex(mgo.Index{
+	// 	Key: []string{"$hashed:ip"},
+	// })
+	// ssn.DB(currentDB).C(hostnames).EnsureIndex(mgo.Index{
+	// 	Key: []string{"$hashed:hostname"},
+	// })
 
 }
 
@@ -135,8 +102,57 @@ func ensureBLIndexes(ssn *mgo.Session, currentDB, collName string) {
 	})
 }
 
-//buildBlacklists gathers the blacklists to check against
-func buildBlacklists(conf *config.Config) []list.List {
+func buildBlacklistReferenceCollection(res *resources.Resources, currentDB string) (ritaBL *bl.Blacklist) {
+
+	/***************** create new blacklist collection *********************/
+	var err error
+	var blDatabase blDB.Handle
+
+	// User option set in yaml file, if enabled
+	// RITA will verify the MongoDB certificate's hostname and validity
+	// otherwise run a normal request to create a database
+	// if res.Config.S.MongoDB.TLS.Enabled {
+	// 	blDatabase, err = blDB.NewSecureMongoDB(
+	// 		res.Config.S.MongoDB.ConnectionString,
+	// 		res.Config.R.MongoDB.AuthMechanismParsed,
+	// 		"rita-bl",
+	// 		res.Config.R.MongoDB.TLS.TLSConfig,
+	// 	)
+	// } else {
+	blDatabase, err = blDB.NewMongoDB(
+		res.Config.S.MongoDB.ConnectionString,
+		res.Config.R.MongoDB.AuthMechanismParsed,
+		"rita-bl",
+	)
+	// }
+
+	if err != nil {
+		res.Log.Error(err)
+		fmt.Println("\t[!] Could not connect to blacklist database")
+		return
+	}
+
+	// Creates new rita bl blacklist structure
+	ritaBL = bl.NewBlacklist(
+		blDatabase,
+		func(err error) { //error handler
+			res.Log.WithFields(log.Fields{
+				"db": currentDB,
+			}).Error(err)
+		},
+	)
+
+	//send blacklist source lists
+	ritaBL.SetLists(getSourceLists(res.Config)...)
+
+	//update the lists
+	ritaBL.Update()
+
+	return
+}
+
+//getSourceLists gathers the blacklists to check against
+func getSourceLists(conf *config.Config) []list.List {
 	//build up the lists
 	var blacklists []list.List
 	//use prebuilt lists

@@ -131,7 +131,7 @@ func analyze(inDb string, configFile string) error {
 		)
 
 		logAnalysisFunc("Blacklisted", td, res,
-			blacklist.BuildBlacklistedCollections,
+			blacklist.AnalyzeBlacklistedConnections,
 		)
 
 		res.MetaDB.MarkDBAnalyzed(td, true)
