@@ -35,6 +35,7 @@ type (
 		Targets           []string `bson:"targets"`
 	}
 
+	//HostnameAnalysisInput contains the summary statistics of a unique hostname
 	HostnameAnalysisInput struct {
 		Host string   `bson:"host"` // hostname
 		IPs  []string `bson:"ips"`  // associated ips
