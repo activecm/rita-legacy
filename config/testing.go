@@ -25,8 +25,6 @@ BlackListed:
     MalwareDomainList.com: false
     CustomIPBlacklists: []
     CustomHostnameBlacklists: []
-Crossref:
-    BeaconThreshold: .7
 Beacon:
     DefaultConnectionThresh: 24
 Filtering:
