@@ -12,10 +12,46 @@ import (
 
 func getUniqueIPFromUconnPipeline(field string) []bson.D {
 	//nolint: vet
+	targetField := "dst"
+	if field == "dst" {
+		targetField = "src"
+	}
 	return []bson.D{
 		{
 			{"$group", bson.M{
 				"_id":         "$" + field,
+				"total_bytes": bson.M{"$sum": "$total_bytes"},
+				"avg_bytes":   bson.M{"$sum": "$avg_bytes"},
+				"conn_count":  bson.M{"$sum": "$connection_count"},
+				"uconn_count": bson.M{"$sum": 1},
+				"targets":     bson.M{"$push": "$" + targetField},
+			}},
+		},
+		{
+			{"$project", bson.M{
+				"_id":         0,
+				"ip":          "$_id",
+				"total_bytes": 1,
+				"avg_bytes":   1,
+				"conn_count":  1,
+				"uconn_count": 1,
+				"targets":     1,
+			}},
+		},
+	}
+}
+
+func getUniqueHostnameFromUconnPipeline(hosts []string) []bson.D {
+	//nolint: vet
+	return []bson.D{
+		{
+			{"$match", bson.M{
+				"dst": bson.M{"$in": hosts},
+			}},
+		},
+		{
+			{"$group", bson.M{
+				"_id":         "$dst",
 				"total_bytes": bson.M{"$sum": "$total_bytes"},
 				"avg_bytes":   bson.M{"$sum": "$avg_bytes"},
 				"conn_count":  bson.M{"$sum": "$connection_count"},
@@ -25,8 +61,6 @@ func getUniqueIPFromUconnPipeline(field string) []bson.D {
 		},
 		{
 			{"$project", bson.M{
-				"_id":         0,
-				"ip":          "$_id",
 				"total_bytes": 1,
 				"avg_bytes":   1,
 				"conn_count":  1,
@@ -77,18 +111,40 @@ func buildBlacklistedIPs(res *resources.Resources, source bool) {
 		return
 	}
 
-	// Lets run the analysis
-	checkRitaBlacklistIPs(ipIter, res, source)
+	//run the analysis
+	checkRitaBlacklistIPs(ipIter, res, source, collectionName)
 
 }
 
-func checkRitaBlacklistIPs(ips *mgo.Iter, res *resources.Resources, source bool) {
-	// fmt.Println("-- checkRitaBlacklist IPs --")
-	count := 0
+//buildBlacklistedHostnames builds a set of blacklisted ips from the
+func buildBlacklistedHostnames(res *resources.Resources) {
+	//create session to write to
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
 
+	//choose the output collection and assign iterator
+	var collectionName = res.Config.T.Blacklisted.HostnamesTable
+	ipIter := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.HostnamesTable).Find(nil).Iter()
+
+	// create the actual collection
+	collectionKeys := []mgo.Index{
+		{Key: []string{"$hashed:hostname"}},
+	}
+	err := res.DB.CreateCollection(collectionName, collectionKeys)
+	if err != nil {
+		res.Log.Error("Failed: ", collectionName, err.Error())
+		return
+	}
+
+	// Lets run the analysis
+	checkRitaBlacklistHostnames(ipIter, res, collectionName)
+
+}
+
+func checkRitaBlacklistIPs(ips *mgo.Iter, res *resources.Resources, source bool, collectionName string) {
 	//Create the workers
-	writerWorker := newWriter(source, res.DB, res.Config)
-	analyzerWorker := newAnalyzer(
+	writerWorker := newWriter(collectionName, res.DB, res.Config)
+	analyzerWorker := newIPAnalyzer(
 		source,
 		res.DB,
 		res.Config,
@@ -113,7 +169,7 @@ func checkRitaBlacklistIPs(ips *mgo.Iter, res *resources.Resources, source bool)
 
 	for ips.Next(&uconnRes) {
 
-		newInput := &blacklist.AnalysisInput{
+		newInput := &blacklist.IPAnalysisInput{
 			IP:                uconnRes.IP,
 			Connections:       uconnRes.Connections,
 			UniqueConnections: uconnRes.UniqueConnections,
@@ -121,8 +177,41 @@ func checkRitaBlacklistIPs(ips *mgo.Iter, res *resources.Resources, source bool)
 			AverageBytes:      uconnRes.AverageBytes,
 			Targets:           uconnRes.Targets,
 		}
-		analyzerWorker.analyze(newInput)
-		count++
+		analyzerWorker.analyzeIP(newInput)
+	}
+
+}
+
+func checkRitaBlacklistHostnames(ips *mgo.Iter, res *resources.Resources, collectionName string) {
+
+	//Create the workers
+	writerWorker := newWriter(collectionName, res.DB, res.Config)
+	analyzerWorker := newHostnameAnalyzer(
+		res.DB,
+		res.Config,
+		writerWorker.write,
+		writerWorker.close,
+	)
+
+	//kick off the threaded goroutines
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		analyzerWorker.start()
+		writerWorker.start()
+	}
+
+	var hostnameRes struct {
+		Host string   `bson:"host"`
+		IPs  []string `bson:"ips"`
+	}
+
+	for ips.Next(&hostnameRes) {
+
+		newInput := &blacklist.HostnameAnalysisInput{
+			Host: hostnameRes.Host,
+			IPs:  hostnameRes.IPs,
+		}
+		analyzerWorker.analyzeHostname(newInput)
+
 	}
 
 }

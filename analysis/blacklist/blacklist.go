@@ -12,7 +12,6 @@ import (
 	"github.com/activecm/rita-bl/sources/lists"
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/resources"
-	mgo "github.com/globalsign/mgo"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -20,15 +19,12 @@ type resultsChan chan map[string][]blDB.BlacklistResult
 
 const ritaBLBufferSize = 1000
 
-//AnalyzeBlacklistedConnections builds the blacklist master reference collection
+//BuildBlacklistedCollections builds the blacklist master reference collection
 //and checks the uconn documents against that collection
-func AnalyzeBlacklistedConnections(res *resources.Resources) {
-	// set current dataset name
-	currentDB := res.DB.GetSelectedDB()
-
+func BuildBlacklistedCollections(res *resources.Resources) {
 	// build the blacklist reference collection from provided blacklist sources
 	// this will be the master list ips and hostnames will be checked against
-	ritaBL := buildBlacklistReferenceCollection(res, currentDB)
+	_ = buildBlacklistReferenceCollection(res)
 
 	//build src ip collection
 	buildBlacklistedIPs(res, true)
@@ -36,50 +32,19 @@ func AnalyzeBlacklistedConnections(res *resources.Resources) {
 	//build dst ip collection
 	buildBlacklistedIPs(res, false)
 
-	// Todo: do same thing to hostnames as ip stuff
-	// Copy database session for this function
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	hostnamesIter := ssn.DB(currentDB).C(res.Config.T.DNS.HostnamesTable).
-		Find(nil).Iter()
-
-	//create the collections
-	hostnames := res.Config.T.Blacklisted.HostnamesTable
-
-	collections := []string{hostnames}
-	for _, collection := range collections {
-		ssn.DB(currentDB).C(collection).Create(&mgo.CollectionInfo{
-			DisableIdIndex: true,
-		})
-	}
-	buildBlacklistedHostnames(hostnamesIter, res, ritaBL, ritaBLBufferSize)
-
-	ssn.DB(currentDB).C(hostnames).EnsureIndex(mgo.Index{
-		Key: []string{"$hashed:hostname"},
-	})
+	//build hostnames collection
+	buildBlacklistedHostnames(res)
 
 }
 
-//ensureBLIndexes ensures the sortable fields are indexed
-//on the blacklist results
-func ensureBLIndexes(ssn *mgo.Session, currentDB, collName string) {
-	ssn.DB(currentDB).C(collName).EnsureIndex(mgo.Index{
-		Key: []string{"conn"},
-	})
-	ssn.DB(currentDB).C(collName).EnsureIndex(mgo.Index{
-		Key: []string{"uconn"},
-	})
-	ssn.DB(currentDB).C(collName).EnsureIndex(mgo.Index{
-		Key: []string{"total_bytes"},
-	})
-}
-
-func buildBlacklistReferenceCollection(res *resources.Resources, currentDB string) (ritaBL *bl.Blacklist) {
+func buildBlacklistReferenceCollection(res *resources.Resources) (ritaBL *bl.Blacklist) {
 
 	/***************** create new blacklist collection *********************/
 	var err error
 	var blDatabase blDB.Handle
+
+	// set current dataset name
+	currentDB := res.DB.GetSelectedDB()
 
 	// User option set in yaml file, if enabled
 	// RITA will verify the MongoDB certificate's hostname and validity

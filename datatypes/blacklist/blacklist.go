@@ -25,8 +25,8 @@ type (
 		ConnectedHosts    []string `bson:",omitempty"`
 	}
 
-	//AnalysisInput contains the summary statistics of a unique connection
-	AnalysisInput struct {
+	//IPAnalysisInput contains the summary statistics of a unique connection
+	IPAnalysisInput struct {
 		IP                string   `bson:"ip"` // IP
 		Connections       int      `bson:"conn_count"`
 		UniqueConnections int      `bson:"uconn_count"`
@@ -35,19 +35,13 @@ type (
 		Targets           []string `bson:"targets"`
 	}
 
-	//AnalysisOutput contains the summary statistics of a unique connection
-	AnalysisOutput struct {
-		IP                string   `bson:"ip"`
-		Connections       int      `bson:"conn"`
-		UniqueConnections int      `bson:"uconn"`
-		TotalBytes        int      `bson:"total_bytes"`
-		AverageBytes      int      `bson:"avg_bytes"`
-		Lists             []string `bson:"lists"`
-		Targets           []string `bson:"targets"`
+	HostnameAnalysisInput struct {
+		Host string   `bson:"host"` // hostname
+		IPs  []string `bson:"ips"`  // associated ips
 	}
 
-	//IPResult contains the summary of a result from the "ip" collection of rita-bl
-	IPResult struct {
+	//RitaBLResult contains the summary of a result from the "ip" collection of rita-bl
+	RitaBLResult struct {
 		ID        bson.ObjectId   `bson:"_id,omitempty"` // Unique Connection ID
 		Index     string          `bson:"index"`         // Potentially malicious IP
 		List      string          `bson:"list"`          // which blacklist ip was listed on
@@ -60,5 +54,28 @@ type (
 		Host    string `bson:"host"`    // IP in question
 		Country string `bson:"country"` // Reported country of origin for IP
 		ID      int32  `bson:"id"`      // not sure yet, but its there
+	}
+
+	//IPAnalysisOutput contains the summary statistics of a unique connection
+	IPAnalysisOutput struct {
+		IP                string   `bson:"ip"`
+		Connections       int      `bson:"conn"`
+		UniqueConnections int      `bson:"uconn"`
+		TotalBytes        int      `bson:"total_bytes"`
+		AverageBytes      int      `bson:"avg_bytes"`
+		Lists             []string `bson:"lists"`
+		Targets           []string `bson:"targets"`
+	}
+
+	//HostnameAnalysisOutput contains the summary statistics of a unique connection
+	HostnameAnalysisOutput struct {
+		Hostname          string   `bson:"hostname"`
+		Connections       int      `bson:"conn"`
+		UniqueConnections int      `bson:"uconn"`
+		TotalBytes        int      `bson:"total_bytes"`
+		AverageBytes      int      `bson:"avg_bytes"`
+		Lists             []string `bson:"lists"`
+		Targets           []string `bson:"targets"`
+		IPs               []string `bson:"ips"` // associated ips
 	}
 )

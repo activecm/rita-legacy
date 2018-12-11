@@ -1,7 +1,6 @@
 package blacklist
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/activecm/rita/config"
@@ -11,49 +10,83 @@ import (
 )
 
 type (
-	// analyzer implements the bulk of beaconing analysis, creating the scores
+	// analyzerIP implements the bulk of beaconing analysis, creating the scores
 	// for a given set of timestamps and data sizes
-	analyzer struct {
+	analyzerIP struct {
 		source           bool
 		db               *database.DB                    // provides access to MongoDB
 		conf             *config.Config                  // contains details needed to access MongoDB
-		analyzedCallback func(*blacklist.AnalysisOutput) // called on each analyzed result
+		analyzedCallback func(interface{})               // called on each analyzed result
 		closedCallback   func()                          // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *blacklist.AnalysisInput   // holds unanalyzed data
+		analysisChannel  chan *blacklist.IPAnalysisInput // holds unanalyzed data
 		analysisWg       sync.WaitGroup                  // wait for analysis to finish
+	}
+
+	// analyzerHostname implements the bulk of beaconing analysis, creating the scores
+	// for a given set of timestamps and data sizes
+	analyzerHostname struct {
+		source           bool
+		db               *database.DB                          // provides access to MongoDB
+		conf             *config.Config                        // contains details needed to access MongoDB
+		analyzedCallback func(interface{})                     // called on each analyzed result
+		closedCallback   func()                                // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *blacklist.HostnameAnalysisInput // holds unanalyzed data
+		analysisWg       sync.WaitGroup                        // wait for analysis to finish
 	}
 )
 
-// newAnalyzer creates a new analyzer for computing beaconing scores.
-func newAnalyzer(source bool, db *database.DB, conf *config.Config, analyzedCallback func(*blacklist.AnalysisOutput), closedCallback func()) *analyzer {
-	fmt.Println("-- new Analyzer --")
-	return &analyzer{
+// newIPAnalyzer creates a new analyzer for computing beaconing scores.
+func newIPAnalyzer(source bool, db *database.DB, conf *config.Config, analyzedCallback func(interface{}), closedCallback func()) *analyzerIP {
+
+	return &analyzerIP{
 		source:           source,
 		db:               db,
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan *blacklist.AnalysisInput),
+		analysisChannel:  make(chan *blacklist.IPAnalysisInput),
+	}
+}
+
+// newHostnameAnalyzer creates a new analyzer for computing beaconing scores.
+func newHostnameAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(interface{}), closedCallback func()) *analyzerHostname {
+
+	return &analyzerHostname{
+		db:               db,
+		conf:             conf,
+		analyzedCallback: analyzedCallback,
+		closedCallback:   closedCallback,
+		analysisChannel:  make(chan *blacklist.HostnameAnalysisInput),
 	}
 }
 
 // analyze sends a group of timestamps and data sizes in for analysis.
+func (a *analyzerIP) analyzeIP(data *blacklist.IPAnalysisInput) {
+	a.analysisChannel <- data
+}
+
+// analyze sends a group of timestamps and data sizes in for analysis.
 // Note: this function may block
-func (a *analyzer) analyze(data *blacklist.AnalysisInput) {
+func (a *analyzerHostname) analyzeHostname(data *blacklist.HostnameAnalysisInput) {
 	a.analysisChannel <- data
 }
 
 // close waits for the analysis threads to finish
-func (a *analyzer) close() {
-	fmt.Println("-- close Analyzer --")
+func (a *analyzerIP) close() {
+	close(a.analysisChannel)
+	a.analysisWg.Wait()
+	a.closedCallback()
+}
+
+// close waits for the analysis threads to finish
+func (a *analyzerHostname) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
 	a.closedCallback()
 }
 
 // start kicks off a new analysis thread
-func (a *analyzer) start() {
-	fmt.Println("-- start Analyzer --")
+func (a *analyzerIP) start() {
 	a.analysisWg.Add(1)
 	go func() {
 		ssn := a.db.Session.Copy()
@@ -61,14 +94,14 @@ func (a *analyzer) start() {
 
 		for data := range a.analysisChannel {
 
-			var resList []blacklist.IPResult
+			var resList []blacklist.RitaBLResult
 			_ = ssn.DB("rita-bl").C("ip").Find(bson.M{"index": data.IP}).All(&resList)
 
 			//if the ip address has blacklist results
 			if len(resList) > 0 {
 
 				// initialize the output structure
-				output := &blacklist.AnalysisOutput{
+				output := &blacklist.IPAnalysisOutput{
 					IP:                data.IP,
 					Connections:       data.Connections,
 					UniqueConnections: data.UniqueConnections,
@@ -118,6 +151,60 @@ func (a *analyzer) start() {
 
 					}
 				}
+				a.analyzedCallback(output)
+			} else {
+				continue
+			}
+
+		}
+		a.analysisWg.Done()
+	}()
+}
+
+// start kicks off a new analysis thread
+func (a *analyzerHostname) start() {
+	a.analysisWg.Add(1)
+	go func() {
+		ssn := a.db.Session.Copy()
+		defer ssn.Close()
+
+		for data := range a.analysisChannel {
+
+			var resList []blacklist.RitaBLResult
+			_ = ssn.DB("rita-bl").C("hostname").Find(bson.M{"index": data.Host}).All(&resList)
+
+			//if the ip address has blacklist results
+			if len(resList) > 0 {
+
+				// initialize the output structure
+				output := &blacklist.HostnameAnalysisOutput{
+					Hostname: data.Host,
+					IPs:      data.IPs,
+				}
+
+				// Get all blacklists result was found on
+				for _, entry := range resList {
+					output.Lists = append(output.Lists, entry.List)
+				}
+
+				uconnsQuery := getUniqueHostnameFromUconnPipeline(data.IPs)
+
+				var uconnRes struct {
+					Connections       int      `bson:"conn_count"`
+					UniqueConnections int      `bson:"uconn_count"`
+					TotalBytes        int      `bson:"total_bytes"`
+					AverageBytes      int      `bson:"avg_bytes"`
+					Targets           []string `bson:"targets"`
+				}
+
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.UniqueConnTable).Pipe(uconnsQuery).One(&uconnRes)
+
+				output.Connections = uconnRes.Connections
+				output.UniqueConnections = uconnRes.UniqueConnections
+				output.TotalBytes = uconnRes.TotalBytes
+				output.AverageBytes = uconnRes.AverageBytes
+				output.Targets = uconnRes.Targets
+
 				a.analyzedCallback(output)
 			} else {
 				continue

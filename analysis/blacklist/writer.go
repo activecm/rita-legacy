@@ -5,34 +5,32 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/datatypes/blacklist"
 )
 
 type (
-	//writer simply writes AnalysisOutput objects to the beacons collection
+	//writer writes output structure objects to blacklisted collections
 	writer struct {
-		source       bool
-		db           *database.DB                   // provides access to MongoDB
-		conf         *config.Config                 // contains details needed to access MongoDB
-		writeChannel chan *blacklist.AnalysisOutput // holds analyzed data
-		writeWg      sync.WaitGroup                 // wait for writing to finish
+		targetCollection string
+		db               *database.DB     // provides access to MongoDB
+		conf             *config.Config   // contains details needed to access MongoDB
+		writeChannel     chan interface{} // holds analyzed data
+		writeWg          sync.WaitGroup   // wait for writing to finish
 	}
 )
 
-//newWriter creates a writer object to write AnalysisOutput data to
+//newWriter creates a writer object to write output data to
 //the beacons collection
-func newWriter(source bool, db *database.DB, conf *config.Config) *writer {
+func newWriter(targetCollection string, db *database.DB, conf *config.Config) *writer {
 	return &writer{
-		source:       source,
-		db:           db,
-		conf:         conf,
-		writeChannel: make(chan *blacklist.AnalysisOutput),
+		targetCollection: targetCollection,
+		db:               db,
+		conf:             conf,
+		writeChannel:     make(chan interface{}),
 	}
 }
 
-//write queues up a AnalysisOutput to be written to the beacons collection
-//Note: this function may block
-func (w *writer) write(data *blacklist.AnalysisOutput) {
+//write queues up an output structure to be written to a blacklisted collection
+func (w *writer) write(data interface{}) {
 	w.writeChannel <- data
 }
 
@@ -50,11 +48,7 @@ func (w *writer) start() {
 		defer ssn.Close()
 
 		for data := range w.writeChannel {
-			if w.source {
-				ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Blacklisted.SourceIPsTable).Insert(data)
-			} else {
-				ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Blacklisted.DestIPsTable).Insert(data)
-			}
+			ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Insert(data)
 		}
 		w.writeWg.Done()
 	}()
