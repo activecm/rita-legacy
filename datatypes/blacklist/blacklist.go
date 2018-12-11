@@ -27,7 +27,12 @@ type (
 
 	//AnalysisInput contains the summary statistics of a unique connection
 	AnalysisInput struct {
-		IP string `bson:"ip"` // IP
+		IP                string   `bson:"ip"` // IP
+		Connections       int      `bson:"conn_count"`
+		UniqueConnections int      `bson:"uconn_count"`
+		TotalBytes        int      `bson:"total_bytes"`
+		AverageBytes      int      `bson:"avg_bytes"`
+		Targets           []string `bson:"targets"`
 	}
 
 	//AnalysisOutput contains the summary statistics of a unique connection
@@ -36,8 +41,9 @@ type (
 		Connections       int      `bson:"conn"`
 		UniqueConnections int      `bson:"uconn"`
 		TotalBytes        int      `bson:"total_bytes"`
+		AverageBytes      int      `bson:"avg_bytes"`
 		Lists             []string `bson:"lists"`
-		ConnectedHosts    []string `bson:",omitempty"`
+		Targets           []string `bson:"targets"`
 	}
 
 	//IPResult contains the summary of a result from the "ip" collection of rita-bl

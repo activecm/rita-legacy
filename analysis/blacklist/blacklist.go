@@ -30,61 +30,34 @@ func AnalyzeBlacklistedConnections(res *resources.Resources) {
 	// this will be the master list ips and hostnames will be checked against
 	ritaBL := buildBlacklistReferenceCollection(res, currentDB)
 
+	//build src ip collection
+	buildBlacklistedIPs(res, true)
+
+	//build dst ip collection
+	buildBlacklistedIPs(res, false)
+
+	// Todo: do same thing to hostnames as ip stuff
 	// Copy database session for this function
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	// uniqueSourcesAggregation := getUniqueIPFromUconnPipeline("src")
-	uniqueDestAggregation := getUniqueIPFromUconnPipeline("dst")
+	hostnamesIter := ssn.DB(currentDB).C(res.Config.T.DNS.HostnamesTable).
+		Find(nil).Iter()
 
-	// uniqueSourceIter := res.DB.AggregateCollection(
-	// 	res.Config.T.Structure.UniqueConnTable,
-	// 	ssn,
-	// 	uniqueSourcesAggregation,
-	// )
-	uniqueDestIter := res.DB.AggregateCollection(
-		res.Config.T.Structure.UniqueConnTable,
-		ssn,
-		uniqueDestAggregation,
-	)
-	// hostnamesIter := ssn.DB(currentDB).C(res.Config.T.DNS.HostnamesTable).
-	// 	Find(nil).Iter()
-	//
-	// //create the collections
-	// sourceIPs := res.Config.T.Blacklisted.SourceIPsTable
-	// destIPs := res.Config.T.Blacklisted.DestIPsTable
-	// hostnames := res.Config.T.Blacklisted.HostnamesTable
-	//
-	// collections := []string{destIPs} //,sourceIPs,  hostnames}
-	// for _, collection := range collections {
-	// 	ssn.DB(currentDB).C(collection).Create(&mgo.CollectionInfo{
-	// 		DisableIdIndex: true,
-	// 	})
-	// }
+	//create the collections
+	hostnames := res.Config.T.Blacklisted.HostnamesTable
 
-	// //create the data
-	// //TODO: refactor these into modules
-	// buildBlacklistedIPs(uniqueSourceIter, res, ritaBL, ritaBLBufferSize, true)
+	collections := []string{hostnames}
+	for _, collection := range collections {
+		ssn.DB(currentDB).C(collection).Create(&mgo.CollectionInfo{
+			DisableIdIndex: true,
+		})
+	}
+	buildBlacklistedHostnames(hostnamesIter, res, ritaBL, ritaBLBufferSize)
 
-	buildBlacklistedIPs(uniqueDestIter, res, ritaBL, ritaBLBufferSize, false)
-
-	// buildBlacklistedHostnames(hostnamesIter, res, ritaBL, ritaBLBufferSize)
-	//
-	//index the data
-	// for _, collection := range collections {
-	// 	ensureBLIndexes(ssn, currentDB, collection)
-	// }
-
-	// ssn.DB(currentDB).C(sourceIPs).EnsureIndex(mgo.Index{
-	// 	Key: []string{"$hashed:ip"},
-	// })
-
-	// ssn.DB(currentDB).C(destIPs).EnsureIndex(mgo.Index{
-	// 	Key: []string{"$hashed:ip"},
-	// })
-	// ssn.DB(currentDB).C(hostnames).EnsureIndex(mgo.Index{
-	// 	Key: []string{"$hashed:hostname"},
-	// })
+	ssn.DB(currentDB).C(hostnames).EnsureIndex(mgo.Index{
+		Key: []string{"$hashed:hostname"},
+	})
 
 }
 
@@ -111,20 +84,20 @@ func buildBlacklistReferenceCollection(res *resources.Resources, currentDB strin
 	// User option set in yaml file, if enabled
 	// RITA will verify the MongoDB certificate's hostname and validity
 	// otherwise run a normal request to create a database
-	// if res.Config.S.MongoDB.TLS.Enabled {
-	// 	blDatabase, err = blDB.NewSecureMongoDB(
-	// 		res.Config.S.MongoDB.ConnectionString,
-	// 		res.Config.R.MongoDB.AuthMechanismParsed,
-	// 		"rita-bl",
-	// 		res.Config.R.MongoDB.TLS.TLSConfig,
-	// 	)
-	// } else {
-	blDatabase, err = blDB.NewMongoDB(
-		res.Config.S.MongoDB.ConnectionString,
-		res.Config.R.MongoDB.AuthMechanismParsed,
-		"rita-bl",
-	)
-	// }
+	if res.Config.S.MongoDB.TLS.Enabled {
+		blDatabase, err = blDB.NewSecureMongoDB(
+			res.Config.S.MongoDB.ConnectionString,
+			res.Config.R.MongoDB.AuthMechanismParsed,
+			"rita-bl",
+			res.Config.R.MongoDB.TLS.TLSConfig,
+		)
+	} else {
+		blDatabase, err = blDB.NewMongoDB(
+			res.Config.S.MongoDB.ConnectionString,
+			res.Config.R.MongoDB.AuthMechanismParsed,
+			"rita-bl",
+		)
+	}
 
 	if err != nil {
 		res.Log.Error(err)
