@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"reflect"
@@ -159,11 +160,66 @@ func indexFiles(files []string, indexingThreads int,
 	return output
 }
 
+// Get internal subnets from the config file
+// todo: Error if a valid CIDR is not provided
+func getInternalSubnets(fs *FSImporter) []*net.IPNet {
+	var internalIPSubnets []*net.IPNet
+
+	internalFilters := fs.res.Config.S.Filtering.InternalSubnets
+	for _, cidr := range internalFilters {
+		_, block, err := net.ParseCIDR(cidr)
+		internalIPSubnets = append(internalIPSubnets, block)
+		if err != nil {
+			fmt.Println("Error parsing config file CIDR.")
+			fmt.Println(err)
+		}
+	}
+	return internalIPSubnets
+}
+
+// Get "always included" subnets from the config file
+func getIncludedSubnets(fs *FSImporter) []*net.IPNet {
+	var includedSubnets []*net.IPNet
+	alwaysIncluded := fs.res.Config.S.Filtering.AlwaysInclude
+
+	for _, cidr := range alwaysIncluded {
+		_, block, err := net.ParseCIDR(cidr)
+		includedSubnets = append(includedSubnets, block)
+		if err != nil {
+			fmt.Println("Error parsing config file CIDR.")
+			fmt.Println(err)
+		}
+	}
+	return includedSubnets
+}
+
+// Check if a single IP address is internal
+func isInternalAddress(internal []*net.IPNet, ip net.IP) bool {
+	for _, block := range internal {
+		if block.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// Check if a single IP address should always be included
+func isAlwaysIncluded(alwaysIncluded []*net.IPNet, ip net.IP) bool {
+	for _, block := range alwaysIncluded {
+		if block.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
 //parseFiles takes in a list of indexed bro files, the number of
 //threads to use to parse the files, whether or not to sort data by date,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) ([]uconnPair, map[uconnPair]int) {
+	internal := getInternalSubnets(fs)
+	alwaysIncluded := getIncludedSubnets(fs)
 
 	//set up parallel parsing
 	n := len(indexedFiles)
@@ -240,29 +296,51 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							uconn.src = parseConn.FieldByName("Source").Interface().(string)
 							uconn.dst = parseConn.FieldByName("Destination").Interface().(string)
 
-							// Safely store the number of conns for this uconn
-							mutex.Lock()
-							connMap[uconn] = connMap[uconn] + 1
-							connCount = connMap[uconn]
+							srcIP := net.ParseIP(uconn.src)
+							dstIP := net.ParseIP(uconn.dst)
 
-							// Do not store more than the connLimit
-							if connCount < connLimit {
-								datastore.Store(&ImportedData{
-									BroData:          data,
-									TargetDatabase:   targetDB,
-									TargetCollection: targetCollection,
-								})
-							} else if connCount == connLimit {
-								// Once we know a uconn has passed the connLimit not only
-								// do we want to avoid storing any more, but we want to
-								// remove all entries already added. The first time we pass
-								// the limit put an entry in filterHugeUconnsMap in order
-								// to run a bulk delete later.
-								filterHugeUconnsMap = append(filterHugeUconnsMap, uconn)
+							isSrcIncluded := isAlwaysIncluded(alwaysIncluded, srcIP)
+							isDstIncluded := isAlwaysIncluded(alwaysIncluded, dstIP)
+
+							isSrcInternal := isInternalAddress(internal, srcIP)
+							isDstInternal := isInternalAddress(internal, dstIP)
+
+							ignore := false
+
+							if isSrcInternal && isDstInternal {
+								ignore = true
+							} else if (!isSrcInternal) && (!isDstInternal) {
+								ignore = true
 							}
 
-							mutex.Unlock()
+							if isSrcIncluded || isDstIncluded {
+								ignore = false
+							}
 
+							if !ignore {
+								// Safely store the number of conns for this uconn
+								mutex.Lock()
+								connMap[uconn] = connMap[uconn] + 1
+								connCount = connMap[uconn]
+
+								// Do not store more than the connLimit
+								if connCount < connLimit {
+									datastore.Store(&ImportedData{
+										BroData:          data,
+										TargetDatabase:   targetDB,
+										TargetCollection: targetCollection,
+									})
+								} else if connCount == connLimit {
+									// Once we know a uconn has passed the connLimit not only
+									// do we want to avoid storing any more, but we want to
+									// remove all entries already added. The first time we pass
+									// the limit put an entry in filterHugeUconnsMap in order
+									// to run a bulk delete later.
+									filterHugeUconnsMap = append(filterHugeUconnsMap, uconn)
+								}
+
+								mutex.Unlock()
+							}
 						} else {
 							// We do not limit any of the other log types
 

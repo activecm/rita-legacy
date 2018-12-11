@@ -20,6 +20,7 @@ type (
 		Crossref     CrossrefStaticCfg    `yaml:"Crossref"`
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
 		Bro          BroStaticCfg         `yaml:"Bro"`
+		Filtering    FilteringStaticCfg   `yaml:"Filtering"`
 		Version      string
 		ExactVersion string
 	}
@@ -77,6 +78,12 @@ type (
 		DBRoot          string `yaml:"DBRoot"`
 		MetaDB          string `yaml:"MetaDB"`
 		ImportBuffer    int    `yaml:"ImportBuffer"`
+	}
+
+	//FilteringStaticCfg controls address filtering
+	FilteringStaticCfg struct {
+		AlwaysInclude   []string `yaml:"AlwaysInclude"`
+		InternalSubnets []string `yaml:"InternalSubnets"`
 	}
 )
 
