@@ -11,6 +11,7 @@ const staticConfigParserTestConfig = `
 MongoDB:
     ConnectionString: mongodb://localhost:27017
     AuthenticationMechanism: null
+    ConnectionLimit: 250000
     SocketTimeout: 2
     TLS:
         Enable: false
@@ -44,6 +45,7 @@ var testConfigFullExp = StaticCfg{
 	MongoDB: MongoDBStaticCfg{
 		ConnectionString: "mongodb://localhost:27017",
 		AuthMechanism:    "",
+		ConnectionLimit:  250000,
 		SocketTimeout:    2 * time.Hour,
 		TLS: TLSStaticCfg{
 			Enabled:           false,

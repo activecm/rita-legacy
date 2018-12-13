@@ -8,6 +8,9 @@ MongoDB:
     # Since Mongo version 3.0 the default authentication mechanism is SCRAM-SHA-1
     AuthenticationMechanism: null
 
+    # ConnectionLimit to MongoDB
+    ConnectionLimit: 250000
+
     # The time in hours before RITA's connection to MongoDB times out. 0 waits indefinitely.
     SocketTimeout: 2
 

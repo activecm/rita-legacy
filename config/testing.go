@@ -4,6 +4,7 @@ const testConfig = `
 MongoDB:
     ConnectionString: null
     AuthenticationMechanism: null
+    ConnectionLimit: 250000
     SocketTimeout: 2
     TLS:
         Enable: false

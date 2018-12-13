@@ -33,6 +33,7 @@ type (
 	MongoDBStaticCfg struct {
 		ConnectionString string        `yaml:"ConnectionString"`
 		AuthMechanism    string        `yaml:"AuthenticationMechanism"`
+		ConnectionLimit  int           `yaml:"ConnectionLimit"`
 		SocketTimeout    time.Duration `yaml:"SocketTimeout"`
 		TLS              TLSStaticCfg  `yaml:"TLS"`
 	}
