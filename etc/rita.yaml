@@ -8,9 +8,6 @@ MongoDB:
     # Since Mongo version 3.0 the default authentication mechanism is SCRAM-SHA-1
     AuthenticationMechanism: null
 
-    # ConnectionLimit to MongoDB
-    ConnectionLimit: 250000
-
     # The time in hours before RITA's connection to MongoDB times out. 0 waits indefinitely.
     SocketTimeout: 2
 
@@ -92,3 +89,17 @@ Beacon:
     # increase this value to improve performance if you are not concerned
     # about slow beacons.
     DefaultConnectionThresh: 20
+
+Strobe:
+    # This sets the maximum number of connections between any two given hosts that are stored.
+    # Connections above this limit will be deleted and not used in other analysis modules. This will
+    # also trigger an entry in the strobe module. A lower value will reduce import & analysis time and
+    # hide more potential false positives from other modules. A higher value will increase import & 
+    # analysis time, increase false positives, but reduce the risk of false negatives.
+    # Recommended values for this setting are:
+    #    86400 - One connection every second for 24 hours
+    #   250000 - (Default) Good middle of the road value
+    #   700000 - Safe max value that is unlikely to cause errors
+    # The theoretical limit due to implementation limitations is ~1,048,573
+    # but in practice timeouts have occurred at lower values.
+    ConnectionLimit: 250000

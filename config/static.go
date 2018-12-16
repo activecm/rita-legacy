@@ -20,6 +20,7 @@ type (
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
 		Bro          BroStaticCfg         `yaml:"Bro"`
 		Filtering    FilteringStaticCfg   `yaml:"Filtering"`
+		Strobe       StrobeStaticCfg      `yaml:"Strobe"`
 		Version      string
 		ExactVersion string
 	}
@@ -33,7 +34,6 @@ type (
 	MongoDBStaticCfg struct {
 		ConnectionString string        `yaml:"ConnectionString"`
 		AuthMechanism    string        `yaml:"AuthenticationMechanism"`
-		ConnectionLimit  int           `yaml:"ConnectionLimit"`
 		SocketTimeout    time.Duration `yaml:"SocketTimeout"`
 		TLS              TLSStaticCfg  `yaml:"TLS"`
 	}
@@ -79,6 +79,11 @@ type (
 	FilteringStaticCfg struct {
 		AlwaysInclude   []string `yaml:"AlwaysInclude"`
 		InternalSubnets []string `yaml:"InternalSubnets"`
+	}
+
+	//StrobeCfg controls the maximum number of connections between any two given hosts
+	StrobeStaticCfg struct {
+		ConnectionLimit int `yaml:"ConnectionLimit"`
 	}
 )
 

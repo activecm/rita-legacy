@@ -4,7 +4,6 @@ const testConfig = `
 MongoDB:
     ConnectionString: null
     AuthenticationMechanism: null
-    ConnectionLimit: 250000
     SocketTimeout: 2
     TLS:
         Enable: false
@@ -28,6 +27,8 @@ BlackListed:
     CustomHostnameBlacklists: []
 Beacon:
     DefaultConnectionThresh: 24
+Strobe:
+    ConnectionLimit: 250000
 Filtering:
     AlwaysInclude: ["8.8.8.8"]
     InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]

@@ -11,7 +11,6 @@ const staticConfigParserTestConfig = `
 MongoDB:
     ConnectionString: mongodb://localhost:27017
     AuthenticationMechanism: null
-    ConnectionLimit: 250000
     SocketTimeout: 2
     TLS:
         Enable: false
@@ -35,6 +34,8 @@ BlackListed:
     CustomHostnameBlacklists: [test2]
 Beacon:
     DefaultConnectionThresh: 24
+Strobe:
+    ConnectionLimit: 250000
 Filtering:
     AlwaysInclude: ["8.8.8.8/32"]
     InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]
@@ -45,7 +46,6 @@ var testConfigFullExp = StaticCfg{
 	MongoDB: MongoDBStaticCfg{
 		ConnectionString: "mongodb://localhost:27017",
 		AuthMechanism:    "",
-		ConnectionLimit:  250000,
 		SocketTimeout:    2 * time.Hour,
 		TLS: TLSStaticCfg{
 			Enabled:           false,
@@ -74,6 +74,9 @@ var testConfigFullExp = StaticCfg{
 	},
 	Beacon: BeaconStaticCfg{
 		DefaultConnectionThresh: 24,
+	},
+	Strobe: StrobeStaticCfg{
+		ConnectionLimit: 250000,
 	},
 	Filtering: FilteringStaticCfg{
 		AlwaysInclude:   []string{"8.8.8.8/32"},
