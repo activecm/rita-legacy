@@ -52,5 +52,6 @@ type (
 		TsList          []int64       `bson:"ts_list"`         // Connection timestamps for this src, dst pair
 		OrigIPBytes     []int64       `bson:"orig_bytes_list"` // Src to dst connection sizes for each connection
 		MaxDuration     float32       `bson:"max_duration"`
+		TotalDuration   float32       `bson:"total_duration"`
 	}
 )
