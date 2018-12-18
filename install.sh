@@ -85,6 +85,7 @@ __entry() {
 					echo "The --curl-opts option was given, but no options follow it.  Please rerun with curl options."
 					exit 1
 				fi
+				;;
 			*)
 				;;
 			esac
