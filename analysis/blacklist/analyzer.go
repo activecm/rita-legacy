@@ -10,9 +10,7 @@ import (
 )
 
 type (
-	// analyzerIP implements the bulk of beaconing analysis, creating the scores
-	// for a given set of timestamps and data sizes
-	analyzerIP struct {
+	analyzerIP struct { //structure for IP blacklist analysis
 		source           bool
 		db               *database.DB                    // provides access to MongoDB
 		conf             *config.Config                  // contains details needed to access MongoDB
@@ -22,9 +20,7 @@ type (
 		analysisWg       sync.WaitGroup                  // wait for analysis to finish
 	}
 
-	// analyzerHostname implements the bulk of beaconing analysis, creating the scores
-	// for a given set of timestamps and data sizes
-	analyzerHostname struct {
+	analyzerHostname struct { //structure for hostname blacklist analysis
 		source           bool
 		db               *database.DB                          // provides access to MongoDB
 		conf             *config.Config                        // contains details needed to access MongoDB
@@ -35,7 +31,7 @@ type (
 	}
 )
 
-// newIPAnalyzer creates a new analyzer for computing beaconing scores.
+//newIPAnalyzer creates a new analyzer for comparing IPs against blacklist
 func newIPAnalyzer(source bool, db *database.DB, conf *config.Config, analyzedCallback func(interface{}), closedCallback func()) *analyzerIP {
 
 	return &analyzerIP{
@@ -48,7 +44,7 @@ func newIPAnalyzer(source bool, db *database.DB, conf *config.Config, analyzedCa
 	}
 }
 
-// newHostnameAnalyzer creates a new analyzer for computing beaconing scores.
+//newHostnameAnalyzer creates a new analyzer for comparing hostnames against blacklist
 func newHostnameAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(interface{}), closedCallback func()) *analyzerHostname {
 
 	return &analyzerHostname{
@@ -60,32 +56,31 @@ func newHostnameAnalyzer(db *database.DB, conf *config.Config, analyzedCallback 
 	}
 }
 
-// analyze sends a group of timestamps and data sizes in for analysis.
+//analyzeIP sends a group of IPs for analysis against the blacklist
 func (a *analyzerIP) analyzeIP(data *blacklist.IPAnalysisInput) {
 	a.analysisChannel <- data
 }
 
-// analyze sends a group of timestamps and data sizes in for analysis.
-// Note: this function may block
+//analyzeHostname sends a group of hostnames for analysis against the blacklist
 func (a *analyzerHostname) analyzeHostname(data *blacklist.HostnameAnalysisInput) {
 	a.analysisChannel <- data
 }
 
-// close waits for the analysis threads to finish
+//close waits for IP analysis threads to finish
 func (a *analyzerIP) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
 	a.closedCallback()
 }
 
-// close waits for the analysis threads to finish
+//close waits for hostname analysis threads to finish
 func (a *analyzerHostname) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
 	a.closedCallback()
 }
 
-// start kicks off a new analysis thread
+//start kicks off a new IP analysis thread
 func (a *analyzerIP) start() {
 	a.analysisWg.Add(1)
 	go func() {
@@ -161,7 +156,7 @@ func (a *analyzerIP) start() {
 	}()
 }
 
-// start kicks off a new analysis thread
+//start kicks off a new hostname analysis thread
 func (a *analyzerHostname) start() {
 	a.analysisWg.Add(1)
 	go func() {

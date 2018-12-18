@@ -8,8 +8,7 @@ import (
 )
 
 type (
-	//writer writes output structure objects to blacklisted collections
-	writer struct {
+	writer struct { //structure for writing blacklist results to mongo
 		targetCollection string
 		db               *database.DB     // provides access to MongoDB
 		conf             *config.Config   // contains details needed to access MongoDB
@@ -18,8 +17,7 @@ type (
 	}
 )
 
-//newWriter creates a writer object to write output data to
-//the beacons collection
+//newWriter creates a new writer object to write output data to blacklisted collections
 func newWriter(targetCollection string, db *database.DB, conf *config.Config) *writer {
 	return &writer{
 		targetCollection: targetCollection,
@@ -29,18 +27,18 @@ func newWriter(targetCollection string, db *database.DB, conf *config.Config) *w
 	}
 }
 
-//write queues up an output structure to be written to a blacklisted collection
+//write sends a group of results to the writer for writing out to the database
 func (w *writer) write(data interface{}) {
 	w.writeChannel <- data
 }
 
-// close waits for the write threads to finish
+//close waits for the write threads to finish
 func (w *writer) close() {
 	close(w.writeChannel)
 	w.writeWg.Wait()
 }
 
-// start kicks off a new write thread
+//start kicks off a new write thread
 func (w *writer) start() {
 	w.writeWg.Add(1)
 	go func() {
