@@ -277,12 +277,17 @@ func (m *MetaDB) GetDBMetaInfo(name string) (DBMetaInfo, error) {
 
 // GetDatabases returns a list of databases being tracked in metadb or an empty array on failure
 func (m *MetaDB) GetDatabases() []string {
-	dbs, err := m.runDBMetaInfoQuery(nil)
-	if err != nil {
-		return nil
-	}
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	iter := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(nil).Iter()
+
 	var results []string
-	for _, db := range dbs {
+	var db DBMetaInfo
+	for iter.Next(&db) {
 		results = append(results, db.Name)
 	}
 	return results

@@ -10,8 +10,9 @@ import (
 func init() {
 
 	databases := cli.Command{
-		Name:  "show-databases",
-		Usage: "Print the databases currently stored",
+		Name:    "list",
+		Aliases: []string{"show-databases"},
+		Usage:   "Print the databases currently stored",
 		Flags: []cli.Flag{
 			configFlag,
 		},
