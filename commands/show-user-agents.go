@@ -48,7 +48,7 @@ func init() {
 				return cli.NewExitError("No results were found for "+db, -1)
 			}
 
-			if c.Bool("human-readable") {
+			if c.Bool("pretty") {
 				err := showAgentsHuman(agents)
 				if err != nil {
 					return cli.NewExitError(err.Error(), -1)

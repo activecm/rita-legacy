@@ -29,7 +29,7 @@ var (
 	// for output we often want a human readable option which produces a nice
 	// report instead of the simple csv style output
 	humanFlag = cli.BoolFlag{
-		Name:  "human-readable, H",
+		Name:  "pretty, P",
 		Usage: "Print a report instead of csv",
 	}
 

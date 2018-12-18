@@ -8,6 +8,7 @@ type (
 		DNS         DNSTableCfg
 		Structure   StructureTableCfg
 		Beacon      BeaconTableCfg
+		Strobe      StrobeTableCfg
 		UserAgent   UserAgentTableCfg
 		Meta        MetaTableCfg
 	}
@@ -48,6 +49,11 @@ type (
 		BeaconTable string
 	}
 
+	//StrobeTableCfg is used to control the strobe analysis module
+	StrobeTableCfg struct {
+		StrobeTable string
+	}
+
 	//UserAgentTableCfg is used to control the useragent analysis module
 	UserAgentTableCfg struct {
 		UserAgentTable string
@@ -85,6 +91,8 @@ func loadTableConfig() *TableCfg {
 	config.DNS.HostnamesTable = "hostnames"
 
 	config.Beacon.BeaconTable = "beacon"
+
+	config.Strobe.StrobeTable = "freqConn"
 
 	config.UserAgent.UserAgentTable = "useragent"
 

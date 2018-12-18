@@ -52,7 +52,7 @@ func parseBLArgs(c *cli.Context) (string, string, bool, bool, error) {
 	db := c.Args().Get(0)
 	sort := c.String("sort")
 	connected := c.Bool("connected")
-	human := c.Bool("human-readable")
+	human := c.Bool("pretty")
 	if db == "" {
 		return db, sort, connected, human, cli.NewExitError("Specify a database", -1)
 	}
