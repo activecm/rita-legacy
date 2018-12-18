@@ -18,9 +18,15 @@ func init() {
 		},
 		Action: func(c *cli.Context) error {
 			res := resources.InitResources(c.String("config"))
-			for _, name := range res.MetaDB.GetDatabases() {
-				fmt.Println(name)
+
+			if res != nil {
+				for _, name := range res.MetaDB.GetDatabases() {
+					fmt.Println(name)
+				}
+			} else {
+				fmt.Println("\t[-] Cannot display databases due to outdated metadatabase entries.")
 			}
+
 			return nil
 		},
 	}
