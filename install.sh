@@ -48,6 +48,8 @@ __entry() {
 	_CONFIG_PATH=/etc/rita
 	_VAR_PATH=/var/lib/rita
 
+        _CURL_OPTS=''
+
 	# FOR an OPT style installation
 	# NOTE: RITA itself must be changed to agree with the
 	# _CONFIG_PATH and _VAR_PATH
@@ -74,10 +76,18 @@ __entry() {
 			--disable-mongo)
 				_INSTALL_MONGO=false
 				;;
+			--curl-opts)
+				if [ -n "$2" ]; then
+					_CURL_OPTS="$2"
+					shift			#Additional shift to get rid of the parameter
+				else
+					echo "The --curl-opts option was given, but no options follow it.  Please rerun with curl options."
+					exit 1
+				fi
 			*)
-			;;
-	  esac
-	  shift
+				;;
+			esac
+		shift
 	done
 
 	if ! [ $(id -u) = 0 ]; then 
@@ -214,8 +224,8 @@ __configure_bro() {
 		if [ ! -d "$tmpdir" ]; then
 			tmpdir=.
 		fi
-		curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/gen-node-cfg.sh" -o "$tmpdir/gen-node-cfg.sh"
-		curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/node.cfg-template" -o "$tmpdir/node.cfg-template"
+		curl ${_CURL_OPTS} -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/gen-node-cfg.sh" -o "$tmpdir/gen-node-cfg.sh"
+		curl ${_CURL_OPTS} -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/node.cfg-template" -o "$tmpdir/node.cfg-template"
 		chmod 755 "$tmpdir/gen-node-cfg.sh"
 		if "$tmpdir/gen-node-cfg.sh" ; then
 			_BRO_CONFIGURED=true
@@ -327,7 +337,7 @@ __install_rita() {
 	_RITA_CONFIG_FILE="$_CONFIG_PATH/config.yaml"
 	_RITA_REINSTALL_CONFIG_FILE="$_CONFIG_PATH/config.yaml.new"
 
-	curl -sSL "$_RITA_BINARY_URL" -o "$_BIN_PATH/rita"
+	curl ${_CURL_OPTS} -sSL "$_RITA_BINARY_URL" -o "$_BIN_PATH/rita"
 	chmod 755 "$_BIN_PATH/rita"
 
 	mkdir -p "$_CONFIG_PATH"
@@ -336,14 +346,14 @@ __install_rita() {
 	mkdir -p "$_VAR_PATH/logs"
 	chmod 777 "$_VAR_PATH/logs"
 
-	curl -sSL "$_RITA_LICENSE_URL" -o "$_CONFIG_PATH/LICENSE"
+	curl ${_CURL_OPTS} -sSL "$_RITA_LICENSE_URL" -o "$_CONFIG_PATH/LICENSE"
 
 	if [ "$_REINSTALL_RITA" = "true" ]; then
 		# Don't overwrite existing config
-		curl -sSL "$_RITA_CONFIG_URL" -o "$_RITA_REINSTALL_CONFIG_FILE"
+		curl ${_CURL_OPTS} -sSL "$_RITA_CONFIG_URL" -o "$_RITA_REINSTALL_CONFIG_FILE"
 		chmod 666 "$_RITA_REINSTALL_CONFIG_FILE"
 	else
-		curl -sSL "$_RITA_CONFIG_URL" -o "$_RITA_CONFIG_FILE"
+		curl ${_CURL_OPTS} -sSL "$_RITA_CONFIG_URL" -o "$_RITA_CONFIG_FILE"
 		chmod 666 "$_RITA_CONFIG_FILE"
 	fi
 
@@ -351,7 +361,7 @@ __install_rita() {
 	chmod 755 "$_CONFIG_PATH"
 
 	mkdir -p /etc/bash_completion.d/
-	curl -sSL "https://raw.githubusercontent.com/urfave/cli/master/autocomplete/bash_autocomplete" -o "/etc/bash_completion.d/rita"
+	curl ${_CURL_OPTS} -sSL "https://raw.githubusercontent.com/urfave/cli/master/autocomplete/bash_autocomplete" -o "/etc/bash_completion.d/rita"
 }
 
 # INFORMATION GATHERING
@@ -595,7 +605,7 @@ __satisfies_version() {
 __add_deb_repo() {
 	if [ ! -s "/etc/apt/sources.list.d/$2.list" ]; then
 		if [ ! -z "$3" ]; then
-			curl -s -L "$3" | apt-key add - > /dev/null 2>&1
+			curl ${_CURL_OPTS} -s -L "$3" | apt-key add - > /dev/null 2>&1
 		fi
 		echo "$1" | tee "/etc/apt/sources.list.d/$2.list" > /dev/null
 		__freshen_packages
