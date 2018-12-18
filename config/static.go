@@ -81,7 +81,7 @@ type (
 		InternalSubnets []string `yaml:"InternalSubnets"`
 	}
 
-	//StrobeCfg controls the maximum number of connections between any two given hosts
+	//StrobeStaticCfg controls the maximum number of connections between any two given hosts
 	StrobeStaticCfg struct {
 		ConnectionLimit int `yaml:"ConnectionLimit"`
 	}
