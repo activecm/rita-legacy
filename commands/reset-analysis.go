@@ -37,9 +37,11 @@ func init() {
 func resetAnalysis(database string, res *resources.Resources) error {
 	//clean database
 
+	// The following collections are created at import and cannot be reset:
 	conn := res.Config.T.Structure.ConnTable
 	http := res.Config.T.Structure.HTTPTable
 	dns := res.Config.T.Structure.DNSTable
+	strobe := res.Config.T.Structure.FrequentConnTable
 
 	names, err := res.DB.Session.DB(database).CollectionNames()
 	if err != nil || len(names) == 0 {
@@ -65,7 +67,7 @@ func resetAnalysis(database string, res *resources.Resources) error {
 	var err2Flag error
 	for _, name := range names {
 		switch name {
-		case conn, http, dns:
+		case conn, http, dns, strobe:
 			continue
 		default:
 			err2 := res.DB.Session.DB(database).C(name).DropCollection()
