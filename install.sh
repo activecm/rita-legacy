@@ -48,7 +48,8 @@ __entry() {
 	_CONFIG_PATH=/etc/rita
 	_VAR_PATH=/var/lib/rita
 
-        _CURL_OPTS=''
+	#_CURL_OPTS=''		#We do _NOT_ initialize this to empty, so the user can set this variable before install like
+				#export _CURL_OPTS=' -k '
 
 	# FOR an OPT style installation
 	# NOTE: RITA itself must be changed to agree with the
