@@ -57,6 +57,7 @@ type (
 		UseIPms            bool     `yaml:"myIP.ms"`
 		UseDNSBH           bool     `yaml:"MalwareDomains.com"`
 		UseMDL             bool     `yaml:"MalwareDomainList.com"`
+		BlacklistDatabase  string   `yaml:"BlacklistDatabase"`
 		IPBlacklists       []string `yaml:"CustomIPBlacklists"`
 		HostnameBlacklists []string `yaml:"CustomHostnameBlacklists"`
 	}

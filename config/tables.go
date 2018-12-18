@@ -31,10 +31,9 @@ type (
 
 	//BlacklistedTableCfg is used to control the blacklisted analysis module
 	BlacklistedTableCfg struct {
-		BlacklistDatabase string
-		SourceIPsTable    string
-		DestIPsTable      string
-		HostnamesTable    string
+		SourceIPsTable string
+		DestIPsTable   string
+		HostnamesTable string
 	}
 
 	//DNSTableCfg is used to control the dns analysis module
@@ -76,7 +75,6 @@ func loadTableConfig() *TableCfg {
 	config.Structure.IPv6Table = "ipv6"
 	config.Structure.FrequentConnTable = "freqConn"
 
-	config.Blacklisted.BlacklistDatabase = "rita-blacklist"
 	config.Blacklisted.SourceIPsTable = "blSourceIPs"
 	config.Blacklisted.DestIPsTable = "blDestIPs"
 	config.Blacklisted.HostnamesTable = "blHostnames"

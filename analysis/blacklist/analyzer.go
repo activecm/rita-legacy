@@ -95,7 +95,7 @@ func (a *analyzerIP) start() {
 		for data := range a.analysisChannel {
 
 			var resList []blacklist.RitaBLResult
-			_ = ssn.DB("rita-bl").C("ip").Find(bson.M{"index": data.IP}).All(&resList)
+			_ = ssn.DB(a.conf.S.Blacklisted.BlacklistDatabase).C("ip").Find(bson.M{"index": data.IP}).All(&resList)
 
 			//if the ip address has blacklist results
 			if len(resList) > 0 {
@@ -171,7 +171,7 @@ func (a *analyzerHostname) start() {
 		for data := range a.analysisChannel {
 
 			var resList []blacklist.RitaBLResult
-			_ = ssn.DB("rita-bl").C("hostname").Find(bson.M{"index": data.Host}).All(&resList)
+			_ = ssn.DB(a.conf.S.Blacklisted.BlacklistDatabase).C("hostname").Find(bson.M{"index": data.Host}).All(&resList)
 
 			//if the ip address has blacklist results
 			if len(resList) > 0 {

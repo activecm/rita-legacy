@@ -64,6 +64,10 @@ BlackListed:
     MalwareDomains.com: true
     MalwareDomainList.com: true
 
+    # This is the name of the database which will be created as a master list of
+    # blacklisted ips and hostnames by rita-blacklist
+    BlacklistDatabase: "rita-bl"
+
     # These are custom blacklists that you may define. They are lists of either
     # file paths or urls. These custom blacklists are expected to be simple,
     # line separated text documents containing a list of blacklisted entries.

@@ -30,6 +30,7 @@ BlackListed:
     myIP.ms: true
     MalwareDomains.com: true
     MalwareDomainList.com: true
+		BlacklistDatabase: "rita-bl"
     CustomIPBlacklists: [test1]
     CustomHostnameBlacklists: [test2]
 Beacon:
@@ -67,6 +68,7 @@ var testConfigFullExp = StaticCfg{
 		UseIPms:            true,
 		UseMDL:             true,
 		UseDNSBH:           true,
+		BlacklistDatabase:  "rita-bl",
 		IPBlacklists:       []string{"test1"},
 		HostnameBlacklists: []string{"test2"},
 	},
