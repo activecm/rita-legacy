@@ -24,65 +24,66 @@ type (
 		ExactVersion string
 	}
 
-	//UserCfgStaticCfg contains
-	UserCfgStaticCfg struct {
-		UpdateCheckFrequency *int `yaml:"UpdateCheckFrequency,omitempty"`
-	}
-
 	//MongoDBStaticCfg contains the means for connecting to MongoDB
 	MongoDBStaticCfg struct {
-		ConnectionString string        `yaml:"ConnectionString"`
-		AuthMechanism    string        `yaml:"AuthenticationMechanism"`
-		SocketTimeout    time.Duration `yaml:"SocketTimeout"`
+		ConnectionString string        `yaml:"ConnectionString" default:"mongodb://localhost:27017"`
+		AuthMechanism    string        `yaml:"AuthenticationMechanism" default:""`
+		SocketTimeout    time.Duration `yaml:"SocketTimeout" default:"2"`
 		TLS              TLSStaticCfg  `yaml:"TLS"`
 	}
 
 	//TLSStaticCfg contains the means for connecting to MongoDB over TLS
 	TLSStaticCfg struct {
-		Enabled           bool   `yaml:"Enable"`
-		VerifyCertificate bool   `yaml:"VerifyCertificate"`
-		CAFile            string `yaml:"CAFile"`
+		Enabled           bool   `yaml:"Enable" default:"false"`
+		VerifyCertificate bool   `yaml:"VerifyCertificate" default:"false"`
+		CAFile            string `yaml:"CAFile" default:""`
 	}
 
 	//LogStaticCfg contains the configuration for logging
 	LogStaticCfg struct {
-		LogLevel    int    `yaml:"LogLevel"`
-		RitaLogPath string `yaml:"RitaLogPath"`
-		LogToFile   bool   `yaml:"LogToFile"`
-		LogToDB     bool   `yaml:"LogToDB"`
-	}
-
-	//BlacklistedStaticCfg is used to control the blacklisted analysis module
-	BlacklistedStaticCfg struct {
-		UseIPms            bool     `yaml:"myIP.ms"`
-		UseDNSBH           bool     `yaml:"MalwareDomains.com"`
-		UseMDL             bool     `yaml:"MalwareDomainList.com"`
-		IPBlacklists       []string `yaml:"CustomIPBlacklists"`
-		HostnameBlacklists []string `yaml:"CustomHostnameBlacklists"`
-	}
-
-	//BeaconStaticCfg is used to control the beaconing analysis module
-	BeaconStaticCfg struct {
-		DefaultConnectionThresh int `yaml:"DefaultConnectionThresh"`
+		LogLevel    int    `yaml:"LogLevel" default:"2"`
+		RitaLogPath string `yaml:"RitaLogPath" default:"/var/lib/rita/logs"`
+		LogToFile   bool   `yaml:"LogToFile" default:"true"`
+		LogToDB     bool   `yaml:"LogToDB" default:"true"`
 	}
 
 	//BroStaticCfg controls the file parser
 	BroStaticCfg struct {
-		ImportDirectory string `yaml:"ImportDirectory"`
-		DBRoot          string `yaml:"DBRoot"`
-		MetaDB          string `yaml:"MetaDB"`
-		ImportBuffer    int    `yaml:"ImportBuffer"`
+		ImportDirectory string `yaml:"ImportDirectory" default:"/opt/bro/logs/"`
+		DBRoot          string `yaml:"DBRoot" default:"RITA"`
+		MetaDB          string `yaml:"MetaDB" default:"MetaDatabase"`
+		ImportBuffer    int    `yaml:"ImportBuffer" default:"30000"`
+	}
+
+	//UserCfgStaticCfg contains
+	UserCfgStaticCfg struct {
+		UpdateCheckFrequency int `yaml:"UpdateCheckFrequency" default:"14"`
+	}
+
+	//BlacklistedStaticCfg is used to control the blacklisted analysis module
+	BlacklistedStaticCfg struct {
+		UseIPms            bool     `yaml:"myIP.ms" default:"true"`
+		UseDNSBH           bool     `yaml:"MalwareDomains.com" default:"true"`
+		UseMDL             bool     `yaml:"MalwareDomainList.com" default:"true"`
+		IPBlacklists       []string `yaml:"CustomIPBlacklists" default:"[]"`
+		HostnameBlacklists []string `yaml:"CustomHostnameBlacklists" default:"[]"`
+	}
+
+	//BeaconStaticCfg is used to control the beaconing analysis module
+	BeaconStaticCfg struct {
+		DefaultConnectionThresh int `yaml:"DefaultConnectionThresh" default:"24"`
 	}
 
 	//FilteringStaticCfg controls address filtering
 	FilteringStaticCfg struct {
-		AlwaysInclude   []string `yaml:"AlwaysInclude"`
-		InternalSubnets []string `yaml:"InternalSubnets"`
+		AlwaysInclude   []string `yaml:"AlwaysInclude" default:"[]"`
+		InternalSubnets []string `yaml:"InternalSubnets" default:"[]"`
 	}
 )
 
-// loadStaticConfig attempts to parse a config file
-func loadStaticConfig(cfgPath string) (*StaticCfg, error) {
+// readStaticConfigFile attempts to read the contents of the
+// given cfgPath file path (e.g. /etc/rita/config.yaml)
+func readStaticConfigFile(cfgPath string) ([]byte, error) {
 	_, err := os.Stat(cfgPath)
 
 	if os.IsNotExist(err) {
@@ -94,15 +95,16 @@ func loadStaticConfig(cfgPath string) (*StaticCfg, error) {
 		return nil, err
 	}
 
-	return parseStaticConfig(cfgFile)
+	return cfgFile, nil
 }
 
-func parseStaticConfig(cfgFile []byte) (*StaticCfg, error) {
-	var config = new(StaticCfg)
+// parseStaticConfig loads the yaml from cfgFile into the provided config struct.
+// It also fixes up misc values that need tweaking into the right format.
+func parseStaticConfig(cfgFile []byte, config *StaticCfg) error {
 	err := yaml.Unmarshal(cfgFile, config)
 
 	if err != nil {
-		return config, err
+		return err
 	}
 
 	// expand env variables, config is a pointer
@@ -120,5 +122,5 @@ func parseStaticConfig(cfgFile []byte) (*StaticCfg, error) {
 	config.Version = Version
 	config.ExactVersion = ExactVersion
 
-	return config, nil
+	return nil
 }

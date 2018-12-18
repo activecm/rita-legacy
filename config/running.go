@@ -26,19 +26,19 @@ type (
 	}
 )
 
-// loadRunningConfig attempts deserializes data in the static config
-func loadRunningConfig(config *StaticCfg) (*RunningCfg, error) {
-	var outConfig = new(RunningCfg)
+// initRunningConfig uses data in the static config initialize
+// the passed in running config
+func initRunningConfig(static *StaticCfg, running *RunningCfg) error {
 	var err error
 
 	//parse the tls configuration
-	if config.MongoDB.TLS.Enabled {
+	if static.MongoDB.TLS.Enabled {
 		tlsConf := &tls.Config{}
-		if !config.MongoDB.TLS.VerifyCertificate {
+		if !static.MongoDB.TLS.VerifyCertificate {
 			tlsConf.InsecureSkipVerify = true
 		}
-		if len(config.MongoDB.TLS.CAFile) > 0 {
-			pem, err2 := ioutil.ReadFile(config.MongoDB.TLS.CAFile)
+		if len(static.MongoDB.TLS.CAFile) > 0 {
+			pem, err2 := ioutil.ReadFile(static.MongoDB.TLS.CAFile)
 			err = err2
 			if err != nil {
 				fmt.Println("[!] Could not read MongoDB CA file")
@@ -47,25 +47,25 @@ func loadRunningConfig(config *StaticCfg) (*RunningCfg, error) {
 				tlsConf.RootCAs.AppendCertsFromPEM(pem)
 			}
 		}
-		outConfig.MongoDB.TLS.TLSConfig = tlsConf
+		running.MongoDB.TLS.TLSConfig = tlsConf
 	}
 
 	//parse out the mongo authentication mechanism
 	authMechanism, err := mgosec.ParseAuthMechanism(
-		config.MongoDB.AuthMechanism,
+		static.MongoDB.AuthMechanism,
 	)
 	if err != nil {
 		authMechanism = mgosec.None
 		fmt.Println("[!] Could not parse MongoDB authentication mechanism")
 	}
-	outConfig.MongoDB.AuthMechanismParsed = authMechanism
+	running.MongoDB.AuthMechanismParsed = authMechanism
 
-	outConfig.Version, err = semver.ParseTolerant(config.Version)
+	running.Version, err = semver.ParseTolerant(static.Version)
 	if err != nil {
 		fmt.Println("[!] Version error: please ensure that you cloned the git repo and are using make to build.")
 		fmt.Println("[!] See the following resources for further information:")
 		fmt.Println("\thttps://github.com/activecm/rita/blob/master/Contributing.md#common-issues")
 		fmt.Println("\thttps://github.com/activecm/rita/blob/master/docs/Manual%20Installation.md")
 	}
-	return outConfig, err
+	return err
 }
