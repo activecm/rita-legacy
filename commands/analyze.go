@@ -23,20 +23,46 @@ func init() {
 		UsageText: "rita analyze [command options] [database]\n\n" +
 			"If no database is specified, every database will be analyzed.",
 		Flags: []cli.Flag{
+			resetFlag,
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			r := analyze(c.Args().Get(0), c.String("config"))
-			fmt.Printf(updateCheck(c.String("config")))
-			return r
+			// set database - if empty string, all databases will be analyzed
+			database := c.Args().Get(0)
+
+			// set config file - if empty string default will be used
+			configFile := c.String("config")
+
+			// set resources from config file
+			res := resources.InitResources(configFile)
+
+			// set reset flags
+			reset := c.Bool("reset")
+
+			// if the reset flag was given reset analysis before analyzing
+			if reset {
+				fmt.Println("[+] Resetting:")
+				// Check which database(s) need to be reset
+				if database == "" {
+					for _, entry := range res.MetaDB.GetDatabases() {
+						_ = resetAnalysis(entry, res, true)
+					}
+				} else {
+					_ = resetAnalysis(database, res, true)
+				}
+			}
+
+			err := analyze(database, res, reset)
+			fmt.Printf(updateCheck(configFile))
+			return err
 		},
 	}
 
 	bootstrapCommands(analyzeCommand)
 }
 
-func analyze(inDb string, configFile string) error {
-	res := resources.InitResources(configFile)
+func analyze(inDb string, res *resources.Resources, resetFlag bool) error {
+
 	var toRunDirty []string
 	var toRun []string
 
@@ -87,7 +113,10 @@ func analyze(inDb string, configFile string) error {
 
 	startAll := time.Now()
 
-	fmt.Println("[+] Analyzing:")
+	if len(toRun) > 0 {
+		fmt.Println("[+] Analyzing:")
+	}
+
 	for _, db := range toRun {
 		fmt.Println("\t[-] " + db)
 	}

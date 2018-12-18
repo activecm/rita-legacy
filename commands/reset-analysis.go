@@ -3,7 +3,6 @@ package commands
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -13,10 +12,12 @@ import (
 
 func init() {
 	reset := cli.Command{
-		Name:      "reset-analysis",
+		Name:      "reset",
+		Aliases:   []string{"reset-analysis"},
 		Usage:     "Reset analysis of a database",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
+			forceFlag,
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
@@ -25,7 +26,8 @@ func init() {
 			if db == "" {
 				return cli.NewExitError("Specify a database", -1)
 			}
-			return resetAnalysis(db, res)
+
+			return resetAnalysis(db, res, c.Bool("force"))
 		},
 	}
 
@@ -34,7 +36,7 @@ func init() {
 
 // resetAnalysis cleans out all of the analysis data, leaving behind only the
 // raw data from parsing the logs
-func resetAnalysis(database string, res *resources.Resources) error {
+func resetAnalysis(database string, res *resources.Resources, forceFlag bool) error {
 	//clean database
 
 	conn := res.Config.T.Structure.ConnTable
@@ -46,19 +48,19 @@ func resetAnalysis(database string, res *resources.Resources) error {
 		return cli.NewExitError("Failed to find analysis results", -1)
 	}
 
-	fmt.Print("Are you sure you want to reset analysis for ", database, " [y/N] ")
+	if !forceFlag {
+		fmt.Print("Are you sure you want to reset analysis for ", database, " [y/N] ")
 
-	read := bufio.NewReader(os.Stdin)
+		read := bufio.NewReader(os.Stdin)
 
-	response, err := read.ReadString('\n')
-	if err != nil {
-		log.Fatal(err)
-	}
-	response = strings.ToLower(strings.TrimSpace(response))
-	if response == "y" || response == "yes" {
-		fmt.Println("Resetting database:", database)
-	} else {
-		return cli.NewExitError("Database "+database+" was not reset.", 0)
+		response, _ := read.ReadString('\n')
+
+		response = strings.ToLower(strings.TrimSpace(response))
+		if response == "y" || response == "yes" {
+			fmt.Println("Resetting database:", database)
+		} else {
+			return cli.NewExitError("Database "+database+" was not reset.", 0)
+		}
 	}
 
 	//check if we had an issue dropping a collection
@@ -84,7 +86,7 @@ func resetAnalysis(database string, res *resources.Resources) error {
 	}
 
 	if err == nil && err2Flag == nil && err3 == nil {
-		fmt.Fprintf(os.Stdout, "Successfully reset analysis of %s.\n", database)
+		fmt.Fprintf(os.Stdout, "\t[-] Successfully reset analysis of %s.\n", database)
 	}
 	return nil
 }

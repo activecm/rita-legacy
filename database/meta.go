@@ -121,9 +121,6 @@ func (m *MetaDB) DeleteDB(name string) error {
 		return err
 	}
 
-	//drop the data
-	ssn.DB(name).DropDatabase()
-
 	//delete any parsed file records associated
 	_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.FilesTable).RemoveAll(bson.M{"database": name})
 	if err != nil {
