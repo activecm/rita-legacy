@@ -80,7 +80,7 @@ __entry() {
 	  shift
 	done
 
-	if ! [ $(id -u) = 0 ]; then 
+	if ! [ $(id -u) = 0 ]; then
 		echo "You do not have permissions to install RITA!"
 		exit 1
 	fi
@@ -228,10 +228,10 @@ __configure_bro() {
 	if [ "$_BRO_CONFIGURED" = "true" ]; then
 		printf "\n$_IMPORTANT Enabling Bro on startup.\n"
 		# don't add a new line if broctl is already in cron
-		if [ $(crontab -l 2>/dev/null | grep 'broctl cron' | wc -l) -eq 0 ]; then 
+		if [ $(crontab -l 2>/dev/null | grep 'broctl cron' | wc -l) -eq 0 ]; then
 			# Append an entry to an existing crontab
 			# crontab -l will print to stderr and exit with code 1 if no crontab exists
-			# Ignore stderr and force a successfull exit code to prevent an install error			
+			# Ignore stderr and force a successfull exit code to prevent an install error
 			(crontab -l 2>/dev/null || true; echo "*/5 * * * * $_BRO_PATH/broctl cron") | crontab
 		fi
 		$_BRO_PATH/broctl cron enable > /dev/null
@@ -249,15 +249,11 @@ __configure_bro() {
 }
 
 __add_bro_to_path() {
-	printf "$_SUBQUESTION Would you like to add Bro IDS to the PATH? [Y/n] "
-	read
-	if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-		printf "$_SUBIMPORTANT Adding Bro IDS to the path in $_BRO_PATH_SCRIPT \n"
-		echo "export PATH=\"\$PATH:$_BRO_PATH\"" | tee $_BRO_PATH_SCRIPT > /dev/null
-		_BRO_PATH_SCRIPT_INSTALLED=true
-		export PATH="$PATH:$_BRO_PATH"
-		_BRO_IN_PATH=true
-	fi
+	printf "$_SUBIMPORTANT Adding Bro IDS to the path in $_BRO_PATH_SCRIPT \n"
+	echo "export PATH=\"\$PATH:$_BRO_PATH\"" | tee $_BRO_PATH_SCRIPT > /dev/null
+	_BRO_PATH_SCRIPT_INSTALLED=true
+	export PATH="$PATH:$_BRO_PATH"
+	_BRO_IN_PATH=true
 }
 
 __install_mongodb() {
@@ -295,7 +291,7 @@ __configure_mongodb() {
 			initctl stop mongod > /dev/null
 			initctl start mongod > /dev/null
 			_STOP_MONGO="sudo service mongod stop"
-		else 
+		else
 			systemctl enable mongod.service > /dev/null
 			systemctl daemon-reload > /dev/null
 			systemctl start mongod > /dev/null
@@ -323,7 +319,7 @@ __install_rita() {
 	_RITA_BINARY_URL="$_RITA_RELEASE_URL/rita"
 	_RITA_CONFIG_URL="$_RITA_REPO_URL/etc/rita.yaml"
 	_RITA_LICENSE_URL="$_RITA_REPO_URL/LICENSE"
-	
+
 	_RITA_CONFIG_FILE="$_CONFIG_PATH/config.yaml"
 	_RITA_REINSTALL_CONFIG_FILE="$_CONFIG_PATH/config.yaml.new"
 
