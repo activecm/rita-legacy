@@ -221,9 +221,17 @@ func (m *MetaDB) MarkDBAnalyzed(name string, complete bool) error {
 //We follow the reasoning that RITA should be able to read documents from
 //older versions.
 func migrateDBMetaInfo(inInfo DBMetaInfo) (DBMetaInfo, error) {
-	inVersion, err := semver.ParseTolerant(inInfo.ImportVersion)
-	if err != nil {
-		return inInfo, err
+	var inVersion semver.Version
+	var err error
+	if inInfo.ImportVersion != "" {
+		inVersion, err = semver.ParseTolerant(inInfo.ImportVersion)
+		if err != nil {
+			return inInfo, err
+		}
+	} else {
+		//The only published version of RITA without the ImportVersion field
+		//is RITA v0.9.1
+		inVersion = semver.Version{Major: 0, Minor: 9, Patch: 1}
 	}
 	if inVersion.LT(semver.Version{Major: 1, Minor: 1, Patch: 0}) {
 		/*
@@ -279,13 +287,18 @@ func (m *MetaDB) GetDBMetaInfo(name string) (DBMetaInfo, error) {
 func (m *MetaDB) GetDatabases() []string {
 	dbs, err := m.runDBMetaInfoQuery(nil)
 	if err != nil {
+		m.log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Error("Could not complete schema migration step")
 		return nil
 	}
+
 	var results []string
 	for _, db := range dbs {
 		results = append(results, db.Name)
 	}
 	return results
+
 }
 
 //CheckCompatibleImport checks if a database was imported with a version of
