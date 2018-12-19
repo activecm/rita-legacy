@@ -27,6 +27,9 @@ type (
 		res             *resources.Resources
 		indexingThreads int
 		parseThreads    int
+		internal        []*net.IPNet
+		alwaysIncluded  []*net.IPNet
+		neverIncluded   []*net.IPNet
 	}
 
 	uconnPair struct {
@@ -36,12 +39,15 @@ type (
 )
 
 //NewFSImporter creates a new file system importer
-func NewFSImporter(resources *resources.Resources,
+func NewFSImporter(res *resources.Resources,
 	indexingThreads int, parseThreads int) *FSImporter {
 	return &FSImporter{
-		res:             resources,
+		res:             res,
 		indexingThreads: indexingThreads,
 		parseThreads:    parseThreads,
+		internal:        getInternalSubnets(res),
+		alwaysIncluded:  getIncludedSubnets(res),
+		neverIncluded:   getExcludedSubnets(res),
 	}
 }
 
@@ -160,66 +166,11 @@ func indexFiles(files []string, indexingThreads int,
 	return output
 }
 
-// Get internal subnets from the config file
-// todo: Error if a valid CIDR is not provided
-func getInternalSubnets(fs *FSImporter) []*net.IPNet {
-	var internalIPSubnets []*net.IPNet
-
-	internalFilters := fs.res.Config.S.Filtering.InternalSubnets
-	for _, cidr := range internalFilters {
-		_, block, err := net.ParseCIDR(cidr)
-		internalIPSubnets = append(internalIPSubnets, block)
-		if err != nil {
-			fmt.Println("Error parsing config file CIDR.")
-			fmt.Println(err)
-		}
-	}
-	return internalIPSubnets
-}
-
-// Get "always included" subnets from the config file
-func getIncludedSubnets(fs *FSImporter) []*net.IPNet {
-	var includedSubnets []*net.IPNet
-	alwaysIncluded := fs.res.Config.S.Filtering.AlwaysInclude
-
-	for _, cidr := range alwaysIncluded {
-		_, block, err := net.ParseCIDR(cidr)
-		includedSubnets = append(includedSubnets, block)
-		if err != nil {
-			fmt.Println("Error parsing config file CIDR.")
-			fmt.Println(err)
-		}
-	}
-	return includedSubnets
-}
-
-// Check if a single IP address is internal
-func isInternalAddress(internal []*net.IPNet, ip net.IP) bool {
-	for _, block := range internal {
-		if block.Contains(ip) {
-			return true
-		}
-	}
-	return false
-}
-
-// Check if a single IP address should always be included
-func isAlwaysIncluded(alwaysIncluded []*net.IPNet, ip net.IP) bool {
-	for _, block := range alwaysIncluded {
-		if block.Contains(ip) {
-			return true
-		}
-	}
-	return false
-}
-
 //parseFiles takes in a list of indexed bro files, the number of
 //threads to use to parse the files, whether or not to sort data by date,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) ([]uconnPair, map[uconnPair]int) {
-	internal := getInternalSubnets(fs)
-	alwaysIncluded := getIncludedSubnets(fs)
 
 	//set up parallel parsing
 	n := len(indexedFiles)
@@ -296,27 +247,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							uconn.src = parseConn.FieldByName("Source").Interface().(string)
 							uconn.dst = parseConn.FieldByName("Destination").Interface().(string)
 
-							srcIP := net.ParseIP(uconn.src)
-							dstIP := net.ParseIP(uconn.dst)
+							// Run conn pair through filter to filter out certain connections
+							ignore := fs.filterConnPair(uconn.src, uconn.dst)
 
-							isSrcIncluded := isAlwaysIncluded(alwaysIncluded, srcIP)
-							isDstIncluded := isAlwaysIncluded(alwaysIncluded, dstIP)
-
-							isSrcInternal := isInternalAddress(internal, srcIP)
-							isDstInternal := isInternalAddress(internal, dstIP)
-
-							ignore := false
-
-							if isSrcInternal && isDstInternal {
-								ignore = true
-							} else if (!isSrcInternal) && (!isDstInternal) {
-								ignore = true
-							}
-
-							if isSrcIncluded || isDstIncluded {
-								ignore = false
-							}
-
+							// If connection pair is not subject to filtering, process
 							if !ignore {
 								// Safely store the number of conns for this uconn
 								mutex.Lock()

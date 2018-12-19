@@ -89,3 +89,8 @@ Beacon:
     # increase this value to improve performance if you are not concerned
     # about slow beacons.
     DefaultConnectionThresh: 20
+
+Filtering:
+    AlwaysInclude: ["172.16.200.11"]
+    NeverInclude: ["110.55.100.111"]
+    InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]

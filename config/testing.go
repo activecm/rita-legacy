@@ -29,6 +29,7 @@ Beacon:
     DefaultConnectionThresh: 24
 Filtering:
     AlwaysInclude: ["8.8.8.8"]
+    NeverInclude: ["172.16.200.11"]
     InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]
 `
 
