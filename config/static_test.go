@@ -36,7 +36,7 @@ Beacon:
     DefaultConnectionThresh: 24
 Filtering:
     AlwaysInclude: ["8.8.8.8/32"]
-    NeverInclude: ["172.16.200.11"]
+    NeverInclude: ["8.8.4.4/32"]
     InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]
 
 `
@@ -76,7 +76,7 @@ var testConfigFullExp = StaticCfg{
 	},
 	Filtering: FilteringStaticCfg{
 		AlwaysInclude:   []string{"8.8.8.8/32"},
-		NeverInclude:    []string{"172.16.200.11"},
+		NeverInclude:    []string{"8.8.4.4/32"},
 		InternalSubnets: []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"},
 	},
 }
