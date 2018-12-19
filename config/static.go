@@ -20,6 +20,7 @@ type (
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
 		Bro          BroStaticCfg         `yaml:"Bro"`
 		Filtering    FilteringStaticCfg   `yaml:"Filtering"`
+		Strobe       StrobeStaticCfg      `yaml:"Strobe"`
 		Version      string
 		ExactVersion string
 	}
@@ -78,6 +79,11 @@ type (
 	FilteringStaticCfg struct {
 		AlwaysInclude   []string `yaml:"AlwaysInclude" default:"[]"`
 		InternalSubnets []string `yaml:"InternalSubnets" default:"[]"`
+	}
+
+	//StrobeStaticCfg controls the maximum number of connections between any two given hosts
+	StrobeStaticCfg struct {
+		ConnectionLimit int `yaml:"ConnectionLimit" default:"250000"`
 	}
 )
 
