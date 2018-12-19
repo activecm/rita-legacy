@@ -71,7 +71,7 @@ type (
 
 	//BeaconStaticCfg is used to control the beaconing analysis module
 	BeaconStaticCfg struct {
-		DefaultConnectionThresh int `yaml:"DefaultConnectionThresh" default:"24"`
+		DefaultConnectionThresh int `yaml:"DefaultConnectionThresh" default:"20"`
 	}
 
 	//FilteringStaticCfg controls address filtering
