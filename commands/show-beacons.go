@@ -44,7 +44,7 @@ func showBeacons(c *cli.Context) error {
 	resultsView.All(&data)
 	ssn.Close()
 
-	if c.Bool("pretty") {
+	if c.Bool("human-readable") {
 		err := showBeaconReport(data)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)

@@ -48,7 +48,7 @@ func init() {
 				return cli.NewExitError("No results were found for "+db, -1)
 			}
 
-			if c.Bool("pretty") {
+			if c.Bool("human-readable") {
 				err := showStrobesHuman(strobes)
 				if err != nil {
 					return cli.NewExitError(err.Error(), -1)
