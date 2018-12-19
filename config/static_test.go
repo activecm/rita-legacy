@@ -26,6 +26,8 @@ Bro:
     DBRoot: "RITA"
     MetaDB: MetaDatabase
     ImportBuffer: 100000
+UserConfig:
+    UpdateCheckFrequency: 14
 BlackListed:
     myIP.ms: true
     MalwareDomains.com: true
@@ -61,6 +63,9 @@ var testConfigFullExp = StaticCfg{
 		DBRoot:          "RITA",
 		MetaDB:          "MetaDatabase",
 		ImportBuffer:    100000,
+	},
+	UserConfig: UserCfgStaticCfg{
+		UpdateCheckFrequency: 14,
 	},
 	Blacklisted: BlacklistedStaticCfg{
 		UseIPms:            true,
