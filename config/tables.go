@@ -8,6 +8,7 @@ type (
 		DNS         DNSTableCfg
 		Structure   StructureTableCfg
 		Beacon      BeaconTableCfg
+		Strobe      StrobeTableCfg
 		UserAgent   UserAgentTableCfg
 		Meta        MetaTableCfg
 	}
@@ -45,6 +46,11 @@ type (
 	//BeaconTableCfg is used to control the beaconing analysis module
 	BeaconTableCfg struct {
 		BeaconTable string `default:"beacon"`
+	}
+
+	//StrobeTableCfg is used to control the strobe analysis module
+	StrobeTableCfg struct {
+		StrobeTable string `default:"freqConn"`
 	}
 
 	//UserAgentTableCfg is used to control the useragent analysis module

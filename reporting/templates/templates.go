@@ -24,6 +24,7 @@ var dbHeader = `
   <li><a href="../index.html">RITA</a></li>
   <li><a href="index.html">Viewing: {{.DB}}</a></li>
   <li><a href="beacons.html">Beacons</a></li>
+	<li><a href="strobes.html">Strobes</a></li>
 	<li><a href="dns.html">DNS</a></li>
   <li><a href="bl-source-ips.html">BL Source IPs</a></li>
 	<li><a href="bl-dest-ips.html">BL Dest. IPs</a></li>
@@ -96,6 +97,16 @@ var BeaconsTempl = dbHeader + `
 	</th><th>TS Duration</tr>
       {{.Writer}}
   </table>
+</div>
+`
+
+//StrobesTempl is the strobes html template
+var StrobesTempl = dbHeader + `
+<div class="container">
+  <table>
+	<tr><th>Source</th><th>Destination</th><th>Connection Count</th></tr>
+	  {{.Writer}}
+	</table>
 </div>
 `
 
