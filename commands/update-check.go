@@ -30,17 +30,10 @@ func GetVersionPrinter() func(*cli.Context) {
 //returns a string indicating the new version if available
 func updateCheck(configFile string) string {
 	res := resources.InitResources(configFile)
-	deltaPtr := res.Config.S.UserConfig.UpdateCheckFrequency
+	delta := res.Config.S.UserConfig.UpdateCheckFrequency
 	var newVersion semver.Version
 	var err error
-	var delta int
 	var timestamp time.Time
-
-	if deltaPtr == nil {
-		delta = 14
-	} else {
-		delta = *deltaPtr
-	}
 
 	if delta <= 0 {
 		return ""
@@ -108,7 +101,6 @@ func getRemoteVersion() (semver.Version, error) {
 // The return value is printed regardless so, "" is returned on errror.
 //func informUser( verStr string, index int ) string {
 func informUser(local semver.Version, remote semver.Version) string {
-
 	return fmt.Sprintf(informFmtStr,
 		versions[versionDiffIndex(remote, local)],
 		fmt.Sprint(remote))

@@ -3,14 +3,16 @@ package config
 import (
 	"os"
 	"reflect"
+
+	"github.com/creasty/defaults"
 )
 
-//Version is filled at compile time with the git version of RITA
-//Version is filled by "git describe --abbrev=0 --tags"
+// Version is filled at compile time with the git version of RITA
+// Version is filled by "git describe --abbrev=0 --tags"
 var Version = "undefined"
 
-//ExactVersion is filled at compile time with the git version of RITA
-//ExactVersion is filled by "git describe --always --long --dirty --tags"
+// ExactVersion is filled at compile time with the git version of RITA
+// ExactVersion is filled by "git describe --always --long --dirty --tags"
 var ExactVersion = "undefined"
 
 type (
@@ -22,33 +24,48 @@ type (
 	}
 )
 
-//userConfigPath specifies the path of RITA's static config file
-const userConfigPath = "/etc/rita/config.yaml"
+// defaultConfigPath specifies the path of RITA's static config file
+const defaultConfigPath = "/etc/rita/config.yaml"
 
-//NOTE: If go ever gets default parameters, default the config options to ""
-
-// LoadConfig attempts to parse a config file
-func LoadConfig(userConfig string) (*Config, error) {
-	if userConfig == "" {
-		userConfig = userConfigPath
+// LoadConfig initializes a Config struct with values read
+// from a config file. It takes a string for the path to the file.
+// If the string is empty it uses the default path.
+func LoadConfig(customConfigPath string) (*Config, error) {
+	// Use the default path unless a custom path is given
+	configPath := defaultConfigPath
+	if customConfigPath != "" {
+		configPath = customConfigPath
 	}
 
-	var config = new(Config)
-	static, err := loadStaticConfig(userConfig)
+	config := &Config{}
+
+	// Initialize table config to the default values
+	if err := defaults.Set(&config.T); err != nil {
+		return nil, err
+	}
+
+	// Initialize static config to the default values
+	if err := defaults.Set(&config.S); err != nil {
+		return nil, err
+	}
+
+	// Read the contents from the config file
+	contents, err := readStaticConfigFile(configPath)
 	if err != nil {
-		return config, err
+		return nil, err
 	}
-	config.S = *static
 
-	config.T = *loadTableConfig()
-
-	running, err := loadRunningConfig(static)
-	if err != nil {
-		return config, err
+	// Deserialize the yaml file contents into the static config
+	if err := parseStaticConfig(contents, &config.S); err != nil {
+		return nil, err
 	}
-	config.R = *running
 
-	return config, err
+	// Use the static config to initialize the running config
+	if err := initRunningConfig(&config.S, &config.R); err != nil {
+		return nil, err
+	}
+
+	return config, nil
 }
 
 // expandConfig expands environment variables in config strings
