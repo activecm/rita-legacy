@@ -15,89 +15,52 @@ type (
 
 	//LogTableCfg contains the configuration for logging
 	LogTableCfg struct {
-		RitaLogTable string
+		RitaLogTable string `default:"logs"`
 	}
 
 	//StructureTableCfg contains the names of the base level collections
 	StructureTableCfg struct {
-		ConnTable         string
-		HTTPTable         string
-		DNSTable          string
-		UniqueConnTable   string
-		HostTable         string
-		IPv4Table         string
-		IPv6Table         string
-		FrequentConnTable string
+		ConnTable         string `default:"conn"`
+		HTTPTable         string `default:"http"`
+		DNSTable          string `default:"dns"`
+		UniqueConnTable   string `default:"uconn"`
+		HostTable         string `default:"host"`
+		IPv4Table         string `default:"ipv4"`
+		IPv6Table         string `default:"ipv6"`
+		FrequentConnTable string `default:"freqConn"`
 	}
 
 	//BlacklistedTableCfg is used to control the blacklisted analysis module
 	BlacklistedTableCfg struct {
-		BlacklistDatabase string
-		SourceIPsTable    string
-		DestIPsTable      string
-		HostnamesTable    string
+		SourceIPsTable string `default:"blSourceIPs"`
+		DestIPsTable   string `default:"blDestIPs"`
+		HostnamesTable string `default:"blHostnames"`
 	}
 
 	//DNSTableCfg is used to control the dns analysis module
 	DNSTableCfg struct {
-		ExplodedDNSTable string
-		HostnamesTable   string
+		ExplodedDNSTable string `default:"explodedDns"`
+		HostnamesTable   string `default:"hostnames"`
 	}
 
 	//BeaconTableCfg is used to control the beaconing analysis module
 	BeaconTableCfg struct {
-		BeaconTable string
+		BeaconTable string `default:"beacon"`
 	}
 
 	//StrobeTableCfg is used to control the strobe analysis module
 	StrobeTableCfg struct {
-		StrobeTable string
+		StrobeTable string `default:"freqConn"`
 	}
 
 	//UserAgentTableCfg is used to control the useragent analysis module
 	UserAgentTableCfg struct {
-		UserAgentTable string
+		UserAgentTable string `default:"useragent"`
 	}
 
 	//MetaTableCfg contains the meta db collection names
 	MetaTableCfg struct {
-		FilesTable     string
-		DatabasesTable string
+		FilesTable     string `default:"files"`
+		DatabasesTable string `default:"databases"`
 	}
 )
-
-// loadTableConfig initializes a config struct
-func loadTableConfig() *TableCfg {
-	var config = new(TableCfg)
-
-	// initialize all the table configs
-	config.Log.RitaLogTable = "logs"
-
-	config.Structure.ConnTable = "conn"
-	config.Structure.HTTPTable = "http"
-	config.Structure.DNSTable = "dns"
-	config.Structure.UniqueConnTable = "uconn"
-	config.Structure.HostTable = "host"
-	config.Structure.IPv4Table = "ipv4"
-	config.Structure.IPv6Table = "ipv6"
-	config.Structure.FrequentConnTable = "freqConn"
-
-	config.Blacklisted.BlacklistDatabase = "rita-blacklist"
-	config.Blacklisted.SourceIPsTable = "blSourceIPs"
-	config.Blacklisted.DestIPsTable = "blDestIPs"
-	config.Blacklisted.HostnamesTable = "blHostnames"
-
-	config.DNS.ExplodedDNSTable = "explodedDns"
-	config.DNS.HostnamesTable = "hostnames"
-
-	config.Beacon.BeaconTable = "beacon"
-
-	config.Strobe.StrobeTable = "freqConn"
-
-	config.UserAgent.UserAgentTable = "useragent"
-
-	config.Meta.FilesTable = "files"
-	config.Meta.DatabasesTable = "databases"
-
-	return config
-}

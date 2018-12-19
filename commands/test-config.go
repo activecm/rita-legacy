@@ -33,8 +33,8 @@ func testConfiguration(c *cli.Context) error {
 	// First, print out the config as it was parsed
 	conf, err := config.LoadConfig(c.String("config"))
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "Failed to config, exiting")
-		panic(err)
+		fmt.Fprintf(os.Stdout, "Failed to config: %s\n", err.Error())
+		os.Exit(-1)
 	}
 
 	staticConfig, err := yaml.Marshal(conf.S)
