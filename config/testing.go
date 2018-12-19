@@ -1,5 +1,9 @@
 package config
 
+import (
+	"github.com/creasty/defaults"
+)
+
 const testConfig = `
 MongoDB:
     ConnectionString: null
@@ -36,24 +40,32 @@ Filtering:
 
 // LoadTestingConfig loads the hard coded testing config
 func LoadTestingConfig(mongoURI string) (*Config, error) {
-	Version = "v0.0.0+testing"
-	ExactVersion = "v0.0.0+testing"
-	var config = new(Config)
-	static, err := parseStaticConfig([]byte(testConfig))
-	if err != nil {
-		return config, err
+	config := &Config{}
+
+	// Initialize table config to the default values
+	if err := defaults.Set(&config.T); err != nil {
+		return nil, err
 	}
-	config.S = *static
+
+	// Initialize static config to the default values
+	if err := defaults.Set(&config.S); err != nil {
+		return nil, err
+	}
 
 	config.S.MongoDB.ConnectionString = mongoURI
 
-	config.T = *loadTableConfig()
-
-	running, err := loadRunningConfig(static)
-	if err != nil {
-		return config, err
+	// Deserialize the yaml file contents into the static config
+	if err := parseStaticConfig([]byte(testConfig), &config.S); err != nil {
+		return nil, err
 	}
-	config.R = *running
+
+	config.S.Version = "v0.0.0+testing"
+	config.S.ExactVersion = "v0.0.0+testing"
+
+	// Use the static config to initialize the running config
+	if err := initRunningConfig(&config.S, &config.R); err != nil {
+		return nil, err
+	}
 
 	return config, nil
 }
