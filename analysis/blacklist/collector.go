@@ -72,9 +72,8 @@ func getUniqueHostnameFromUconnPipeline(hosts []string) []bson.D {
 }
 
 //buildBlacklistedIPs builds a set of blacklisted ips from the
-//iterator provided, the system config, a handle to rita-blacklist,
-//a buffer of ips to check at a time, and a boolean designating
-//whether or not the ips are connection sources or destinations
+//the blacklist source or dest IPs collection, depending on the
+//value of the source bool passed in.
 func buildBlacklistedIPs(res *resources.Resources, source bool) {
 	//create session to write to
 	ssn := res.DB.Session.Copy()
