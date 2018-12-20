@@ -91,6 +91,21 @@ Beacon:
     DefaultConnectionThresh: 20
 
 Filtering:
-    AlwaysInclude: ["8.8.8.8/32"]
-    NeverInclude: ["8.8.4.4/32"]
+    # These are filters that affect the import of connection logs.
+    #
+    # Example: AlwaysInclude: ["8.8.8.8/32"]
+    # This functionlity overrides the NeverInclude and InternalSubnets
+    # section, making sure that any connection records containing addresses from
+    # this range are kept and not filtered
+    #
+    # Example: NeverInclude: ["8.8.4.4/32"]
+    # This functions as a whitelisting setting, and connections involving
+    # ranges entered into this section are filtered out at import time
+    #
+    # Example: InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]
+    # This allows a user to identify their internal network, which will result
+    # in any internal to internal and external to external connections being
+    # filtered out at import time.
+    AlwaysInclude: []
+    NeverInclude: []
     InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]
