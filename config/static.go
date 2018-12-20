@@ -66,6 +66,7 @@ type (
 		UseIPms            bool     `yaml:"myIP.ms" default:"true"`
 		UseDNSBH           bool     `yaml:"MalwareDomains.com" default:"true"`
 		UseMDL             bool     `yaml:"MalwareDomainList.com" default:"true"`
+		BlacklistDatabase  string   `yaml:"BlacklistDatabase" default:"rita-bl"`
 		IPBlacklists       []string `yaml:"CustomIPBlacklists" default:"[]"`
 		HostnameBlacklists []string `yaml:"CustomHostnameBlacklists" default:"[]"`
 	}
