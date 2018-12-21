@@ -3,8 +3,7 @@ package parser
 import (
 	"fmt"
 	"net"
-
-	"github.com/activecm/rita/resources"
+	"os"
 )
 
 func (fs *FSImporter) filterConnPair(src string, dst string) (ignore bool) {
@@ -16,15 +15,21 @@ func (fs *FSImporter) filterConnPair(src string, dst string) (ignore bool) {
 	dstIP := net.ParseIP(dst)
 
 	// check if on always included list
-	isSrcIncluded := fs.isAlwaysIncluded(srcIP)
-	isDstIncluded := fs.isAlwaysIncluded(dstIP)
+	isSrcIncluded := containsIP(fs.alwaysIncluded, srcIP)
+	isDstIncluded := containsIP(fs.alwaysIncluded, dstIP)
 
 	// check if on never included list
-	isSrcExcluded := fs.isNeverIncluded(srcIP)
-	isDstExcluded := fs.isNeverIncluded(dstIP)
+	isSrcExcluded := containsIP(fs.neverIncluded, srcIP)
+	isDstExcluded := containsIP(fs.neverIncluded, dstIP)
 
 	// if a result is on both lists we don't ignore it (need error handling later)
 	if (isSrcIncluded && isSrcExcluded) || (isDstIncluded && isDstExcluded) {
+		ignore = false
+		return
+	}
+
+	// if src and dst are on opposite lists, default to including the record
+	if (isSrcIncluded && isDstExcluded) || (isDstIncluded && isSrcExcluded) {
 		ignore = false
 		return
 	}
@@ -42,8 +47,8 @@ func (fs *FSImporter) filterConnPair(src string, dst string) (ignore bool) {
 	}
 
 	// verify if src and dst are internal or external
-	isSrcInternal := fs.isInternalAddress(srcIP)
-	isDstInternal := fs.isInternalAddress(dstIP)
+	isSrcInternal := containsIP(fs.internal, srcIP)
+	isDstInternal := containsIP(fs.internal, dstIP)
 
 	// if both addresses are internal, filter applies
 	if isSrcInternal && isDstInternal {
@@ -60,29 +65,10 @@ func (fs *FSImporter) filterConnPair(src string, dst string) (ignore bool) {
 	return
 }
 
-// Get internal subnets from the config file
-// todo: Error if a valid CIDR is not provided
-func getInternalSubnets(res *resources.Resources) []*net.IPNet {
-	var internalIPSubnets []*net.IPNet
+//parseSubnets parses the provided subnets into net.ipnet format
+func getParsedSubnets(subnets []string) (parsedSubnets []*net.IPNet) {
 
-	internalFilters := res.Config.S.Filtering.InternalSubnets
-	for _, cidr := range internalFilters {
-		_, block, err := net.ParseCIDR(cidr)
-		internalIPSubnets = append(internalIPSubnets, block)
-		if err != nil {
-			fmt.Println("Error parsing config file CIDR.")
-			fmt.Println(err)
-		}
-	}
-	return internalIPSubnets
-}
-
-// Get "always included" subnets from the config file
-func getIncludedSubnets(res *resources.Resources) (includedSubnets []*net.IPNet) {
-
-	alwaysIncluded := res.Config.S.Filtering.AlwaysInclude
-
-	for _, entry := range alwaysIncluded {
+	for _, entry := range subnets {
 		//try to parse out cidr range
 		_, block, err := net.ParseCIDR(entry)
 
@@ -93,69 +79,21 @@ func getIncludedSubnets(res *resources.Resources) (includedSubnets []*net.IPNet)
 
 			// if error, report and return
 			if err != nil {
-				fmt.Println("Error parsing config file entry.")
-				fmt.Println(err)
+				fmt.Fprintf(os.Stdout, "Error parsing CIDR entry: %s\n", err.Error())
+				os.Exit(-1)
 				return
 			}
 		}
 
 		// add cidr range to list
-		includedSubnets = append(includedSubnets, block)
+		parsedSubnets = append(parsedSubnets, block)
 	}
 	return
 }
 
-// Get "always included" subnets from the config file
-func getExcludedSubnets(res *resources.Resources) (excludedSubnets []*net.IPNet) {
-
-	neverInclude := res.Config.S.Filtering.NeverInclude
-
-	for _, entry := range neverInclude {
-		//try to parse out cidr range
-		_, block, err := net.ParseCIDR(entry)
-
-		//if there was an error, check if entry was an IP not a range
-		if err != nil {
-			// try to parse out IP as range of single host
-			_, block, err = net.ParseCIDR(entry + "/32")
-
-			// if error, report and return
-			if err != nil {
-				fmt.Println("Error parsing config file entry.")
-				fmt.Println(err)
-				return
-			}
-		}
-
-		// add cidr range to list
-		excludedSubnets = append(excludedSubnets, block)
-	}
-	return
-}
-
-// Check if a single IP address is internal
-func (fs *FSImporter) isInternalAddress(ip net.IP) bool {
-	for _, block := range fs.internal {
-		if block.Contains(ip) {
-			return true
-		}
-	}
-	return false
-}
-
-// Check if a single IP address should always be included
-func (fs *FSImporter) isAlwaysIncluded(ip net.IP) bool {
-	for _, block := range fs.alwaysIncluded {
-		if block.Contains(ip) {
-			return true
-		}
-	}
-	return false
-}
-
-// Check if a single IP address should always be included
-func (fs *FSImporter) isNeverIncluded(ip net.IP) bool {
-	for _, block := range fs.neverIncluded {
+//containsIP checks if a specified subnet contains an ip
+func containsIP(subnets []*net.IPNet, ip net.IP) bool {
+	for _, block := range subnets {
 		if block.Contains(ip) {
 			return true
 		}

@@ -45,9 +45,9 @@ func NewFSImporter(res *resources.Resources,
 		res:             res,
 		indexingThreads: indexingThreads,
 		parseThreads:    parseThreads,
-		internal:        getInternalSubnets(res),
-		alwaysIncluded:  getIncludedSubnets(res),
-		neverIncluded:   getExcludedSubnets(res),
+		internal:        getParsedSubnets(res.Config.S.Filtering.InternalSubnets),
+		alwaysIncluded:  getParsedSubnets(res.Config.S.Filtering.AlwaysInclude),
+		neverIncluded:   getParsedSubnets(res.Config.S.Filtering.NeverInclude),
 	}
 }
 

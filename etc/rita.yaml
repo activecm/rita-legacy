@@ -106,6 +106,10 @@ Filtering:
     # This allows a user to identify their internal network, which will result
     # in any internal to internal and external to external connections being
     # filtered out at import time.
+    #
+    #
+    # The following are commented out due to the filtering script. If used,
+    # they will take precedence over anything set with the filtering script
     AlwaysInclude: []
     NeverInclude: []
     InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]
