@@ -22,27 +22,15 @@ func (fs *FSImporter) filterConnPair(src string, dst string) (ignore bool) {
 	isSrcExcluded := containsIP(fs.neverIncluded, srcIP)
 	isDstExcluded := containsIP(fs.neverIncluded, dstIP)
 
-	// if a result is on both lists we don't ignore it (need error handling later)
-	if (isSrcIncluded && isSrcExcluded) || (isDstIncluded && isDstExcluded) {
-		ignore = false
-		return
-	}
-
-	// if src and dst are on opposite lists, default to including the record
-	if (isSrcIncluded && isDstExcluded) || (isDstIncluded && isSrcExcluded) {
-		ignore = false
-		return
-	}
-
-	// check if one of the addresses should never be excluded from results
-	if isSrcExcluded || isDstExcluded {
-		ignore = true
-		return
-	}
-
 	// check if one of the addresses should never be excluded from results
 	if isSrcIncluded || isDstIncluded {
 		ignore = false
+		return
+	}
+
+	// check if one of the addresses should be excluded from results
+	if isSrcExcluded || isDstExcluded {
+		ignore = true
 		return
 	}
 
