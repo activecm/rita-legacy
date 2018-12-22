@@ -26,19 +26,23 @@ Bro:
     DBRoot: "RITA"
     MetaDB: MetaDatabase
     ImportBuffer: 100000
+UserConfig:
+    UpdateCheckFrequency: 14
 BlackListed:
     myIP.ms: true
     MalwareDomains.com: true
     MalwareDomainList.com: true
+    BlacklistDatabase: "rita-bl"
     CustomIPBlacklists: [test1]
     CustomHostnameBlacklists: [test2]
 Beacon:
     DefaultConnectionThresh: 24
+Strobe:
+    ConnectionLimit: 250000
 Filtering:
     AlwaysInclude: ["8.8.8.8/32"]
     NeverInclude: ["8.8.4.4/32"]
     InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]
-
 `
 
 var testConfigFullExp = StaticCfg{
@@ -64,15 +68,22 @@ var testConfigFullExp = StaticCfg{
 		MetaDB:          "MetaDatabase",
 		ImportBuffer:    100000,
 	},
+	UserConfig: UserCfgStaticCfg{
+		UpdateCheckFrequency: 14,
+	},
 	Blacklisted: BlacklistedStaticCfg{
 		UseIPms:            true,
 		UseMDL:             true,
 		UseDNSBH:           true,
+		BlacklistDatabase:  "rita-bl",
 		IPBlacklists:       []string{"test1"},
 		HostnameBlacklists: []string{"test2"},
 	},
 	Beacon: BeaconStaticCfg{
 		DefaultConnectionThresh: 24,
+	},
+	Strobe: StrobeStaticCfg{
+		ConnectionLimit: 250000,
 	},
 	Filtering: FilteringStaticCfg{
 		AlwaysInclude:   []string{"8.8.8.8/32"},
@@ -81,14 +92,22 @@ var testConfigFullExp = StaticCfg{
 	},
 }
 
+// TestParseStaticConfig ensures that a yaml config
+// string is correctly converted into a StaticCfg struct.
 func TestParseStaticConfig(t *testing.T) {
-	config, err := parseStaticConfig([]byte(staticConfigParserTestConfig))
+	config := &StaticCfg{}
+	err := parseStaticConfig([]byte(staticConfigParserTestConfig), config)
+
+	// We are not testing the version setting ensure they are equal
 	testConfigFullExp.Version = config.Version
 	testConfigFullExp.ExactVersion = config.ExactVersion
+
 	assert.Nil(t, err)
 	assert.Equal(t, *config, testConfigFullExp)
 }
 
+// TestFilePathCleaning ensures that paths specified
+// in a config file are cleaned up correctly.
 func TestFilePathCleaning(t *testing.T) {
 	testConfig := `
 LogConfig:
@@ -104,9 +123,13 @@ Bro:
 			ImportDirectory: "/opt/bro/logs",
 		},
 	}
-	config, err := parseStaticConfig([]byte(testConfig))
+	config := &StaticCfg{}
+	err := parseStaticConfig([]byte(testConfig), config)
+
+	// We are not testing the version setting ensure they are equal
 	testConfigExp.Version = config.Version
 	testConfigExp.ExactVersion = config.ExactVersion
+
 	assert.Nil(t, err)
 	assert.Equal(t, *config, testConfigExp)
 }

@@ -178,6 +178,12 @@ func writeDB(db string, wd string, res *resources.Resources) error {
 	if err != nil {
 		return err
 	}
+
+	err = printStrobes(db, res)
+	if err != nil {
+		return err
+	}
+
 	err = printLongConns(db, res)
 	if err != nil {
 		return err
