@@ -57,6 +57,41 @@ UserConfig:
     # A value of zero here will disable checking.
     UpdateCheckFrequency: 14
 
+#Filtering:
+    # These are filters that affect the import of connection logs. They
+    # currently do not apply to dns or http logs. 
+    # A good reference for networks you may wish to consider is RFC 5735.
+    # https://tools.ietf.org/html/rfc5735#section-4
+    #
+    # Example: AlwaysInclude: ["8.8.8.8/32"]
+    # This functionality overrides the NeverInclude and InternalSubnets
+    # section, making sure that any connection records containing addresses from
+    # this range are kept and not filtered
+    #
+    # Example: NeverInclude: ["8.8.4.4/32"]
+    # This functions as a whitelisting setting, and connections involving
+    # ranges entered into this section are filtered out at import time
+    #
+    # Example: InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]
+    # This allows a user to identify their internal network, which will result
+    # in any internal to internal and external to external connections being
+    # filtered out at import time.
+    #
+    #AlwaysInclude: []
+    #NeverInclude:
+    #  - 0.0.0.0/32          # "This" Host           RFC 1122, Section 3.2.1.3
+    #  - 127.0.0.0/8         # Loopback              RFC 1122, Section 3.2.1.3
+    #  - 169.254.0.0/16      # Link Local            RFC 3927
+    #  - 224.0.0.0/4         # Multicast             RFC 3171
+    #  - 255.255.255.255/32  # Limited Broadcast     RFC 919, Section 7
+    #  - ::1/128             # Loopback              RFC 4291, Section 2.5.3
+    #  - fe80::/10           # Link local            RFC 4291, Section 2.5.6
+    #  - ff00::/8            # Multicast             RFC 4291, Section 2.7
+    #InternalSubnets:
+    #  - 10.0.0.0/8          # Private-Use Networks  RFC 1918
+    #  - 172.16.0.0/12       # Private-Use Networks  RFC 1918
+    #  - 192.168.0.0/16      # Private-Use Networks  RFC 1918
+
 BlackListed:
     # These are blacklists built into rita-blacklist. Set these to false
     # to disable checks against them.

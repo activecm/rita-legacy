@@ -79,6 +79,7 @@ type (
 	//FilteringStaticCfg controls address filtering
 	FilteringStaticCfg struct {
 		AlwaysInclude   []string `yaml:"AlwaysInclude" default:"[]"`
+		NeverInclude    []string `yaml:"NeverInclude" default:"[]"`
 		InternalSubnets []string `yaml:"InternalSubnets" default:"[]"`
 	}
 
