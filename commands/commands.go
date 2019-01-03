@@ -26,7 +26,7 @@ var (
 		Value: "",
 	}
 
-	// configFlag allows users to specify an alternate config file to use
+	// forceFlag allows users to bypass prompts
 	forceFlag = cli.BoolFlag{
 		Name:  "force, f",
 		Usage: "Bypass verification prompt",

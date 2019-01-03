@@ -39,6 +39,9 @@ func init() {
 			// set reset flags
 			reset := c.Bool("reset")
 
+			// check current version
+			fmt.Printf(updateCheck(configFile))
+
 			// if the reset flag was given reset analysis before analyzing
 			if reset {
 				fmt.Println("[+] Resetting:")
@@ -52,8 +55,9 @@ func init() {
 				}
 			}
 
+			// run analysis
 			err := analyze(database, res, reset)
-			fmt.Printf(updateCheck(configFile))
+
 			return err
 		},
 	}
