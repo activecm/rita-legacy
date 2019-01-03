@@ -40,7 +40,7 @@ func init() {
 func deleteDatabase(database string, res *resources.Resources, forceFlag bool) error {
 
 	// get all database names
-	names, _ := res.DB.Session.DatabaseNames()
+	names, err := res.DB.Session.DatabaseNames()
 
 	// check if database exists
 	dbExists := util.StringInSlice(database, names)
