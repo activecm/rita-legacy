@@ -26,6 +26,18 @@ var (
 		Value: "",
 	}
 
+	// forceFlag allows users to bypass prompts
+	forceFlag = cli.BoolFlag{
+		Name:  "force, f",
+		Usage: "Bypass verification prompt",
+	}
+
+	// resetFlag allows automatic reset of analysis prior to the command
+	resetFlag = cli.BoolFlag{
+		Name:  "reset, r",
+		Usage: "Reset database analysis",
+	}
+
 	// for output we often want a human readable option which produces a nice
 	// report instead of the simple csv style output
 	humanFlag = cli.BoolFlag{

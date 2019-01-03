@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsIP(t *testing.T) {
@@ -92,4 +93,25 @@ func TestMinMax(t *testing.T) {
 	assert.Equal(t, large, Max(small, large))
 	assert.Equal(t, small, Min(large, small))
 	assert.Equal(t, small, Min(small, large))
+}
+
+func TestStringInSlice(t *testing.T) {
+	tables := []struct {
+		val  string
+		list []string
+		out  bool
+	}{
+		{"a", []string{"a", "b", "c", "d"}, true},
+		{"abc", []string{"a", "b", "c", "d"}, false},
+		{"ethan", []string{"ethan", "melissa"}, true},
+		{"-1", []string{}, false},
+		{"-1", []string{"-1"}, true},
+		{"somethingsomething999", []string{"somethingsomething"}, false},
+	}
+
+	for _, test := range tables {
+		output := StringInSlice(test.val, test.list)
+		require.Equal(t, test.out, output)
+	}
+
 }

@@ -72,3 +72,13 @@ func Max(a int, b int) int {
 	}
 	return b
 }
+
+//StringInSlice returns true if the string is an element of the array
+func StringInSlice(value string, list []string) bool {
+	for _, entry := range list {
+		if entry == value {
+			return true
+		}
+	}
+	return false
+}
