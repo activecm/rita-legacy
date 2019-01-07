@@ -78,11 +78,11 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
-	filterHugeUconnsMap, connMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+	filterHugeUconnsMap, uconnMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
 	// Must wait for all inserts to finish before attempting to delete
 	datastore.Flush()
-	fs.bulkRemoveHugeUconns(indexedFiles[0].TargetDatabase, filterHugeUconnsMap, connMap)
+	fs.bulkRemoveHugeUconns(indexedFiles[0].TargetDatabase, filterHugeUconnsMap, uconnMap)
 
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
@@ -177,7 +177,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	parsingWG := new(sync.WaitGroup)
 
 	// Counts the number of uconns per source-destination pair
-	connMap := make(map[uconnPair]int)
+	uconnMap := make(map[uconnPair]int)
 
 	// map to hold the too many connections uconns
 	var filterHugeUconnsMap []uconnPair
@@ -248,14 +248,14 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							uconn.dst = parseConn.FieldByName("Destination").Interface().(string)
 
 							// Run conn pair through filter to filter out certain connections
-							ignore := fs.filterConnPair(uconn.src, uconn.dst)
+							ignore := false //fs.filterConnPair(uconn.src, uconn.dst)
 
 							// If connection pair is not subject to filtering, process
 							if !ignore {
 								// Safely store the number of conns for this uconn
 								mutex.Lock()
-								connMap[uconn] = connMap[uconn] + 1
-								connCount = connMap[uconn]
+								uconnMap[uconn] = uconnMap[uconn] + 1
+								connCount = uconnMap[uconn]
 
 								// Do not store more than the connLimit
 								if connCount < connLimit {
@@ -277,7 +277,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							}
 						} else {
 							// We do not limit any of the other log types
-
 							datastore.Store(&ImportedData{
 								BroData:          data,
 								TargetDatabase:   targetDB,
@@ -298,12 +297,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	return filterHugeUconnsMap, connMap
+	return filterHugeUconnsMap, uconnMap
 }
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
 // entries in the "conn" collection. It also creates new entries in the FrequentConnTable collection.
-func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap []uconnPair, connMap map[uconnPair]int) {
+func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap []uconnPair, uconnMap map[uconnPair]int) {
 	resDB := fs.res.DB
 	resConf := fs.res.Config
 	logger := fs.res.Log
@@ -327,7 +326,7 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 			BroData: &parsetypes.Freq{
 				Source:          uconn.src,
 				Destination:     uconn.dst,
-				ConnectionCount: connMap[uconn],
+				ConnectionCount: uconnMap[uconn],
 			},
 			TargetDatabase:   targetDB,
 			TargetCollection: resConf.T.Structure.FrequentConnTable,
@@ -339,6 +338,23 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 				bson.M{"id_resp_h": uconn.dst},
 			}}
 		bulk.RemoveAll(deleteQuery)
+
+		// remove entry out of uconns map so it doesn't end up in uconns collection
+		delete(uconnMap, uconn)
+	}
+
+	// lets create some uconns
+	for uconn := range uconnMap {
+		datastore.Store(&ImportedData{
+			BroData: &parsetypes.Freq{
+				Source:          uconn.src,
+				Destination:     uconn.dst,
+				ConnectionCount: uconnMap[uconn],
+			},
+			TargetDatabase:   targetDB,
+			TargetCollection: resConf.T.Structure.UniqueConnTable,
+		})
+
 	}
 
 	// Flush the datastore to ensure that it finishes all of its writes
