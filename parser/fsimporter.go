@@ -250,11 +250,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// Fields: ID, Timestamp, UID, Source, SourcePort, Destination,
 							// DestinationPort, Proto, Service, Duration, OrigBytes, RespBytes,
 							// ConnState, LocalOrigin, LocalResponse, MissedBytes, History,
-							// OrigPkts, OrigIPBytes, RespPkts, RespIPBytes, TunnelParents
+							// OrigPkts, origIPBytes, RespPkts, respIPBytes, TunnelParents
 
 							var uconn uconnPair
 
-							// uconn fields: 
+							// uconn fields:
 
 							// Use reflection to access the conn entry's fields. At this point inside
 							// the if statement we know parseConn is a "conn" instance, but the code
@@ -262,7 +262,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							//uconn.id = 0
 							src := parseConn.FieldByName("Source").Interface().(string)
 							dst := parseConn.FieldByName("Destination").Interface().(string)
-							
+
 							// Concatenate the source and destination IPs to use as a map key
 							srcDst := src + dst
 
@@ -274,19 +274,18 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Safely store the number of conns for this uconn
 								mutex.Lock()
 
-								uconnMap[srcDst].src = src
-								uconnMap[srcDst].dst = dst
+								uconnMap[srcDst] = &uconnPair{src: src, dst: dst}
 
 								// Append all timestamps to tsList
 								ts := parseConn.FieldByName("Timestamp").Interface().(int)
 								uconnMap[srcDst].tsList = append(uconnMap[srcDst].tsList, ts)
 
-								origIpBytes := parseConn.FieldByName("OrigIPBytes").Interface().(int)
-								// Append all origIpBytes to origBytesList
-								uconnMap[srcDst].origBytesList = append(uconnMap[srcDst].origBytesList, origIpBytes)
+								origIPBytes := parseConn.FieldByName("origIPBytes").Interface().(int)
+								// Append all origIPBytes to origBytesList
+								uconnMap[srcDst].origBytesList = append(uconnMap[srcDst].origBytesList, origIPBytes)
 
-								respIpBytes := parseConn.FieldByName("RespIPBytes").Interface().(int)
-								bytes := origIpBytes + respIpBytes
+								respIPBytes := parseConn.FieldByName("respIPBytes").Interface().(int)
+								bytes := origIPBytes + respIPBytes
 								// todo: only set this once
 								uconnMap[srcDst].id = 0
 								uconnMap[srcDst].connectionCount = uconnMap[srcDst].connectionCount + 1
@@ -295,7 +294,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Calculate and store the total number of bytes exchanged by the uconn pair
 								uconnMap[srcDst].totalBytes = uconnMap[srcDst].totalBytes + bytes
 								totalBytes := uconnMap[srcDst].totalBytes
-								
+
 								// Calculate and store the rolling average number of bytes
 								uconnMap[srcDst].avgBytes = (totalBytes + bytes) / connCount
 
@@ -305,7 +304,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 								duration := parseConn.FieldByName("Duration").Interface().(int)
 
-								if (duration > uconnMap[srcDst].maxDuration) {
+								if duration > uconnMap[srcDst].maxDuration {
 									uconnMap[srcDst].maxDuration = duration
 								}
 
