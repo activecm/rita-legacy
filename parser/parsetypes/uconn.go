@@ -1,0 +1,35 @@
+package parsetypes
+
+import (
+	"github.com/activecm/rita/config"
+	"github.com/globalsign/mgo/bson"
+)
+
+type (
+	// Uconn provides a data structure for bro's unique connection data
+	Uconn struct {
+		// ID is the id coming out of mongodb
+		ID               bson.ObjectId `bson:"_id,omitempty"`
+		Source           string `bson:"src" bro:"id.orig_h" brotype:"addr"`
+		Destination      string `bson:"dst" bro:"id.resp_h" brotype:"addr"`
+		ConnectionCount  int    `bson:"connection_count" bro:"connection_count" brotype:"connection_count"`
+		LocalSource      bool   `bson:"local_src" bro:"local_orig" brotype:"bool"`
+		LocalDestination bool   `bson:"local_dst" bro:"local_resp" brotype:"bool"`
+		TotalBytes       int    `bson:"total_bytes" bro:"total_bytes" brotype:"total_bytes"`
+		AverageBytes     int    `bson:"avg_bytes" bro:"avg_bytes" brotype:"avg_bytes"`
+		TSList           []int  `bson:"ts_list" bro:"ts_list" brotype:"ts_list"`
+		OrigBytesList    []int  `bson:"orig_bytes_list" bro:"orig_bytes_list" brotype:"orig_bytes_list"`
+		MaxDuration      int    `bson:"max_duration" bro:"max_duration" brotype:"max_duration"`
+	}
+)
+
+//TargetCollection returns the mongo collection this entry should be inserted
+//into
+func (in *Uconn) TargetCollection(config *config.StructureTableCfg) string {
+	return config.FrequentConnTable
+}
+
+//Indices gives MongoDB indices that should be used with the collection
+func (in *Uconn) Indices() []string {
+	return []string{"$hashed:src", "$hashed:dst", "-connection_count"}
+}
