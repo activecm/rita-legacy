@@ -1,6 +1,8 @@
 package structure
 
 import (
+	"log"
+
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/resources"
 
@@ -31,6 +33,21 @@ func GetConnSourcesFromDest(res *resources.Resources, ip string) []string {
 //BuildUniqueConnectionsCollection finds the unique connection pairs
 //between sources and destinations
 func BuildUniqueConnectionsCollection(res *resources.Resources) {
+
+	// verify if uconns collection was already created at import time
+	names, err1 := res.DB.Session.DB(res.DB.GetSelectedDB()).CollectionNames()
+	if err1 != nil {
+		res.Log.Error("Failed to get coll names: ", err1)
+		return
+	}
+
+	for _, name := range names {
+		if name == res.Config.T.Structure.UniqueConnTable {
+			log.Printf("\t\t[>] Uconns collection already exists!")
+			return
+		}
+	}
+
 	// Create the aggregate command
 	sourceCollectionName,
 		newCollectionName,
