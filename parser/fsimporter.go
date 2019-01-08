@@ -36,14 +36,14 @@ type (
 		id              int
 		src             string
 		dst             string
-		connectionCount int
+		connectionCount int64
 		isLocalSrc      bool
 		isLocalDst      bool
-		totalBytes      int
-		avgBytes        int
-		maxDuration     int
-		tsList          []int
-		origBytesList   []int
+		totalBytes      int64
+		avgBytes        int64
+		maxDuration     float64
+		tsList          []int64
+		origBytesList   []int64
 	}
 )
 
@@ -232,10 +232,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						logger,
 					)
 					// The number of conns in a uconn
-					connCount := 0
+					//var connCount int64 = 0
 					// The maximum number of conns that will be stored
 					// We need to move this somewhere where the importer & analyzer can both access it
-					connLimit := fs.res.Config.S.Strobe.ConnectionLimit
+					var connLimit int64 = int64(fs.res.Config.S.Strobe.ConnectionLimit)
 
 					if data != nil {
 						//figure out what database this line is heading for
@@ -277,23 +277,23 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								uconnMap[srcDst] = &uconnPair{src: src, dst: dst}
 
 								// Append all timestamps to tsList
-								ts := parseConn.FieldByName("Timestamp").Interface().(int)
+								ts := parseConn.FieldByName("TimeStamp").Interface().(int64)
 								uconnMap[srcDst].tsList = append(uconnMap[srcDst].tsList, ts)
 
-								origIPBytes := parseConn.FieldByName("origIPBytes").Interface().(int)
+								origIPBytes := parseConn.FieldByName("OrigIPBytes").Interface().(int64)
 								// Append all origIPBytes to origBytesList
 								uconnMap[srcDst].origBytesList = append(uconnMap[srcDst].origBytesList, origIPBytes)
 
-								respIPBytes := parseConn.FieldByName("respIPBytes").Interface().(int)
-								bytes := origIPBytes + respIPBytes
+								respIPBytes := parseConn.FieldByName("RespIPBytes").Interface().(int64)
+								var bytes int64 = origIPBytes + respIPBytes
 								// todo: only set this once
 								uconnMap[srcDst].id = 0
 								uconnMap[srcDst].connectionCount = uconnMap[srcDst].connectionCount + 1
-								connCount = uconnMap[srcDst].connectionCount
+								var connCount int64 = uconnMap[srcDst].connectionCount
 
 								// Calculate and store the total number of bytes exchanged by the uconn pair
 								uconnMap[srcDst].totalBytes = uconnMap[srcDst].totalBytes + bytes
-								totalBytes := uconnMap[srcDst].totalBytes
+								var totalBytes int64 = uconnMap[srcDst].totalBytes
 
 								// Calculate and store the rolling average number of bytes
 								uconnMap[srcDst].avgBytes = (totalBytes + bytes) / connCount
@@ -302,7 +302,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								uconnMap[srcDst].isLocalSrc = parseConn.FieldByName("LocalOrigin").Interface().(bool)
 								uconnMap[srcDst].isLocalDst = parseConn.FieldByName("LocalResponse").Interface().(bool)
 
-								duration := parseConn.FieldByName("Duration").Interface().(int)
+								//var duration int64
+								var duration float64 = parseConn.FieldByName("Duration").Interface().(float64)
 
 								if duration > uconnMap[srcDst].maxDuration {
 									uconnMap[srcDst].maxDuration = duration

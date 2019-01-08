@@ -11,7 +11,7 @@ type (
 		// ID              bson.ObjectId `bson:"_id,omitempty"`
 		Source          string `bson:"src" bro:"id.orig_h" brotype:"addr"`
 		Destination     string `bson:"dst" bro:"id.resp_h" brotype:"addr"`
-		ConnectionCount int    `bson:"connection_count" bro:"connection_count" brotype:"connection_count"`
+		ConnectionCount int64  `bson:"connection_count" bro:"connection_count" brotype:"connection_count"`
 	}
 )
 
