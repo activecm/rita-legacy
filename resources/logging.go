@@ -43,7 +43,7 @@ func initLogger(logConfig *config.LogStaticCfg) *log.Logger {
 }
 
 func addFileLogger(logger *log.Logger, logPath string) {
-	time := time.Now().Format(util.TimeFormat)
+	time := time.Now().Format(util.DayFormat)
 	logPath = path.Join(logPath, time)
 	_, err := os.Stat(logPath)
 	if err != nil && os.IsNotExist(err) {
@@ -55,11 +55,11 @@ func addFileLogger(logger *log.Logger, logPath string) {
 	}
 
 	logger.Hooks.Add(lfshook.NewHook(lfshook.PathMap{
-		log.DebugLevel: path.Join(logPath, "debug.log"),
-		log.InfoLevel:  path.Join(logPath, "info.log"),
-		log.WarnLevel:  path.Join(logPath, "warn.log"),
-		log.ErrorLevel: path.Join(logPath, "error.log"),
-		log.FatalLevel: path.Join(logPath, "fatal.log"),
-		log.PanicLevel: path.Join(logPath, "panic.log"),
+		log.DebugLevel: path.Join(logPath, "rita.log"),
+		log.InfoLevel:  path.Join(logPath, "rita.log"),
+		log.WarnLevel:  path.Join(logPath, "rita.log"),
+		log.ErrorLevel: path.Join(logPath, "rita.log"),
+		log.FatalLevel: path.Join(logPath, "rita.log"),
+		log.PanicLevel: path.Join(logPath, "rita.log"),
 	}, nil))
 }

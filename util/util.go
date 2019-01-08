@@ -8,6 +8,8 @@ import (
 
 //TimeFormat stores a correctly formatted timestamp
 const TimeFormat string = "2006-01-02-T15:04:05-0700"
+//DayFormat stores a correctly formatted timestamp for the day
+const DayFormat string = "2006-01-02"
 
 // IsIP returns true if string is a valid IP address
 func IsIP(ip string) bool {

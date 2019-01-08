@@ -3,7 +3,11 @@ package commands
 import (
 	"runtime"
 	"strconv"
+	"time"
 
+	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -60,6 +64,16 @@ var (
 // bootstrapCommands simply adds a given command to the allCommands array
 func bootstrapCommands(commands ...cli.Command) {
 	for _, command := range commands {
+		command.Before = func(c *cli.Context) error {
+			//Get access to the logger
+			configFile := c.String("config")
+			res := resources.InitResources(configFile)
+
+			res.Log.WithFields(log.Fields{
+				"start_time": time.Now().Format(util.TimeFormat),
+			}).Info("Running Command: " + command.Name)
+			return nil
+		}
 		allCommands = append(allCommands, command)
 	}
 }
