@@ -3,10 +3,8 @@ package commands
 import (
 	"runtime"
 	"strconv"
-	"time"
 
 	"github.com/activecm/rita/resources"
-	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -70,7 +68,7 @@ func bootstrapCommands(commands ...cli.Command) {
 			res := resources.InitResources(configFile)
 
 			res.Log.WithFields(log.Fields{
-				"start_time": time.Now().Format(util.TimeFormat),
+				"Command arguments": c.Args(),
 			}).Info("Running Command: " + command.Name)
 			return nil
 		}
