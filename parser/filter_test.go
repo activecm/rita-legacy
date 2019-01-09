@@ -25,13 +25,13 @@ func TestFilterConnPairWithInternalSubnets(t *testing.T) {
 	}
 
 	// all permutations of being on internal, always, and never lists
-	internal :=              "10.0.0.0"
-	internal_always :=       "10.0.0.1"
-	internal_never :=        "10.0.0.2"
+	internal := "10.0.0.0"
+	internal_always := "10.0.0.1"
+	internal_never := "10.0.0.2"
 	internal_always_never := "10.0.0.3"
-	external :=              "1.1.1.0"
-	external_always :=       "1.1.1.1"
-	external_never :=        "1.1.1.2"
+	external := "1.1.1.0"
+	external_always := "1.1.1.1"
+	external_never := "1.1.1.2"
 	external_always_never := "1.1.1.3"
 
 	testCases := []testCase{
@@ -79,15 +79,15 @@ func TestFilterConnPairWithoutInternalSubnets(t *testing.T) {
 		indexingThreads: 1,
 		parseThreads:    1,
 		// purposely omitting internal subnet definition
-		alwaysIncluded:  getParsedSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
-		neverIncluded:   getParsedSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+		alwaysIncluded: getParsedSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
+		neverIncluded:  getParsedSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
 	}
 
 	// "internal" here is merely by convention as with no InternalSubnets
 	// defined, these should not be treated differently from external
-	internal :=              "10.0.0.0"
-	internal_never :=        "10.0.0.2"
-	external :=              "1.1.1.0"
+	internal := "10.0.0.0"
+	internal_never := "10.0.0.2"
+	external := "1.1.1.0"
 
 	// only including test cases which differ from when InternalSubnets is defined
 	testCases := []testCase{
