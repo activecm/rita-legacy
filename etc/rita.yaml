@@ -93,6 +93,7 @@ Filtering:
     #  - 192.168.0.0/16      # Private-Use Networks  RFC 1918
 
 BlackListed:
+    Enabled: true
     # These are blacklists built into rita-blacklist. Set these to false
     # to disable checks against them.
     myIP.ms: true
@@ -118,6 +119,7 @@ BlackListed:
     CustomHostnameBlacklists: []
 
 Beacon:
+    Enabled: true
     # The default minimum number of connections used for beacons analysis.
     # Any two hosts connecting fewer than this number will not be analyzed.
     # 20 was chosen as it is a little bit less than once per hour in a day,
@@ -128,6 +130,12 @@ Beacon:
     # increase this value to improve performance if you are not concerned
     # about slow beacons.
     DefaultConnectionThresh: 20
+
+DNS:
+    Enabled: true
+
+UserAgent:
+    Enabled: true
 
 Strobe:
     # This sets the maximum number of connections between any two given hosts that are stored.
