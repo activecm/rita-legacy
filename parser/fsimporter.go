@@ -282,8 +282,13 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								connCount = uconnMap[srcDst].connectionCount + 1
 								uconn.connectionCount = connCount
 
-								// Append all timestamps to tsList
-								uconn.tsList = append(uconnMap[srcDst].tsList, ts)
+								// Only append unique timestamps to tslist
+								timestamps := uconnMap[srcDst].tsList
+								if isUniqueTimestamp(ts, timestamps) {
+									uconn.tsList = append(timestamps, ts)
+								} else {
+									uconn.tsList = timestamps
+								}
 
 								// Append all origIPBytes to origBytesList
 								uconn.origBytesList = append(uconnMap[srcDst].origBytesList, origIPBytes)
@@ -356,6 +361,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	parsingWG.Wait()
 
 	return filterHugeUconnsMap, uconnMap
+}
+
+func isUniqueTimestamp(timestamp int64, timestamps []int64) bool {
+    for _, val := range timestamps {
+        if val == timestamp {
+            return false
+        }
+    }
+    return true
 }
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
