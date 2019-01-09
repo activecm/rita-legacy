@@ -16,7 +16,7 @@ type (
 		LocalSource      bool    `bson:"local_src" bro:"local_orig" brotype:"bool"`
 		LocalDestination bool    `bson:"local_dst" bro:"local_resp" brotype:"bool"`
 		TotalBytes       int64   `bson:"total_bytes" bro:"total_bytes" brotype:"total_bytes"`
-		AverageBytes     int64   `bson:"avg_bytes" bro:"avg_bytes" brotype:"avg_bytes"`
+		AverageBytes     float64 `bson:"avg_bytes" bro:"avg_bytes" brotype:"avg_bytes"`
 		TSList           []int64 `bson:"ts_list" bro:"ts_list" brotype:"ts_list"`
 		OrigBytesList    []int64 `bson:"orig_bytes_list" bro:"orig_bytes_list" brotype:"orig_bytes_list"`
 		MaxDuration      float64 `bson:"max_duration" bro:"max_duration" brotype:"max_duration"`

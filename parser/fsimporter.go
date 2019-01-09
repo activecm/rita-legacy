@@ -40,7 +40,7 @@ type (
 		isLocalSrc      bool
 		isLocalDst      bool
 		totalBytes      int64
-		avgBytes        int64
+		avgBytes        float64
 		maxDuration     float64
 		tsList          []int64
 		origBytesList   []int64
@@ -179,14 +179,14 @@ func indexFiles(files []string, indexingThreads int,
 //threads to use to parse the files, whether or not to sort data by date,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
-func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) ([]uconnPair, map[string]*uconnPair) {
+func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) ([]uconnPair, map[string]uconnPair) {
 
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
 
 	// Counts the number of uconns per source-destination pair
-	uconnMap := make(map[string]*uconnPair)
+	uconnMap := make(map[string]uconnPair)
 
 	// map to hold the too many connections uconns
 	var filterHugeUconnsMap []uconnPair
@@ -232,7 +232,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						logger,
 					)
 					// The number of conns in a uconn
-					//var connCount int64 = 0
+					var connCount int64 = 0
 					// The maximum number of conns that will be stored
 					// We need to move this somewhere where the importer & analyzer can both access it
 					var connLimit int64 = int64(fs.res.Config.S.Strobe.ConnectionLimit)
@@ -247,24 +247,28 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						// records
 						if targetCollection == fs.res.Config.T.Structure.ConnTable {
 							parseConn := reflect.ValueOf(data).Elem()
-							// Fields: ID, Timestamp, UID, Source, SourcePort, Destination,
-							// DestinationPort, Proto, Service, Duration, OrigBytes, RespBytes,
-							// ConnState, LocalOrigin, LocalResponse, MissedBytes, History,
-							// OrigPkts, origIPBytes, RespPkts, respIPBytes, TunnelParents
 
 							var uconn uconnPair
-
-							// uconn fields:
 
 							// Use reflection to access the conn entry's fields. At this point inside
 							// the if statement we know parseConn is a "conn" instance, but the code
 							// assumes a generic "BroType" interface.
-							//uconn.id = 0
-							src := parseConn.FieldByName("Source").Interface().(string)
-							dst := parseConn.FieldByName("Destination").Interface().(string)
+							uconn.id = 0
+							uconn.src = parseConn.FieldByName("Source").Interface().(string)
+							uconn.dst = parseConn.FieldByName("Destination").Interface().(string)
+							uconn.isLocalSrc = parseConn.FieldByName("LocalOrigin").Interface().(bool)
+							uconn.isLocalDst = parseConn.FieldByName("LocalResponse").Interface().(bool)
+
+							ts := parseConn.FieldByName("TimeStamp").Interface().(int64)
+							origIPBytes := parseConn.FieldByName("OrigIPBytes").Interface().(int64)
+							respIPBytes := parseConn.FieldByName("RespIPBytes").Interface().(int64)
+
+							duration := float64(parseConn.FieldByName("Duration").Interface().(float64))
+
+							bytes := int64(origIPBytes + respIPBytes)
 
 							// Concatenate the source and destination IPs to use as a map key
-							srcDst := src + dst
+							srcDst := uconn.src + uconn.dst
 
 							// Run conn pair through filter to filter out certain connections
 							ignore := false //fs.filterConnPair(uconn.src, uconn.dst)
@@ -274,39 +278,41 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Safely store the number of conns for this uconn
 								mutex.Lock()
 
-								uconnMap[srcDst] = &uconnPair{src: src, dst: dst}
+								// Increment the connection count for the src-dst pair
+								connCount = uconnMap[srcDst].connectionCount + 1
+								uconn.connectionCount = connCount
 
 								// Append all timestamps to tsList
-								ts := parseConn.FieldByName("TimeStamp").Interface().(int64)
-								uconnMap[srcDst].tsList = append(uconnMap[srcDst].tsList, ts)
+								uconn.tsList = append(uconnMap[srcDst].tsList, ts)
 
-								origIPBytes := parseConn.FieldByName("OrigIPBytes").Interface().(int64)
 								// Append all origIPBytes to origBytesList
-								uconnMap[srcDst].origBytesList = append(uconnMap[srcDst].origBytesList, origIPBytes)
-
-								respIPBytes := parseConn.FieldByName("RespIPBytes").Interface().(int64)
-								var bytes int64 = origIPBytes + respIPBytes
-								// todo: only set this once
-								uconnMap[srcDst].id = 0
-								uconnMap[srcDst].connectionCount = uconnMap[srcDst].connectionCount + 1
-								var connCount int64 = uconnMap[srcDst].connectionCount
+								uconn.origBytesList = append(uconnMap[srcDst].origBytesList, origIPBytes)
 
 								// Calculate and store the total number of bytes exchanged by the uconn pair
-								uconnMap[srcDst].totalBytes = uconnMap[srcDst].totalBytes + bytes
-								var totalBytes int64 = uconnMap[srcDst].totalBytes
+								uconn.totalBytes = uconnMap[srcDst].totalBytes + bytes
 
-								// Calculate and store the rolling average number of bytes
-								uconnMap[srcDst].avgBytes = (totalBytes + bytes) / connCount
+								// Calculate and store the average number of bytes
+								uconn.avgBytes = float64(((int64(uconnMap[srcDst].avgBytes) * connCount) + bytes) / (connCount + 1))
 
-								// todo: This needs more logic around this
-								uconnMap[srcDst].isLocalSrc = parseConn.FieldByName("LocalOrigin").Interface().(bool)
-								uconnMap[srcDst].isLocalDst = parseConn.FieldByName("LocalResponse").Interface().(bool)
-
-								//var duration int64
-								var duration float64 = parseConn.FieldByName("Duration").Interface().(float64)
-
+								// Replace existing duration if current duration is higher
 								if duration > uconnMap[srcDst].maxDuration {
-									uconnMap[srcDst].maxDuration = duration
+									uconn.maxDuration = duration
+								} else {
+									uconn.maxDuration = uconnMap[srcDst].maxDuration
+								}
+
+								uconnMap[srcDst] = uconnPair{
+									id:              uconn.id,
+	    						src:             uconn.src,
+	    						dst:             uconn.dst,
+	    						connectionCount: uconn.connectionCount,
+	    						isLocalSrc:      uconn.isLocalSrc,
+	    						isLocalDst:      uconn.isLocalDst,
+    							totalBytes:      uconn.totalBytes,
+    							avgBytes:        uconn.avgBytes,
+    							maxDuration:     uconn.maxDuration,
+    							tsList:          uconn.tsList,
+    							origBytesList:   uconn.origBytesList,
 								}
 
 								// Do not store more than the connLimit
@@ -354,7 +360,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
 // entries in the "conn" collection. It also creates new entries in the FrequentConnTable collection.
-func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap []uconnPair, uconnMap map[string]*uconnPair) {
+func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap []uconnPair, uconnMap map[string]uconnPair) {
 	resDB := fs.res.DB
 	resConf := fs.res.Config
 	logger := fs.res.Log
