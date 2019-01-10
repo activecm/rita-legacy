@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -17,6 +18,7 @@ import (
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
+	mgo "github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 )
@@ -308,16 +310,16 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 								uconnMap[srcDst] = uconnPair{
 									id:              uconn.id,
-	    						src:             uconn.src,
-	    						dst:             uconn.dst,
-	    						connectionCount: uconn.connectionCount,
-	    						isLocalSrc:      uconn.isLocalSrc,
-	    						isLocalDst:      uconn.isLocalDst,
-    							totalBytes:      uconn.totalBytes,
-    							avgBytes:        uconn.avgBytes,
-    							maxDuration:     uconn.maxDuration,
-    							tsList:          uconn.tsList,
-    							origBytesList:   uconn.origBytesList,
+									src:             uconn.src,
+									dst:             uconn.dst,
+									connectionCount: uconn.connectionCount,
+									isLocalSrc:      uconn.isLocalSrc,
+									isLocalDst:      uconn.isLocalDst,
+									totalBytes:      uconn.totalBytes,
+									avgBytes:        uconn.avgBytes,
+									maxDuration:     uconn.maxDuration,
+									tsList:          uconn.tsList,
+									origBytesList:   uconn.origBytesList,
 								}
 
 								// Do not store more than the connLimit
@@ -364,12 +366,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 }
 
 func isUniqueTimestamp(timestamp int64, timestamps []int64) bool {
-    for _, val := range timestamps {
-        if val == timestamp {
-            return false
-        }
-    }
-    return true
+	for _, val := range timestamps {
+		if val == timestamp {
+			return false
+		}
+	}
+	return true
 }
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
@@ -379,6 +381,26 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 	resConf := fs.res.Config
 	logger := fs.res.Log
 	var deleteQuery bson.M
+
+	// if we don't select the database here it will create a "test" database for the
+	// create collection command below
+	resDB.SelectDB(targetDB)
+
+	// create hosts collection
+	// Desired indexes
+	hostKeys := []mgo.Index{
+		{Key: []string{"ip"}, Unique: true},
+		{Key: []string{"local"}},
+		{Key: []string{"ipv4"}},
+		{Key: []string{"ipv4_binary"}},
+	}
+
+	// verify creation with indexes (if collection doesn't already exist), this
+	// will speed up the update insertion below
+	errorCheck := resDB.CreateCollection(resConf.T.Structure.HostTable, hostKeys)
+	if errorCheck != nil {
+		logger.Error("Failed: ", errorCheck)
+	}
 
 	// create a new datastore just for frequent connections since the old datastore
 	// will be Flushed by now and closed for writing
@@ -416,8 +438,9 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 		delete(uconnMap, srcDst)
 	}
 
-	// lets create some uconns
+	fmt.Println("\t[-] Creating Uconns and Hosts Collections. This may take a while.")
 	for uconn := range uconnMap {
+		// add uconn pair to uconn table
 		datastore.Store(&ImportedData{
 			BroData: &parsetypes.Uconn{
 				Source:           uconnMap[uconn].src,
@@ -434,6 +457,52 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 			TargetDatabase:   targetDB,
 			TargetCollection: resConf.T.Structure.UniqueConnTable,
 		})
+
+		// **** add uconn src to hosts table if it doesn't already exist *** //
+		// check if ipv4
+		srcIP4 := isIPv4(uconnMap[uconn].src)
+
+		// set up update query
+		srcQuery := bson.D{
+			{"$setOnInsert", bson.M{"local": uconnMap[uconn].isLocalSrc}},
+			{"$setOnInsert", bson.M{"ipv4": srcIP4}},
+			{"$inc", bson.M{"count_src": 1}},
+			{"$max", bson.M{"max_duration": uconnMap[uconn].maxDuration}},
+		}
+
+		// add ipv4 binary if ipv4
+		if srcIP4 {
+			srcIPv4bin := ipv4ToBinary(net.ParseIP(uconnMap[uconn].src))
+			srcQuery = append(srcQuery, bson.DocElem{"$setOnInsert", bson.M{"ipv4_binary": srcIPv4bin}})
+		} //else{} // future ipv6 support will have ipv6 binary added here
+
+		// update hosts field
+		ssn.DB(targetDB).C(resConf.T.Structure.HostTable).Upsert(
+			bson.M{"ip": uconnMap[uconn].src},
+			srcQuery)
+
+		// **** add uconn dst to hosts table if it doesn't already exist *** //
+		// check if ipv4
+		dstIP4 := isIPv4(uconnMap[uconn].dst)
+
+		// set up update query
+		dstQuery := bson.D{
+			{"$setOnInsert", bson.M{"local": uconnMap[uconn].isLocalDst}},
+			{"$setOnInsert", bson.M{"ipv4": dstIP4}},
+			{"$inc", bson.M{"count_dst": 1}},
+			{"$max", bson.M{"max_duration": uconnMap[uconn].maxDuration}},
+		}
+
+		// add ipv4 binary if ipv4
+		if dstIP4 {
+			dstIPv4bin := ipv4ToBinary(net.ParseIP(uconnMap[uconn].dst))
+			dstQuery = append(dstQuery, bson.DocElem{"$setOnInsert", bson.M{"ipv4_binary": dstIPv4bin}})
+		} //else{} // future ipv6 support will have ipv6 binary added here
+
+		// update hosts field
+		ssn.DB(targetDB).C(resConf.T.Structure.HostTable).Upsert(
+			bson.M{"ip": uconnMap[uconn].dst},
+			dstQuery)
 
 	}
 
@@ -497,4 +566,14 @@ func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.Me
 	if err != nil {
 		logger.Error("Could not update the list of parsed files")
 	}
+}
+
+//isIPv4 checks if an ip is ipv4
+func isIPv4(address string) bool {
+	return strings.Count(address, ":") < 2
+}
+
+//ipv4ToBinary generates binary representations of the IPv4 addresses
+func ipv4ToBinary(ipv4 net.IP) int64 {
+	return int64(binary.BigEndian.Uint32(ipv4[12:16]))
 }
