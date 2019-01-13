@@ -6,21 +6,26 @@ import(
 	"github.com/globalsign/mgo/bson"
 )
 
-func (fs *FSImporter) Insert(freqConn *freqConn, datastore) {
-	datastore.Store(&ImportedData{
-		BroData: &parsetypes.Freq{
-			Source:          freqConn.src,
-			Destination:     freqConn.dst,
-			ConnectionCount: freqConn.connectionCount,
-		},
-		TargetDatabase:   targetDB,
-		TargetCollection: resConf.T.Structure.FrequentConnTable,
-	})
+type repo struct {
+	pool *mgosession.Pool
+}
+
+//NewMongoRepository create new repository
+func NewMongoRepository(p *mgosession.Pool) Repository {
+	return &repo{
+		pool: p,
+	}
+}
+
+func (r *repo) Insert(freqConn *freqConn, targetDB string) error {
+	session := r.pool.Session(nil)
+	coll := session.DB(targetDB).C("freqConn")
+
+	err := coll.Insert(freqConn)
 
 	if err != nil {
-		logger.WithFields(log.Fields{
-			"bulkResult": bulkResult,
-			"error":      err.Error(),
-		}).Error("Could not delete frequent conn entries.")
+		return err
 	}
+
+	return nil
 }

@@ -1,35 +1,30 @@
 package uconn
 
 import(
+	"github.com/juju/mgosession"
 	"github.com/activecm/rita/parser/parsetypes"
-	mgo "github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
-)
 
-func (fs *FSImporter) Insert(uconn *Uconn) error {
-	resDB := fs.res.DB
-	resConf := fs.res.Config
-	logger := fs.res.Log
+	)
 
-	ssn := resDB.Session.Copy()
-	defer ssn.Close()
+type repo struct {
+	pool *mgosession.Pool
+}
 
-	fmt.Println("\t[-] Creating Uconns and Hosts Collections. This may take a while.")
-	// add uconn pair to uconn table
-	datastore.Store(&ImportedData{
-		BroData: &parsetypes.Uconn{
-			Source:           uconn.src,
-			Destination:      uconn.dst,
-			ConnectionCount:  uconn.connectionCount,
-			LocalSource:      uconn.isLocalSrc,
-			LocalDestination: uconn.isLocalDst,
-			TotalBytes:       uconn.totalBytes,
-			AverageBytes:     uconn.avgBytes,
-			MaxDuration:      uconn.maxDuration,
-			TSList:           uconn.tsList,
-			OrigBytesList:    uconn.origBytesList,
-		},
-		TargetDatabase:   targetDB,
-		TargetCollection: resConf.T.Structure.UniqueConnTable,
-	})
+//NewMongoRepository create new repository
+func NewMongoRepository(p *mgosession.Pool) Repository {
+	return &repo{
+		pool: p,
+	}
+}
+
+func (r *repo) Insert(uconn *parsetypes.Uconn, targetDB string) error {
+	session := r.pool.Session(nil)
+	coll := session.DB(targetDB).C("uconn")
+
+	err := coll.Insert(uconn)
+
+	if err != nil {
+		return err
+	}
+	return nil
 }

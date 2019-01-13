@@ -6,10 +6,20 @@ import(
 	"github.com/globalsign/mgo/bson"
 )
 
-func (fs *FSImporter) Create(host *Host) error {
-	resDB := fs.res.DB
-	resConf := fs.res.Config
-	logger := fs.res.Log
+type repo struct {
+	pool *mgosession.Pool
+}
+
+//NewMongoRepository create new repository
+func NewMongoRepository(p *mgosession.Pool) Repository {
+	return &repo{
+		pool: p,
+	}
+}
+
+func (r *repo) Create(host *Host, targetDB string) error {
+	session := r.pool.Session(nil)
+	coll := session.DB(targetDB).C("host")
 
 	// create hosts collection
 	// Desired indexes
@@ -20,16 +30,14 @@ func (fs *FSImporter) Create(host *Host) error {
 		{Key: []string{"ipv4_binary"}},
 	}
 
-	errorCheck := resDB.CreateCollection(resConf.T.Structure.HostTable, hostKeys)
-		if errorCheck != nil {
-		logger.Error("Failed: ", errorCheck)
+	err := resDB.CreateCollection(resConf.T.Structure.HostTable, hostKeys)
+	if err != nil {
+		return err
 	}
+	return nil
 }
 
-func (fs *FSImporter) Update(host *Host) error {
-	resDB := fs.res.DB
-	resConf := fs.res.Config
-	logger := fs.res.Log
+func (r *repo) Upsert(host *Host, targetDB string) error {
 
 	// set up update query
 	srcQuery := bson.D{
