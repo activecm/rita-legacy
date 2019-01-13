@@ -71,13 +71,13 @@ func bootstrapCommands(commands ...cli.Command) {
 			}
 			//Display flag info in logs
 			for _, it := range c.GlobalFlagNames() {
-				if c.IsSet( it ) {
-					derp["Global Flag(" + it + ")"] = c.GlobalGeneric(it)
+				if c.IsSet(it) {
+					derp["Global Flag("+it+")"] = c.GlobalGeneric(it)
 				}
 			}
 			for _, it := range c.FlagNames() {
-				if c.IsSet( it ) {
-					derp["Flag(" + it + ")"] = c.Generic(it)
+				if c.IsSet(it) {
+					derp["Flag("+it+")"] = c.Generic(it)
 				}
 			}
 			res.Log.WithFields(derp).Info("Running Command: " + command.Name)
