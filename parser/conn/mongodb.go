@@ -6,13 +6,13 @@ import(
 )
 
 type repo struct {
-	pool *mgosession.Pool
+	db *database.DB
 }
 
 //NewMongoRepository create new repository
-func NewMongoRepository(p *mgosession.Pool) Repository {
+func NewMongoRepository(database *database.DB) Repository {
 	return &repo{
-		pool: p,
+		db: database,
 	}
 }
 

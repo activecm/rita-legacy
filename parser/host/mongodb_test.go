@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"gopkg.in/mgo.v2/dbtest"
+	"github.com/globalsign/mgo/dbtest"
 )
 
 // Server holds the dbtest DBServer
@@ -30,19 +30,18 @@ func TestMain(m *testing.M) {
 	Server.SetPath(tempDir)
 
 	// Set the main session variable to the temporary MongoDB instance
-	Session := Server.Session()
+	ssn := Server.Session()
 
-	mPool := mgosession.NewPool(nil, Session, 1)
-	defer mPool.Close()
+	db := database.DB{Session: ssn}
 
-	testRepo = NewMongoRepository(mPool)
+	testRepo = NewMongoRepository(&db)
 
 	// Run the test suite
 	retCode := m.Run()
 
 	// Clean up test database and session
-	Session.DB(testTargetDB).DropDatabase()
-	Session.Close()
+	ssn.DB(testTargetDB).DropDatabase()
+	ssn.Close()
 
 	// Shut down the temporary server and removes data on disk.
 	Server.Stop()

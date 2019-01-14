@@ -1,36 +1,48 @@
 package host
 
 import(
-	"github.com/juju/mgosession"
-	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/globalsign/mgo"
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/globalsign/mgo/bson"
+	"github.com/activecm/rita/database"
 )
+
 type repo struct {
-	pool *mgosession.Pool
+	db *database.DB
 }
 
 //NewMongoRepository create new repository
-func NewMongoRepository(p *mgosession.Pool) Repository {
+func NewMongoRepository(database *database.DB) Repository {
 	return &repo{
-		pool: p,
+		db: database,
 	}
 }
 
 func (r *repo) CreateIndexes(targetDB string) error {
-	session := r.pool.Session(nil)
-	db := session.DB(targetDB)
+	r.db.SelectDB(targetDB)
+	session := r.db.Session.Copy()
+	defer session.Close()
+	
+	coll := session.DB(targetDB).C("host")
 
 	// create hosts collection
 	// Desired indexes
-	hostKeys := []mgo.Index{
+	index := []mgo.Index{
 		{Key: []string{"ip"}, Unique: true},
 		{Key: []string{"local"}},
 		{Key: []string{"ipv4"}},
 		{Key: []string{"ipv4_binary"}},
 	}
 
-	err := db.CreateCollection(resConf.T.Structure.HostTable, hostKeys)
+	indexes := mgo.Index{
+		Key: []string{"ip"},
+		Unique: true,
+		DropDups: true,
+		Background: false,
+    	Sparse: false,
+    }
+
+	err := coll.EnsureIndex(indexes)
 	if err != nil {
 		return err
 	}
@@ -38,20 +50,23 @@ func (r *repo) CreateIndexes(targetDB string) error {
 }
 
 func (r *repo) Upsert(host *parsetypes.Host, targetDB string) error {
-	session := r.pool.Session(nil)
+	r.db.SelectDB(targetDB)
+	session := r.db.Session.Copy()
+	defer session.Close()
+
 	coll := session.DB(targetDB).C("host")
 
 	// set up update query
 	query := bson.D{
-		{"$setOnInsert", bson.M{"local": host.isLocalSrc}},
-		{"$setOnInsert", bson.M{"ipv4": srcIP4}},
+		{"$setOnInsert", bson.M{"local": host.Local}},
+		{"$setOnInsert", bson.M{"ipv4": host.IPv4}},
 		{"$inc", bson.M{"count_src": 1}},
-		{"$max", bson.M{"max_duration": host.maxDuration}},
+		{"$max", bson.M{"max_duration": host.MaxDuration}},
 	}
 
 	// update hosts field
-	err := coll.(resConf.T.Structure.HostTable).Upsert(
-		bson.M{"ip": host.src},
+	err := coll.Upsert(
+		bson.M{"ip": host.IP},
 		query)
 
 	if err != nil {

@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/activecm/rita/parser/parsetypes"
-	"gopkg.in/mgo.v2/dbtest"
-	"github.com/juju/mgosession"
+	"github.com/globalsign/mgo/dbtest"
+	"github.com/activecm/rita/database"
 )
 
 // Server holds the dbtest DBServer
@@ -16,7 +16,7 @@ var Server dbtest.DBServer
 // Set the test database
 var testTargetDB = "tmp_test_db"
 
-var uconnRepo Repository
+var testRepo Repository
 
 func TestInsert(t *testing.T) {
 	testUconn := &parsetypes.Uconn{
@@ -33,7 +33,7 @@ func TestInsert(t *testing.T) {
 		MaxDuration: 12,
 	}
 
-	err := uconnRepo.Insert(testUconn, testTargetDB)
+	err := testRepo.Insert(testUconn, testTargetDB)
 	if err != nil {
 		t.Errorf("Error inserting uconn")
 	}
@@ -41,31 +41,25 @@ func TestInsert(t *testing.T) {
 
 // TestMain wraps all tests with the needed initialized mock DB and fixtures
 func TestMain(m *testing.M) {
-	// The tempdir is created so MongoDB has a location to store its files.
-	// Contents are wiped once the server stops
+	// Store temporary databases files in a temporary directory
 	tempDir, _ := ioutil.TempDir("", "testing")
 	Server.SetPath(tempDir)
 
-	// My main session var is now set to the temporary MongoDB instance
-	Session := Server.Session()
+	// Set the main session variable to the temporary MongoDB instance
+	ssn := Server.Session()
 
-	mPool := mgosession.NewPool(nil, Session, 1)
-	defer mPool.Close()
+	db := database.DB{Session: ssn}
 
-	uconnRepo = NewMongoRepository(mPool)
-
-	// Make sure to insert my fixtures
-	//testing.T.TestInsert()
+	testRepo = NewMongoRepository(&db)
 
 	// Run the test suite
 	retCode := m.Run()
 
-	// Make sure we DropDatabase so we make absolutely sure nothing is left or locked while wiping the data and
-	// close session
-	Session.DB(targetDB).DropDatabase()
-	Session.Close()
+	// Clean up test database and session
+	ssn.DB(testTargetDB).DropDatabase()
+	ssn.Close()
 
-	// Stop shuts down the temporary server and removes data on disk.
+	// Shut down the temporary server and removes data on disk.
 	Server.Stop()
 
 	// call with result of m.Run()

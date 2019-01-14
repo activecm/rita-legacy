@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/activecm/rita/parser/parsetypes"
-	"gopkg.in/mgo.v2/dbtest"
-	"github.com/juju/mgosession"
+	"github.com/globalsign/mgo/dbtest"
+	"github.com/activecm/rita/database"
 )
 
 // Server holds the dbtest DBServer
@@ -38,19 +38,18 @@ func TestMain(m *testing.M) {
 	Server.SetPath(tempDir)
 
 	// Set the main session variable to the temporary MongoDB instance
-	Session := Server.Session()
+	ssn := Server.Session()
 
-	mPool := mgosession.NewPool(nil, Session, 1)
+	db := database.DB{Session: ssn}
 
-	testRepo = NewMongoRepository(mPool)
+	testRepo = NewMongoRepository(&db)
 
 	// Run the test suite
 	retCode := m.Run()
 
 	// Clean up test database and session
-	Session.DB(testTargetDB).DropDatabase()
-	Session.Close()
-	mPool.Close()
+	ssn.DB(testTargetDB).DropDatabase()
+	ssn.Close()
 
 	// Shut down the temporary server and removes data on disk.
 	Server.Stop()
