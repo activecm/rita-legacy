@@ -3,8 +3,7 @@ package uconn
 import(
 	"github.com/juju/mgosession"
 	"github.com/activecm/rita/parser/parsetypes"
-
-	)
+)
 
 type repo struct {
 	pool *mgosession.Pool
@@ -19,10 +18,10 @@ func NewMongoRepository(p *mgosession.Pool) Repository {
 
 func (r *repo) Insert(uconn *parsetypes.Uconn, targetDB string) error {
 	session := r.pool.Session(nil)
+	defer session.Close()
 	coll := session.DB(targetDB).C("uconn")
 
 	err := coll.Insert(uconn)
-
 	if err != nil {
 		return err
 	}

@@ -1,9 +1,8 @@
-package freqConn
+package freq
 
 import(
+	"github.com/juju/mgosession"
 	"github.com/activecm/rita/parser/parsetypes"
-	mgo "github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
@@ -17,15 +16,15 @@ func NewMongoRepository(p *mgosession.Pool) Repository {
 	}
 }
 
-func (r *repo) Insert(freqConn *freqConn, targetDB string) error {
+func (r *repo) Insert(freq *parsetypes.Freq, targetDB string) error {
 	session := r.pool.Session(nil)
-	coll := session.DB(targetDB).C("freqConn")
+	defer session.Close()
+	coll := session.DB(targetDB).C("freq")
 
-	err := coll.Insert(freqConn)
+	err := coll.Insert(freq)
 
 	if err != nil {
 		return err
 	}
-
 	return nil
 }

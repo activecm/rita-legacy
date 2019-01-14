@@ -1,9 +1,8 @@
 package conn
 
 import(
+	"github.com/juju/mgosession"
 	"github.com/activecm/rita/parser/parsetypes"
-	mgo "github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
@@ -17,7 +16,7 @@ func NewMongoRepository(p *mgosession.Pool) Repository {
 	}
 }
 
-func (r *repo) BulkDeleteSetup(conns []*Conn) error {
+func (r *repo) BulkDelete(conns []*Conn, targetDB string) error {
 	session := r.pool.Session(nil)
 	coll := session.DB(targetDB).C("conn")
 

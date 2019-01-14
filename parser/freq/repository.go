@@ -1,7 +1,7 @@
-package freqConn
+package freq
 
 import("github.com/activecm/rita/parser/parsetypes")
 
 type Repository interface {
-	Insert(freqConn *freqConn, targetDB string) error
+	Insert(freqConn *parsetypes.Freq, targetDB string) error
 }

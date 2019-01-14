@@ -1,11 +1,11 @@
 package host
 
 import(
+	"github.com/juju/mgosession"
 	"github.com/activecm/rita/parser/parsetypes"
-	mgo "github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
+	"github.com/globalsign/mgo"
+	"github.com/activecm/rita/resources"
 )
-
 type repo struct {
 	pool *mgosession.Pool
 }
@@ -17,9 +17,9 @@ func NewMongoRepository(p *mgosession.Pool) Repository {
 	}
 }
 
-func (r *repo) Create(host *Host, targetDB string) error {
+func (r *repo) CreateIndexes(targetDB string) error {
 	session := r.pool.Session(nil)
-	coll := session.DB(targetDB).C("host")
+	db := session.DB(targetDB)
 
 	// create hosts collection
 	// Desired indexes
@@ -30,54 +30,32 @@ func (r *repo) Create(host *Host, targetDB string) error {
 		{Key: []string{"ipv4_binary"}},
 	}
 
-	err := resDB.CreateCollection(resConf.T.Structure.HostTable, hostKeys)
+	err := db.CreateCollection(resConf.T.Structure.HostTable, hostKeys)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *repo) Upsert(host *Host, targetDB string) error {
+func (r *repo) Upsert(host *parsetypes.Host, targetDB string) error {
+	session := r.pool.Session(nil)
+	coll := session.DB(targetDB).C("host")
 
 	// set up update query
-	srcQuery := bson.D{
+	query := bson.D{
 		{"$setOnInsert", bson.M{"local": host.isLocalSrc}},
 		{"$setOnInsert", bson.M{"ipv4": srcIP4}},
 		{"$inc", bson.M{"count_src": 1}},
 		{"$max", bson.M{"max_duration": host.maxDuration}},
 	}
 
-	// add ipv4 binary if ipv4
-	if srcIP4 {
-		srcIPv4bin := ipv4ToBinary(net.ParseIP(host.src))
-		srcQuery = append(srcQuery, bson.DocElem{"$setOnInsert", bson.M{"ipv4_binary": srcIPv4bin}})
-	} //else{} // future ipv6 support will have ipv6 binary added here
-
 	// update hosts field
-	ssn.DB(targetDB).C(resConf.T.Structure.HostTable).Upsert(
-		bson.M{"ip": uconnMap[uconn].src},
-		srcQuery)
+	err := coll.(resConf.T.Structure.HostTable).Upsert(
+		bson.M{"ip": host.src},
+		query)
 
-			// **** add uconn dst to hosts table if it doesn't already exist *** //
-	// check if ipv4
-	dstIP4 := isIPv4(uconnMap[uconn].dst)
-
-	// set up update query
-	dstQuery := bson.D{
-		{"$setOnInsert", bson.M{"local": uconnMap[uconn].isLocalDst}},
-		{"$setOnInsert", bson.M{"ipv4": dstIP4}},
-		{"$inc", bson.M{"count_dst": 1}},
-		{"$max", bson.M{"max_duration": uconnMap[uconn].maxDuration}},
+	if err != nil {
+		return err
 	}
-
-	// add ipv4 binary if ipv4
-	if dstIP4 {
-		dstIPv4bin := ipv4ToBinary(net.ParseIP(uconnMap[uconn].dst))
-		dstQuery = append(dstQuery, bson.DocElem{"$setOnInsert", bson.M{"ipv4_binary": dstIPv4bin}})
-	} //else{} // future ipv6 support will have ipv6 binary added here
-
-	// update hosts field
-	ssn.DB(targetDB).C(resConf.T.Structure.HostTable).Upsert(
-		bson.M{"ip": uconnMap[uconn].dst},
-		dstQuery)
+	return nil
 }
