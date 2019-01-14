@@ -66,21 +66,22 @@ func bootstrapCommands(commands ...cli.Command) {
 			//Get access to the logger
 			configFile := c.String("config")
 			res := resources.InitResources(configFile)
-			derp := log.Fields{
-				"Command arguments": c.Args(),
+			//Display args in logs
+			fields := log.Fields{
+				"Arguments": c.Args(),
 			}
 			//Display flag info in logs
 			for _, it := range c.GlobalFlagNames() {
 				if c.IsSet(it) {
-					derp["Global Flag("+it+")"] = c.GlobalGeneric(it)
+					fields["Global Flag("+it+")"] = c.GlobalGeneric(it)
 				}
 			}
 			for _, it := range c.FlagNames() {
 				if c.IsSet(it) {
-					derp["Flag("+it+")"] = c.Generic(it)
+					fields["Flag("+it+")"] = c.Generic(it)
 				}
 			}
-			res.Log.WithFields(derp).Info("Running Command: " + command.Name)
+			res.Log.WithFields(fields).Info("Running Command: " + command.Name)
 			return nil
 		}
 		allCommands = append(allCommands, command)
