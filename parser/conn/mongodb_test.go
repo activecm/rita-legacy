@@ -1,13 +1,13 @@
-package host
+package conn
 
 import (
 	"io/ioutil"
 	"os"
 	"testing"
 
+	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/globalsign/mgo/dbtest"
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/parser/parsetypes"
 )
 
 // Server holds the dbtest DBServer
@@ -18,34 +18,15 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-func TestCreateIndexes(t *testing.T) {
-	err := testRepo.CreateIndexes(testTargetDB)
-	if err != nil {
-		t.Errorf("Error creating host indexes")
-	}
-}
-
-func TestUpsert(t *testing.T) {
-	testHost := &parsetypes.Host{
-		IP: "127.0.0.1",
-		Local: true,
-		IPv4: true,
-		CountSrc: 123,
-		CountDst: 123,
-		IPv4Binary: 123,
-		MaxDuration: 123.0,
-		MaxBeaconScore: 123.0,
-		MaxBeaconConnCount: 123,
-		BlOutCount: 123,
-		BlInCount: 123,
-		BlSumAvgBytes: 123,
-		BlTotalBytes: 123,
-		TxtQueryCount: 123,
+func TestBulkDelete(t *testing.T) {
+	testConns := []*parsetypes.Conn{
+		{Source: "127.0.0.1", Destination: "127.0.0.1"},
+		{Source: "123.0.0.1", Destination: "127.0.0.1"},
 	}
 
-	err := testRepo.Upsert(testHost, testTargetDB)
+	err := testRepo.BulkDelete(testConns, testTargetDB)
 	if err != nil {
-		t.Errorf("Error creating host indexes")
+		t.Errorf("Error inserting freq")
 	}
 }
 

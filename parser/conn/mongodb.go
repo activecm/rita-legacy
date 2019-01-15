@@ -1,8 +1,9 @@
 package conn
 
 import(
-	"github.com/juju/mgosession"
 	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/database"
+	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
@@ -16,24 +17,27 @@ func NewMongoRepository(database *database.DB) Repository {
 	}
 }
 
-func (r *repo) BulkDelete(conns []*Conn, targetDB string) error {
-	session := r.pool.Session(nil)
+func (r *repo) BulkDelete(conns []*parsetypes.Conn, targetDB string) error {
+	r.db.SelectDB(targetDB)
+	session := r.db.Session.Copy()
+	defer session.Close()
+
 	coll := session.DB(targetDB).C("conn")
 
 	bulk := coll.Bulk()
 	bulk.Unordered()
 
-	for _, uconn := range uconns {
+	for _, conn := range conns {
 		deleteQuery := bson.M{
 			"$and": []bson.M{
-				bson.M{"id_orig_h": uconn.src},
-				bson.M{"id_resp_h": uconn.dst},
+				bson.M{"id_orig_h": conn.Source},
+				bson.M{"id_resp_h": conn.Destination},
 			}}
 		bulk.RemoveAll(deleteQuery)
 	}
 
 	// Execute the bulk deletion
-	err := bulk.Run()
+	_, err := bulk.Run()
 	if err != nil {
 		return err
 	}

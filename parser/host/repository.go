@@ -1,6 +1,8 @@
 package host
 
-import("github.com/activecm/rita/parser/parsetypes")
+import(
+	"github.com/activecm/rita/parser/parsetypes"
+)
 
 type Repository interface {
 	CreateIndexes(targetDB string) error

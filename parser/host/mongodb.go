@@ -27,24 +27,18 @@ func (r *repo) CreateIndexes(targetDB string) error {
 
 	// create hosts collection
 	// Desired indexes
-	index := []mgo.Index{
+	indexes := []mgo.Index{
 		{Key: []string{"ip"}, Unique: true},
 		{Key: []string{"local"}},
 		{Key: []string{"ipv4"}},
 		{Key: []string{"ipv4_binary"}},
 	}
 
-	indexes := mgo.Index{
-		Key: []string{"ip"},
-		Unique: true,
-		DropDups: true,
-		Background: false,
-    	Sparse: false,
-    }
-
-	err := coll.EnsureIndex(indexes)
-	if err != nil {
-		return err
+	for _, index := range indexes {
+		err := coll.EnsureIndex(index)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -62,10 +56,11 @@ func (r *repo) Upsert(host *parsetypes.Host, targetDB string) error {
 		{"$setOnInsert", bson.M{"ipv4": host.IPv4}},
 		{"$inc", bson.M{"count_src": 1}},
 		{"$max", bson.M{"max_duration": host.MaxDuration}},
+		{"$setOnInsert", bson.M{"ipv4_binary": host.IPv4Binary}},
 	}
 
 	// update hosts field
-	err := coll.Upsert(
+	_, err := coll.Upsert(
 		bson.M{"ip": host.IP},
 		query)
 
