@@ -18,6 +18,8 @@ type (
 		Log          LogStaticCfg         `yaml:"LogConfig"`
 		Blacklisted  BlacklistedStaticCfg `yaml:"BlackListed"`
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
+		DNS          DNSStaticCfg         `yaml:"DNS"`
+		UserAgent    UserAgentStaticCfg   `yaml:"UserAgent"`
 		Bro          BroStaticCfg         `yaml:"Bro"`
 		Filtering    FilteringStaticCfg   `yaml:"Filtering"`
 		Strobe       StrobeStaticCfg      `yaml:"Strobe"`
@@ -63,6 +65,7 @@ type (
 
 	//BlacklistedStaticCfg is used to control the blacklisted analysis module
 	BlacklistedStaticCfg struct {
+		Enabled            bool     `yaml:"Enabled" default:"true"`
 		UseIPms            bool     `yaml:"myIP.ms" default:"true"`
 		UseDNSBH           bool     `yaml:"MalwareDomains.com" default:"true"`
 		UseMDL             bool     `yaml:"MalwareDomainList.com" default:"true"`
@@ -73,7 +76,18 @@ type (
 
 	//BeaconStaticCfg is used to control the beaconing analysis module
 	BeaconStaticCfg struct {
-		DefaultConnectionThresh int `yaml:"DefaultConnectionThresh" default:"20"`
+		Enabled                 bool `yaml:"Enabled" default:"true"`
+		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
+	}
+
+	//DNSStaticCfg is used to control the DNS analysis module
+	DNSStaticCfg struct {
+		Enabled bool `yaml:"Enabled" default:"true"`
+	}
+
+	//UserAgentStaticCfg is used to control the User Agent analysis module
+	UserAgentStaticCfg struct {
+		Enabled bool `yaml:"Enabled" default:"true"`
 	}
 
 	//FilteringStaticCfg controls address filtering

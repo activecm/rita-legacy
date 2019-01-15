@@ -141,31 +141,42 @@ func analyze(inDb string, res *resources.Resources, resetFlag bool) error {
 		logAnalysisFunc("Unique Connections", td, res,
 			structure.BuildUniqueConnectionsCollection,
 		)
-		// must go after uconns
-		logAnalysisFunc("Beaconing", td, res,
-			beacon.BuildBeaconCollection,
-		)
+
+		if res.Config.S.Beacon.Enabled {
+			// must go after uconns
+			logAnalysisFunc("Beaconing", td, res,
+				beacon.BuildBeaconCollection,
+			)
+		}
+
 		// must go after beaconing
 		logAnalysisFunc("Unique Hosts", td, res,
 			func(innerRes *resources.Resources) {
 				structure.BuildHostsCollection(innerRes)
 			},
 		)
-		logAnalysisFunc("Unique Hostnames", td, res,
-			dns.BuildHostnamesCollection,
-		)
 
-		logAnalysisFunc("Exploded DNS", td, res,
-			dns.BuildExplodedDNSCollection,
-		)
+		if res.Config.S.DNS.Enabled {
+			logAnalysisFunc("Unique Hostnames", td, res,
+				dns.BuildHostnamesCollection,
+			)
 
-		logAnalysisFunc("User Agent", td, res,
-			useragent.BuildUserAgentCollection,
-		)
+			logAnalysisFunc("Exploded DNS", td, res,
+				dns.BuildExplodedDNSCollection,
+			)
+		}
 
-		logAnalysisFunc("Blacklisted", td, res,
-			blacklist.BuildBlacklistedCollections,
-		)
+		if res.Config.S.UserAgent.Enabled {
+			logAnalysisFunc("User Agent", td, res,
+				useragent.BuildUserAgentCollection,
+			)
+		}
+
+		if res.Config.S.Blacklisted.Enabled {
+			logAnalysisFunc("Blacklisted", td, res,
+				blacklist.BuildBlacklistedCollections,
+			)
+		}
 
 		res.MetaDB.MarkDBAnalyzed(td, true)
 		endIndiv := time.Now()
