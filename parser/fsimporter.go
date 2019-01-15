@@ -18,9 +18,11 @@ import (
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
-	mgo "github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
+	"github.com/activecm/rita/parser/uconn"
+	"github.com/activecm/rita/parser/conn"
+	"github.com/activecm/rita/parser/host"
+	"github.com/activecm/rita/parser/freq"
 )
 
 type (
@@ -377,72 +379,42 @@ func isUniqueTimestamp(timestamp int64, timestamps []int64) bool {
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
 // entries in the "conn" collection. It also creates new entries in the FrequentConnTable collection.
 func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap []uconnPair, uconnMap map[string]uconnPair) {
+	var logger *log.Logger
 	resDB := fs.res.DB
-	resConf := fs.res.Config
-	logger := fs.res.Log
-	var deleteQuery bson.M
 
-	// if we don't select the database here it will create a "test" database for the
-	// create collection command below
-	resDB.SelectDB(targetDB)
+	hostRepo := host.NewMongoRepository(resDB)
+	uconnRepo := uconn.NewMongoRepository(resDB)
+	connRepo := conn.NewMongoRepository(resDB)
+	freqRepo := freq.NewMongoRepository(resDB)
 
-	// create hosts collection
-	// Desired indexes
-	hostKeys := []mgo.Index{
-		{Key: []string{"ip"}, Unique: true},
-		{Key: []string{"local"}},
-		{Key: []string{"ipv4"}},
-		{Key: []string{"ipv4_binary"}},
+	err := hostRepo.CreateIndexes(targetDB)
+	if err != nil {
+		logger.Error(err)
 	}
-
-	// verify creation with indexes (if collection doesn't already exist), this
-	// will speed up the update insertion below
-	errorCheck := resDB.CreateCollection(resConf.T.Structure.HostTable, hostKeys)
-	if errorCheck != nil {
-		logger.Error("Failed: ", errorCheck)
-	}
-
-	// create a new datastore just for frequent connections since the old datastore
-	// will be Flushed by now and closed for writing
-	datastore := NewMongoDatastore(resDB.Session, fs.res.MetaDB,
-		resConf.S.Bro.ImportBuffer, logger)
-
-	// open a new database session for the bulk deletion
-	ssn := resDB.Session.Copy()
-	defer ssn.Close()
-
-	bulk := ssn.DB(targetDB).C(resConf.T.Structure.ConnTable).Bulk()
-	bulk.Unordered()
 
 	fmt.Println("\t[-] Removing unused connection info. This may take a while.")
-	for _, uconn := range filterHugeUconnsMap {
-		datastore.Store(&ImportedData{
-			BroData: &parsetypes.Freq{
-				Source:          uconn.src,
-				Destination:     uconn.dst,
-				ConnectionCount: uconn.connectionCount,
-			},
-			TargetDatabase:   targetDB,
-			TargetCollection: resConf.T.Structure.FrequentConnTable,
+	freqConns := make([]*parsetypes.Conn, len(filterHugeUconnsMap)) 
+	for _, freqConn:= range filterHugeUconnsMap {
+		freqConns = append(freqConns, &parsetypes.Conn{
+			Source: freqConn.src,
+			Destination: freqConn.dst,
 		})
-
-		deleteQuery = bson.M{
-			"$and": []bson.M{
-				bson.M{"id_orig_h": uconn.src},
-				bson.M{"id_resp_h": uconn.dst},
-			}}
-		bulk.RemoveAll(deleteQuery)
-
+		freqRepo.Insert(
+			&parsetypes.Freq{
+				Source:          freqConn.src,
+				Destination:     freqConn.dst,
+				ConnectionCount: freqConn.connectionCount,
+			},
+			targetDB)
 		// remove entry out of uconns map so it doesn't end up in uconns collection
-		srcDst := uconn.src + uconn.dst
+		srcDst := freqConn.src + freqConn.dst
 		delete(uconnMap, srcDst)
 	}
 
 	fmt.Println("\t[-] Creating Uconns and Hosts Collections. This may take a while.")
 	for uconn := range uconnMap {
 		// add uconn pair to uconn table
-		datastore.Store(&ImportedData{
-			BroData: &parsetypes.Uconn{
+		uconnRepo.Insert(&parsetypes.Uconn{
 				Source:           uconnMap[uconn].src,
 				Destination:      uconnMap[uconn].dst,
 				ConnectionCount:  uconnMap[uconn].connectionCount,
@@ -454,70 +426,37 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 				TSList:           uconnMap[uconn].tsList,
 				OrigBytesList:    uconnMap[uconn].origBytesList,
 			},
-			TargetDatabase:   targetDB,
-			TargetCollection: resConf.T.Structure.UniqueConnTable,
-		})
+			targetDB,
+		)
 
 		// **** add uconn src to hosts table if it doesn't already exist *** //
-		// check if ipv4
-		srcIP4 := isIPv4(uconnMap[uconn].src)
-
-		// set up update query
-		srcQuery := bson.D{
-			{"$setOnInsert", bson.M{"local": uconnMap[uconn].isLocalSrc}},
-			{"$setOnInsert", bson.M{"ipv4": srcIP4}},
-			{"$inc", bson.M{"count_src": 1}},
-			{"$max", bson.M{"max_duration": uconnMap[uconn].maxDuration}},
+		if isIPv4(uconnMap[uconn].src) {
+			host := &parsetypes.Host{
+				IP: uconnMap[uconn].src,
+				Local: uconnMap[uconn].isLocalSrc,
+				IPv4: isIPv4(uconnMap[uconn].src),
+				MaxDuration: float32(uconnMap[uconn].maxDuration),
+				IPv4Binary: ipv4ToBinary(net.ParseIP(uconnMap[uconn].src)),
+			}
+			// update hosts field
+			hostRepo.Upsert(host, targetDB)
 		}
-
-		// add ipv4 binary if ipv4
-		if srcIP4 {
-			srcIPv4bin := ipv4ToBinary(net.ParseIP(uconnMap[uconn].src))
-			srcQuery = append(srcQuery, bson.DocElem{"$setOnInsert", bson.M{"ipv4_binary": srcIPv4bin}})
-		} //else{} // future ipv6 support will have ipv6 binary added here
-
-		// update hosts field
-		ssn.DB(targetDB).C(resConf.T.Structure.HostTable).Upsert(
-			bson.M{"ip": uconnMap[uconn].src},
-			srcQuery)
 
 		// **** add uconn dst to hosts table if it doesn't already exist *** //
-		// check if ipv4
-		dstIP4 := isIPv4(uconnMap[uconn].dst)
-
-		// set up update query
-		dstQuery := bson.D{
-			{"$setOnInsert", bson.M{"local": uconnMap[uconn].isLocalDst}},
-			{"$setOnInsert", bson.M{"ipv4": dstIP4}},
-			{"$inc", bson.M{"count_dst": 1}},
-			{"$max", bson.M{"max_duration": uconnMap[uconn].maxDuration}},
+		if isIPv4(uconnMap[uconn].dst) {
+			host := &parsetypes.Host{
+				IP: uconnMap[uconn].dst,
+				Local: uconnMap[uconn].isLocalDst,
+				IPv4: isIPv4(uconnMap[uconn].dst),
+				MaxDuration: float32(uconnMap[uconn].maxDuration),
+				IPv4Binary: ipv4ToBinary(net.ParseIP(uconnMap[uconn].dst)),
+			}
+			// update hosts field
+			hostRepo.Upsert(host, targetDB)
 		}
-
-		// add ipv4 binary if ipv4
-		if dstIP4 {
-			dstIPv4bin := ipv4ToBinary(net.ParseIP(uconnMap[uconn].dst))
-			dstQuery = append(dstQuery, bson.DocElem{"$setOnInsert", bson.M{"ipv4_binary": dstIPv4bin}})
-		} //else{} // future ipv6 support will have ipv6 binary added here
-
-		// update hosts field
-		ssn.DB(targetDB).C(resConf.T.Structure.HostTable).Upsert(
-			bson.M{"ip": uconnMap[uconn].dst},
-			dstQuery)
-
 	}
-
-	// Flush the datastore to ensure that it finishes all of its writes
-	datastore.Flush()
-	datastore.Index()
-
 	// Execute the bulk deletion
-	bulkResult, err := bulk.Run()
-	if err != nil {
-		logger.WithFields(log.Fields{
-			"bulkResult": bulkResult,
-			"error":      err.Error(),
-		}).Error("Could not delete frequent conn entries.")
-	}
+	connRepo.BulkDelete(freqConns, targetDB)
 }
 
 //removeOldFilesFromIndex checks all indexedFiles passed in to ensure
