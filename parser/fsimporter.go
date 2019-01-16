@@ -51,6 +51,11 @@ func NewFSImporter(res *resources.Resources,
 	}
 }
 
+//GetInternalSubnets returns the internal subnets from the config file
+func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
+	return fs.internal
+}
+
 //Run starts importing a given path into a datastore
 func (fs *FSImporter) Run(datastore Datastore) {
 	// track the time spent parsing

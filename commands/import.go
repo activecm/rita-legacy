@@ -60,9 +60,13 @@ func doImport(c *cli.Context) error {
 		res.Config.S.Bro.DBRoot = targetDatabase
 	}
 
+	importer := parser.NewFSImporter(res, threads, threads)
+	if len(importer.GetInternalSubnets()) == 0 {
+		return cli.NewExitError("Internal subnets are not defined. Please set the InternalSubnets section of the config file.", -1)
+	}
+
 	res.Log.Infof("Importing %s\n", res.Config.S.Bro.ImportDirectory)
 	fmt.Println("[+] Importing " + res.Config.S.Bro.ImportDirectory)
-	importer := parser.NewFSImporter(res, threads, threads)
 	datastore := parser.NewMongoDatastore(res.DB.Session, res.MetaDB,
 		res.Config.S.Bro.ImportBuffer, res.Log)
 	importer.Run(datastore)
