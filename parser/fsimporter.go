@@ -237,10 +237,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 					)
 
 					// The number of conns in a uconn
-					var connCount int64 = 0
+					var connCount int64
 					// The maximum number of conns that will be stored
 					// We need to move this somewhere where the importer & analyzer can both access it
-					var connLimit int64 = int64(fs.res.Config.S.Strobe.ConnectionLimit)
+					var connLimit = int64(fs.res.Config.S.Strobe.ConnectionLimit)
 
 					if data != nil {
 						//figure out what database this line is heading for
