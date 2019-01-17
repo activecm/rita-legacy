@@ -1,8 +1,8 @@
 package conn
 
-import(
-	"github.com/activecm/rita/parser/parsetypes"
+import (
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/globalsign/mgo/bson"
 )
 

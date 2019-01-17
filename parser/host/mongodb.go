@@ -1,11 +1,11 @@
 package host
 
-import(
-	"github.com/globalsign/mgo"
-	"github.com/activecm/rita/parser/parsetypes"
-	"github.com/globalsign/mgo/bson"
-	"github.com/activecm/rita/database"
+import (
 	"fmt"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
@@ -23,7 +23,7 @@ func (r *repo) CreateIndexes(targetDB string) error {
 	r.db.SelectDB(targetDB)
 	session := r.db.Session.Copy()
 	defer session.Close()
-	
+
 	coll := session.DB(targetDB).C("host")
 
 	// create hosts collection

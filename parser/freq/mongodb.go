@@ -1,8 +1,8 @@
 package freq
 
-import(
-	"github.com/activecm/rita/parser/parsetypes"
+import (
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/parser/parsetypes"
 )
 
 type repo struct {

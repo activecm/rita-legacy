@@ -14,15 +14,15 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/parser/conn"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	"github.com/activecm/rita/parser/freq"
+	"github.com/activecm/rita/parser/host"
 	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/parser/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
-	"github.com/activecm/rita/parser/uconn"
-	"github.com/activecm/rita/parser/conn"
-	"github.com/activecm/rita/parser/host"
-	"github.com/activecm/rita/parser/freq"
 )
 
 type (
@@ -399,10 +399,10 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 	}
 
 	fmt.Println("\t[-] Removing unused connection info. This may take a while.")
-	freqConns := make([]*parsetypes.Conn, len(filterHugeUconnsMap)) 
-	for _, freqConn:= range filterHugeUconnsMap {
+	freqConns := make([]*parsetypes.Conn, len(filterHugeUconnsMap))
+	for _, freqConn := range filterHugeUconnsMap {
 		freqConns = append(freqConns, &parsetypes.Conn{
-			Source: freqConn.src,
+			Source:      freqConn.src,
 			Destination: freqConn.dst,
 		})
 		freqRepo.Insert(
@@ -421,28 +421,28 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 	for uconn := range uconnMap {
 		// add uconn pair to uconn table
 		uconnRepo.Upsert(&parsetypes.Uconn{
-				Source:           uconnMap[uconn].src,
-				Destination:      uconnMap[uconn].dst,
-				ConnectionCount:  uconnMap[uconn].connectionCount,
-				LocalSource:      uconnMap[uconn].isLocalSrc,
-				LocalDestination: uconnMap[uconn].isLocalDst,
-				TotalBytes:       uconnMap[uconn].totalBytes,
-				AverageBytes:     uconnMap[uconn].avgBytes,
-				MaxDuration:      uconnMap[uconn].maxDuration,
-				TSList:           uconnMap[uconn].tsList,
-				OrigBytesList:    uconnMap[uconn].origBytesList,
-			},
+			Source:           uconnMap[uconn].src,
+			Destination:      uconnMap[uconn].dst,
+			ConnectionCount:  uconnMap[uconn].connectionCount,
+			LocalSource:      uconnMap[uconn].isLocalSrc,
+			LocalDestination: uconnMap[uconn].isLocalDst,
+			TotalBytes:       uconnMap[uconn].totalBytes,
+			AverageBytes:     uconnMap[uconn].avgBytes,
+			MaxDuration:      uconnMap[uconn].maxDuration,
+			TSList:           uconnMap[uconn].tsList,
+			OrigBytesList:    uconnMap[uconn].origBytesList,
+		},
 			targetDB,
 		)
 
 		// **** add uconn src to hosts table if it doesn't already exist *** //
 		if isIPv4(uconnMap[uconn].src) {
 			host := &parsetypes.Host{
-				IP: uconnMap[uconn].src,
-				Local: uconnMap[uconn].isLocalSrc,
-				IPv4: isIPv4(uconnMap[uconn].src),
+				IP:          uconnMap[uconn].src,
+				Local:       uconnMap[uconn].isLocalSrc,
+				IPv4:        isIPv4(uconnMap[uconn].src),
 				MaxDuration: float32(uconnMap[uconn].maxDuration),
-				IPv4Binary: ipv4ToBinary(net.ParseIP(uconnMap[uconn].src)),
+				IPv4Binary:  ipv4ToBinary(net.ParseIP(uconnMap[uconn].src)),
 			}
 			// update hosts field
 			hostRepo.Upsert(host, true, targetDB)
@@ -451,11 +451,11 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 		// **** add uconn dst to hosts table if it doesn't already exist *** //
 		if isIPv4(uconnMap[uconn].dst) {
 			host := &parsetypes.Host{
-				IP: uconnMap[uconn].dst,
-				Local: uconnMap[uconn].isLocalDst,
-				IPv4: isIPv4(uconnMap[uconn].dst),
+				IP:          uconnMap[uconn].dst,
+				Local:       uconnMap[uconn].isLocalDst,
+				IPv4:        isIPv4(uconnMap[uconn].dst),
 				MaxDuration: float32(uconnMap[uconn].maxDuration),
-				IPv4Binary: ipv4ToBinary(net.ParseIP(uconnMap[uconn].dst)),
+				IPv4Binary:  ipv4ToBinary(net.ParseIP(uconnMap[uconn].dst)),
 			}
 			// update hosts field
 			hostRepo.Upsert(host, false, targetDB)

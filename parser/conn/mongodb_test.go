@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/globalsign/mgo/dbtest"
-	"github.com/activecm/rita/database"
 )
 
 // Server holds the dbtest DBServer

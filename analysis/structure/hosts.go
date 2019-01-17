@@ -2,8 +2,8 @@ package structure
 
 import (
 	"fmt"
-	"net"
 	"log"
+	"net"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"

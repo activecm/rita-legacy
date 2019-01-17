@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/globalsign/mgo/dbtest"
-	"github.com/activecm/rita/database"
 )
 
 // Server holds the dbtest DBServer
@@ -19,17 +19,17 @@ var testTargetDB = "tmp_test_db"
 var testRepo Repository
 
 var testUconn = &parsetypes.Uconn{
-	Source: "127.0.0.1",
-	Destination: "127.0.0.1",
-	ConnectionCount: 12,
-	LocalSource: true,
+	Source:           "127.0.0.1",
+	Destination:      "127.0.0.1",
+	ConnectionCount:  12,
+	LocalSource:      true,
 	LocalDestination: true,
-	TotalBytes: 123,
-	AverageBytes: 12,
-	TSList: []int64{1234567, 1234567},
-	OrigBytesList: []int64{12, 12},
-	TotalDuration: 123.0,
-	MaxDuration: 12,
+	TotalBytes:       123,
+	AverageBytes:     12,
+	TSList:           []int64{1234567, 1234567},
+	OrigBytesList:    []int64{12, 12},
+	TotalDuration:    123.0,
+	MaxDuration:      12,
 }
 
 func TestCreateIndexes(t *testing.T) {

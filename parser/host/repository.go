@@ -1,6 +1,6 @@
 package host
 
-import(
+import (
 	"github.com/activecm/rita/parser/parsetypes"
 )
 

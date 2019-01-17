@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/globalsign/mgo/dbtest"
-	"github.com/activecm/rita/database"
 )
 
 // Server holds the dbtest DBServer
@@ -20,8 +20,8 @@ var testRepo Repository
 
 func TestInsert(t *testing.T) {
 	testFreq := &parsetypes.Freq{
-		Source: "127.0.0.1",
-		Destination: "127.0.0.1",
+		Source:          "127.0.0.1",
+		Destination:     "127.0.0.1",
 		ConnectionCount: 12,
 	}
 
