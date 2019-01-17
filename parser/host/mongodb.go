@@ -5,6 +5,7 @@ import(
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/globalsign/mgo/bson"
 	"github.com/activecm/rita/database"
+	"fmt"
 )
 
 type repo struct {
@@ -43,7 +44,7 @@ func (r *repo) CreateIndexes(targetDB string) error {
 	return nil
 }
 
-func (r *repo) Upsert(host *parsetypes.Host, targetDB string) error {
+func (r *repo) Upsert(host *parsetypes.Host, isSrc bool, targetDB string) error {
 	r.db.SelectDB(targetDB)
 	session := r.db.Session.Copy()
 	defer session.Close()
@@ -54,9 +55,14 @@ func (r *repo) Upsert(host *parsetypes.Host, targetDB string) error {
 	query := bson.D{
 		{"$setOnInsert", bson.M{"local": host.Local}},
 		{"$setOnInsert", bson.M{"ipv4": host.IPv4}},
-		{"$inc", bson.M{"count_src": 1}},
 		{"$max", bson.M{"max_duration": host.MaxDuration}},
 		{"$setOnInsert", bson.M{"ipv4_binary": host.IPv4Binary}},
+	}
+
+	if isSrc {
+		query = append(query, bson.DocElem{"$inc", bson.M{"count_src": 1}})
+	} else {
+		query = append(query, bson.DocElem{"$inc", bson.M{"count_dst": 1}})
 	}
 
 	// update hosts field
@@ -65,6 +71,7 @@ func (r *repo) Upsert(host *parsetypes.Host, targetDB string) error {
 		query)
 
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	return nil

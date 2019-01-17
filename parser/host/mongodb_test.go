@@ -43,9 +43,9 @@ func TestUpsert(t *testing.T) {
 		TxtQueryCount: 123,
 	}
 
-	err := testRepo.Upsert(testHost, testTargetDB)
+	err := testRepo.Upsert(testHost, true, testTargetDB)
 	if err != nil {
-		t.Errorf("Error creating host indexes")
+		t.Errorf("Error upserting host")
 	}
 }
 

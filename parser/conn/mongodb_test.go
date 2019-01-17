@@ -21,7 +21,7 @@ var testRepo Repository
 func TestBulkDelete(t *testing.T) {
 	testConns := []*parsetypes.Conn{
 		{Source: "127.0.0.1", Destination: "127.0.0.1"},
-		{Source: "123.0.0.1", Destination: "127.0.0.1"},
+		{Source: "127.0.0.1", Destination: "127.0.0.1"},
 	}
 
 	err := testRepo.BulkDelete(testConns, testTargetDB)

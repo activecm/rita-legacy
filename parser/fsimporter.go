@@ -235,6 +235,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						indexedFiles[j].GetBroDataFactory(),
 						logger,
 					)
+
 					// The number of conns in a uconn
 					var connCount int64 = 0
 					// The maximum number of conns that will be stored
@@ -392,6 +393,11 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 		logger.Error(err)
 	}
 
+	err = uconnRepo.CreateIndexes(targetDB)
+	if err != nil {
+		logger.Error(err)
+	}
+
 	fmt.Println("\t[-] Removing unused connection info. This may take a while.")
 	freqConns := make([]*parsetypes.Conn, len(filterHugeUconnsMap)) 
 	for _, freqConn:= range filterHugeUconnsMap {
@@ -414,7 +420,7 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 	fmt.Println("\t[-] Creating Uconns and Hosts Collections. This may take a while.")
 	for uconn := range uconnMap {
 		// add uconn pair to uconn table
-		uconnRepo.Insert(&parsetypes.Uconn{
+		uconnRepo.Upsert(&parsetypes.Uconn{
 				Source:           uconnMap[uconn].src,
 				Destination:      uconnMap[uconn].dst,
 				ConnectionCount:  uconnMap[uconn].connectionCount,
@@ -439,7 +445,7 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 				IPv4Binary: ipv4ToBinary(net.ParseIP(uconnMap[uconn].src)),
 			}
 			// update hosts field
-			hostRepo.Upsert(host, targetDB)
+			hostRepo.Upsert(host, true, targetDB)
 		}
 
 		// **** add uconn dst to hosts table if it doesn't already exist *** //
@@ -452,7 +458,7 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 				IPv4Binary: ipv4ToBinary(net.ParseIP(uconnMap[uconn].dst)),
 			}
 			// update hosts field
-			hostRepo.Upsert(host, targetDB)
+			hostRepo.Upsert(host, false, targetDB)
 		}
 	}
 	// Execute the bulk deletion

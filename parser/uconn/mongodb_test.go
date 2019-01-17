@@ -18,24 +18,38 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-func TestInsert(t *testing.T) {
-	testUconn := &parsetypes.Uconn{
-		Source: "127.0.0.1",
-		Destination: "127.0.0.1",
-		ConnectionCount: 12,
-		LocalSource: true,
-		LocalDestination: true,
-		TotalBytes: 123,
-		AverageBytes: 12,
-		TSList: []int64{1234567, 1234567},
-		OrigBytesList: []int64{12, 12},
-		TotalDuration: 123.0,
-		MaxDuration: 12,
-	}
+var testUconn = &parsetypes.Uconn{
+	Source: "127.0.0.1",
+	Destination: "127.0.0.1",
+	ConnectionCount: 12,
+	LocalSource: true,
+	LocalDestination: true,
+	TotalBytes: 123,
+	AverageBytes: 12,
+	TSList: []int64{1234567, 1234567},
+	OrigBytesList: []int64{12, 12},
+	TotalDuration: 123.0,
+	MaxDuration: 12,
+}
 
+func TestCreateIndexes(t *testing.T) {
+	err := testRepo.CreateIndexes(testTargetDB)
+	if err != nil {
+		t.Errorf("Error creating uconn indexes")
+	}
+}
+
+func TestInsert(t *testing.T) {
 	err := testRepo.Insert(testUconn, testTargetDB)
 	if err != nil {
 		t.Errorf("Error inserting uconn")
+	}
+}
+
+func TestUpsert(t *testing.T) {
+	err := testRepo.Upsert(testUconn, testTargetDB)
+	if err != nil {
+		t.Errorf("Error creating host indexes")
 	}
 }
 

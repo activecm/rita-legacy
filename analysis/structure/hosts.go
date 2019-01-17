@@ -3,6 +3,7 @@ package structure
 import (
 	"fmt"
 	"net"
+	"log"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -14,6 +15,20 @@ import (
 
 // BuildHostsCollection builds the 'host' collection from the `uconn` collection.
 func BuildHostsCollection(res *resources.Resources) {
+
+	// verify if hosts collection was already created at import time
+	names, err1 := res.DB.Session.DB(res.DB.GetSelectedDB()).CollectionNames()
+	if err1 != nil {
+		res.Log.Error("Failed to get coll names: ", err1)
+		return
+	}
+
+	for _, name := range names {
+		if name == res.Config.T.Structure.HostTable {
+			log.Printf("\t\t[>] Host collection already exists!")
+			return
+		}
+	}
 
 	// Name of source collection which will be aggregated into the new collection
 	sourceCollectionName := res.Config.T.Structure.UniqueConnTable
