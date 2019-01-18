@@ -20,6 +20,7 @@ import (
 	"github.com/activecm/rita/parser/host"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/parser/uconn"
+	"github.com/activecm/rita/parser/explodedDNS"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
@@ -184,6 +185,10 @@ func indexFiles(files []string, indexingThreads int,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) ([]uconnPair, map[string]uconnPair) {
+	// Set up the database
+	resDB := fs.res.DB
+	explodedDNSRepo := explodedDNS.NewMongoRepository(resDB)
+	explodedDNSRepo.CreateIndexes("anyoldstring")
 
 	//set up parallel parsing
 	n := len(indexedFiles)
@@ -310,7 +315,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								} else {
 									uconn.maxDuration = uconnMap[srcDst].maxDuration
 								}
-
 								uconnMap[srcDst] = uconnPair{
 									id:              uconn.id,
 									src:             uconn.src,
@@ -343,6 +347,21 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 								mutex.Unlock()
 							}
+						} else if targetCollection == fs.res.Config.T.Structure.DNSTable {
+							//{ID:ObjectIdHex("") TimeStamp:1519895141 UID:CjedEY1LqEHmPi9igg
+							// Source:10.55.200.10 SourcePort:62872 Destination:165.227.88.15
+							// DestinationPort:53 Proto:udp TransID:11881 RTT:0.066543
+							// Query:5af201467657d471f8.dnsc.r-1x.com QClass:1 QClassName:C_INTERNET
+							// QType:16 QTypeName:TXT RCode:0 RCodeName:NOERROR AA:true TC:false RD:false
+							// RA:false Z:0 Answers:[TXT 18 cab401467671f857d4] TTLs:[86400] Rejected:false}
+
+							parseDNS := reflect.ValueOf(data).Elem()
+
+							domain := parseDNS.FieldByName("Query").Interface().(string)
+							
+							explodedDNSRepo.Upsert(&parsetypes.ExplodedDNS{Domain: domain}, "anyoldstring")
+
+							//fmt.Println(query)
 						} else {
 							// We do not limit any of the other log types
 							datastore.Store(&ImportedData{
