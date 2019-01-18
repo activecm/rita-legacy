@@ -4,6 +4,8 @@ import (
 	"runtime"
 	"strconv"
 
+	"github.com/activecm/rita/resources"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -60,6 +62,28 @@ var (
 // bootstrapCommands simply adds a given command to the allCommands array
 func bootstrapCommands(commands ...cli.Command) {
 	for _, command := range commands {
+		command.Before = func(c *cli.Context) error {
+			//Get access to the logger
+			configFile := c.String("config")
+			res := resources.InitResources(configFile)
+			//Display args in logs
+			fields := log.Fields{
+				"Arguments": c.Args(),
+			}
+			//Display flag info in logs
+			for _, it := range c.GlobalFlagNames() {
+				if c.IsSet(it) {
+					fields["Global Flag("+it+")"] = c.GlobalGeneric(it)
+				}
+			}
+			for _, it := range c.FlagNames() {
+				if c.IsSet(it) {
+					fields["Flag("+it+")"] = c.Generic(it)
+				}
+			}
+			res.Log.WithFields(fields).Info("Running Command: " + command.Name)
+			return nil
+		}
 		allCommands = append(allCommands, command)
 	}
 }
