@@ -426,7 +426,7 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 	}
 
 	fmt.Println("\t[-] Removing unused connection info. This may take a while.")
-	freqConns := make([]*parsetypes.Conn, len(filterHugeUconnsMap))
+	freqConns := make([]*parsetypes.Conn, 0)
 	for _, freqConn := range filterHugeUconnsMap {
 		freqConns = append(freqConns, &parsetypes.Conn{
 			Source:      freqConn.src,
