@@ -188,7 +188,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	// Set up the database
 	resDB := fs.res.DB
 	explodedDNSRepo := explodedDNS.NewMongoRepository(resDB)
-	explodedDNSRepo.CreateIndexes("anyoldstring")
+	explodedDNSRepo.CreateIndexes("dnscat")
 
 	//set up parallel parsing
 	n := len(indexedFiles)
@@ -359,7 +359,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							domain := parseDNS.FieldByName("Query").Interface().(string)
 							
-							explodedDNSRepo.Upsert(&parsetypes.ExplodedDNS{Domain: domain}, "anyoldstring")
+							explodedDNSRepo.Upsert(&parsetypes.ExplodedDNS{Domain: domain}, "dnscat")
 
 							//fmt.Println(query)
 						} else {
