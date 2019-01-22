@@ -41,8 +41,11 @@ DEST_DIR="$REMOTE_LOG_DIR/$COLLECTOR"
 # SSH will exit gracefully
 SCRIPT='( flock -s 9; sleep infinity & echo $!; wait )9>'"$LOCK"
 
+# We need a temporary directory to hold the semaphore (lock pipe)
+LOGMOVER_TEMP_DIR="$(mktemp -d rita-logmover.XXXXXXXXXXXX)"
+
 # We use a named pipe to talk between threaded tasks
-LOCK_PIPE=".lock_pipe"
+LOCK_PIPE="$LOGMOVER_TEMP_DIR/.lock_pipe"
 
 # We want to transfer yesterday's logs
 TX_DIR=$LOCAL_LOG_DIR/$(date +%Y-%m-%d)
@@ -54,14 +57,11 @@ then
   exit 1
 fi
 
-# Cleanup the named pipe
-trap "rm -f $LOCK_PIPE" EXIT
+# Cleanup the temporary directory and named pipe
+trap "rm -f '$LOGMOVER_TEMP_DIR'" EXIT
 
 # Create the named pipe
-if [[ ! -p $LOCK_PIPE ]]
-then
-  mkfifo $LOCK_PIPE
-fi
+mkfifo "$LOCK_PIPE"
 
 # Run the lock script from the server in the background
 # and read output into the channel
