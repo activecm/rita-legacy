@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # This script pushes logs to the RITA server
-# Put this in an unprivileged user's cron tab on 
-# your bro nodes at some time around 1 am, 
+# Put this in an unprivileged user's cron tab on
+# your bro nodes at some time around 1 am,
 # ideally some time after bro has safely
 # archived yesterday's logs
 
@@ -27,9 +27,9 @@ COLLECTOR=""
 KEYFILE=""
 
 ##################################################
-# We use shared locks for writing to the server, 
+# We use shared locks for writing to the server,
 # and an exclusive lock for parsing
-# Note: distributed locking is hard, 
+# Note: distributed locking is hard,
 # so we use ssh to lock on the RITA server
 LOCK="$REMOTE_LOG_DIR/.rita.read.lock"
 
@@ -41,10 +41,12 @@ DEST_DIR="$REMOTE_LOG_DIR/$COLLECTOR"
 # SSH will exit gracefully
 SCRIPT='( flock -s 9; sleep infinity & echo $!; wait )9>'"$LOCK"
 
-# We need a temporary directory to hold the semaphore (lock pipe)
+# We need a temporary directory to hold the lock pipe
 LOGMOVER_TEMP_DIR="$(mktemp -d rita-logmover.XXXXXXXXXXXX)"
 
 # We use a named pipe to talk between threaded tasks
+# The LOCK_PIPE lets us know when we have established a shared
+# lock on the machine running watcher.sh.
 LOCK_PIPE="$LOGMOVER_TEMP_DIR/.lock_pipe"
 
 # We want to transfer yesterday's logs
