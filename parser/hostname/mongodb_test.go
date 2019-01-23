@@ -1,4 +1,4 @@
-package explodedDNS
+package hostname
 
 import (
 	"io/ioutil"
@@ -18,23 +18,22 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testExplodedDNS = &parsetypes.ExplodedDNS{
-	Domain: "www.activecountermeasures.com",
-	Subdomains: 123,
-	Visited: 123,
+var testHostname = &parsetypes.Hostname{
+	Host: "activecountermeasures.com",
+	IPs: []string{"127.0.0.1", "127.0.0.2"},
 }
 
 func TestCreateIndexes(t *testing.T) {
 	err := testRepo.CreateIndexes(testTargetDB)
 	if err != nil {
-		t.Errorf("Error creating explodedDns indexes")
+		t.Errorf("Error creating hostnames indexes")
 	}
 }
 
 func TestUpsert(t *testing.T) {
-	err := testRepo.Upsert(testExplodedDNS, testTargetDB)
+	err := testRepo.Upsert(testHostname, testTargetDB)
 	if err != nil {
-		t.Errorf("Error creating explodedDns indexes")
+		t.Errorf("Error creating hostnames indexes")
 	}
 }
 

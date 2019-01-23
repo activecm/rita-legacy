@@ -21,6 +21,7 @@ import (
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/parser/uconn"
 	"github.com/activecm/rita/parser/explodedDNS"
+	"github.com/activecm/rita/parser/hostname"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
@@ -190,6 +191,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	explodedDNSRepo := explodedDNS.NewMongoRepository(resDB)
 	explodedDNSRepo.CreateIndexes("dnscat")
 
+	hostnameRepo := hostname.NewMongoRepository(resDB)
+	hostnameRepo.CreateIndexes("dnscat")
+
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
@@ -348,20 +352,24 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								mutex.Unlock()
 							}
 						} else if targetCollection == fs.res.Config.T.Structure.DNSTable {
-							//{ID:ObjectIdHex("") TimeStamp:1519895141 UID:CjedEY1LqEHmPi9igg
-							// Source:10.55.200.10 SourcePort:62872 Destination:165.227.88.15
-							// DestinationPort:53 Proto:udp TransID:11881 RTT:0.066543
-							// Query:5af201467657d471f8.dnsc.r-1x.com QClass:1 QClassName:C_INTERNET
-							// QType:16 QTypeName:TXT RCode:0 RCodeName:NOERROR AA:true TC:false RD:false
-							// RA:false Z:0 Answers:[TXT 18 cab401467671f857d4] TTLs:[86400] Rejected:false}
-
 							parseDNS := reflect.ValueOf(data).Elem()
 
 							domain := parseDNS.FieldByName("Query").Interface().(string)
+							queryTypeName := parseDNS.FieldByName("QTypeName").Interface().(string)
 							
 							explodedDNSRepo.Upsert(&parsetypes.ExplodedDNS{Domain: domain}, "dnscat")
 
-							//fmt.Println(query)
+							hostname := &parsetypes.Hostname{Host: domain}
+							if queryTypeName == "A" {
+								answers := parseDNS.FieldByName("Answers").Interface().([]string)
+								for _, answer := range answers {
+									// Check if answer is an IP address
+									if net.ParseIP(answer) != nil {
+										hostname.IPs = append(hostname.IPs, answer)
+									}
+								}
+								hostnameRepo.Upsert(hostname, "dnscat")
+							}
 						} else {
 							// We do not limit any of the other log types
 							datastore.Store(&ImportedData{
