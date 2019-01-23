@@ -15,13 +15,13 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/parser/conn"
+	"github.com/activecm/rita/parser/explodedDNS"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/activecm/rita/parser/freq"
 	"github.com/activecm/rita/parser/host"
+	"github.com/activecm/rita/parser/hostname"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/parser/uconn"
-	"github.com/activecm/rita/parser/explodedDNS"
-	"github.com/activecm/rita/parser/hostname"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
@@ -356,7 +356,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							domain := parseDNS.FieldByName("Query").Interface().(string)
 							queryTypeName := parseDNS.FieldByName("QTypeName").Interface().(string)
-							
+
 							explodedDNSRepo.Upsert(&parsetypes.ExplodedDNS{Domain: domain}, "dnscat")
 
 							hostname := &parsetypes.Hostname{Host: domain}

@@ -19,9 +19,9 @@ var testTargetDB = "tmp_test_db"
 var testRepo Repository
 
 var testExplodedDNS = &parsetypes.ExplodedDNS{
-	Domain: "www.activecountermeasures.com",
+	Domain:     "www.activecountermeasures.com",
 	Subdomains: 123,
-	Visited: 123,
+	Visited:    123,
 }
 
 func TestCreateIndexes(t *testing.T) {

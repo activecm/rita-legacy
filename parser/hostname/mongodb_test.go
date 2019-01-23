@@ -20,7 +20,7 @@ var testRepo Repository
 
 var testHostname = &parsetypes.Hostname{
 	Host: "activecountermeasures.com",
-	IPs: []string{"127.0.0.1", "127.0.0.2"},
+	IPs:  []string{"127.0.0.1", "127.0.0.2"},
 }
 
 func TestCreateIndexes(t *testing.T) {
