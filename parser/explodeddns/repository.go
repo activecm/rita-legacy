@@ -1,4 +1,4 @@
-package explodedDNS
+package explodeddns
 
 import (
 	"github.com/activecm/rita/parser/parsetypes"

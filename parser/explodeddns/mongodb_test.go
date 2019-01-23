@@ -1,4 +1,4 @@
-package explodedDNS
+package explodeddns
 
 import (
 	"io/ioutil"
@@ -27,14 +27,14 @@ var testExplodedDNS = &parsetypes.ExplodedDNS{
 func TestCreateIndexes(t *testing.T) {
 	err := testRepo.CreateIndexes(testTargetDB)
 	if err != nil {
-		t.Errorf("Error creating explodedDns indexes")
+		t.Errorf("Error creating explodedDNS indexes")
 	}
 }
 
 func TestUpsert(t *testing.T) {
 	err := testRepo.Upsert(testExplodedDNS, testTargetDB)
 	if err != nil {
-		t.Errorf("Error creating explodedDns indexes")
+		t.Errorf("Error creating explodedDNS indexes")
 	}
 }
 

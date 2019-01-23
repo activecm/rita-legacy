@@ -15,7 +15,7 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/parser/conn"
-	"github.com/activecm/rita/parser/explodedDNS"
+	"github.com/activecm/rita/parser/explodeddns"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/activecm/rita/parser/freq"
 	"github.com/activecm/rita/parser/host"
@@ -188,7 +188,7 @@ func indexFiles(files []string, indexingThreads int,
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) ([]uconnPair, map[string]uconnPair) {
 	// Set up the database
 	resDB := fs.res.DB
-	explodedDNSRepo := explodedDNS.NewMongoRepository(resDB)
+	explodedDNSRepo := explodeddns.NewMongoRepository(resDB)
 	explodedDNSRepo.CreateIndexes("dnscat")
 
 	hostnameRepo := hostname.NewMongoRepository(resDB)

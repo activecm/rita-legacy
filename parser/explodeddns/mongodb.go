@@ -1,4 +1,4 @@
-package explodedDNS
+package explodeddns
 
 import (
 	"github.com/activecm/rita/database"
@@ -23,7 +23,7 @@ func (r *repo) CreateIndexes(targetDB string) error {
 	session := r.db.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(targetDB).C("explodedDns")
+	coll := session.DB(targetDB).C("explodedDNS")
 
 	indexes := []mgo.Index{
 		{Key: []string{"domain"}, Unique: true},
@@ -44,7 +44,7 @@ func (r *repo) Upsert(explodedDNS *parsetypes.ExplodedDNS, targetDB string) erro
 	session := r.db.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(targetDB).C("explodedDns")
+	coll := session.DB(targetDB).C("explodedDNS")
 
 	// set up update query
 	query := bson.D{
@@ -64,18 +64,3 @@ func (r *repo) Upsert(explodedDNS *parsetypes.ExplodedDNS, targetDB string) erro
 	}
 	return nil
 }
-
-// func (r *repo) Insert(dns *parsetypes.ExplodedDNS, targetDB string) error {
-// 	r.db.SelectDB(targetDB)
-// 	session := r.db.Session.Copy()
-// 	defer session.Close()
-
-// 	coll := session.DB(targetDB).C("explodedDns")
-
-// 	err := coll.Insert(dns)
-
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
