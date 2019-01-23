@@ -23,7 +23,7 @@ func (r *repo) CreateIndexes(targetDB string) error {
 	session := r.db.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(targetDB).C("explodedDNS")
+	coll := session.DB(targetDB).C("explodedDns")
 
 	indexes := []mgo.Index{
 		{Key: []string{"domain"}, Unique: true},
@@ -44,7 +44,7 @@ func (r *repo) Upsert(explodedDNS *parsetypes.ExplodedDNS, targetDB string) erro
 	session := r.db.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(targetDB).C("explodedDNS")
+	coll := session.DB(targetDB).C("explodedDns")
 
 	// set up update query
 	query := bson.D{
