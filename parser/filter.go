@@ -6,10 +6,14 @@ import (
 	"os"
 )
 
-func (fs *FSImporter) filterConnPair(src string, dst string) (ignore bool) {
-	// default is not to ignore connection pair
-	ignore = false
-
+// filterConnPair returns true if a connection pair is filtered/excluded.
+// This is determined by the following rules, in order:
+//   1. Not filtered if either IP is on the AlwaysInclude list
+//   2. Filtered if either IP is on the NeverInclude list
+//   3. Not filtered if InternalSubnets is empty
+//   4. Filtered if both IPs are internal or both are external
+//   5. Not filtered in all other cases
+func (fs *FSImporter) filterConnPair(src string, dst string) bool {
 	// parse src and dst IPs
 	srcIP := net.ParseIP(src)
 	dstIP := net.ParseIP(dst)
@@ -22,35 +26,38 @@ func (fs *FSImporter) filterConnPair(src string, dst string) (ignore bool) {
 	isSrcExcluded := containsIP(fs.neverIncluded, srcIP)
 	isDstExcluded := containsIP(fs.neverIncluded, dstIP)
 
-	// check if one of the addresses should never be excluded from results
+	// if either IP is on the AlwaysInclude list, filter does not apply
 	if isSrcIncluded || isDstIncluded {
-		ignore = false
-		return
+		return false
 	}
 
-	// check if one of the addresses should be excluded from results
+	// if either IP is on the NeverInclude list, filter applies
 	if isSrcExcluded || isDstExcluded {
-		ignore = true
-		return
+		return true
 	}
 
-	// verify if src and dst are internal or external
+	// if no internal subnets are defined, filter does not apply
+	// this is was the default behavior before InternalSubnets was added
+	if len(fs.internal) == 0 {
+		return false
+	}
+
+	// check if src and dst are internal
 	isSrcInternal := containsIP(fs.internal, srcIP)
 	isDstInternal := containsIP(fs.internal, dstIP)
 
 	// if both addresses are internal, filter applies
 	if isSrcInternal && isDstInternal {
-		ignore = true
-		return
+		return true
 	}
 
 	// if both addresses are external, filter applies
 	if (!isSrcInternal) && (!isDstInternal) {
-		ignore = true
-		return
+		return true
 	}
 
-	return
+	// default to not filter the connection pair
+	return false
 }
 
 //parseSubnets parses the provided subnets into net.ipnet format

@@ -51,6 +51,11 @@ func NewFSImporter(res *resources.Resources,
 	}
 }
 
+//GetInternalSubnets returns the internal subnets from the config file
+func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
+	return fs.internal
+}
+
 //Run starts importing a given path into a datastore
 func (fs *FSImporter) Run(datastore Datastore) {
 	// track the time spent parsing
@@ -252,6 +257,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// If connection pair is not subject to filtering, process
 							if !ignore {
+								// Override LocalOrigin and LocalResponse fields based on InternalSubnets setting
+								// Changes to parseConn are also made in the data variable
+								parseConn.FieldByName("LocalOrigin").SetBool(containsIP(fs.GetInternalSubnets(), net.ParseIP(uconn.src)))
+								parseConn.FieldByName("LocalResponse").SetBool(containsIP(fs.GetInternalSubnets(), net.ParseIP(uconn.dst)))
+
 								// Safely store the number of conns for this uconn
 								mutex.Lock()
 								connMap[uconn] = connMap[uconn] + 1
