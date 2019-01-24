@@ -15,9 +15,11 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/parser/conn"
+	"github.com/activecm/rita/parser/explodeddns"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/activecm/rita/parser/freq"
 	"github.com/activecm/rita/parser/host"
+	"github.com/activecm/rita/parser/hostname"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/parser/uconn"
 	"github.com/activecm/rita/resources"
@@ -184,6 +186,13 @@ func indexFiles(files []string, indexingThreads int,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) ([]uconnPair, map[string]uconnPair) {
+	// Set up the database
+	resDB := fs.res.DB
+	explodedDNSRepo := explodeddns.NewMongoRepository(resDB)
+	explodedDNSRepo.CreateIndexes("dnscat")
+
+	hostnameRepo := hostname.NewMongoRepository(resDB)
+	hostnameRepo.CreateIndexes("dnscat")
 
 	//set up parallel parsing
 	n := len(indexedFiles)
@@ -310,7 +319,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								} else {
 									uconn.maxDuration = uconnMap[srcDst].maxDuration
 								}
-
 								uconnMap[srcDst] = uconnPair{
 									id:              uconn.id,
 									src:             uconn.src,
@@ -342,6 +350,25 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 
 								mutex.Unlock()
+							}
+						} else if targetCollection == fs.res.Config.T.Structure.DNSTable {
+							parseDNS := reflect.ValueOf(data).Elem()
+
+							domain := parseDNS.FieldByName("Query").Interface().(string)
+							queryTypeName := parseDNS.FieldByName("QTypeName").Interface().(string)
+
+							explodedDNSRepo.Upsert(&parsetypes.ExplodedDNS{Domain: domain}, "dnscat")
+
+							hostname := &parsetypes.Hostname{Host: domain}
+							if queryTypeName == "A" {
+								answers := parseDNS.FieldByName("Answers").Interface().([]string)
+								for _, answer := range answers {
+									// Check if answer is an IP address
+									if net.ParseIP(answer) != nil {
+										hostname.IPs = append(hostname.IPs, answer)
+									}
+								}
+								hostnameRepo.Upsert(hostname, "dnscat")
 							}
 						} else {
 							// We do not limit any of the other log types
