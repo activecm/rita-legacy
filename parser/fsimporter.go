@@ -14,14 +14,15 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/parser/conn"
-	"github.com/activecm/rita/parser/explodeddns"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
-	"github.com/activecm/rita/parser/freq"
-	"github.com/activecm/rita/parser/host"
-	"github.com/activecm/rita/parser/hostname"
 	"github.com/activecm/rita/parser/parsetypes"
-	"github.com/activecm/rita/parser/uconn"
+	"github.com/activecm/rita/pkg/conn"
+	"github.com/activecm/rita/pkg/explodeddns"
+	"github.com/activecm/rita/pkg/freq"
+	"github.com/activecm/rita/pkg/host"
+	"github.com/activecm/rita/pkg/hostname"
+	"github.com/activecm/rita/pkg/uconn"
+	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
@@ -194,6 +195,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	hostnameRepo := hostname.NewMongoRepository(resDB)
 	hostnameRepo.CreateIndexes("dnscat")
 
+	userAgentRepo := useragent.NewMongoRepository(resDB)
+	userAgentRepo.CreateIndexes("userAgent")
+
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
@@ -351,6 +355,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 								mutex.Unlock()
 							}
+						// Analyze DNS information
 						} else if targetCollection == fs.res.Config.T.Structure.DNSTable {
 							parseDNS := reflect.ValueOf(data).Elem()
 
@@ -370,6 +375,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 								hostnameRepo.Upsert(hostname, "dnscat")
 							}
+						// Analyze HTTP information
+						} else if targetCollection == fs.res.Config.T.Structure.HTTPTable {
+							parseHTTP := reflect.ValueOf(data).Elem()
+							userAgentName := parseHTTP.FieldByName("UserAgent").Interface().(string)
+
+							userAgent := &parsetypes.UserAgent{UserAgent: userAgentName}
+
+							userAgentRepo.Upsert(userAgent, "dnscat")
+							
 						} else {
 							// We do not limit any of the other log types
 							datastore.Store(&ImportedData{

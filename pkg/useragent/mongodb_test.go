@@ -1,4 +1,4 @@
-package freq
+package useragent
 
 import (
 	"io/ioutil"
@@ -18,16 +18,22 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-func TestInsert(t *testing.T) {
-	testFreq := &parsetypes.Freq{
-		Source:          "127.0.0.1",
-		Destination:     "127.0.0.1",
-		ConnectionCount: 12,
-	}
+var testUserAgent = &parsetypes.UserAgent{
+	UserAgent: "Debian APT-HTTP/1.3 (1.2.24)",
+	TimesUsed: 123,
+}
 
-	err := testRepo.Insert(testFreq, testTargetDB)
+func TestCreateIndexes(t *testing.T) {
+	err := testRepo.CreateIndexes(testTargetDB)
 	if err != nil {
-		t.Errorf("Error inserting freq")
+		t.Errorf("Error creating useragent indexes")
+	}
+}
+
+func TestUpsert(t *testing.T) {
+	err := testRepo.Upsert(testUserAgent, testTargetDB)
+	if err != nil {
+		t.Errorf("Error upserting to useragent collection")
 	}
 }
 

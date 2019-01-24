@@ -1,4 +1,4 @@
-package host
+package hostname
 
 import (
 	"io/ioutil"
@@ -18,34 +18,22 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
+var testHostname = &parsetypes.Hostname{
+	Host: "activecountermeasures.com",
+	IPs:  []string{"127.0.0.1", "127.0.0.2"},
+}
+
 func TestCreateIndexes(t *testing.T) {
 	err := testRepo.CreateIndexes(testTargetDB)
 	if err != nil {
-		t.Errorf("Error creating host indexes")
+		t.Errorf("Error creating hostnames indexes")
 	}
 }
 
 func TestUpsert(t *testing.T) {
-	testHost := &parsetypes.Host{
-		IP:                 "127.0.0.1",
-		Local:              true,
-		IPv4:               true,
-		CountSrc:           123,
-		CountDst:           123,
-		IPv4Binary:         123,
-		MaxDuration:        123.0,
-		MaxBeaconScore:     123.0,
-		MaxBeaconConnCount: 123,
-		BlOutCount:         123,
-		BlInCount:          123,
-		BlSumAvgBytes:      123,
-		BlTotalBytes:       123,
-		TxtQueryCount:      123,
-	}
-
-	err := testRepo.Upsert(testHost, true, testTargetDB)
+	err := testRepo.Upsert(testHostname, testTargetDB)
 	if err != nil {
-		t.Errorf("Error upserting host")
+		t.Errorf("Error upserting to hostnames collection")
 	}
 }
 

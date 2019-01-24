@@ -1,4 +1,4 @@
-package conn
+package host
 
 import (
 	"io/ioutil"
@@ -18,15 +18,34 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-func TestBulkDelete(t *testing.T) {
-	testConns := []*parsetypes.Conn{
-		{Source: "127.0.0.1", Destination: "127.0.0.1"},
-		{Source: "127.0.0.1", Destination: "127.0.0.1"},
+func TestCreateIndexes(t *testing.T) {
+	err := testRepo.CreateIndexes(testTargetDB)
+	if err != nil {
+		t.Errorf("Error creating host indexes")
+	}
+}
+
+func TestUpsert(t *testing.T) {
+	testHost := &parsetypes.Host{
+		IP:                 "127.0.0.1",
+		Local:              true,
+		IPv4:               true,
+		CountSrc:           123,
+		CountDst:           123,
+		IPv4Binary:         123,
+		MaxDuration:        123.0,
+		MaxBeaconScore:     123.0,
+		MaxBeaconConnCount: 123,
+		BlOutCount:         123,
+		BlInCount:          123,
+		BlSumAvgBytes:      123,
+		BlTotalBytes:       123,
+		TxtQueryCount:      123,
 	}
 
-	err := testRepo.BulkDelete(testConns, testTargetDB)
+	err := testRepo.Upsert(testHost, true, testTargetDB)
 	if err != nil {
-		t.Errorf("Error inserting freq")
+		t.Errorf("Error upserting to hosts collection")
 	}
 }
 

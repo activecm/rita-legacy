@@ -1,4 +1,4 @@
-package uconn
+package explodeddns
 
 import (
 	"io/ioutil"
@@ -18,38 +18,23 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testUconn = &parsetypes.Uconn{
-	Source:           "127.0.0.1",
-	Destination:      "127.0.0.1",
-	ConnectionCount:  12,
-	LocalSource:      true,
-	LocalDestination: true,
-	TotalBytes:       123,
-	AverageBytes:     12,
-	TSList:           []int64{1234567, 1234567},
-	OrigBytesList:    []int64{12, 12},
-	TotalDuration:    123.0,
-	MaxDuration:      12,
+var testExplodedDNS = &parsetypes.ExplodedDNS{
+	Domain:     "www.activecountermeasures.com",
+	Subdomains: 123,
+	Visited:    123,
 }
 
 func TestCreateIndexes(t *testing.T) {
 	err := testRepo.CreateIndexes(testTargetDB)
 	if err != nil {
-		t.Errorf("Error creating uconn indexes")
-	}
-}
-
-func TestInsert(t *testing.T) {
-	err := testRepo.Insert(testUconn, testTargetDB)
-	if err != nil {
-		t.Errorf("Error inserting uconn")
+		t.Errorf("Error creating explodedDNS indexes")
 	}
 }
 
 func TestUpsert(t *testing.T) {
-	err := testRepo.Upsert(testUconn, testTargetDB)
+	err := testRepo.Upsert(testExplodedDNS, testTargetDB)
 	if err != nil {
-		t.Errorf("Error creating host indexes")
+		t.Errorf("Error upserting to explodedDNS collection")
 	}
 }
 

@@ -1,4 +1,4 @@
-package hostname
+package conn
 
 import (
 	"io/ioutil"
@@ -18,22 +18,15 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testHostname = &parsetypes.Hostname{
-	Host: "activecountermeasures.com",
-	IPs:  []string{"127.0.0.1", "127.0.0.2"},
-}
-
-func TestCreateIndexes(t *testing.T) {
-	err := testRepo.CreateIndexes(testTargetDB)
-	if err != nil {
-		t.Errorf("Error creating hostnames indexes")
+func TestBulkDelete(t *testing.T) {
+	testConns := []*parsetypes.Conn{
+		{Source: "127.0.0.1", Destination: "127.0.0.1"},
+		{Source: "127.0.0.1", Destination: "127.0.0.1"},
 	}
-}
 
-func TestUpsert(t *testing.T) {
-	err := testRepo.Upsert(testHostname, testTargetDB)
+	err := testRepo.BulkDelete(testConns, testTargetDB)
 	if err != nil {
-		t.Errorf("Error creating hostnames indexes")
+		t.Errorf("Error bulk deleting conns")
 	}
 }
 
