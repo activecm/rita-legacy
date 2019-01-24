@@ -5,7 +5,7 @@ import (
 )
 
 type (
-	// UserAgent stores user agent usage information 
+	// UserAgent stores user agent usage information
 	UserAgent struct {
 		ID        bson.ObjectId `bson:"_id,omitempty"`
 		UserAgent string        `bson:"user_agent"`

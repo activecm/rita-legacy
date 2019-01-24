@@ -355,7 +355,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 								mutex.Unlock()
 							}
-						// Analyze DNS information
+							// Analyze DNS information
 						} else if targetCollection == fs.res.Config.T.Structure.DNSTable {
 							parseDNS := reflect.ValueOf(data).Elem()
 
@@ -375,7 +375,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 								hostnameRepo.Upsert(hostname, "dnscat")
 							}
-						// Analyze HTTP information
+							// Analyze HTTP information
 						} else if targetCollection == fs.res.Config.T.Structure.HTTPTable {
 							parseHTTP := reflect.ValueOf(data).Elem()
 							userAgentName := parseHTTP.FieldByName("UserAgent").Interface().(string)
@@ -383,7 +383,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							userAgent := &parsetypes.UserAgent{UserAgent: userAgentName}
 
 							userAgentRepo.Upsert(userAgent, "dnscat")
-							
+
 						} else {
 							// We do not limit any of the other log types
 							datastore.Store(&ImportedData{
