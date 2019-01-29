@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/dbtest"
 )
 
@@ -24,14 +24,14 @@ var testHostname = &parsetypes.Hostname{
 }
 
 func TestCreateIndexes(t *testing.T) {
-	err := testRepo.CreateIndexes(testTargetDB)
+	err := testRepo.CreateIndexes()
 	if err != nil {
 		t.Errorf("Error creating hostnames indexes")
 	}
 }
 
 func TestUpsert(t *testing.T) {
-	err := testRepo.Upsert(testHostname, testTargetDB)
+	err := testRepo.Upsert(testHostname)
 	if err != nil {
 		t.Errorf("Error creating hostnames indexes")
 	}
@@ -44,18 +44,12 @@ func TestMain(m *testing.M) {
 	Server.SetPath(tempDir)
 
 	// Set the main session variable to the temporary MongoDB instance
-	ssn := Server.Session()
+	res := resources.InitTestResources()
 
-	db := database.DB{Session: ssn}
-
-	testRepo = NewMongoRepository(&db)
+	testRepo = NewMongoRepository(res)
 
 	// Run the test suite
 	retCode := m.Run()
-
-	// Clean up test database and session
-	ssn.DB(testTargetDB).DropDatabase()
-	ssn.Close()
 
 	// Shut down the temporary server and removes data on disk.
 	Server.Stop()

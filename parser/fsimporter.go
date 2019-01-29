@@ -187,12 +187,12 @@ func indexFiles(files []string, indexingThreads int,
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) ([]uconnPair, map[string]uconnPair) {
 	// Set up the database
-	resDB := fs.res.DB
-	explodedDNSRepo := explodeddns.NewMongoRepository(resDB)
-	explodedDNSRepo.CreateIndexes("dnscat")
 
-	hostnameRepo := hostname.NewMongoRepository(resDB)
-	hostnameRepo.CreateIndexes("dnscat")
+	explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
+	explodedDNSRepo.CreateIndexes()
+
+	hostnameRepo := hostname.NewMongoRepository(fs.res)
+	hostnameRepo.CreateIndexes()
 
 	//set up parallel parsing
 	n := len(indexedFiles)
@@ -357,7 +357,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							domain := parseDNS.FieldByName("Query").Interface().(string)
 							queryTypeName := parseDNS.FieldByName("QTypeName").Interface().(string)
 
-							explodedDNSRepo.Upsert(&parsetypes.ExplodedDNS{Domain: domain}, "dnscat")
+							explodedDNSRepo.Upsert(&parsetypes.ExplodedDNS{Domain: domain})
 
 							hostname := &parsetypes.Hostname{Host: domain}
 							if queryTypeName == "A" {
@@ -368,7 +368,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										hostname.IPs = append(hostname.IPs, answer)
 									}
 								}
-								hostnameRepo.Upsert(hostname, "dnscat")
+								hostnameRepo.Upsert(hostname)
 							}
 						} else {
 							// We do not limit any of the other log types
@@ -408,19 +408,18 @@ func isUniqueTimestamp(timestamp int64, timestamps []int64) bool {
 // entries in the "conn" collection. It also creates new entries in the FrequentConnTable collection.
 func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap []uconnPair, uconnMap map[string]uconnPair) {
 	var logger *log.Logger
-	resDB := fs.res.DB
 
-	hostRepo := host.NewMongoRepository(resDB)
-	uconnRepo := uconn.NewMongoRepository(resDB)
-	connRepo := conn.NewMongoRepository(resDB)
-	freqRepo := freq.NewMongoRepository(resDB)
+	hostRepo := host.NewMongoRepository(fs.res)
+	uconnRepo := uconn.NewMongoRepository(fs.res)
+	connRepo := conn.NewMongoRepository(fs.res)
+	freqRepo := freq.NewMongoRepository(fs.res)
 
-	err := hostRepo.CreateIndexes(targetDB)
+	err := hostRepo.CreateIndexes()
 	if err != nil {
 		logger.Error(err)
 	}
 
-	err = uconnRepo.CreateIndexes(targetDB)
+	err = uconnRepo.CreateIndexes()
 	if err != nil {
 		logger.Error(err)
 	}
@@ -437,8 +436,7 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 				Source:          freqConn.src,
 				Destination:     freqConn.dst,
 				ConnectionCount: freqConn.connectionCount,
-			},
-			targetDB)
+			})
 		// remove entry out of uconns map so it doesn't end up in uconns collection
 		srcDst := freqConn.src + freqConn.dst
 		delete(uconnMap, srcDst)
@@ -458,9 +456,7 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 			MaxDuration:      uconnMap[uconn].maxDuration,
 			TSList:           uconnMap[uconn].tsList,
 			OrigBytesList:    uconnMap[uconn].origBytesList,
-		},
-			targetDB,
-		)
+		})
 
 		// **** add uconn src to hosts table if it doesn't already exist *** //
 		if isIPv4(uconnMap[uconn].src) {
@@ -472,7 +468,7 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 				IPv4Binary:  ipv4ToBinary(net.ParseIP(uconnMap[uconn].src)),
 			}
 			// update hosts field
-			hostRepo.Upsert(host, true, targetDB)
+			hostRepo.Upsert(host, true)
 		}
 
 		// **** add uconn dst to hosts table if it doesn't already exist *** //
@@ -485,11 +481,11 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 				IPv4Binary:  ipv4ToBinary(net.ParseIP(uconnMap[uconn].dst)),
 			}
 			// update hosts field
-			hostRepo.Upsert(host, false, targetDB)
+			hostRepo.Upsert(host, false)
 		}
 	}
 	// Execute the bulk deletion
-	connRepo.BulkDelete(freqConns, targetDB)
+	connRepo.BulkDelete(freqConns)
 }
 
 //removeOldFilesFromIndex checks all indexedFiles passed in to ensure

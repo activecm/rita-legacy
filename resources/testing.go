@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -37,6 +38,48 @@ func InitIntegrationTestingResources(t *testing.T) *Resources {
 	db, err := database.NewDB(conf, log)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	// Allows code to create and remove tracked databases
+	metaDB := database.NewMetaDB(conf, db.Session, log)
+
+	//Begin logging to the metadatabase
+	if conf.S.Log.LogToDB {
+		log.Hooks.Add(
+			mgorus.NewHookerFromSession(
+				db.Session, conf.S.Bro.MetaDB, conf.T.Log.RitaLogTable,
+			),
+		)
+	}
+
+	//bundle up the system resources
+	r := &Resources{
+		Config: conf,
+		Log:    log,
+		DB:     db,
+		MetaDB: metaDB,
+	}
+	return r
+}
+
+//InitTestResources creates a default testing
+//resource bundle for use with integration testing.
+func InitTestResources() *Resources {
+
+	conf, err := config.LoadTestingConfig("mongodb://localhost:27017")
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
+	// Fire up the logging system
+	log := initLogger(&conf.S.Log)
+
+	// Allows code to interact with the database
+	db, err := database.NewDB(conf, log)
+	if err != nil {
+		fmt.Println(err)
+		return nil
 	}
 
 	// Allows code to create and remove tracked databases

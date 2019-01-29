@@ -41,6 +41,9 @@ func doImport(c *cli.Context) error {
 	targetDatabase := c.Args().Get(1)
 	threads := util.Max(c.Int("threads")/2, 1)
 
+	// set target database in resources
+	res.DB.SelectDB(targetDatabase)
+
 	//check if one argument is set but not the other
 	if importDir != "" && targetDatabase == "" ||
 		importDir == "" && targetDatabase != "" {

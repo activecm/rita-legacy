@@ -6,6 +6,6 @@ import (
 
 // Repository for explodedDNS collection
 type Repository interface {
-	CreateIndexes(targetDB string) error
-	Upsert(explodedDNS *parsetypes.ExplodedDNS, targetDB string) error
+	CreateIndexes() error
+	Upsert(explodedDNS *parsetypes.ExplodedDNS) error
 }

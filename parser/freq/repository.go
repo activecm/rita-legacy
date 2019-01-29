@@ -6,5 +6,5 @@ import (
 
 // Repository for freq collection
 type Repository interface {
-	Insert(freqConn *parsetypes.Freq, targetDB string) error
+	Insert(freqConn *parsetypes.Freq) error
 }

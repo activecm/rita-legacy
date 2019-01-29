@@ -6,7 +6,7 @@ import (
 
 // Repository for uconn collection
 type Repository interface {
-	CreateIndexes(targetDB string) error
-	Insert(uconn *parsetypes.Uconn, targetDB string) error
-	Upsert(uconn *parsetypes.Uconn, targetDB string) error
+	CreateIndexes() error
+	Insert(uconn *parsetypes.Uconn) error
+	Upsert(uconn *parsetypes.Uconn) error
 }
