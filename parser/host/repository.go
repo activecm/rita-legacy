@@ -6,6 +6,6 @@ import (
 
 // Repository for host collection
 type Repository interface {
-	CreateIndexes(targetDB string) error
-	Upsert(host *parsetypes.Host, isSrc bool, targetDB string) error
+	CreateIndexes() error
+	Upsert(host *parsetypes.Host, isSrc bool) error
 }

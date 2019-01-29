@@ -1,29 +1,28 @@
 package hostname
 
 import (
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
-	db *database.DB
+	res *resources.Resources
 }
 
 //NewMongoRepository create new repository
-func NewMongoRepository(database *database.DB) Repository {
+func NewMongoRepository(res *resources.Resources) Repository {
 	return &repo{
-		db: database,
+		res: res,
 	}
 }
 
-func (r *repo) CreateIndexes(targetDB string) error {
-	r.db.SelectDB(targetDB)
-	session := r.db.Session.Copy()
+func (r *repo) CreateIndexes() error {
+	session := r.res.DB.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(targetDB).C("hostnames")
+	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable)
 
 	indexes := []mgo.Index{{Key: []string{"host"}, Unique: true}}
 
@@ -36,12 +35,11 @@ func (r *repo) CreateIndexes(targetDB string) error {
 	return nil
 }
 
-func (r *repo) Upsert(hostname *parsetypes.Hostname, targetDB string) error {
-	r.db.SelectDB(targetDB)
-	session := r.db.Session.Copy()
+func (r *repo) Upsert(hostname *parsetypes.Hostname) error {
+	session := r.res.DB.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(targetDB).C("hostnames")
+	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable)
 
 	// set up update query
 	query := bson.D{

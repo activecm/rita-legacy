@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/dbtest"
 )
 
@@ -24,7 +24,7 @@ func TestBulkDelete(t *testing.T) {
 		{Source: "127.0.0.1", Destination: "127.0.0.1"},
 	}
 
-	err := testRepo.BulkDelete(testConns, testTargetDB)
+	err := testRepo.BulkDelete(testConns)
 	if err != nil {
 		t.Errorf("Error inserting freq")
 	}
@@ -37,18 +37,12 @@ func TestMain(m *testing.M) {
 	Server.SetPath(tempDir)
 
 	// Set the main session variable to the temporary MongoDB instance
-	ssn := Server.Session()
+	res := resources.InitTestResources()
 
-	db := database.DB{Session: ssn}
-
-	testRepo = NewMongoRepository(&db)
+	testRepo = NewMongoRepository(res)
 
 	// Run the test suite
 	retCode := m.Run()
-
-	// Clean up test database and session
-	ssn.DB(testTargetDB).DropDatabase()
-	ssn.Close()
 
 	// Shut down the temporary server and removes data on disk.
 	Server.Stop()
