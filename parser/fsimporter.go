@@ -58,6 +58,11 @@ func NewFSImporter(res *resources.Resources,
 
 //Run starts importing a given path into a datastore
 func (fs *FSImporter) Run(datastore Datastore) {
+	// build the rita-bl database before parsing
+	if fs.res.Config.S.Blacklisted.Enabled {
+		blacklist.BuildBlacklistedCollections(fs.res)
+	}
+
 	// track the time spent parsing
 	start := time.Now()
 	fs.res.Log.WithFields(
