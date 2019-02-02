@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/dbtest"
 )
@@ -18,10 +17,11 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testExplodedDNS = &parsetypes.ExplodedDNS{
-	Domain:     "www.activecountermeasures.com",
-	Subdomains: 123,
-	Visited:    123,
+var testExplodedDNS = map[string]int{
+	"a.b.activecountermeasures.com":   123,
+	"x.a.b.activecountermeasures.com": 38,
+	"activecountermeasures.com":       1,
+	"google.com":                      912,
 }
 
 func TestCreateIndexes(t *testing.T) {
@@ -31,11 +31,11 @@ func TestCreateIndexes(t *testing.T) {
 	}
 }
 
-func TestUpsert(t *testing.T) {
-	err := testRepo.Upsert(testExplodedDNS)
-	if err != nil {
-		t.Errorf("Error creating explodedDNS indexes")
-	}
+func TestUpdateDomains(t *testing.T) {
+	testRepo.Upsert(testExplodedDNS)
+	// if err != nil {
+	// 	t.Errorf("Error creating explodedDNS upserts")
+	// }
 }
 
 // TestMain wraps all tests with the needed initialized mock DB and fixtures

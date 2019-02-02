@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/dbtest"
 )
@@ -18,9 +17,11 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testHostname = &parsetypes.Hostname{
-	Host: "activecountermeasures.com",
-	IPs:  []string{"127.0.0.1", "127.0.0.2"},
+var testHostname = map[string][]string{
+	"a.b.activecountermeasures.com":   []string{"127.0.0.1", "127.0.0.2"},
+	"x.a.b.activecountermeasures.com": []string{"127.0.0.1", "127.0.0.2"},
+	"activecountermeasures.com":       []string{},
+	"google.com":                      []string{"127.0.0.1", "127.0.0.2", "0.0.0.0"},
 }
 
 func TestCreateIndexes(t *testing.T) {
@@ -31,10 +32,8 @@ func TestCreateIndexes(t *testing.T) {
 }
 
 func TestUpsert(t *testing.T) {
-	err := testRepo.Upsert(testHostname)
-	if err != nil {
-		t.Errorf("Error creating hostnames indexes")
-	}
+	testRepo.Upsert(testHostname)
+
 }
 
 // TestMain wraps all tests with the needed initialized mock DB and fixtures

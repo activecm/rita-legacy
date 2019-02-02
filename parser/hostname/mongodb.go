@@ -1,10 +1,8 @@
 package hostname
 
 import (
-	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
@@ -35,26 +33,50 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-func (r *repo) Upsert(hostname *parsetypes.Hostname) error {
-	session := r.res.DB.Session.Copy()
-	defer session.Close()
+//Upsert loops through every domain ....
+func (r *repo) Upsert(hostnameMap map[string][]string) {
 
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable)
+	//Create the workers
+	writerWorker := newWriter(r.res.Config.T.DNS.HostnamesTable, r.res.DB, r.res.Config)
 
-	// set up update query
-	query := bson.D{
-		{"$setOnInsert", bson.M{"host": hostname.Host}},
-		{"$addToSet", bson.M{"ips": bson.M{"$each": hostname.IPs}}},
+	hostnameAnalyzerWorker := newAnalyzer(
+		writerWorker.collect,
+		writerWorker.close,
+	)
+
+	//kick off the threaded goroutines
+	for i := 0; i < 1; i++ { //util.Max(1, runtime.NumCPU()/2)
+		hostnameAnalyzerWorker.start()
+		writerWorker.start()
 	}
 
-	selector := bson.M{"host": hostname.Host}
-	// update hostnames collection
-	_, err := coll.Upsert(
-		selector,
-		query)
+	for entry, answers := range hostnameMap {
 
-	if err != nil {
-		return err
+		hostnameAnalyzerWorker.collect(hostname{entry, answers})
+
 	}
-	return nil
 }
+
+// func (r *repo) Upsert(hostname *parsetypes.Hostname) error {
+// 	session := r.res.DB.Session.Copy()
+// 	defer session.Close()
+//
+// 	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable)
+//
+// 	// set up update query
+// 	query := bson.D{
+// 		{"$setOnInsert", bson.M{"host": hostname.Host}},
+// 		{"$addToSet", bson.M{"ips": bson.M{"$each": hostname.IPs}}},
+// 	}
+//
+// 	selector := bson.M{"host": hostname.Host}
+// 	// update hostnames collection
+// 	_, err := coll.Upsert(
+// 		selector,
+// 		query)
+//
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
