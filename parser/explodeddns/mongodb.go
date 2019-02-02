@@ -1,10 +1,8 @@
 package explodeddns
 
 import (
-	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
@@ -18,6 +16,7 @@ func NewMongoRepository(res *resources.Resources) Repository {
 	}
 }
 
+//CreateIndexes ....
 func (r *repo) CreateIndexes() error {
 	session := r.res.DB.Session.Copy()
 	defer session.Close()
@@ -26,7 +25,8 @@ func (r *repo) CreateIndexes() error {
 
 	indexes := []mgo.Index{
 		{Key: []string{"domain"}, Unique: true},
-		//{Key: []string{"subdomains"}},
+		{Key: []string{"visited"}},
+		{Key: []string{"subdomains"}},
 	}
 
 	for _, index := range indexes {
@@ -38,27 +38,26 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-func (r *repo) Upsert(explodedDNS *parsetypes.ExplodedDNS) error {
-	session := r.res.DB.Session.Copy()
-	defer session.Close()
+//Upsert loops through every domain ....
+func (r *repo) Upsert(domainMap map[string]int) {
 
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.ExplodedDNSTable)
+	//Create the workers
+	writerWorker := newWriter(r.res.Config.T.DNS.ExplodedDNSTable, r.res.DB, r.res.Config)
 
-	// set up update query
-	query := bson.D{
-		{"$setOnInsert", bson.M{"domain": explodedDNS.Domain}},
-		//{"$setOnInsert", bson.M{"subdomains": explodedDNS.Subdomains}},
-		//{"$inc", bson.M{"visited": explodedDNS.Visited}},
+	dnsAnalyzerWorker := newAnalyzer(
+		writerWorker.collect,
+		writerWorker.close,
+	)
+
+	//kick off the threaded goroutines
+	for i := 0; i < 1; i++ { //util.Max(1, runtime.NumCPU()/2)
+		dnsAnalyzerWorker.start()
+		writerWorker.start()
 	}
 
-	selector := bson.M{"domain": explodedDNS.Domain}
-	// update hosts field
-	_, err := coll.Upsert(
-		selector,
-		query)
+	for entry, count := range domainMap {
 
-	if err != nil {
-		return err
+		dnsAnalyzerWorker.collect(domain{entry, count})
+
 	}
-	return nil
 }

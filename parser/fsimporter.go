@@ -93,7 +93,13 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
-	filterHugeUconnsMap, uconnMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+	filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+
+	// build or update the exploded DNS table
+	fs.buildExplodedDNS(explodeddnsMap)
+
+	// build or update the exploded DNS table
+	fs.buildHostnames(hostnameMap)
 
 	// Must wait for all inserts to finish before attempting to delete
 	datastore.Flush()
@@ -185,14 +191,12 @@ func indexFiles(files []string, indexingThreads int,
 //threads to use to parse the files, whether or not to sort data by date,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
-func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) ([]uconnPair, map[string]uconnPair) {
-	// Set up the database
+func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) (
+	[]uconnPair, map[string]uconnPair, map[string]int, map[string][]string) {
+	// Counts the number of uconns per source-destination pair
+	explodeddnsMap := make(map[string]int)
 
-	explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
-	explodedDNSRepo.CreateIndexes()
-
-	hostnameRepo := hostname.NewMongoRepository(fs.res)
-	hostnameRepo.CreateIndexes()
+	hostnameMap := make(map[string][]string)
 
 	//set up parallel parsing
 	n := len(indexedFiles)
@@ -357,19 +361,30 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							domain := parseDNS.FieldByName("Query").Interface().(string)
 							queryTypeName := parseDNS.FieldByName("QTypeName").Interface().(string)
 
-							explodedDNSRepo.Upsert(&parsetypes.ExplodedDNS{Domain: domain})
+							// Safely store the number of conns for this uconn
+							mutex.Lock()
 
-							hostname := &parsetypes.Hostname{Host: domain}
+							// increment domain map count for exploded dns
+							explodeddnsMap[domain]++
+
+							// Increment the connection count for the src-dst pair
+							if _, ok := hostnameMap[domain]; !ok {
+								hostnameMap[domain] = []string{}
+							}
+
 							if queryTypeName == "A" {
 								answers := parseDNS.FieldByName("Answers").Interface().([]string)
 								for _, answer := range answers {
 									// Check if answer is an IP address
 									if net.ParseIP(answer) != nil {
-										hostname.IPs = append(hostname.IPs, answer)
+										hostnameMap[domain] = append(hostnameMap[domain], answer)
+										// hostname.IPs = append(hostname.IPs, answer)
 									}
 								}
-								hostnameRepo.Upsert(hostname)
 							}
+
+							mutex.Unlock()
+
 						} else {
 							// We do not limit any of the other log types
 							datastore.Store(&ImportedData{
@@ -392,7 +407,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	return filterHugeUconnsMap, uconnMap
+	return filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap
 }
 
 func isUniqueTimestamp(timestamp int64, timestamps []int64) bool {
@@ -402,6 +417,22 @@ func isUniqueTimestamp(timestamp int64, timestamps []int64) bool {
 		}
 	}
 	return true
+}
+
+//buildExplodedDNS .....
+func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
+	// Set up the database
+	explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
+	explodedDNSRepo.CreateIndexes()
+	explodedDNSRepo.Upsert(domainMap)
+}
+
+//buildHostnames .....
+func (fs *FSImporter) buildHostnames(hostnameMap map[string][]string) {
+	// Set up the database
+	hostnameRepo := hostname.NewMongoRepository(fs.res)
+	hostnameRepo.CreateIndexes()
+	hostnameRepo.Upsert(hostnameMap)
 }
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
