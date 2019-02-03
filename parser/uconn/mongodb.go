@@ -1,10 +1,12 @@
 package uconn
 
 import (
+	"runtime"
+
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
@@ -53,35 +55,26 @@ func (r *repo) Insert(uconn *parsetypes.Uconn) error {
 	return nil
 }
 
-func (r *repo) Upsert(uconn *parsetypes.Uconn) error {
-	session := r.res.DB.Session.Copy()
-	defer session.Close()
+//Upsert loops through every domain ....
+func (r *repo) Upsert(uconnMap map[string]Pair) {
 
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.UniqueConnTable)
+	//Create the workers
+	writerWorker := newWriter(r.res.Config.T.Structure.UniqueConnTable, r.res.DB, r.res.Config)
 
-	// set up update query
-	query := bson.D{
-		{"$setOnInsert", bson.M{"src": uconn.Source}},
-		{"$setOnInsert", bson.M{"dst": uconn.Destination}},
-		{"$setOnInsert", bson.M{"connection_count": uconn.ConnectionCount}},
-		{"$setOnInsert", bson.M{"local_src": uconn.LocalSource}},
-		{"$setOnInsert", bson.M{"local_dst": uconn.LocalDestination}},
-		{"$setOnInsert", bson.M{"total_bytes": uconn.TotalBytes}},
-		{"$setOnInsert", bson.M{"avg_bytes": uconn.AverageBytes}},
-		{"$setOnInsert", bson.M{"ts_list": uconn.TSList}},
-		{"$setOnInsert", bson.M{"orig_bytes_list": uconn.OrigBytesList}},
-		{"$setOnInsert", bson.M{"total_duration": uconn.TotalDuration}},
-		{"$setOnInsert", bson.M{"max_duration": uconn.MaxDuration}},
+	hostnameAnalyzerWorker := newAnalyzer(
+		writerWorker.collect,
+		writerWorker.close,
+	)
+
+	//kick off the threaded goroutines
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		hostnameAnalyzerWorker.start()
+		writerWorker.start()
 	}
 
-	selector := bson.M{"src": uconn.Source, "dst": uconn.Destination}
-	// update hosts field
-	_, err := coll.Upsert(
-		selector,
-		query)
+	for _, entry := range uconnMap {
 
-	if err != nil {
-		return err
+		hostnameAnalyzerWorker.collect(entry)
+
 	}
-	return nil
 }
