@@ -1,7 +1,10 @@
 package explodeddns
 
 import (
+	"runtime"
+
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
 )
 
@@ -44,20 +47,20 @@ func (r *repo) Upsert(domainMap map[string]int) {
 	//Create the workers
 	writerWorker := newWriter(r.res.Config.T.DNS.ExplodedDNSTable, r.res.DB, r.res.Config)
 
-	dnsAnalyzerWorker := newAnalyzer(
+	analyzerWorker := newAnalyzer(
 		writerWorker.collect,
 		writerWorker.close,
 	)
 
 	//kick off the threaded goroutines
-	for i := 0; i < 1; i++ { //util.Max(1, runtime.NumCPU()/2)
-		dnsAnalyzerWorker.start()
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		analyzerWorker.start()
 		writerWorker.start()
 	}
 
 	for entry, count := range domainMap {
 
-		dnsAnalyzerWorker.collect(domain{entry, count})
+		analyzerWorker.collect(domain{entry, count})
 
 	}
 }

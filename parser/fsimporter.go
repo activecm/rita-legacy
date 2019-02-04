@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -457,35 +456,7 @@ func (fs *FSImporter) buildHosts(uconnMap map[string]uconn.Pair) {
 		fs.res.Log.Error(err)
 	}
 
-	for entry := range uconnMap {
-
-		// **** add uconn src to hosts table if it doesn't already exist *** //
-		if isIPv4(uconnMap[entry].Src) {
-			host := &parsetypes.Host{
-				IP:          uconnMap[entry].Src,
-				Local:       uconnMap[entry].IsLocalSrc,
-				IPv4:        isIPv4(uconnMap[entry].Src),
-				MaxDuration: float32(uconnMap[entry].MaxDuration),
-				IPv4Binary:  ipv4ToBinary(net.ParseIP(uconnMap[entry].Src)),
-			}
-			// update hosts field
-			hostRepo.Upsert(host, true)
-		}
-
-		// **** add uconn dst to hosts table if it doesn't already exist *** //
-		if isIPv4(uconnMap[entry].Dst) {
-			host := &parsetypes.Host{
-				IP:          uconnMap[entry].Dst,
-				Local:       uconnMap[entry].IsLocalDst,
-				IPv4:        isIPv4(uconnMap[entry].Dst),
-				MaxDuration: float32(uconnMap[entry].MaxDuration),
-				IPv4Binary:  ipv4ToBinary(net.ParseIP(uconnMap[entry].Dst)),
-			}
-			// update hosts field
-			hostRepo.Upsert(host, false)
-		}
-	}
-
+	hostRepo.Upsert(uconnMap)
 }
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
@@ -563,14 +534,4 @@ func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.Me
 	if err != nil {
 		logger.Error("Could not update the list of parsed files")
 	}
-}
-
-//isIPv4 checks if an ip is ipv4
-func isIPv4(address string) bool {
-	return strings.Count(address, ":") < 2
-}
-
-//ipv4ToBinary generates binary representations of the IPv4 addresses
-func ipv4ToBinary(ipv4 net.IP) int64 {
-	return int64(binary.BigEndian.Uint32(ipv4[12:16]))
 }

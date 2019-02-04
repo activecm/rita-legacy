@@ -1,12 +1,12 @@
 package host
 
 import (
-	"fmt"
+	"runtime"
 
-	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/parser/uconn"
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
@@ -31,7 +31,6 @@ func (r *repo) CreateIndexes() error {
 	indexes := []mgo.Index{
 		{Key: []string{"ip"}, Unique: true},
 		{Key: []string{"local"}},
-		{Key: []string{"ipv4"}},
 		{Key: []string{"ipv4_binary"}},
 	}
 
@@ -44,34 +43,26 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-func (r *repo) Upsert(host *parsetypes.Host, isSrc bool) error {
-	session := r.res.DB.Session.Copy()
-	defer session.Close()
+//Upsert loops through every domain ....
+func (r *repo) Upsert(uconnMap map[string]uconn.Pair) {
 
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.HostTable)
+	//Create the workers
+	writerWorker := newWriter(r.res.Config.T.Structure.HostTable, r.res.DB, r.res.Config)
 
-	// set up update query
-	query := bson.D{
-		{"$setOnInsert", bson.M{"local": host.Local}},
-		{"$setOnInsert", bson.M{"ipv4": host.IPv4}},
-		{"$max", bson.M{"max_duration": host.MaxDuration}},
-		{"$setOnInsert", bson.M{"ipv4_binary": host.IPv4Binary}},
+	analyzerWorker := newAnalyzer(
+		writerWorker.collect,
+		writerWorker.close,
+	)
+
+	//kick off the threaded goroutines
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		analyzerWorker.start()
+		writerWorker.start()
 	}
 
-	if isSrc {
-		query = append(query, bson.DocElem{"$inc", bson.M{"count_src": 1}})
-	} else {
-		query = append(query, bson.DocElem{"$inc", bson.M{"count_dst": 1}})
-	}
+	for _, entry := range uconnMap {
 
-	// update hosts field
-	_, err := coll.Upsert(
-		bson.M{"ip": host.IP},
-		query)
+		analyzerWorker.collect(entry)
 
-	if err != nil {
-		fmt.Println(err)
-		return err
 	}
-	return nil
 }

@@ -61,20 +61,20 @@ func (r *repo) Upsert(uconnMap map[string]Pair) {
 	//Create the workers
 	writerWorker := newWriter(r.res.Config.T.Structure.UniqueConnTable, r.res.DB, r.res.Config)
 
-	hostnameAnalyzerWorker := newAnalyzer(
+	analyzerWorker := newAnalyzer(
 		writerWorker.collect,
 		writerWorker.close,
 	)
 
 	//kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
-		hostnameAnalyzerWorker.start()
+		analyzerWorker.start()
 		writerWorker.start()
 	}
 
 	for _, entry := range uconnMap {
 
-		hostnameAnalyzerWorker.collect(entry)
+		analyzerWorker.collect(entry)
 
 	}
 }
