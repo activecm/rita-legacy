@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -461,66 +460,34 @@ func (fs *FSImporter) bulkRemoveHugeUconns(filterHugeUconnsMap []uconnPair, ucon
 		fs.res.Log.Error(err)
 	}
 
-	fmt.Println("\t[-] Removing unused connection info. This may take a while.")
+	hostRepo.Upsert(uconnMap)
+}
+
+// bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
+// entries in the "conn" collection. It also creates new entries in the FrequentConnTable collection.
+func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap []uconn.Pair, uconnMap map[string]uconn.Pair) {
+
+	connRepo := conn.NewMongoRepository(fs.res)
+	freqRepo := freq.NewMongoRepository(fs.res)
+
+	fmt.Println("\t[-] Creating Strobes and removing unused connection info")
 	freqConns := make([]*parsetypes.Conn, 0)
 	for _, freqConn := range filterHugeUconnsMap {
 		freqConns = append(freqConns, &parsetypes.Conn{
-			Source:      freqConn.src,
-			Destination: freqConn.dst,
+			Source:      freqConn.Src,
+			Destination: freqConn.Dst,
 		})
 		freqRepo.Insert(
 			&parsetypes.Freq{
-				Source:          freqConn.src,
-				Destination:     freqConn.dst,
-				ConnectionCount: freqConn.connectionCount,
+				Source:          freqConn.Src,
+				Destination:     freqConn.Dst,
+				ConnectionCount: freqConn.ConnectionCount,
 			})
 		// remove entry out of uconns map so it doesn't end up in uconns collection
-		srcDst := freqConn.src + freqConn.dst
+		srcDst := freqConn.Src + freqConn.Dst
 		delete(uconnMap, srcDst)
 	}
 
-	fmt.Println("\t[-] Creating Uconns and Hosts Collections. This may take a while.")
-	for uconn := range uconnMap {
-		// add uconn pair to uconn table
-		uconnRepo.Upsert(&parsetypes.Uconn{
-			Source:           uconnMap[uconn].src,
-			Destination:      uconnMap[uconn].dst,
-			ConnectionCount:  uconnMap[uconn].connectionCount,
-			LocalSource:      uconnMap[uconn].isLocalSrc,
-			LocalDestination: uconnMap[uconn].isLocalDst,
-			TotalBytes:       uconnMap[uconn].totalBytes,
-			AverageBytes:     uconnMap[uconn].avgBytes,
-			MaxDuration:      uconnMap[uconn].maxDuration,
-			TSList:           uconnMap[uconn].tsList,
-			OrigBytesList:    uconnMap[uconn].origBytesList,
-		})
-
-		// **** add uconn src to hosts table if it doesn't already exist *** //
-		if isIPv4(uconnMap[uconn].src) {
-			host := &parsetypes.Host{
-				IP:          uconnMap[uconn].src,
-				Local:       uconnMap[uconn].isLocalSrc,
-				IPv4:        isIPv4(uconnMap[uconn].src),
-				MaxDuration: float32(uconnMap[uconn].maxDuration),
-				IPv4Binary:  ipv4ToBinary(net.ParseIP(uconnMap[uconn].src)),
-			}
-			// update hosts field
-			hostRepo.Upsert(host, true)
-		}
-
-		// **** add uconn dst to hosts table if it doesn't already exist *** //
-		if isIPv4(uconnMap[uconn].dst) {
-			host := &parsetypes.Host{
-				IP:          uconnMap[uconn].dst,
-				Local:       uconnMap[uconn].isLocalDst,
-				IPv4:        isIPv4(uconnMap[uconn].dst),
-				MaxDuration: float32(uconnMap[uconn].maxDuration),
-				IPv4Binary:  ipv4ToBinary(net.ParseIP(uconnMap[uconn].dst)),
-			}
-			// update hosts field
-			hostRepo.Upsert(host, false)
-		}
-	}
 	// Execute the bulk deletion
 	connRepo.BulkDelete(freqConns)
 }
@@ -571,23 +538,4 @@ func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.Me
 	if err != nil {
 		logger.Error("Could not update the list of parsed files")
 	}
-}
-
-//isIPv4 checks if an ip is ipv4
-func isIPv4(address string) bool {
-	return strings.Count(address, ":") < 2
-}
-
-//ipv4ToBinary generates binary representations of the IPv4 addresses
-func ipv4ToBinary(ipv4 net.IP) int64 {
-	return int64(binary.BigEndian.Uint32(ipv4[12:16]))
-}
-
-func stringInSlice(a string, list []string) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-	return false
 }

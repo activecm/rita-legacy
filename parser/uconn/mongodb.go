@@ -57,28 +57,20 @@ func (r *repo) Upsert(uconn *parsetypes.Uconn) error {
 	session := r.res.DB.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.UniqueConnTable)
+	analyzerWorker := newAnalyzer(
+		writerWorker.collect,
+		writerWorker.close,
+	)
 
-	// set up update query
-	query := bson.D{
-		{"$setOnInsert", bson.M{"src": uconn.Source}},
-		{"$setOnInsert", bson.M{"dst": uconn.Destination}},
-		{"$setOnInsert", bson.M{"connection_count": uconn.ConnectionCount}},
-		{"$setOnInsert", bson.M{"local_src": uconn.LocalSource}},
-		{"$setOnInsert", bson.M{"local_dst": uconn.LocalDestination}},
-		{"$setOnInsert", bson.M{"total_bytes": uconn.TotalBytes}},
-		{"$setOnInsert", bson.M{"avg_bytes": uconn.AverageBytes}},
-		{"$setOnInsert", bson.M{"ts_list": uconn.TSList}},
-		{"$setOnInsert", bson.M{"orig_bytes_list": uconn.OrigBytesList}},
-		{"$setOnInsert", bson.M{"total_duration": uconn.TotalDuration}},
-		{"$setOnInsert", bson.M{"max_duration": uconn.MaxDuration}},
+	//kick off the threaded goroutines
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		analyzerWorker.start()
+		writerWorker.start()
 	}
 
-	selector := bson.M{"src": uconn.Source, "dst": uconn.Destination}
-	// update hosts field
-	_, err := coll.Upsert(
-		selector,
-		query)
+	for _, entry := range uconnMap {
+
+		analyzerWorker.collect(entry)
 
 	if err != nil {
 		return err
