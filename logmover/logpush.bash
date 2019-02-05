@@ -29,57 +29,41 @@ KEYFILE=""
 ##################################################
 # We use shared locks for writing to the server,
 # and an exclusive lock for parsing
-# Note: distributed locking is hard,
-# so we use ssh to lock on the RITA server
-LOCK="$REMOTE_LOG_DIR/.rita.read.lock"
+# Each lock is backed by this file.
+# NOTE: $REMOTE_LOG_DIR may not be on NFS.
+LOCK="$REMOTE_LOG_DIR/.logpush.lock"
 
 # We will store the log data here
 DEST_DIR="$REMOTE_LOG_DIR/$COLLECTOR"
 
-# On the RITA server we lock, sleep, and wait
-# Note: we grab the sleep pid to kill the shell
-# SSH will exit gracefully
-SCRIPT='( flock -s 9; sleep infinity & echo $!; wait )9>'"$LOCK"
-
-# We need a temporary directory to hold the lock pipe
-LOGMOVER_TEMP_DIR="$(mktemp -d rita-logmover.XXXXXXXXXXXX)"
-
-# We use a named pipe to talk between threaded tasks
-# The LOCK_PIPE lets us know when we have established a shared
-# lock on the machine running watcher.sh.
-LOCK_PIPE="$LOGMOVER_TEMP_DIR/.lock_pipe"
-
 # We want to transfer yesterday's logs
-TX_DIR=$LOCAL_LOG_DIR/$(date +%Y-%m-%d)
+TX_DIR=$LOCAL_LOG_DIR/$(date -d "yesterday" +%Y-%m-%d)
+
+# The SERVER_SCRIPT is used to obtain a shared lock
+# on the receiving server before starting an rsync
+# daemon to receive data. The lock is held
+# until the script exits. The script will exit
+# once rsync has finished.
+read -r -d '' SERVER_SCRIPT << EOF
+main() {
+  {
+    flock -s 9;
+    rsync \$@
+    local exit_code=\$?
+    return \${exit_code}
+  } 9>$LOCK
+}
+
+main
+EOF
 
 # Check if yesterday's logs are available
 if [ ! -d $TX_DIR ]
 then
-  echo "No local folder found! Using: $TX_DIR"
+  echo "No local folder found! Searched for: $TX_DIR"
   exit 1
 fi
 
-# Cleanup the temporary directory and named pipe
-trap "rm -f '$LOGMOVER_TEMP_DIR'" EXIT
-
-# Create the named pipe
-mkfifo "$LOCK_PIPE"
-
-# Run the lock script from the server in the background
-# and read output into the channel
-# Stream redirection directly into the pipe doesn't work since
-# bash will wait until ssh to forward the output
-echo $SCRIPT | ssh -i $KEYFILE $USER@$REMOTE "/bin/bash" | {
-  read line
-  echo $line > $LOCK_PIPE
-} &
-
-# Grab the sleep pid
-echo "Synchronizing"
-lock_pid=$(<$LOCK_PIPE)
-echo $lock_pid
-echo "Writing"
-rsync -a -e "ssh -i $KEYFILE" $TX_DIR $USER@$REMOTE:$DEST_DIR
-
-# kill the sleep process and unlock
-ssh -i $KEYFILE $USER@$REMOTE "kill $lock_pid"
+# Send the logs
+echo "Sending $TX_DIR to $USER@$REMOTE:$DEST_DIR"
+rsync -a -e "ssh -i $KEYFILE" --rsync-path="$SERVER_SCRIPT" $TX_DIR $USER@$REMOTE:$DEST_DIR

@@ -5,24 +5,25 @@
 # from the bro nodes. If you start the logpush
 # script at 1 am on the nodes, start this script
 # at about 1:15 or 2 am. As long as the logpush
-# has been run before this script, all will be well. 
+# has been run before this script, all will be well.
 
 # Where RITA is configured to read bro logs from
 LOG_DIR=""
 
 ##################################################
-LOCK_NAME=".rita.read.lock"
+LOCK_NAME=".logpush.lock"
 LOCK="$LOG_DIR/$LOCK_NAME"
 
 (
-  echo "Waiting for exclusive lock"
+  echo "Waiting for file transfers to finish"
   flock -x 9
-  echo "Gained exclusive lock"
-  echo "Parsing"
-  find $LOG_DIR -name *.gz -exec gzip -d {} \;
+  echo "Importing files into RITA"
   rita import
+
+  # Remove the bro logs now that they have been imported.
+  # Backups should remain on the collectors
   find $LOG_DIR ! -path $LOG_DIR ! -name $LOCK_NAME -exec rm -rf {} +
-  echo "Finished parsing"
 ) 9>$LOCK
-echo "Analyzing"
+
+echo "Analyzing imported files"
 rita analyze
