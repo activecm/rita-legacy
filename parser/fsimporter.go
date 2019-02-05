@@ -13,6 +13,7 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/parser/beacon"
 	"github.com/activecm/rita/parser/conn"
 	"github.com/activecm/rita/parser/explodeddns"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
@@ -63,7 +64,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 		},
 	).Info("Starting filesystem import. Collecting file details.")
 
-	fmt.Println("\t[-] Finding files to parse")
+	fmt.Println("\t[-] Finding files to parse ... ")
 	//find all of the bro log paths
 	files := readDir(fs.res.Config.S.Bro.ImportDirectory, fs.res.Log)
 
@@ -80,7 +81,18 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
+	// parse in those files!
 	filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+
+	// Must wait for all mongodatastore inserts to finish before attempting to delete
+	datastore.Flush()
+	fs.bulkRemoveHugeUconns(filterHugeUconnsMap, uconnMap)
+
+	// build Uconns table
+	fs.buildUconns(uconnMap)
+
+	// build Hosts table
+	// fs.buildHosts(uconnMap)
 
 	// build or update the exploded DNS table
 	fs.buildExplodedDNS(explodeddnsMap)
@@ -88,15 +100,12 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	// build or update the exploded DNS table
 	fs.buildHostnames(hostnameMap)
 
-	// Must wait for all inserts to finish before attempting to delete
-	datastore.Flush()
-	fs.bulkRemoveHugeUconns(indexedFiles[0].TargetDatabase, filterHugeUconnsMap, uconnMap)
-	fs.buildUconns(uconnMap)
-	fs.buildHosts(uconnMap)
+	// build or update Beacons table
+	fs.buildBeacons(uconnMap)
 
-	fmt.Println("\t[-] Waiting for all inserts to finish... ")
+	fmt.Println("\t[-] Waiting for all inserts to finish ... ")
 
-	fmt.Println("\t[-] Indexing log entries")
+	fmt.Println("\t[-] Indexing log entries ... ")
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
 	progTime = time.Now()
@@ -187,6 +196,8 @@ func indexFiles(files []string, indexingThreads int,
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) (
 	[]uconn.Pair, map[string]uconn.Pair, map[string]int, map[string][]string) {
+
+	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 	// Counts the number of uconns per source-destination pair
 	explodeddnsMap := make(map[string]int)
 
@@ -212,7 +223,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 			wg *sync.WaitGroup, start int, jump int, length int) {
 			//comb over array
 			for j := start; j < length; j += jump {
-				fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
+				// fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
 				//read the file
 				fileHandle, err := os.Open(indexedFiles[j].Path)
 				if err != nil {
@@ -249,7 +260,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 					if data != nil {
 						//figure out which collection (dns, http, or conn) this line is heading for
 						targetCollection := indexedFiles[j].TargetCollection
-						targetDB := indexedFiles[j].TargetDatabase
+						// targetDB := indexedFiles[j].TargetDatabase
 
 						/// *************************************************************///
 						///                           CONNS                              ///
@@ -332,19 +343,21 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									OrigBytesList:   uconnPair.OrigBytesList,
 								}
 
-								// stores the conn record in conn collection if below threshold
-								if connCount < fs.connLimit {
-									datastore.Store(&ImportedData{
-										BroData:          data,
-										TargetDatabase:   targetDB,
-										TargetCollection: targetCollection,
-									})
-								} else if connCount == fs.connLimit {
+								if connCount == fs.connLimit {
 									// tag strobe for removal from conns after import
 									filterHugeUconnsMap = append(filterHugeUconnsMap, uconnPair)
 								}
 
 								mutex.Unlock()
+
+								// stores the conn record in conn collection if below threshold
+								if connCount < fs.connLimit {
+									// datastore.Store(&ImportedData{
+									// 	BroData:          data,
+									// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
+									// 	TargetCollection: targetCollection,
+									// })
+								}
 							}
 
 							/// *************************************************************///
@@ -373,20 +386,26 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// Check if answer is an IP address
 									if net.ParseIP(answer) != nil {
 										hostnameMap[domain] = append(hostnameMap[domain], answer)
-										// hostname.IPs = append(hostname.IPs, answer)
 									}
 								}
 							}
 
 							mutex.Unlock()
 
+							// stores the dns record in the dns collection
+							// datastore.Store(&ImportedData{
+							// 	BroData:          data,
+							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
+							// 	TargetCollection: targetCollection,
+							// })
+
 						} else {
-							// We do not limit any of the other log types
-							datastore.Store(&ImportedData{
-								BroData:          data,
-								TargetDatabase:   targetDB,
-								TargetCollection: targetCollection,
-							})
+							// We do not analyze any of the other log types (yet)
+							// datastore.Store(&ImportedData{
+							// 	BroData:          data,
+							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
+							// 	TargetCollection: targetCollection,
+							// })
 						}
 
 					}
@@ -416,24 +435,24 @@ func isUniqueTimestamp(timestamp int64, timestamps []int64) bool {
 
 //buildExplodedDNS .....
 func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
-	fmt.Println("\t[-] Creating Exploded DNS Collection")
+	fmt.Println("\t[-] Creating Exploded DNS Collection ...")
 	// Set up the database
 	explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
 	explodedDNSRepo.CreateIndexes()
-	explodedDNSRepo.Upsert(domainMap)
+	// explodedDNSRepo.Upsert(domainMap)
 }
 
 //buildHostnames .....
 func (fs *FSImporter) buildHostnames(hostnameMap map[string][]string) {
-	fmt.Println("\t[-] Creating Hostnames Collection")
+	fmt.Println("\t[-] Creating Hostnames Collection ...")
 	// Set up the database
 	hostnameRepo := hostname.NewMongoRepository(fs.res)
 	hostnameRepo.CreateIndexes()
-	hostnameRepo.Upsert(hostnameMap)
+	// hostnameRepo.Upsert(hostnameMap)
 }
 
 func (fs *FSImporter) buildUconns(uconnMap map[string]uconn.Pair) {
-	fmt.Println("\t[-] Creating Uconns Collection")
+	fmt.Println("\t[-] Creating Uconns Collection ...")
 
 	uconnRepo := uconn.NewMongoRepository(fs.res)
 
@@ -442,13 +461,13 @@ func (fs *FSImporter) buildUconns(uconnMap map[string]uconn.Pair) {
 		fs.res.Log.Error(err)
 	}
 
-	// add uconn pair to uconn table
+	// send uconns to uconn analysis
 	uconnRepo.Upsert(uconnMap)
 
 }
 
 func (fs *FSImporter) buildHosts(uconnMap map[string]uconn.Pair) {
-	fmt.Println("\t[-] Creating Hosts Collection")
+	fmt.Println("\t[-] Creating Hosts Collection ...")
 	hostRepo := host.NewMongoRepository(fs.res)
 
 	err := hostRepo.CreateIndexes()
@@ -456,17 +475,33 @@ func (fs *FSImporter) buildHosts(uconnMap map[string]uconn.Pair) {
 		fs.res.Log.Error(err)
 	}
 
-	hostRepo.Upsert(uconnMap)
+	// send uconns to host analysis
+	// hostRepo.Upsert(uconnMap)
+}
+
+func (fs *FSImporter) buildBeacons(uconnMap map[string]uconn.Pair) {
+	fmt.Println("\t[-] Creating Beacons Collection ...")
+
+	beaconRepo := beacon.NewMongoRepository(fs.res)
+
+	err := beaconRepo.CreateIndexes()
+	if err != nil {
+		fs.res.Log.Error(err)
+	}
+
+	// send uconns to beacon analysis
+	beaconRepo.Upsert(uconnMap)
+
 }
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
 // entries in the "conn" collection. It also creates new entries in the FrequentConnTable collection.
-func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap []uconn.Pair, uconnMap map[string]uconn.Pair) {
+func (fs *FSImporter) bulkRemoveHugeUconns(filterHugeUconnsMap []uconn.Pair, uconnMap map[string]uconn.Pair) {
 
 	connRepo := conn.NewMongoRepository(fs.res)
 	freqRepo := freq.NewMongoRepository(fs.res)
 
-	fmt.Println("\t[-] Creating Strobes and removing unused connection info")
+	fmt.Println("\t[-] Creating Strobes and removing unused connection info ... ")
 	freqConns := make([]*parsetypes.Conn, 0)
 	for _, freqConn := range filterHugeUconnsMap {
 		freqConns = append(freqConns, &parsetypes.Conn{

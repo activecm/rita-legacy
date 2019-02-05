@@ -3,7 +3,6 @@ package uconn
 import (
 	"runtime"
 
-	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
@@ -38,19 +37,6 @@ func (r *repo) CreateIndexes() error {
 		if err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func (r *repo) Insert(uconn *parsetypes.Uconn) error {
-	session := r.res.DB.Session.Copy()
-	defer session.Close()
-
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.UniqueConnTable)
-
-	err := coll.Insert(uconn)
-	if err != nil {
-		return err
 	}
 	return nil
 }

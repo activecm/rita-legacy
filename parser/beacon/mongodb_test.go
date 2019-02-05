@@ -1,10 +1,11 @@
-package uconn
+package beacon
 
 import (
 	"io/ioutil"
 	"os"
 	"testing"
 
+	"github.com/activecm/rita/parser/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/dbtest"
 )
@@ -17,8 +18,8 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testUconn = map[string]Pair{
-	"test": Pair{
+var testHost = map[string]uconn.Pair{
+	"test": uconn.Pair{
 		Src:             "127.0.0.1",
 		Dst:             "127.0.0.1",
 		ConnectionCount: 12,
@@ -36,13 +37,12 @@ var testUconn = map[string]Pair{
 func TestCreateIndexes(t *testing.T) {
 	err := testRepo.CreateIndexes()
 	if err != nil {
-		t.Errorf("Error creating uconn indexes")
+		t.Errorf("Error creating host indexes")
 	}
 }
 
 func TestUpsert(t *testing.T) {
-	testRepo.Upsert(testUconn)
-
+	testRepo.Upsert(testHost)
 }
 
 // TestMain wraps all tests with the needed initialized mock DB and fixtures
