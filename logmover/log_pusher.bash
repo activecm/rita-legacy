@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script pushes logs to the RITA server
 # Put this in an unprivileged user's cron tab on

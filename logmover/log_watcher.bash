@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Run this script on the RITA host  after writes
 # have started coming into the analysis server
@@ -14,7 +14,7 @@ LOG_DIR=""
 LOCK_NAME=".logpush.lock"
 LOCK="$LOG_DIR/$LOCK_NAME"
 
-(
+{
   echo "Waiting for file transfers to finish"
   flock -x 9
   echo "Importing files into RITA"
@@ -23,7 +23,7 @@ LOCK="$LOG_DIR/$LOCK_NAME"
   # Remove the bro logs now that they have been imported.
   # Backups should remain on the collectors
   find $LOG_DIR ! -path $LOG_DIR ! -name $LOCK_NAME -exec rm -rf {} +
-) 9>$LOCK
+} 9>$LOCK
 
 echo "Analyzing imported files"
 rita analyze
