@@ -10,8 +10,10 @@ type Repository interface {
 
 //update ....
 type update struct {
-	selector interface{}
-	query    interface{}
+	beaconSelector interface{}
+	beaconQuery    interface{}
+	hostSelector   interface{}
+	hostQuery      interface{}
 }
 
 type uconnRes struct {

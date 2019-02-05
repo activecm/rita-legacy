@@ -105,7 +105,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	fs.buildUconns(uconnMap)
 
 	// build Hosts table
-	// fs.buildHosts(uconnMap)
+	fs.buildHosts(uconnMap)
 
 	// build or update the exploded DNS table
 	fs.buildExplodedDNS(explodeddnsMap)
@@ -264,12 +264,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						indexedFiles[j].GetBroDataFactory(),
 						logger,
 					)
-
-					// The number of conns in a uconn
-					var connCount int64
-					// The maximum number of conns that will be stored
-					// We need to move this somewhere where the importer & analyzer can both access it
-					var connLimit = int64(fs.res.Config.S.Strobe.ConnectionLimit)
 
 					if data != nil {
 						//figure out what database this line is heading for
@@ -451,7 +445,7 @@ func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 	// Set up the database
 	explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
 	explodedDNSRepo.CreateIndexes()
-	// explodedDNSRepo.Upsert(domainMap)
+	explodedDNSRepo.Upsert(domainMap)
 }
 
 //buildHostnames .....
@@ -460,7 +454,7 @@ func (fs *FSImporter) buildHostnames(hostnameMap map[string][]string) {
 	// Set up the database
 	hostnameRepo := hostname.NewMongoRepository(fs.res)
 	hostnameRepo.CreateIndexes()
-	// hostnameRepo.Upsert(hostnameMap)
+	hostnameRepo.Upsert(hostnameMap)
 }
 
 func (fs *FSImporter) buildUconns(uconnMap map[string]uconn.Pair) {
@@ -490,7 +484,7 @@ func (fs *FSImporter) buildHosts(uconnMap map[string]uconn.Pair) {
 	}
 
 	// send uconns to host analysis
-	// hostRepo.Upsert(uconnMap)
+	hostRepo.Upsert(uconnMap)
 }
 
 func (fs *FSImporter) buildBeacons(uconnMap map[string]uconn.Pair) {

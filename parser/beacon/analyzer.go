@@ -230,7 +230,7 @@ func (a *analyzer) start() {
 				// update beacon
 				output := update{
 					// create query
-					query: bson.M{
+					beaconQuery: bson.M{
 						"$set": bson.M{
 							"connection_count":   res.ConnectionCount,
 							"avg_bytes":          res.AverageBytes,
@@ -255,7 +255,14 @@ func (a *analyzer) start() {
 						},
 					},
 					// create selector for output
-					selector: bson.M{"src": data.Src, "dst": data.Dst},
+					beaconSelector: bson.M{"src": res.Src, "dst": res.Dst},
+
+					// update hosts record
+					hostQuery: bson.M{
+						"$max": bson.M{"max_beacon_score": score},
+					},
+					// create selector for output
+					hostSelector: bson.M{"ip": res.Src},
 				}
 
 				// set to writer channel
