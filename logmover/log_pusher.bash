@@ -20,7 +20,7 @@ REMOTE_LOG_DIR=""
 LOCAL_LOG_DIR=""
 
 # The name of this collector node
-# The logs will be stored at REMOTE_LOG_DIR/COLLECTOR
+# The logs will be stored at REMOTE_LOG_DIR/YYYY-MM-DD-COLLECTOR
 COLLECTOR=""
 
 # The ssh key to connect to the RITA server with
@@ -34,7 +34,7 @@ KEYFILE=""
 LOCK="$REMOTE_LOG_DIR/.logpush.lock"
 
 # We will store the log data here
-DEST_DIR="$REMOTE_LOG_DIR/$COLLECTOR"
+DEST_DIR="$REMOTE_LOG_DIR/$(date -d "yesterday" +%Y-%m-%d)-$COLLECTOR"
 
 # We want to transfer yesterday's logs
 TX_DIR=$LOCAL_LOG_DIR/$(date -d "yesterday" +%Y-%m-%d)
@@ -66,4 +66,4 @@ fi
 
 # Send the logs
 echo "Sending $TX_DIR to $USER@$REMOTE:$DEST_DIR"
-rsync -a -e "ssh -i $KEYFILE" --rsync-path="$SERVER_SCRIPT" $TX_DIR $USER@$REMOTE:$DEST_DIR
+rsync -a -e "ssh -i $KEYFILE" --rsync-path="$SERVER_SCRIPT" $TX_DIR/ $USER@$REMOTE:$DEST_DIR
