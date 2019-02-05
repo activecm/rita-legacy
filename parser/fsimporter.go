@@ -234,7 +234,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 			wg *sync.WaitGroup, start int, jump int, length int) {
 			//comb over array
 			for j := start; j < length; j += jump {
-				// fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
+				fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
+
 				//read the file
 				fileHandle, err := os.Open(indexedFiles[j].Path)
 				if err != nil {
@@ -290,7 +291,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							origIPBytes := parseConn.FieldByName("OrigIPBytes").Interface().(int64)
 							respIPBytes := parseConn.FieldByName("RespIPBytes").Interface().(int64)
 
-							duration := float64(parseConn.FieldByName("Duration").Interface().(float64))
+							// Run conn pair through filter to filter out certain connections
+							ignore := fs.filterConnPair(uconnPair.Src, uconnPair.Dst)
 
 							bytes := int64(origIPBytes + respIPBytes)
 

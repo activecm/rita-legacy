@@ -16,8 +16,6 @@ type (
 	analyzer struct {
 		db               *database.DB    // provides access to MongoDB
 		conf             *config.Config  // contains details needed to access MongoDB
-		minTime          int64           // beginning of the observation period
-		maxTime          int64           // ending of the observation period
 		analyzedCallback func(update)    // called on each analyzed result
 		closedCallback   func()          // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan uconn.Pair // holds unanalyzed data
@@ -26,12 +24,10 @@ type (
 )
 
 //newAnalyzer creates a new collector for gathering data
-func newAnalyzer(db *database.DB, conf *config.Config, minTime, maxTime int64, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		db:               db,
 		conf:             conf,
-		minTime:          minTime,
-		maxTime:          maxTime,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
 		analysisChannel:  make(chan uconn.Pair),
@@ -98,11 +94,6 @@ func (a *analyzer) start() {
 				//since we are calculating the times in between readings
 				tsLength := len(res.TsList) - 1
 				dsLength := len(res.OrigIPBytes)
-
-				//find the duration of this connection
-				//perfect beacons should fill the observation period
-				duration := float64(res.TsList[tsLength]-res.TsList[0]) /
-					float64(a.maxTime-a.minTime)
 
 				//find the delta times between the timestamps
 				diff := make([]int64, tsLength)
@@ -187,45 +178,20 @@ func (a *analyzer) start() {
 					dsMadmScore = 0
 				}
 
-				tsDurationScore := duration
-
 				//smaller data sizes receive a higher score
 				dsSmallnessScore := 1.0 - float64(dsMode)/65535.0
 				if dsSmallnessScore < 0 {
 					dsSmallnessScore = 0
 				}
 
-				// output := &beacon.AnalysisOutput{
-				// 	UconnID:          data.ID,
-				// 	Src:              data.Src,
-				// 	Dst:              data.Dst,
-				// 	ConnectionCount:  data.ConnectionCount,
-				// 	AverageBytes:     data.AverageBytes,
-				// 	TSISkew:          tsSkew,
-				// 	TSIDispersion:    tsMadm,
-				// 	TSDuration:       duration,
-				// 	TSIRange:         tsIntervalRange,
-				// 	TSIMode:          tsMode,
-				// 	TSIModeCount:     tsModeCount,
-				// 	TSIntervals:      intervals,
-				// 	TSIntervalCounts: intervalCounts,
-				// 	DSSkew:           dsSkew,
-				// 	DSDispersion:     dsMadm,
-				// 	DSRange:          dsRange,
-				// 	DSSizes:          dsSizes,
-				// 	DSSizeCounts:     dsCounts,
-				// 	DSMode:           dsMode,
-				// 	DSModeCount:      dsModeCount,
-				// }
-
 				//score numerators
-				tsSum := tsSkewScore + tsMadmScore + tsDurationScore
+				tsSum := tsSkewScore + tsMadmScore
 				dsSum := dsSkewScore + dsMadmScore + dsSmallnessScore
 
 				//score averages
-				tsScore := tsSum / 3.0
+				tsScore := tsSum / 2.0
 				dsScore := dsSum / 3.0
-				score := (tsSum + dsSum) / 6.0
+				score := (tsSum + dsSum) / 5.0
 
 				// update beacon
 				output := update{
@@ -241,7 +207,6 @@ func (a *analyzer) start() {
 							"ts_interval_counts": intervalCounts,
 							"ts_iDispersion":     tsMadm,
 							"ts_iSkew":           tsSkew,
-							"ts_duration":        duration,
 							"ts_score":           tsScore,
 							"ds_range":           dsRange,
 							"ds_mode":            dsMode,
