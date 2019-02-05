@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/parser/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/dbtest"
 )
@@ -18,6 +18,22 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
+var testHost = map[string]uconn.Pair{
+	"test": uconn.Pair{
+		Src:             "127.0.0.1",
+		Dst:             "127.0.0.1",
+		ConnectionCount: 12,
+		IsLocalSrc:      true,
+		IsLocalDst:      true,
+		TotalBytes:      123,
+		AvgBytes:        12,
+		TsList:          []int64{1234567, 1234567},
+		OrigBytesList:   []int64{12, 12},
+		TotalDuration:   123.0,
+		MaxDuration:     12,
+	},
+}
+
 func TestCreateIndexes(t *testing.T) {
 	err := testRepo.CreateIndexes()
 	if err != nil {
@@ -26,27 +42,7 @@ func TestCreateIndexes(t *testing.T) {
 }
 
 func TestUpsert(t *testing.T) {
-	testHost := &parsetypes.Host{
-		IP:                 "127.0.0.1",
-		Local:              true,
-		IPv4:               true,
-		CountSrc:           123,
-		CountDst:           123,
-		IPv4Binary:         123,
-		MaxDuration:        123.0,
-		MaxBeaconScore:     123.0,
-		MaxBeaconConnCount: 123,
-		BlOutCount:         123,
-		BlInCount:          123,
-		BlSumAvgBytes:      123,
-		BlTotalBytes:       123,
-		TxtQueryCount:      123,
-	}
-
-	err := testRepo.Upsert(testHost, true)
-	if err != nil {
-		t.Errorf("Error upserting host")
-	}
+	testRepo.Upsert(testHost)
 }
 
 // TestMain wraps all tests with the needed initialized mock DB and fixtures

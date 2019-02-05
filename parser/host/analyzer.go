@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/activecm/rita/parser/uconn"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo/bson"
 )
 
 type (

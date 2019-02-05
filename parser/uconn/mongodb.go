@@ -1,7 +1,8 @@
 package uconn
 
 import (
-	"github.com/activecm/rita/parser/parsetypes"
+	"runtime"
+
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
@@ -40,22 +41,11 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-func (r *repo) Insert(uconn *parsetypes.Uconn) error {
-	session := r.res.DB.Session.Copy()
-	defer session.Close()
+//Upsert loops through every domain ....
+func (r *repo) Upsert(uconnMap map[string]Pair) {
 
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.UniqueConnTable)
-
-	err := coll.Insert(uconn)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *repo) Upsert(uconn *parsetypes.Uconn) error {
-	session := r.res.DB.Session.Copy()
-	defer session.Close()
+	//Create the workers
+	writerWorker := newWriter(r.res.Config.T.Structure.UniqueConnTable, r.res.DB, r.res.Config)
 
 	analyzerWorker := newAnalyzer(
 		writerWorker.collect,
