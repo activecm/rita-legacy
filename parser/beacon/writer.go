@@ -48,11 +48,20 @@ func (w *writer) start() {
 
 		for data := range w.writeChannel {
 
-			_, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.selector, data.query)
+			// update beacons table
+			_, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.beaconSelector, data.beaconQuery)
 
 			if err != nil {
 				fmt.Println(err)
 			}
+
+			// update hosts table
+			_, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.hostSelector, data.hostQuery)
+
+			if err != nil {
+				fmt.Println(err)
+			}
+
 		}
 		w.writeWg.Done()
 	}()
