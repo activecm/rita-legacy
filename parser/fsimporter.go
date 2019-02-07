@@ -47,6 +47,7 @@ type (
 		isLocalDst      bool
 		totalBytes      int64
 		avgBytes        float64
+		totalDuration   float64
 		maxDuration     float64
 		tsList          []int64
 		origBytesList   []int64
@@ -313,6 +314,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Calculate and store the average number of bytes
 								uconn.avgBytes = float64(((int64(uconnMap[srcDst].avgBytes) * connCount) + bytes) / (connCount + 1))
 
+								// Add the current duration to the total duration
+								uconn.totalDuration = uconnMap[srcDst].totalDuration + duration
+
 								// Replace existing duration if current duration is higher
 								if duration > uconnMap[srcDst].maxDuration {
 									uconn.maxDuration = duration
@@ -328,6 +332,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									isLocalDst:      uconn.isLocalDst,
 									totalBytes:      uconn.totalBytes,
 									avgBytes:        uconn.avgBytes,
+									totalDuration:   uconn.totalDuration,
 									maxDuration:     uconn.maxDuration,
 									tsList:          uconn.tsList,
 									origBytesList:   uconn.origBytesList,
@@ -455,6 +460,7 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 			LocalDestination: uconnMap[uconn].isLocalDst,
 			TotalBytes:       uconnMap[uconn].totalBytes,
 			AverageBytes:     uconnMap[uconn].avgBytes,
+			TotalDuration:    uconnMap[uconn].totalDuration,
 			MaxDuration:      uconnMap[uconn].maxDuration,
 			TSList:           uconnMap[uconn].tsList,
 			OrigBytesList:    uconnMap[uconn].origBytesList,
