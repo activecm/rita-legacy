@@ -1,28 +1,28 @@
 package conn
 
 import (
-	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
-	db *database.DB
+	res *resources.Resources
 }
 
 //NewMongoRepository create new repository
-func NewMongoRepository(database *database.DB) Repository {
+func NewMongoRepository(res *resources.Resources) Repository {
 	return &repo{
-		db: database,
+		res: res,
 	}
 }
 
-func (r *repo) BulkDelete(conns []*parsetypes.Conn, targetDB string) error {
-	r.db.SelectDB(targetDB)
-	session := r.db.Session.Copy()
+//BulkDelete ...
+func (r *repo) BulkDelete(conns []*parsetypes.Conn) error {
+	session := r.res.DB.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(targetDB).C("conn")
+	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.ConnTable)
 
 	bulk := coll.Bulk()
 	bulk.Unordered()

@@ -1,66 +1,80 @@
 package explodeddns
 
 import (
-	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/parser/parsetypes"
+	"runtime"
+
+	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
-	db *database.DB
+	res *resources.Resources
 }
 
 //NewMongoRepository create new repository
-func NewMongoRepository(database *database.DB) Repository {
+func NewMongoRepository(res *resources.Resources) Repository {
 	return &repo{
-		db: database,
+		res: res,
 	}
 }
 
-func (r *repo) CreateIndexes(targetDB string) error {
-	r.db.SelectDB(targetDB)
-	session := r.db.Session.Copy()
+//CreateIndexes ....
+func (r *repo) CreateIndexes() error {
+	session := r.res.DB.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(targetDB).C("explodedDns")
+	// set collection name
+	collectionName := r.res.Config.T.DNS.ExplodedDNSTable
 
-	indexes := []mgo.Index{
-		{Key: []string{"domain"}, Unique: true},
-		//{Key: []string{"subdomains"}},
-	}
+	// check if collection already exists
+	names, _ := session.DB(r.res.DB.GetSelectedDB()).CollectionNames()
 
-	for _, index := range indexes {
-		err := coll.EnsureIndex(index)
-		if err != nil {
-			return err
+	// if collection exists, we don't need to do anything else
+	for _, name := range names {
+		if name == collectionName {
+			return nil
 		}
 	}
-	return nil
-}
 
-func (r *repo) Upsert(explodedDNS *parsetypes.ExplodedDNS, targetDB string) error {
-	r.db.SelectDB(targetDB)
-	session := r.db.Session.Copy()
-	defer session.Close()
-
-	coll := session.DB(targetDB).C("explodedDns")
-
-	// set up update query
-	query := bson.D{
-		{"$setOnInsert", bson.M{"domain": explodedDNS.Domain}},
-		//{"$setOnInsert", bson.M{"subdomains": explodedDNS.Subdomains}},
-		//{"$inc", bson.M{"visited": explodedDNS.Visited}},
+	// set desired indexes
+	indexes := []mgo.Index{
+		{Key: []string{"domain"}, Unique: true},
+		{Key: []string{"visited"}},
+		{Key: []string{"subdomains"}},
 	}
 
-	selector := bson.M{"domain": explodedDNS.Domain}
-	// update hosts field
-	_, err := coll.Upsert(
-		selector,
-		query)
-
+	// create collection
+	err := r.res.DB.CreateCollection(collectionName, indexes)
 	if err != nil {
 		return err
 	}
+
 	return nil
+}
+
+//Upsert loops through every domain ....
+func (r *repo) Upsert(domainMap map[string]int) {
+
+	//Create the workers
+	writerWorker := newWriter(r.res.Config.T.DNS.ExplodedDNSTable, r.res.DB, r.res.Config)
+
+	analyzerWorker := newAnalyzer(
+		r.res.DB,
+		r.res.Config,
+		writerWorker.collect,
+		writerWorker.close,
+	)
+
+	//kick off the threaded goroutines
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		analyzerWorker.start()
+		writerWorker.start()
+	}
+
+	for entry, count := range domainMap {
+
+		analyzerWorker.collect(domain{entry, count})
+
+	}
 }

@@ -58,11 +58,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e9ffb9315dce0051beb757d0f0fc25db57c4da654efc4eada4ea109c2d9da815"
+  digest = "0:"
   name = "github.com/globalsign/mgo"
   packages = [
     ".",
     "bson",
+    "dbtest",
     "internal/json",
     "internal/sasl",
     "internal/scram",
@@ -193,9 +194,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ea539c13b066dac72a940b62f37600a20ab8e88057397c78f3197c1a48475425"
+  digest = "0:"
   name = "golang.org/x/net"
-  packages = ["idna"]
+  packages = [
+    "context",
+    "idna",
+  ]
   pruneopts = ""
   revision = "351d144fa1fc0bd934e2408202be0c29f25e35a0"
 
@@ -235,6 +239,14 @@
 
 [[projects]]
   branch = "v2"
+  digest = "0:"
+  name = "gopkg.in/tomb.v2"
+  packages = ["."]
+  pruneopts = ""
+  revision = "d5d1b5820637886def9eef33e03a27a9f166942c"
+
+[[projects]]
+  branch = "v2"
   digest = "1:cedccf16b71e86db87a24f8d4c70b0a855872eb967cb906a66b95de56aefbd0d"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -255,6 +267,7 @@
     "github.com/creasty/defaults",
     "github.com/globalsign/mgo",
     "github.com/globalsign/mgo/bson",
+    "github.com/globalsign/mgo/dbtest",
     "github.com/google/go-github/github",
     "github.com/olekukonko/tablewriter",
     "github.com/rifflock/lfshook",

@@ -6,6 +6,6 @@ import (
 
 // Repository for uconn collection
 type Repository interface {
-	CreateIndexes(targetDB string) error
-	Upsert(userAgent *parsetypes.UserAgent, targetDB string) error
+	CreateIndexes() error
+	Upsert(userAgent *parsetypes.UserAgent) error
 }

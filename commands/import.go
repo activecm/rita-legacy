@@ -39,7 +39,23 @@ func doImport(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	importDir := c.Args().Get(0)
 	targetDatabase := c.Args().Get(1)
-	threads := util.Max(c.Int("threads")/2, 1)
+
+	// get all database names
+	names, _ := res.DB.Session.DatabaseNames()
+
+	// check if database exists
+	dbExists := util.StringInSlice(targetDatabase, names)
+
+	// NOTE: a flag will be added for appending to a dataset (ie, rolling 24 and this will be
+	//       treated differently. But for the individual import, the program should not try
+	//       to append to an existing dataset.
+	// check if requested database name is already taken
+	if dbExists {
+		return cli.NewExitError("\t[!] Database name already in use, please choose another ", -1)
+	}
+
+	// set target database in resources
+	res.DB.SelectDB(targetDatabase)
 
 	//check if one argument is set but not the other
 	if importDir != "" && targetDatabase == "" ||
@@ -62,6 +78,7 @@ func doImport(c *cli.Context) error {
 
 	res.Log.Infof("Importing %s\n", res.Config.S.Bro.ImportDirectory)
 	fmt.Println("[+] Importing " + res.Config.S.Bro.ImportDirectory)
+	threads := util.Max(c.Int("threads")/2, 1)
 	importer := parser.NewFSImporter(res, threads, threads)
 	datastore := parser.NewMongoDatastore(res.DB.Session, res.MetaDB,
 		res.Config.S.Bro.ImportBuffer, res.Log)

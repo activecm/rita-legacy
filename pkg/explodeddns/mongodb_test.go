@@ -5,8 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/dbtest"
 )
 
@@ -18,24 +17,25 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testExplodedDNS = &parsetypes.ExplodedDNS{
-	Domain:     "www.activecountermeasures.com",
-	Subdomains: 123,
-	Visited:    123,
+var testExplodedDNS = map[string]int{
+	"a.b.activecountermeasures.com":   123,
+	"x.a.b.activecountermeasures.com": 38,
+	"activecountermeasures.com":       1,
+	"google.com":                      912,
 }
 
 func TestCreateIndexes(t *testing.T) {
-	err := testRepo.CreateIndexes(testTargetDB)
+	err := testRepo.CreateIndexes()
 	if err != nil {
 		t.Errorf("Error creating explodedDNS indexes")
 	}
 }
 
-func TestUpsert(t *testing.T) {
-	err := testRepo.Upsert(testExplodedDNS, testTargetDB)
-	if err != nil {
-		t.Errorf("Error upserting to explodedDNS collection")
-	}
+func TestUpdateDomains(t *testing.T) {
+	testRepo.Upsert(testExplodedDNS)
+	// if err != nil {
+	// 	t.Errorf("Error creating explodedDNS upserts")
+	// }
 }
 
 // TestMain wraps all tests with the needed initialized mock DB and fixtures
@@ -45,18 +45,12 @@ func TestMain(m *testing.M) {
 	Server.SetPath(tempDir)
 
 	// Set the main session variable to the temporary MongoDB instance
-	ssn := Server.Session()
+	res := resources.InitTestResources()
 
-	db := database.DB{Session: ssn}
-
-	testRepo = NewMongoRepository(&db)
+	testRepo = NewMongoRepository(res)
 
 	// Run the test suite
 	retCode := m.Run()
-
-	// Clean up test database and session
-	ssn.DB(testTargetDB).DropDatabase()
-	ssn.Close()
 
 	// Shut down the temporary server and removes data on disk.
 	Server.Stop()

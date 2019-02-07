@@ -6,5 +6,5 @@ import (
 
 // Repository for conn collection
 type Repository interface {
-	BulkDelete(conns []*parsetypes.Conn, targetDB string) error
+	BulkDelete(conns []*parsetypes.Conn) error
 }

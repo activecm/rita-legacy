@@ -1,11 +1,26 @@
 package explodeddns
 
-import (
-	"github.com/activecm/rita/parser/parsetypes"
-)
-
 // Repository for explodedDNS collection
 type Repository interface {
-	CreateIndexes(targetDB string) error
-	Upsert(explodedDNS *parsetypes.ExplodedDNS, targetDB string) error
+	CreateIndexes() error
+	// Upsert(explodedDNS *parsetypes.ExplodedDNS) error
+	Upsert(domainMap map[string]int)
+}
+
+//update ....
+type update struct {
+	selector interface{}
+	query    interface{}
+}
+
+//domain ....
+type domain struct {
+	name  string
+	count int
+}
+
+type explodedDNS struct {
+	domain     string   `bson:"domain"`
+	subdomains []string `bson:"subdomains"`
+	visited    int64    `bson:"visited"`
 }
