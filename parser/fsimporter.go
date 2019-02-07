@@ -16,6 +16,7 @@ import (
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
+	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/conn"
 	"github.com/activecm/rita/pkg/explodeddns"
 	"github.com/activecm/rita/pkg/freq"
@@ -86,6 +87,12 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	if !(len(indexedFiles) > 0) {
 		fmt.Println("\n\t[!!!!!] dumb error with file hashing that ethan is working on fixing, please choose a different database name and try again! ")
 		return
+	}
+
+	//create blacklisted reference Collection
+	if fs.res.Config.S.Blacklisted.Enabled {
+		fmt.Println("\t[-] Creating blacklist reference collection ... ")
+		blacklist.BuildBlacklistedCollections(fs.res)
 	}
 
 	// parse in those files!
@@ -288,7 +295,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							}
 
 							// Run conn pair through filter to filter out certain connections
-							ignore := false //fs.filterConnPair(uconnPair.Src, uconnPair.Dst)
+							ignore := fs.filterConnPair(uconnPair.Src, uconnPair.Dst)
 
 							// If connection pair is not subject to filtering, process
 							if !ignore {
