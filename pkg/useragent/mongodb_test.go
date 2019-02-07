@@ -5,8 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/dbtest"
 )
 
@@ -18,23 +17,23 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testUserAgent = &parsetypes.UserAgent{
-	UserAgent: "Debian APT-HTTP/1.3 (1.2.24)",
-	TimesUsed: 123,
+var testUserAgent = map[string]*Input{
+	"Debian APT-HTTP/1.3 (1.2.24)": &Input{
+		Ips:  []string{"1.2.3.4", "1.1.1.1"},
+		Seen: 123,
+	},
 }
 
 func TestCreateIndexes(t *testing.T) {
-	err := testRepo.CreateIndexes(testTargetDB)
+	err := testRepo.CreateIndexes()
 	if err != nil {
 		t.Errorf("Error creating useragent indexes")
 	}
 }
 
 func TestUpsert(t *testing.T) {
-	err := testRepo.Upsert(testUserAgent, testTargetDB)
-	if err != nil {
-		t.Errorf("Error upserting to useragent collection")
-	}
+	testRepo.Upsert(testUserAgent)
+
 }
 
 // TestMain wraps all tests with the needed initialized mock DB and fixtures
@@ -44,18 +43,12 @@ func TestMain(m *testing.M) {
 	Server.SetPath(tempDir)
 
 	// Set the main session variable to the temporary MongoDB instance
-	ssn := Server.Session()
+	res := resources.InitTestResources()
 
-	db := database.DB{Session: ssn}
-
-	testRepo = NewMongoRepository(&db)
+	testRepo = NewMongoRepository(res)
 
 	// Run the test suite
 	retCode := m.Run()
-
-	// Clean up test database and session
-	ssn.DB(testTargetDB).DropDatabase()
-	ssn.Close()
 
 	// Shut down the temporary server and removes data on disk.
 	Server.Stop()

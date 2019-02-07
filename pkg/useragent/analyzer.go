@@ -1,7 +1,6 @@
-package hostname
+package useragent
 
 import (
-	"strings"
 	"sync"
 
 	"github.com/activecm/rita/config"
@@ -16,7 +15,7 @@ type (
 		conf             *config.Config // contains details needed to access MongoDB
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan hostname  // holds unanalyzed data
+		analysisChannel  chan *Input    // holds unanalyzed data
 		analysisWg       sync.WaitGroup // wait for analysis to finish
 	}
 )
@@ -28,12 +27,12 @@ func newAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(upd
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan hostname),
+		analysisChannel:  make(chan *Input),
 	}
 }
 
 //collect sends a group of domains to be analyzed
-func (a *analyzer) collect(data hostname) {
+func (a *analyzer) collect(data *Input) {
 	a.analysisChannel <- data
 }
 
@@ -55,15 +54,9 @@ func (a *analyzer) start() {
 			// set up writer output
 			var output update
 
-			// in some of these strings, the empty space will get counted as a domain,
-			// this was an issue in the old version of exploded dns and caused inaccuracies
-			if (data.host == "") || (strings.HasSuffix(data.host, "in-addr.arpa")) {
-				continue
-			}
+			var res useragent
 
-			var res hostname
-
-			_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.HostnamesTable).Find(bson.M{"host": data.host}).Limit(1).One(&res)
+			_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.UserAgent.UserAgentTable).Find(bson.M{"user_agent": data.name}).Limit(1).One(&res)
 
 			// Check for errors and parse results
 			if len(res.ips) < a.conf.S.Hostname.IPListLimit {
@@ -73,17 +66,18 @@ func (a *analyzer) start() {
 
 				// if we're under max (most cases), continue
 				// otherwise we'll need to parse the correct size.
-				if len(data.ips) >= max {
-					removeDuplicates(data.ips, res.ips, max)
+				if len(data.Ips) >= max {
+					removeDuplicates(data.Ips, res.ips, max)
 				}
 
 				// create query
 				output.query = bson.M{
-					"$addToSet": bson.M{"ips": bson.M{"$each": data.ips}},
+					"$addToSet": bson.M{"ips": bson.M{"$each": data.Ips}},
+					"$inc":      bson.M{"times_used": data.Seen},
 				}
 
 				// create selector for output
-				output.selector = bson.M{"host": data.host}
+				output.selector = bson.M{"user_agent": data.name}
 
 				// set to writer channel
 				a.analyzedCallback(output)
@@ -96,7 +90,7 @@ func (a *analyzer) start() {
 }
 
 func removeDuplicates(s1 []string, s2 []string, max int) []string {
-	// i know... but it will happen very rarely. and on only 2 hours of data.
+	// i know... but it will happen only for very extreme cases. and on only 2 hours of data.
 	// feel free to tear it apart for something better.
 	var parsed []string
 	for _, entry1 := range s1 {

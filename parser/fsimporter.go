@@ -82,8 +82,14 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
+	// obviously this is temporary
+	if !(len(indexedFiles) > 0) {
+		fmt.Println("\n\t[!!!!!] dumb error with file hashing that ethan is working on fixing, please choose a different database name and try again! ")
+		return
+	}
+
 	// parse in those files!
-	filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+	filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap, useragentMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
 	// Must wait for all mongodatastore inserts to finish before attempting to delete
 	datastore.Flush()
@@ -103,6 +109,9 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	// build or update Beacons table
 	fs.buildBeacons(uconnMap)
+
+	// build or update UserAgent table
+	fs.buildUserAgent(useragentMap)
 
 	fmt.Println("\t[-] Waiting for all inserts to finish ... ")
 
@@ -196,23 +205,22 @@ func indexFiles(files []string, indexingThreads int,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) (
-	[]uconn.Pair, map[string]uconn.Pair, map[string]int, map[string][]string) {
-
-	userAgentRepo := useragent.NewMongoRepository(fs.res)
-	userAgentRepo.CreateIndexes()
+	[]uconn.Pair, map[string]uconn.Pair, map[string]int, map[string][]string, map[string]*useragent.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
-	// Counts the number of uconns per source-destination pair
+	// create log parsing maps
 	explodeddnsMap := make(map[string]int)
 
 	hostnameMap := make(map[string][]string)
 
-	//set up parallel parsing
-	n := len(indexedFiles)
-	parsingWG := new(sync.WaitGroup)
+	useragentMap := make(map[string]*useragent.Input)
 
 	// Counts the number of uconns per source-destination pair
 	uconnMap := make(map[string]uconn.Pair)
+
+	//set up parallel parsing
+	n := len(indexedFiles)
+	parsingWG := new(sync.WaitGroup)
 
 	// map to hold the too many connections uconns
 	var filterHugeUconnsMap []uconn.Pair
@@ -227,7 +235,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 			wg *sync.WaitGroup, start int, jump int, length int) {
 			//comb over array
 			for j := start; j < length; j += jump {
-				fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
+				// fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
 
 				//read the file
 				fileHandle, err := os.Open(indexedFiles[j].Path)
@@ -385,7 +393,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								answers := parseDNS.FieldByName("Answers").Interface().([]string)
 								for _, answer := range answers {
 									// make sure we aren't storing more than the configured max
-									if len(hostnameMap[domain]) < fs.res.Config.S.Hostname.IPListLimit {
+									if len(hostnameMap[domain]) >= fs.res.Config.S.Hostname.IPListLimit {
 										break
 									}
 									// Check if answer is an IP address
@@ -410,10 +418,23 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						} else if targetCollection == fs.res.Config.T.Structure.HTTPTable {
 							parseHTTP := reflect.ValueOf(data).Elem()
 							userAgentName := parseHTTP.FieldByName("UserAgent").Interface().(string)
+							src := parseHTTP.FieldByName("Source").Interface().(string)
+							// Safely store the number of conns for this uconn
+							mutex.Lock()
 
-							userAgent := &parsetypes.UserAgent{UserAgent: userAgentName}
+							// create record if it doesn't exist
+							if _, ok := useragentMap[userAgentName]; !ok {
+								useragentMap[userAgentName] = &useragent.Input{Ips: []string{}, Seen: 1}
+							} else {
+								useragentMap[userAgentName].Seen++
+								if stringInSlice(src, useragentMap[userAgentName].Ips) == false {
+									useragentMap[userAgentName].Ips = append(useragentMap[userAgentName].Ips, src)
+								}
+							}
 
-							userAgentRepo.Upsert(userAgent)
+							// increment info in record
+
+							mutex.Unlock()
 
 						} else {
 							// We do not analyze any of the other log types (yet)
@@ -437,7 +458,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	return filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap
+	return filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap, useragentMap
 }
 
 func isUniqueTimestamp(timestamp int64, timestamps []int64) bool {
@@ -508,6 +529,15 @@ func (fs *FSImporter) buildBeacons(uconnMap map[string]uconn.Pair) {
 	// send uconns to beacon analysis
 	beaconRepo.Upsert(uconnMap)
 
+}
+
+//buildUserAgent .....
+func (fs *FSImporter) buildUserAgent(useragentMap map[string]*useragent.Input) {
+	fmt.Println("\t[-] Creating UserAgent Collection ...")
+	// Set up the database
+	useragentRepo := useragent.NewMongoRepository(fs.res)
+	useragentRepo.CreateIndexes()
+	useragentRepo.Upsert(useragentMap)
 }
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding

@@ -1,10 +1,11 @@
 package useragent
 
 import (
-	"github.com/activecm/rita/parser/parsetypes"
+	"runtime"
+
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
@@ -50,26 +51,26 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-func (r *repo) Upsert(userAgent *parsetypes.UserAgent) error {
-	session := r.res.DB.Session.Copy()
-	defer session.Close()
+func (r *repo) Upsert(userAgentMap map[string]*Input) {
+	//Create the workers
+	writerWorker := newWriter(r.res.Config.T.UserAgent.UserAgentTable, r.res.DB, r.res.Config)
 
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.UserAgent.UserAgentTable)
+	analyzerWorker := newAnalyzer(
+		r.res.DB,
+		r.res.Config,
+		writerWorker.collect,
+		writerWorker.close,
+	)
 
-	// set up update query
-	query := bson.D{
-		{"$setOnInsert", bson.M{"user_agent": userAgent.UserAgent}},
-		{"$inc", bson.M{"times_used": 1}},
+	//kick off the threaded goroutines
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		analyzerWorker.start()
+		writerWorker.start()
 	}
 
-	selector := bson.M{"user_agent": userAgent.UserAgent}
-	// update or insert to useragent collection
-	_, err := coll.Upsert(
-		selector,
-		query)
+	for key, value := range userAgentMap {
+		value.name = key
+		analyzerWorker.collect(value)
 
-	if err != nil {
-		return err
 	}
-	return nil
 }
