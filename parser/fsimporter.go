@@ -79,7 +79,6 @@ func (fs *FSImporter) Run(datastore Datastore) {
 		},
 	).Info("Finished collecting file details. Starting upload.")
 
-	// this will not work for us, it assigns a hash based on the database name and excludes stuff
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
 	// parse in those files!
@@ -277,7 +276,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							}
 
 							// Run conn pair through filter to filter out certain connections
-							ignore := fs.filterConnPair(uconnPair.Src, uconnPair.Dst)
+							ignore := false //fs.filterConnPair(uconnPair.Src, uconnPair.Dst)
 
 							// If connection pair is not subject to filtering, process
 							if !ignore {
@@ -574,4 +573,13 @@ func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.Me
 	if err != nil {
 		logger.Error("Could not update the list of parsed files")
 	}
+}
+
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }
