@@ -24,3 +24,33 @@ type uconnRes struct {
 	ConnectionCount int     `bson:"connection_count"`
 	AverageBytes    float32 `bson:"avg_bytes"`
 }
+
+//AnalysisView used in order to join the uconn and beacon tables
+type AnalysisView struct {
+	Src         string  `bson:"src"`
+	Dst         string  `bson:"dst"`
+	Connections int64   `bson:"connection_count"`
+	AvgBytes    float64 `bson:"avg_bytes"`
+	Ts          TSData  `bson:"ts"`
+	Ds          DSData  `bson:"ds"`
+	Score       float64 `bson:"score"`
+}
+
+//TSData ...
+type TSData struct {
+	Range      int64   `bson:"range"`
+	Mode       int64   `bson:"mode"`
+	ModeCount  int64   `bson:"mode_count"`
+	Skew       float64 `bson:"skew"`
+	Dispersion int64   `bson:"dispersion"`
+	Duration   float64 `bson:"duration"`
+}
+
+//DSData ...
+type DSData struct {
+	Skew       float64 `bson:"skew"`
+	Dispersion int64   `bson:"dispersion"`
+	Range      int64   `bson:"range"`
+	Mode       int64   `bson:"mode"`
+	ModeCount  int64   `bson:"mode_count"`
+}
