@@ -4,8 +4,8 @@ import (
 	"runtime"
 
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 )
 
 type repo struct {
@@ -62,8 +62,5 @@ func (r *repo) Upsert(uconnMap map[string]Pair) {
 
 		analyzerWorker.collect(entry)
 
-	if err != nil {
-		return err
 	}
-	return nil
 }
