@@ -91,19 +91,20 @@ func (fs *FSImporter) Run(datastore Datastore) {
 		},
 	).Info("Finished collecting file details. Starting upload.")
 
+	// this will not work for us, it assigns a hash based on the database name and excludes stuff
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
 	filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+
+	// Must wait for all inserts to finish before attempting to delete
+	datastore.Flush()
+	fs.bulkRemoveHugeUconns(filterHugeUconnsMap, uconnMap)
 
 	// build or update the exploded DNS table
 	fs.buildExplodedDNS(explodeddnsMap)
 
 	// build or update the exploded DNS table
 	fs.buildHostnames(hostnameMap)
-
-	// Must wait for all inserts to finish before attempting to delete
-	datastore.Flush()
-	fs.bulkRemoveHugeUconns(indexedFiles[0].TargetDatabase, filterHugeUconnsMap, uconnMap)
 
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
@@ -218,7 +219,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 			wg *sync.WaitGroup, start int, jump int, length int) {
 			//comb over array
 			for j := start; j < length; j += jump {
-				fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
+				fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + fs.res.DB.GetSelectedDB())
 				//read the file
 				fileHandle, err := os.Open(indexedFiles[j].Path)
 				if err != nil {
@@ -258,7 +259,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 					if data != nil {
 						//figure out what database this line is heading for
 						targetCollection := indexedFiles[j].TargetCollection
-						targetDB := indexedFiles[j].TargetDatabase
 
 						// if target collection is the conns table we want to limit
 						// conns entries to unique connection pairs with fewer than connLimit
@@ -289,7 +289,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							srcDst := uconn.src + uconn.dst
 
 							// Run conn pair through filter to filter out certain connections
-							ignore := false //fs.filterConnPair(uconn.src, uconn.dst)
+							ignore := fs.filterConnPair(uconn.src, uconn.dst)
 
 							// If connection pair is not subject to filtering, process
 							if !ignore {
@@ -339,11 +339,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 								// Do not store more than the connLimit
 								if connCount < connLimit {
-									datastore.Store(&ImportedData{
-										BroData:          data,
-										TargetDatabase:   targetDB,
-										TargetCollection: targetCollection,
-									})
+									// datastore.Store(&ImportedData{
+									// 	BroData:          data,
+									// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
+									// 	TargetCollection: targetCollection,
+									// })
 								} else if connCount == connLimit {
 									// Once we know a uconn has passed the connLimit not only
 									// do we want to avoid storing any more, but we want to
@@ -375,10 +375,16 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							if queryTypeName == "A" {
 								answers := parseDNS.FieldByName("Answers").Interface().([]string)
 								for _, answer := range answers {
+									// make sure we aren't storing more than the configured max
+									if len(hostnameMap[domain]) < fs.res.Config.S.Hostname.IPListLimit {
+										break
+									}
 									// Check if answer is an IP address
 									if net.ParseIP(answer) != nil {
-										hostnameMap[domain] = append(hostnameMap[domain], answer)
-										// hostname.IPs = append(hostname.IPs, answer)
+										if stringInSlice(answer, hostnameMap[domain]) == false {
+											hostnameMap[domain] = append(hostnameMap[domain], answer)
+										}
+
 									}
 								}
 							}
@@ -387,11 +393,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 						} else {
 							// We do not limit any of the other log types
-							datastore.Store(&ImportedData{
-								BroData:          data,
-								TargetDatabase:   targetDB,
-								TargetCollection: targetCollection,
-							})
+							// datastore.Store(&ImportedData{
+							// 	BroData:          data,
+							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
+							// 	TargetCollection: targetCollection,
+							// })
 						}
 
 					}
@@ -421,6 +427,7 @@ func isUniqueTimestamp(timestamp int64, timestamps []int64) bool {
 
 //buildExplodedDNS .....
 func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
+	fmt.Println("\t[-] Creating Exploded DNS Collection ...")
 	// Set up the database
 	explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
 	explodedDNSRepo.CreateIndexes()
@@ -429,6 +436,7 @@ func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 
 //buildHostnames .....
 func (fs *FSImporter) buildHostnames(hostnameMap map[string][]string) {
+	fmt.Println("\t[-] Creating Hostnames Collection ...")
 	// Set up the database
 	hostnameRepo := hostname.NewMongoRepository(fs.res)
 	hostnameRepo.CreateIndexes()
@@ -437,9 +445,7 @@ func (fs *FSImporter) buildHostnames(hostnameMap map[string][]string) {
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
 // entries in the "conn" collection. It also creates new entries in the FrequentConnTable collection.
-func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap []uconnPair, uconnMap map[string]uconnPair) {
-	var logger *log.Logger
-
+func (fs *FSImporter) bulkRemoveHugeUconns(filterHugeUconnsMap []uconnPair, uconnMap map[string]uconnPair) {
 	hostRepo := host.NewMongoRepository(fs.res)
 	uconnRepo := uconn.NewMongoRepository(fs.res)
 	connRepo := conn.NewMongoRepository(fs.res)
@@ -447,12 +453,12 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 
 	err := hostRepo.CreateIndexes()
 	if err != nil {
-		logger.Error(err)
+		fs.res.Log.Error(err)
 	}
 
 	err = uconnRepo.CreateIndexes()
 	if err != nil {
-		logger.Error(err)
+		fs.res.Log.Error(err)
 	}
 
 	fmt.Println("\t[-] Removing unused connection info. This may take a while.")
@@ -526,12 +532,12 @@ func (fs *FSImporter) bulkRemoveHugeUconns(targetDB string, filterHugeUconnsMap 
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 	metaDatabase *database.MetaDB, logger *log.Logger) []*fpt.IndexedFile {
 	var toReturn []*fpt.IndexedFile
-	oldFiles, err := metaDatabase.GetFiles()
-	if err != nil {
-		logger.WithFields(log.Fields{
-			"error": err.Error(),
-		}).Error("Could not obtain a list of previously parsed files")
-	}
+	// oldFiles, err := metaDatabase.GetFiles()
+	// if err != nil {
+	// 	logger.WithFields(log.Fields{
+	// 		"error": err.Error(),
+	// 	}).Error("Could not obtain a list of previously parsed files")
+	// }
 	//NOTE: This can be improved to n log n if we need to
 	for _, newFile := range indexedFiles {
 		if newFile == nil {
@@ -540,16 +546,16 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 		}
 
 		have := false
-		for _, oldFile := range oldFiles {
-			if oldFile.Hash == newFile.Hash && oldFile.TargetDatabase == newFile.TargetDatabase {
-				logger.WithFields(log.Fields{
-					"path":            newFile.Path,
-					"target_database": newFile.TargetDatabase,
-				}).Warning("Refusing to import file into the same database twice")
-				have = true
-				break
-			}
-		}
+		// for _, oldFile := range oldFiles {
+		// 	if oldFile.Hash == newFile.Hash && oldFile.TargetDatabase == newFile.TargetDatabase {
+		// 		logger.WithFields(log.Fields{
+		// 			"path":            newFile.Path,
+		// 			"target_database": newFile.TargetDatabase,
+		// 		}).Warning("Refusing to import file into the same database twice")
+		// 		have = true
+		// 		break
+		// 	}
+		// }
 
 		if !have {
 			toReturn = append(toReturn, newFile)
@@ -575,4 +581,13 @@ func isIPv4(address string) bool {
 //ipv4ToBinary generates binary representations of the IPv4 addresses
 func ipv4ToBinary(ipv4 net.IP) int64 {
 	return int64(binary.BigEndian.Uint32(ipv4[12:16]))
+}
+
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }

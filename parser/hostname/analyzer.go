@@ -4,12 +4,16 @@ import (
 	"strings"
 	"sync"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
+	"github.com/globalsign/mgo/bson"
 )
 
 type (
 	//analyzer : structure for exploded dns analysis
 	analyzer struct {
+		db               *database.DB   // provides access to MongoDB
+		conf             *config.Config // contains details needed to access MongoDB
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan hostname  // holds unanalyzed data
@@ -18,8 +22,10 @@ type (
 )
 
 //newAnalyzer creates a new collector for parsing hostnames
-func newAnalyzer(analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
+		db:               db,
+		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
 		analysisChannel:  make(chan hostname),
@@ -42,6 +48,8 @@ func (a *analyzer) close() {
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
+		ssn := a.db.Session.Copy()
+		defer ssn.Close()
 
 		for data := range a.analysisChannel {
 			// set up writer output
@@ -49,23 +57,31 @@ func (a *analyzer) start() {
 
 			// in some of these strings, the empty space will get counted as a domain,
 			// this was an issue in the old version of exploded dns and caused inaccuracies
-			if (data.name == "") || (strings.HasSuffix(data.name, "in-addr.arpa")) {
+			if (data.host == "") || (strings.HasSuffix(data.host, "in-addr.arpa")) {
 				continue
 			}
 
-			// create query
-			output.query = bson.M{
-				"$setOnInsert": bson.M{"host": data.name},
-				"$addToSet":    bson.M{"ips": bson.M{"$each": data.answers}},
+			var res hostname
+
+			_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.HostnamesTable).Find(bson.M{"host": data.host}).Limit(1).One(&res)
+
+			// Check for errors and parse results
+			if len(res.ips) < a.conf.S.Hostname.IPListLimit {
+
+				// create query
+				output.query = bson.M{
+					"$addToSet": bson.M{"ips": bson.M{"$each": data.ips}},
+				}
+
+				// create selector for output
+				output.selector = bson.M{"host": data.host}
+
+				// set to writer channel
+				a.analyzedCallback(output)
 			}
 
-			// create selector for output
-			output.selector = bson.M{"host": data.name}
-
-			// set to writer channel
-			a.analyzedCallback(output)
-
 		}
+
 		a.analysisWg.Done()
 	}()
 }

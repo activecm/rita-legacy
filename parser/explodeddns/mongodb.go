@@ -1,7 +1,10 @@
 package explodeddns
 
 import (
+	"runtime"
+
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
 )
 
@@ -21,20 +24,32 @@ func (r *repo) CreateIndexes() error {
 	session := r.res.DB.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.ExplodedDNSTable)
+	// set collection name
+	collectionName := r.res.Config.T.DNS.ExplodedDNSTable
 
+	// check if collection already exists
+	names, _ := session.DB(r.res.DB.GetSelectedDB()).CollectionNames()
+
+	// if collection exists, we don't need to do anything else
+	for _, name := range names {
+		if name == collectionName {
+			return nil
+		}
+	}
+
+	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"domain"}, Unique: true},
 		{Key: []string{"visited"}},
 		{Key: []string{"subdomains"}},
 	}
 
-	for _, index := range indexes {
-		err := coll.EnsureIndex(index)
-		if err != nil {
-			return err
-		}
+	// create collection
+	err := r.res.DB.CreateCollection(collectionName, indexes)
+	if err != nil {
+		return err
 	}
+
 	return nil
 }
 
@@ -45,12 +60,14 @@ func (r *repo) Upsert(domainMap map[string]int) {
 	writerWorker := newWriter(r.res.Config.T.DNS.ExplodedDNSTable, r.res.DB, r.res.Config)
 
 	dnsAnalyzerWorker := newAnalyzer(
+		r.res.DB,
+		r.res.Config,
 		writerWorker.collect,
 		writerWorker.close,
 	)
 
 	//kick off the threaded goroutines
-	for i := 0; i < 1; i++ { //util.Max(1, runtime.NumCPU()/2)
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		dnsAnalyzerWorker.start()
 		writerWorker.start()
 	}

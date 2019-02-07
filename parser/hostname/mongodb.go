@@ -1,7 +1,10 @@
 package hostname
 
 import (
+	"runtime"
+
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
 )
 
@@ -20,16 +23,28 @@ func (r *repo) CreateIndexes() error {
 	session := r.res.DB.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable)
+	// set collection name
+	collectionName := r.res.Config.T.DNS.HostnamesTable
 
-	indexes := []mgo.Index{{Key: []string{"host"}, Unique: true}}
+	// check if collection already exists
+	names, _ := session.DB(r.res.DB.GetSelectedDB()).CollectionNames()
 
-	for _, index := range indexes {
-		err := coll.EnsureIndex(index)
-		if err != nil {
-			return err
+	// if collection exists, we don't need to do anything else
+	for _, name := range names {
+		if name == collectionName {
+			return nil
 		}
 	}
+
+	// set desired indexes
+	indexes := []mgo.Index{{Key: []string{"host"}, Unique: true}}
+
+	// create collection
+	err := r.res.DB.CreateCollection(collectionName, indexes)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -40,12 +55,14 @@ func (r *repo) Upsert(hostnameMap map[string][]string) {
 	writerWorker := newWriter(r.res.Config.T.DNS.HostnamesTable, r.res.DB, r.res.Config)
 
 	hostnameAnalyzerWorker := newAnalyzer(
+		r.res.DB,
+		r.res.Config,
 		writerWorker.collect,
 		writerWorker.close,
 	)
 
 	//kick off the threaded goroutines
-	for i := 0; i < 1; i++ { //util.Max(1, runtime.NumCPU()/2)
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		hostnameAnalyzerWorker.start()
 		writerWorker.start()
 	}
@@ -56,27 +73,3 @@ func (r *repo) Upsert(hostnameMap map[string][]string) {
 
 	}
 }
-
-// func (r *repo) Upsert(hostname *parsetypes.Hostname) error {
-// 	session := r.res.DB.Session.Copy()
-// 	defer session.Close()
-//
-// 	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable)
-//
-// 	// set up update query
-// 	query := bson.D{
-// 		{"$setOnInsert", bson.M{"host": hostname.Host}},
-// 		{"$addToSet", bson.M{"ips": bson.M{"$each": hostname.IPs}}},
-// 	}
-//
-// 	selector := bson.M{"host": hostname.Host}
-// 	// update hostnames collection
-// 	_, err := coll.Upsert(
-// 		selector,
-// 		query)
-//
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }

@@ -13,8 +13,7 @@ type update struct {
 	query    interface{}
 }
 
-//hostname ....
 type hostname struct {
-	name    string
-	answers []string
+	host string   `bson:"host"`
+	ips  []string `bson:"ips"`
 }

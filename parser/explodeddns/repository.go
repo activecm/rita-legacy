@@ -18,3 +18,9 @@ type domain struct {
 	name  string
 	count int
 }
+
+type explodedDNS struct {
+	domain     string   `bson:"domain"`
+	subdomains []string `bson:"subdomains"`
+	visited    int64    `bson:"visited"`
+}

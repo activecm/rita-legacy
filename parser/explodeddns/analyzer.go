@@ -4,12 +4,16 @@ import (
 	"strings"
 	"sync"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
+	"github.com/globalsign/mgo/bson"
 )
 
 type (
 	//analyzer : structure for exploded dns analysis
 	analyzer struct {
+		db               *database.DB   // provides access to MongoDB
+		conf             *config.Config // contains details needed to access MongoDB
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan domain    // holds unanalyzed data
@@ -18,8 +22,10 @@ type (
 )
 
 //newAnalyzer creates a new collector for parsing subdomains
-func newAnalyzer(analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
+		db:               db,
+		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
 		analysisChannel:  make(chan domain),
@@ -42,7 +48,8 @@ func (a *analyzer) close() {
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
-
+		ssn := a.db.Session.Copy()
+		defer ssn.Close()
 		for data := range a.analysisChannel {
 
 			// split name on periods
@@ -64,21 +71,27 @@ func (a *analyzer) start() {
 					break
 				}
 
+				var res explodedDNS
+
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.ExplodedDNSTable).Find(bson.M{"domain": entry}).Limit(1).One(&res)
+
+				// get subdomains
+				subdomain := strings.Join(split[0:max-i], ".")
+
 				// set up writer output
 				var output update
 
-				// get subdomains
-				subdomains := strings.Join(split[0:max-i], ".")
+				// Check for errors and parse results
+				if len(res.subdomains) < a.conf.S.DNS.DomainListLimit && subdomain != "" {
 
-				// create qquery for output depending on whether the domain has subdomains
-				if subdomains != "" {
+					// create query for output depending on whether the domain has subdomains
 					output.query = bson.M{
-						"$setOnInsert": bson.M{"domain": entry},
-						"$addToSet":    bson.M{"subdomains": subdomains},
-						"$inc":         bson.M{"visited": data.count},
+						"$addToSet": bson.M{"subdomains": subdomain},
+						"$inc":      bson.M{"visited": data.count},
 					}
+
 				} else {
-					output.query = bson.M{"$setOnInsert": bson.M{"domain": entry}, "$inc": bson.M{"visited": data.count}}
+					output.query = bson.M{"$inc": bson.M{"visited": data.count}}
 				}
 
 				// create selector for output
@@ -86,7 +99,6 @@ func (a *analyzer) start() {
 
 				// set to writer channel
 				a.analyzedCallback(output)
-
 			}
 
 		}
