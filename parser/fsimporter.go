@@ -54,6 +54,11 @@ func NewFSImporter(res *resources.Resources,
 	}
 }
 
+//GetInternalSubnets returns the internal subnets from the config file
+func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
+	return fs.internal
+}
+
 //Run starts importing a given path into a datastore
 func (fs *FSImporter) Run(datastore Datastore) {
 	// track the time spent parsing
@@ -102,8 +107,6 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	// build or update Beacons table
 	fs.buildBeacons(uconnMap)
-
-	fmt.Println("\t[-] Waiting for all inserts to finish ... ")
 
 	fmt.Println("\t[-] Indexing log entries ... ")
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
@@ -276,14 +279,13 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							}
 
 							// Run conn pair through filter to filter out certain connections
-							ignore := false //fs.filterConnPair(uconnPair.Src, uconnPair.Dst)
+							ignore := fs.filterConnPair(uconnPair.Src, uconnPair.Dst)
 
 							// If connection pair is not subject to filtering, process
 							if !ignore {
-
-								// NOTE : isLocal needs to be updated via filtering instead !!!
-								uconnPair.IsLocalSrc = parseConn.FieldByName("LocalOrigin").Interface().(bool)
-								uconnPair.IsLocalDst = parseConn.FieldByName("LocalResponse").Interface().(bool)
+								// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
+								uconnPair.IsLocalSrc = containsIP(fs.GetInternalSubnets(), net.ParseIP(uconnPair.Src))
+								uconnPair.IsLocalDst = containsIP(fs.GetInternalSubnets(), net.ParseIP(uconnPair.Dst))
 								ts := parseConn.FieldByName("TimeStamp").Interface().(int64)
 								origIPBytes := parseConn.FieldByName("OrigIPBytes").Interface().(int64)
 								respIPBytes := parseConn.FieldByName("RespIPBytes").Interface().(int64)
@@ -346,15 +348,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 
 								mutex.Unlock()
-
-								// stores the conn record in conn collection if below threshold
-								if connCount < fs.connLimit {
-									// datastore.Store(&ImportedData{
-									// 	BroData:          data,
-									// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
-									// 	TargetCollection: targetCollection,
-									// })
-								}
 							}
 
 							/// *************************************************************///
@@ -396,22 +389,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							mutex.Unlock()
 
-							// stores the dns record in the dns collection
-							// datastore.Store(&ImportedData{
-							// 	BroData:          data,
-							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
-							// 	TargetCollection: targetCollection,
-							// })
-
-						} else {
-							// We do not analyze any of the other log types (yet)
-							// datastore.Store(&ImportedData{
-							// 	BroData:          data,
-							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
-							// 	TargetCollection: targetCollection,
-							// })
 						}
-
 					}
 				}
 				indexedFiles[j].ParseTime = time.Now()
