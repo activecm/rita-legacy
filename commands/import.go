@@ -40,6 +40,12 @@ func doImport(c *cli.Context) error {
 	importDir := c.Args().Get(0)
 	targetDatabase := c.Args().Get(1)
 
+	//check if one argument is set but not the other
+	if importDir != "" && targetDatabase == "" ||
+		importDir == "" && targetDatabase != "" {
+		return cli.NewExitError("Both <directory to import> and <database prefix> are required to override the config file.", -1)
+	}
+
 	// get all database names
 	names, _ := res.DB.Session.DatabaseNames()
 
@@ -52,16 +58,16 @@ func doImport(c *cli.Context) error {
 	// check if requested database name is already taken
 	if dbExists {
 		return cli.NewExitError("\t[!] Database name already in use, please choose another ", -1)
+	} else {
+		fmt.Println(names)
+		err := res.MetaDB.AddNewDB(targetDatabase)
+		if err != nil {
+			return cli.NewExitError(err.Error(), -1)
+		}
 	}
 
 	// set target database in resources
 	res.DB.SelectDB(targetDatabase)
-
-	//check if one argument is set but not the other
-	if importDir != "" && targetDatabase == "" ||
-		importDir == "" && targetDatabase != "" {
-		return cli.NewExitError("Both <directory to import> and <database prefix> are required to override the config file.", -1)
-	}
 
 	//check if the user overrode the config file
 	if importDir != "" && targetDatabase != "" {
@@ -84,5 +90,9 @@ func doImport(c *cli.Context) error {
 		res.Config.S.Bro.ImportBuffer, res.Log)
 	importer.Run(datastore)
 	res.Log.Infof("Finished importing %s\n", res.Config.S.Bro.ImportDirectory)
+
+	res.MetaDB.MarkDBImported(targetDatabase, true)
+	res.MetaDB.MarkDBAnalyzed(targetDatabase, true)
+
 	return nil
 }
