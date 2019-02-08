@@ -1,8 +1,9 @@
-package uconn
+package beacon
 
 import (
 	"runtime"
 
+	"github.com/activecm/rita/parser/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
@@ -23,31 +24,31 @@ func (r *repo) CreateIndexes() error {
 	session := r.res.DB.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.UniqueConnTable)
+	collectionName := r.res.Config.T.Beacon.BeaconTable
 
+	// Desired indexes
 	indexes := []mgo.Index{
-		{Key: []string{"src", "dst"}, Unique: true},
+		{Key: []string{"-score"}},
 		{Key: []string{"$hashed:src"}},
 		{Key: []string{"$hashed:dst"}},
-		{Key: []string{"connection_count"}},
+		{Key: []string{"-connection_count"}},
+	}
+	err := r.res.DB.CreateCollection(collectionName, indexes)
+	if err != nil {
+		return err
 	}
 
-	for _, index := range indexes {
-		err := coll.EnsureIndex(index)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
-//Upsert loops through every domain ....
-func (r *repo) Upsert(uconnMap map[string]Pair) {
-
+//Upsert loops through every new uconn ....
+func (r *repo) Upsert(uconnMap map[string]uconn.Pair) {
 	//Create the workers
-	writerWorker := newWriter(r.res.Config.T.Structure.UniqueConnTable, r.res.DB, r.res.Config)
+	writerWorker := newWriter(r.res.Config.T.Beacon.BeaconTable, r.res.DB, r.res.Config)
 
 	analyzerWorker := newAnalyzer(
+		r.res.DB,
+		r.res.Config,
 		writerWorker.collect,
 		writerWorker.close,
 	)

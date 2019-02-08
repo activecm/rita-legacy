@@ -54,7 +54,7 @@ func (r *repo) Upsert(hostnameMap map[string][]string) {
 	//Create the workers
 	writerWorker := newWriter(r.res.Config.T.DNS.HostnamesTable, r.res.DB, r.res.Config)
 
-	hostnameAnalyzerWorker := newAnalyzer(
+	analyzerWorker := newAnalyzer(
 		r.res.DB,
 		r.res.Config,
 		writerWorker.collect,
@@ -63,12 +63,11 @@ func (r *repo) Upsert(hostnameMap map[string][]string) {
 
 	//kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
-		hostnameAnalyzerWorker.start()
+		analyzerWorker.start()
 		writerWorker.start()
 	}
 
 	for entry, answers := range hostnameMap {
-		hostnameAnalyzerWorker.collect(hostname{entry, answers})
-
+		analyzerWorker.collect(hostname{entry, answers})
 	}
 }

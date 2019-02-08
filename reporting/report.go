@@ -27,10 +27,7 @@ func PrintHTML(dbsIn []string, res *resources.Resources) error {
 
 	var dbs []string
 	for _, db := range dbsIn {
-		info, err := res.MetaDB.GetDBMetaInfo(db)
-		if err == nil && info.Analyzed {
-			dbs = append(dbs, db)
-		}
+		dbs = append(dbs, db)
 	}
 	if len(dbs) == 0 {
 		return errors.New("none of the selected databases have been analyzed")
