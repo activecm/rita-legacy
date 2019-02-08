@@ -444,6 +444,13 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							mutex.Unlock()
 
+							/// *************************************************************///
+							///                             SSL                             ///
+							/// *************************************************************///
+						} else if targetCollection == fs.res.Config.T.Structure.SSLTable {
+							parseSSL := reflect.ValueOf(data).Elem()
+							fmt.Println(parseSSL)
+
 						} else {
 							// We do not analyze any of the other log types (yet)
 							// datastore.Store(&ImportedData{

@@ -8,7 +8,6 @@ import (
 
 	"github.com/globalsign/mgo/bson"
 
-	"github.com/activecm/rita/datatypes/blacklist"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/reporting/templates"
@@ -58,7 +57,7 @@ func printBLHostnames(db string, res *resources.Resources) error {
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getBLHostnameWriter(results []blacklist.BlacklistedHostname) (string, error) {
+func getBLHostnameWriter(results []hostname.AnalysisView) (string, error) {
 	tmpl := "<tr><td>{{.Hostname}}</td><td>{{.Connections}}</td><td>{{.UniqueConnections}}</td>" +
 		"<td>{{.TotalBytes}}</td>" +
 		"<td>{{range $idx, $host := .ConnectedHosts}}{{if $idx}}, {{end}}{{ $host }}{{end}}</td>" +
