@@ -15,7 +15,6 @@ import (
 	"github.com/urfave/cli"
 )
 
-const blacklistListsTemplate = "{{range $idx, $list := .Lists}}{{if $idx}} {{end}}{{ $list }}{{end}}"
 const endl = "\r\n"
 
 func init() {
