@@ -374,7 +374,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								answers := parseDNS.FieldByName("Answers").Interface().([]string)
 								for _, answer := range answers {
 									// make sure we aren't storing more than the configured max
-									if len(hostnameMap[domain]) < fs.res.Config.S.Hostname.IPListLimit {
+									if len(hostnameMap[domain]) >= fs.res.Config.S.Hostname.IPListLimit {
 										break
 									}
 									// Check if answer is an IP address
