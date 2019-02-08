@@ -26,3 +26,18 @@ type Pair struct {
 	TsList          []int64
 	OrigBytesList   []int64
 }
+
+//AnalysisView (for reporting)
+type AnalysisView struct {
+	Src             string  `bson:"src"`
+	Dst             string  `bson:"dst"`
+	LocalSrc        bool    `bson:"local_src"`
+	LocalDst        bool    `bson:"local_dst"`
+	ConnectionCount int     `bson:"connection_count"`
+	TotalBytes      int     `bson:"total_bytes"`
+	AverageBytes    float32 `bson:"avg_bytes"`
+	TsList          []int64 `bson:"ts_list"`         // Connection timestamps for this src, dst pair
+	OrigIPBytes     []int64 `bson:"orig_bytes_list"` // Src to dst connection sizes for each connection
+	MaxDuration     float32 `bson:"max_duration"`
+	TotalDuration   float32 `bson:"total_duration"`
+}
