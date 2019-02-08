@@ -24,6 +24,7 @@ type (
 		HTTPTable         string `default:"http"`
 		DNSTable          string `default:"dns"`
 		SSLTable          string `default:"ssl"`
+		X509Table         string `default:"x509"`
 		UniqueConnTable   string `default:"uconn"`
 		HostTable         string `default:"host"`
 		IPv4Table         string `default:"ipv4"`

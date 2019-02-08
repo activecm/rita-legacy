@@ -31,7 +31,7 @@ type (
 		Resumed bool `bson:"resumed" bro:"resumed" brotype:"bool"`
 		// LastAlert
 		LastAlert string `bson:"last_alert" bro:"last_alert" brotype:"string"`
-		// LocalOrigin denotes that the connection originated locally
+		// NextProtocol
 		NextProtocol string `bson:"next_protocol" bro:"next_protocol" brotype:"string"`
 		// Established
 		Established bool `bson:"established" bro:"established" brotype:"bool"`
@@ -47,6 +47,8 @@ type (
 		ClientSubject string `bson:"client_subject"  bro:"client_subject" brotype:"string"`
 		// ClientIssuer
 		ClientIssuer string `bson:"client_issuer"  bro:"client_issuer" brotype:"string"`
+		// ValidationStatus
+		ValidationStatus string `bson:"validation_status"  bro:"validation_status" brotype:"string"`
 	}
 )
 

@@ -170,6 +170,7 @@ func readDir(cpath string, logger *log.Logger) []string {
 		if strings.HasSuffix(file.Name(), "gz") ||
 			strings.HasSuffix(file.Name(), "log") {
 			toReturn = append(toReturn, path.Join(cpath, file.Name()))
+			// fmt.Println(file.Name())
 		}
 	}
 	return toReturn
@@ -191,12 +192,14 @@ func indexFiles(files []string, indexingThreads int,
 			wg *sync.WaitGroup, start int, jump int, length int) {
 
 			for j := start; j < length; j += jump {
+				// fmt.Println(files[j])
 				indexedFile, err := newIndexedFile(files[j], cfg, logger)
 				if err != nil {
 					logger.WithFields(log.Fields{
 						"file":  files[j],
 						"error": err.Error(),
 					}).Warning("An error was encountered while indexing a file")
+					fmt.Println(files[j], err)
 					//errored on files will be nil
 					continue
 				}
@@ -245,7 +248,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 			wg *sync.WaitGroup, start int, jump int, length int) {
 			//comb over array
 			for j := start; j < length; j += jump {
-				// fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
+				fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
 
 				//read the file
 				fileHandle, err := os.Open(indexedFiles[j].Path)
@@ -254,6 +257,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						"file":  indexedFiles[j].Path,
 						"error": err.Error(),
 					}).Error("Could not open file for parsing")
+
+					fmt.Println(err)
 				}
 				fileScanner, err := getFileScanner(fileHandle)
 				if err != nil {
@@ -261,10 +266,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						"file":  indexedFiles[j].Path,
 						"error": err.Error(),
 					}).Error("Could not open file for parsing")
+					fmt.Println(err)
 				}
 
 				for fileScanner.Scan() {
 					if fileScanner.Err() != nil {
+						fmt.Println(err)
 						break
 					}
 
@@ -448,10 +455,24 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							///                             SSL                             ///
 							/// *************************************************************///
 						} else if targetCollection == fs.res.Config.T.Structure.SSLTable {
-							parseSSL := reflect.ValueOf(data).Elem()
-							fmt.Println(parseSSL)
+							// datastore.Store(&ImportedData{
+							// 	BroData:          data,
+							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
+							// 	TargetCollection: targetCollection,
+							// })
+
+							/// *************************************************************///
+							///                             x509                             ///
+							/// *************************************************************///
+						} else if targetCollection == fs.res.Config.T.Structure.X509Table {
+							// datastore.Store(&ImportedData{
+							// 	BroData:          data,
+							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
+							// 	TargetCollection: targetCollection,
+							// })
 
 						} else {
+
 							// We do not analyze any of the other log types (yet)
 							// datastore.Store(&ImportedData{
 							// 	BroData:          data,
@@ -611,6 +632,7 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 					"path":            newFile.Path,
 					"target_database": newFile.TargetDatabase,
 				}).Warning("Refusing to import file into the same database twice")
+				// fmt.Println("Refusing to import file into the same database twice")
 				have = true
 				break
 			}
