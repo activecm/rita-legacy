@@ -455,11 +455,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							///                             SSL                             ///
 							/// *************************************************************///
 						} else if targetCollection == fs.res.Config.T.Structure.SSLTable {
-							// datastore.Store(&ImportedData{
-							// 	BroData:          data,
-							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
-							// 	TargetCollection: targetCollection,
-							// })
+							datastore.Store(&ImportedData{
+								BroData:          data,
+								TargetDatabase:   fs.res.DB.GetSelectedDB(),
+								TargetCollection: targetCollection,
+							})
 
 							/// *************************************************************///
 							///                             x509                             ///
