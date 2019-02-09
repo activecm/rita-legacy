@@ -59,9 +59,6 @@ func PrintHTML(dbsIn []string, res *resources.Resources) error {
 
 	os.Chdir(outFolderString)
 
-	session := res.DB.Session.Copy()
-	defer session.Close()
-
 	// First, print our home page with our databases, pointing to each db
 	wd, err := os.Getwd()
 	if err != nil {
