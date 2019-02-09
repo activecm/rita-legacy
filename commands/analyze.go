@@ -8,7 +8,6 @@ import (
 	"github.com/activecm/rita/analysis/blacklist"
 	"github.com/activecm/rita/analysis/dns"
 	"github.com/activecm/rita/analysis/structure"
-	"github.com/activecm/rita/analysis/useragent"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/blang/semver"
@@ -163,12 +162,6 @@ func analyze(inDb string, res *resources.Resources, resetFlag bool) error {
 
 			logAnalysisFunc("Exploded DNS", td, res,
 				dns.BuildExplodedDNSCollection,
-			)
-		}
-
-		if res.Config.S.UserAgent.Enabled {
-			logAnalysisFunc("User Agent", td, res,
-				useragent.BuildUserAgentCollection,
 			)
 		}
 

@@ -288,7 +288,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							}
 
 							// Run conn pair through filter to filter out certain connections
-							ignore := false //fs.filterConnPair(uconnPair.Src, uconnPair.Dst)
+							ignore := fs.filterConnPair(uconnPair.Src, uconnPair.Dst)
 
 							// If connection pair is not subject to filtering, process
 							if !ignore {
