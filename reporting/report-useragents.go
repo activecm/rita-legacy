@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/datatypes/useragent"
+	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 )
@@ -21,7 +21,7 @@ func printUserAgents(db string, res *resources.Resources) error {
 		return err
 	}
 
-	var agents []useragent.UserAgent
+	var agents []useragent.AnalysisView
 	coll := res.DB.Session.DB(db).C(res.Config.T.UserAgent.UserAgentTable)
 	coll.Find(nil).Sort("times_used").Limit(1000).All(&agents)
 
@@ -32,7 +32,7 @@ func printUserAgents(db string, res *resources.Resources) error {
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getUserAgentsWriter(agents []useragent.UserAgent) (string, error) {
+func getUserAgentsWriter(agents []useragent.AnalysisView) (string, error) {
 	tmpl := "<tr><td>{{.UserAgent}}</td><td>{{.TimesUsed}}</td></tr>\n"
 	out, err := template.New("Agents").Parse(tmpl)
 	if err != nil {

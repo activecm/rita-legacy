@@ -27,10 +27,7 @@ func PrintHTML(dbsIn []string, res *resources.Resources) error {
 
 	var dbs []string
 	for _, db := range dbsIn {
-		// _, err := res.MetaDB.GetDBMetaInfo(db)
-		// if err == nil { //&& info.Analyzed {
 		dbs = append(dbs, db)
-		// }
 	}
 	if len(dbs) == 0 {
 		return errors.New("none of the selected databases have been analyzed")
@@ -61,9 +58,6 @@ func PrintHTML(dbsIn []string, res *resources.Resources) error {
 	}
 
 	os.Chdir(outFolderString)
-
-	session := res.DB.Session.Copy()
-	defer session.Close()
 
 	// First, print our home page with our databases, pointing to each db
 	wd, err := os.Getwd()

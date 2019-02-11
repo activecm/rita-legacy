@@ -4,7 +4,7 @@ import (
 	"encoding/csv"
 	"os"
 
-	"github.com/activecm/rita/datatypes/strobe"
+	"github.com/activecm/rita/pkg/freq"
 	"github.com/activecm/rita/resources"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
@@ -32,7 +32,7 @@ func init() {
 
 			res := resources.InitResources(c.String("config"))
 
-			var strobes []strobe.Strobe
+			var strobes []freq.AnalysisView
 			coll := res.DB.Session.DB(db).C(res.Config.T.Strobe.StrobeTable)
 
 			var sortStr string
@@ -65,7 +65,7 @@ func init() {
 	bootstrapCommands(command)
 }
 
-func showStrobes(strobes []strobe.Strobe) error {
+func showStrobes(strobes []freq.AnalysisView) error {
 	csvWriter := csv.NewWriter(os.Stdout)
 	csvWriter.Write([]string{"Source", "Destination", "Connection Count"})
 	for _, strobe := range strobes {
@@ -75,7 +75,7 @@ func showStrobes(strobes []strobe.Strobe) error {
 	return nil
 }
 
-func showStrobesHuman(strobes []strobe.Strobe) error {
+func showStrobesHuman(strobes []freq.AnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetColWidth(100)
 	table.SetHeader([]string{"Source", "Destination", "Connection Count"})

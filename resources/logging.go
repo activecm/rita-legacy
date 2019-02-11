@@ -10,9 +10,11 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/util"
 	"github.com/rifflock/lfshook"
 )
+
+//DayFormat stores a correctly formatted timestamp for the day
+const DayFormat string = "2006-01-02"
 
 // initLogger creates the logger for logging to stdout and file
 func initLogger(logConfig *config.LogStaticCfg) *log.Logger {
@@ -52,7 +54,7 @@ func addFileLogger(logger *log.Logger, logPath string) {
 		}
 	}
 
-	time := time.Now().Format(util.DayFormat)
+	time := time.Now().Format(DayFormat)
 	logFile := time + ".log"
 	logger.Hooks.Add(lfshook.NewHook(lfshook.PathMap{
 		log.DebugLevel: path.Join(logPath, logFile),

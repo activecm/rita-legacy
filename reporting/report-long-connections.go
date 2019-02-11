@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/datatypes/data"
+	"github.com/activecm/rita/pkg/conn"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 )
@@ -21,7 +21,7 @@ func printLongConns(db string, res *resources.Resources) error {
 		return err
 	}
 
-	var conns []data.Conn
+	var conns []conn.AnalysisView
 	coll := res.DB.Session.DB(db).C(res.Config.T.Structure.ConnTable)
 	coll.Find(nil).Sort("-duration").Limit(1000).All(&conns)
 
@@ -32,7 +32,7 @@ func printLongConns(db string, res *resources.Resources) error {
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getLongConnWriter(conns []data.Conn) (string, error) {
+func getLongConnWriter(conns []conn.AnalysisView) (string, error) {
 	tmpl := "<tr><td>{{.Src}}</td><td>{{.Spt}}</td><td>{{.Dst}}</td><td>{{.Dpt}}</td><td>{{.Dur}}</td><td>{{.Proto}}</td></tr>\n"
 	out, err := template.New("Conn").Parse(tmpl)
 	if err != nil {

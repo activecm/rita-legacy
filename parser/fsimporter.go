@@ -56,6 +56,11 @@ func NewFSImporter(res *resources.Resources,
 	}
 }
 
+//GetInternalSubnets returns the internal subnets from the config file
+func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
+	return fs.internal
+}
+
 //Run starts importing a given path into a datastore
 func (fs *FSImporter) Run(datastore Datastore) {
 	// build the rita-bl database before parsing
@@ -245,7 +250,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 			wg *sync.WaitGroup, start int, jump int, length int) {
 			//comb over array
 			for j := start; j < length; j += jump {
-				// fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
+				fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
 
 				//read the file
 				fileHandle, err := os.Open(indexedFiles[j].Path)
@@ -302,10 +307,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// If connection pair is not subject to filtering, process
 							if !ignore {
-
-								// NOTE : isLocal needs to be updated via filtering instead !!!
-								uconnPair.IsLocalSrc = parseConn.FieldByName("LocalOrigin").Interface().(bool)
-								uconnPair.IsLocalDst = parseConn.FieldByName("LocalResponse").Interface().(bool)
+								// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
+								uconnPair.IsLocalSrc = containsIP(fs.GetInternalSubnets(), net.ParseIP(uconnPair.Src))
+								uconnPair.IsLocalDst = containsIP(fs.GetInternalSubnets(), net.ParseIP(uconnPair.Dst))
 								ts := parseConn.FieldByName("TimeStamp").Interface().(int64)
 								origIPBytes := parseConn.FieldByName("OrigIPBytes").Interface().(int64)
 								respIPBytes := parseConn.FieldByName("RespIPBytes").Interface().(int64)
@@ -442,6 +446,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 							}
 
+							// increment info in record
+
 							mutex.Unlock()
 
 						} else {
@@ -452,7 +458,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// 	TargetCollection: targetCollection,
 							// })
 						}
-
 					}
 				}
 				indexedFiles[j].ParseTime = time.Now()
@@ -584,12 +589,12 @@ func (fs *FSImporter) bulkRemoveHugeUconns(filterHugeUconnsMap []uconn.Pair, uco
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 	metaDatabase *database.MetaDB, logger *log.Logger) []*fpt.IndexedFile {
 	var toReturn []*fpt.IndexedFile
-	oldFiles, err := metaDatabase.GetFiles()
-	if err != nil {
-		logger.WithFields(log.Fields{
-			"error": err.Error(),
-		}).Error("Could not obtain a list of previously parsed files")
-	}
+	// oldFiles, err := metaDatabase.GetFiles()
+	// if err != nil {
+	// 	logger.WithFields(log.Fields{
+	// 		"error": err.Error(),
+	// 	}).Error("Could not obtain a list of previously parsed files")
+	// }
 	//NOTE: This can be improved to n log n if we need to
 	for _, newFile := range indexedFiles {
 		if newFile == nil {
@@ -598,16 +603,16 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 		}
 
 		have := false
-		for _, oldFile := range oldFiles {
-			if oldFile.Hash == newFile.Hash && oldFile.TargetDatabase == newFile.TargetDatabase {
-				logger.WithFields(log.Fields{
-					"path":            newFile.Path,
-					"target_database": newFile.TargetDatabase,
-				}).Warning("Refusing to import file into the same database twice")
-				have = true
-				break
-			}
-		}
+		// for _, oldFile := range oldFiles {
+		// 	if oldFile.Hash == newFile.Hash && oldFile.TargetDatabase == newFile.TargetDatabase {
+		// 		logger.WithFields(log.Fields{
+		// 			"path":            newFile.Path,
+		// 			"target_database": newFile.TargetDatabase,
+		// 		}).Warning("Refusing to import file into the same database twice")
+		// 		have = true
+		// 		break
+		// 	}
+		// }
 
 		if !have {
 			toReturn = append(toReturn, newFile)

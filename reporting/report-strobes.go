@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/datatypes/strobe"
+	"github.com/activecm/rita/pkg/freq"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 )
@@ -21,7 +21,7 @@ func printStrobes(db string, res *resources.Resources) error {
 		return err
 	}
 
-	var strobes []strobe.Strobe
+	var strobes []freq.AnalysisView
 	coll := res.DB.Session.DB(db).C(res.Config.T.Strobe.StrobeTable)
 	coll.Find(nil).Sort("-connection_count").Limit(1000).All(&strobes)
 
@@ -32,7 +32,7 @@ func printStrobes(db string, res *resources.Resources) error {
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getStrobesWriter(strobes []strobe.Strobe) (string, error) {
+func getStrobesWriter(strobes []freq.AnalysisView) (string, error) {
 	tmpl := "<tr><td>{{.Source}}</td><td>{{.Destination}}</td><td>{{.ConnectionCount}}</td></tr>\n"
 	out, err := template.New("Strobes").Parse(tmpl)
 	if err != nil {
