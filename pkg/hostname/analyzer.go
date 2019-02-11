@@ -52,8 +52,6 @@ func (a *analyzer) start() {
 		defer ssn.Close()
 
 		for data := range a.analysisChannel {
-			// set up writer output
-			var output update
 
 			// in some of these strings, the empty space will get counted as a domain,
 			// this was an issue in the old version of exploded dns and caused inaccuracies
@@ -65,26 +63,89 @@ func (a *analyzer) start() {
 
 			_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.HostnamesTable).Find(bson.M{"host": data.host}).Limit(1).One(&res)
 
-			// Check for errors and parse results
-			if len(res.ips) < a.conf.S.Hostname.IPListLimit {
+			// get max we can still add to the array
+			max := a.conf.S.Hostname.IPListLimit - len(res.ips)
 
-				// get max we can still add to the array
-				max := a.conf.S.Hostname.IPListLimit - len(res.ips)
+			// if we're under max (most cases), continue
+			// otherwise we'll need to parse the correct size (rare)
+			if len(data.ips) >= max {
+				removeDuplicates(data.ips, res.ips, max)
+			}
 
-				// if we're under max (most cases), continue
-				// otherwise we'll need to parse the correct size.
-				if len(data.ips) >= max {
-					data.ips = removeDuplicates(data.ips, res.ips, max)
+			// set blacklisted Flag
+			blacklistFlag := false
+
+			// check ip against blacklist
+			var resList []ritaBLResult
+			_ = ssn.DB(a.conf.S.Blacklisted.BlacklistDatabase).C("hostname").Find(bson.M{"index": data.host}).All(&resList)
+
+			// variable holding blacklist stats that's only assigned values if there is a blacklisted result
+			var uconnStats uconnRes
+
+			// check if hostname is blacklisted
+			if len(resList) > 0 {
+				// set blacklist flag to true for hostname
+				blacklistFlag = true
+
+				// get non-overflowed list of ips to use in stats query
+				ipList := res.ips
+				if len(ipList) < a.conf.S.Hostname.IPListLimit {
+					ipList = append(ipList, data.ips...)
 				}
 
+				// build query
+				uconnsQuery := getBlacklistsStatsQuery(ipList)
+
+				// get stats
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.UniqueConnTable).Pipe(uconnsQuery).One(&uconnStats)
+
+			}
+
+			// if current array length on the server is under the limit, we update the record
+			if len(res.ips) < a.conf.S.Hostname.IPListLimit {
+				// set up writer output
+				var output update
+
 				// create query
-				output.query = bson.M{
-					"$addToSet": bson.M{"ips": bson.M{"$each": data.ips}},
+				if blacklistFlag {
+
+					output.query = bson.M{
+						"$addToSet": bson.M{"ips": bson.M{"$each": data.ips}},
+						"$set": bson.M{
+							"blacklisted": true,
+							"conn_count":  uconnStats.Connections,
+							"uconn_count": uconnStats.UniqueConnections,
+							"total_bytes": uconnStats.TotalBytes,
+						},
+					}
+				} else {
+					output.query = bson.M{
+						"$addToSet": bson.M{"ips": bson.M{"$each": data.ips}},
+					}
 				}
 
 				// create selector for output
 				output.selector = bson.M{"host": data.host}
 
+				// set to writer channel
+				a.analyzedCallback(output)
+
+			} else if blacklistFlag { // otherwise, we only update the record if its blacklisted
+				// set up writer output
+				var output update
+
+				// create query
+				output.query = bson.M{
+					"$set": bson.M{
+						"blacklisted": true,
+						"conn_count":  uconnStats.Connections,
+						"uconn_count": uconnStats.UniqueConnections,
+						"total_bytes": uconnStats.TotalBytes,
+					},
+				}
+
+				// create selector for output
+				output.selector = bson.M{"host": data.host}
 				// set to writer channel
 				a.analyzedCallback(output)
 			}
@@ -116,4 +177,24 @@ func removeDuplicates(s1 []string, s2 []string, max int) []string {
 		}
 	}
 	return parsed
+}
+
+//getBlacklistsStats will only run if a hostname is determined to be a blacklisted hostname
+func getBlacklistsStatsQuery(hosts []string) []bson.M {
+	//nolint: vet
+	return []bson.M{
+		bson.M{"$match": bson.M{"dst": bson.M{"$in": hosts}}},
+		bson.M{"$group": bson.M{
+			"_id":         0,
+			"total_bytes": bson.M{"$sum": "$total_bytes"},
+			"conn_count":  bson.M{"$sum": "$connection_count"},
+			"uconn_count": bson.M{"$sum": 1},
+		}},
+		bson.M{"$project": bson.M{
+			"_id":         0,
+			"total_bytes": 1,
+			"conn_count":  1,
+			"uconn_count": 1,
+		}},
+	}
 }

@@ -7,9 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/activecm/rita/analysis/dns"
-	"github.com/activecm/rita/datatypes/blacklist"
-	"github.com/activecm/rita/datatypes/structure"
+	"github.com/activecm/rita/pkg/hostname"
+	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
@@ -42,10 +41,10 @@ func printBLHostnames(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db) //so we can use the dns.GetIPsFromHost method
 
-	var blHosts []blacklist.BlacklistedHostname
+	var blHosts []hostname.AnalysisView
 	res.DB.Session.DB(db).
-		C(res.Config.T.Blacklisted.HostnamesTable).
-		Find(nil).Sort("-" + sort).All(&blHosts)
+		C(res.Config.T.DNS.HostnamesTable).
+		Find(bson.M{"blacklisted": true}).Sort("-" + sort).All(&blHosts)
 
 	if len(blHosts) == 0 {
 		return cli.NewExitError("No results were found for "+db, -1)
@@ -53,13 +52,12 @@ func printBLHostnames(c *cli.Context) error {
 
 	if connected {
 		//for each blacklisted host
-		for i, host := range blHosts {
-			//get the ips associated with the host
-			ips := dns.GetIPsFromHost(res, host.Hostname)
-			//and loop over the ips
-			for _, ip := range ips {
+		for i, entry := range blHosts {
+
+			//and loop over the ips associated with the host
+			for _, ip := range entry.IPs {
 				//then find all of the hosts which talked to the ip
-				var connected []structure.UniqueConnection
+				var connected []uconn.AnalysisView
 				res.DB.Session.DB(db).
 					C(res.Config.T.Structure.UniqueConnTable).Find(
 					bson.M{"dst": ip},
@@ -87,25 +85,24 @@ func printBLHostnames(c *cli.Context) error {
 	return nil
 }
 
-func showBLHostnames(hostnames []blacklist.BlacklistedHostname, connectedHosts bool) error {
+func showBLHostnames(hostnames []hostname.AnalysisView, connectedHosts bool) error {
 	csvWriter := csv.NewWriter(os.Stdout)
-	headers := []string{"Hostname", "Connections", "Unique Connections", "Total Bytes", "Lists"}
+	headers := []string{"Hostname", "Connections", "Unique Connections", "Total Bytes"}
 	if connectedHosts {
 		headers = append(headers, "Sources")
 	}
 	csvWriter.Write(headers)
-	for _, hostname := range hostnames {
-		sort.Strings(hostname.Lists)
+	for _, entry := range hostnames {
+
 		serialized := []string{
-			hostname.Hostname,
-			strconv.Itoa(hostname.Connections),
-			strconv.Itoa(hostname.UniqueConnections),
-			strconv.Itoa(hostname.TotalBytes),
-			strings.Join(hostname.Lists, " "),
+			entry.Host,
+			strconv.Itoa(entry.Connections),
+			strconv.Itoa(entry.UniqueConnections),
+			strconv.Itoa(entry.TotalBytes),
 		}
 		if connectedHosts {
-			sort.Strings(hostname.ConnectedHosts)
-			serialized = append(serialized, strings.Join(hostname.ConnectedHosts, " "))
+			sort.Strings(entry.ConnectedHosts)
+			serialized = append(serialized, strings.Join(entry.ConnectedHosts, " "))
 		}
 		csvWriter.Write(serialized)
 	}
@@ -114,25 +111,24 @@ func showBLHostnames(hostnames []blacklist.BlacklistedHostname, connectedHosts b
 	return nil
 }
 
-func showBLHostnamesHuman(hostnames []blacklist.BlacklistedHostname, connectedHosts bool) error {
+func showBLHostnamesHuman(hostnames []hostname.AnalysisView, connectedHosts bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	headers := []string{"Hostname", "Connections", "Unique Connections", "Total Bytes", "Lists"}
+	headers := []string{"Hostname", "Connections", "Unique Connections", "Total Bytes"}
 	if connectedHosts {
 		headers = append(headers, "Sources")
 	}
 	table.SetHeader(headers)
-	for _, hostname := range hostnames {
-		sort.Strings(hostname.Lists)
+	for _, entry := range hostnames {
+
 		serialized := []string{
-			hostname.Hostname,
-			strconv.Itoa(hostname.Connections),
-			strconv.Itoa(hostname.UniqueConnections),
-			strconv.Itoa(hostname.TotalBytes),
-			strings.Join(hostname.Lists, " "),
+			entry.Host,
+			strconv.Itoa(entry.Connections),
+			strconv.Itoa(entry.UniqueConnections),
+			strconv.Itoa(entry.TotalBytes),
 		}
 		if connectedHosts {
-			sort.Strings(hostname.ConnectedHosts)
-			serialized = append(serialized, strings.Join(hostname.ConnectedHosts, " "))
+			sort.Strings(entry.ConnectedHosts)
+			serialized = append(serialized, strings.Join(entry.ConnectedHosts, " "))
 		}
 		table.Append(serialized)
 	}

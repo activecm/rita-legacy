@@ -15,6 +15,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// type Service interface {
+// 	BuildBlacklistedCollections(res *resources.Resources)
+// }
+
+// func NewService() *Service {
+// 	return &Service{}
+// }
+
 //BuildBlacklistedCollections builds the blacklist master reference collection
 //and checks the uconn documents against that collection
 func BuildBlacklistedCollections(res *resources.Resources) {
@@ -22,14 +30,14 @@ func BuildBlacklistedCollections(res *resources.Resources) {
 	// this will be the master list ips and hostnames will be checked against
 	buildBlacklistReferenceCollection(res)
 
-	// build src ip collection
-	buildBlacklistedIPs(res, true)
+	// // build src ip collection
+	// buildBlacklistedIPs(res, true)
 
-	//build dst ip collection
-	buildBlacklistedIPs(res, false)
+	// //build dst ip collection
+	// buildBlacklistedIPs(res, false)
 
-	//build hostnames collection
-	buildBlacklistedHostnames(res)
+	// //build hostnames collection
+	// buildBlacklistedHostnames(res)
 
 }
 

@@ -68,6 +68,8 @@ func (r *repo) Upsert(hostnameMap map[string][]string) {
 	}
 
 	for entry, answers := range hostnameMap {
+
 		analyzerWorker.collect(hostname{entry, answers})
+
 	}
 }

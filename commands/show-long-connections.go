@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/activecm/rita/datatypes/data"
+	"github.com/activecm/rita/pkg/conn"
 	"github.com/activecm/rita/resources"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
@@ -29,7 +29,7 @@ func init() {
 
 			res := resources.InitResources(c.String("config"))
 
-			var longConns []data.Conn
+			var longConns []conn.AnalysisView
 			coll := res.DB.Session.DB(db).C(res.Config.T.Structure.ConnTable)
 
 			sortStr := "-duration"
@@ -57,7 +57,7 @@ func init() {
 	bootstrapCommands(command)
 }
 
-func showConns(connResults []data.Conn) error {
+func showConns(connResults []conn.AnalysisView) error {
 	csvWriter := csv.NewWriter(os.Stdout)
 	csvWriter.Write([]string{"Source IP", "Source Port", "Destination IP",
 		"Destination Port", "Duration", "Protocol"})
@@ -75,7 +75,7 @@ func showConns(connResults []data.Conn) error {
 	return nil
 }
 
-func showConnsHuman(connResults []data.Conn) error {
+func showConnsHuman(connResults []conn.AnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Source IP", "Source Port", "Destination IP",
 		"Destination Port", "Duration", "Protocol"})

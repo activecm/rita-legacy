@@ -16,6 +16,7 @@ import (
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
+	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/conn"
 	"github.com/activecm/rita/pkg/explodeddns"
 	"github.com/activecm/rita/pkg/freq"
@@ -62,6 +63,11 @@ func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
 
 //Run starts importing a given path into a datastore
 func (fs *FSImporter) Run(datastore Datastore) {
+	// build the rita-bl database before parsing
+	if fs.res.Config.S.Blacklisted.Enabled {
+		blacklist.BuildBlacklistedCollections(fs.res)
+	}
+
 	// track the time spent parsing
 	start := time.Now()
 	fs.res.Log.WithFields(
@@ -92,6 +98,10 @@ func (fs *FSImporter) Run(datastore Datastore) {
 		fmt.Println("\n\t[!!!!!] dumb error with file hashing that ethan is working on fixing, please choose a different database name and try again! ")
 		return
 	}
+
+	// create blacklisted reference Collection
+	fmt.Println("\t[-] Creating blacklist reference collection ... ")
+	blacklist.BuildBlacklistedCollections(fs.res)
 
 	// parse in those files!
 	filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap, useragentMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)

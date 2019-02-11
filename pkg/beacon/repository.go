@@ -25,7 +25,7 @@ type uconnRes struct {
 	AverageBytes    float32 `bson:"avg_bytes"`
 }
 
-//AnalysisView used in order to join the uconn and beacon tables
+//AnalysisView (for reporting)
 type AnalysisView struct {
 	Src         string  `bson:"src"`
 	Dst         string  `bson:"dst"`
