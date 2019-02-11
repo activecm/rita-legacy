@@ -94,11 +94,9 @@ func (fs *FSImporter) Run(datastore Datastore) {
 		return
 	}
 
-	//create blacklisted reference Collection
-	if fs.res.Config.S.Blacklisted.Enabled {
-		fmt.Println("\t[-] Creating blacklist reference collection ... ")
-		blacklist.BuildBlacklistedCollections(fs.res)
-	}
+	// create blacklisted reference Collection
+	fmt.Println("\t[-] Creating blacklist reference collection ... ")
+	blacklist.BuildBlacklistedCollections(fs.res)
 
 	// parse in those files!
 	filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap, useragentMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
@@ -443,8 +441,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									useragentMap[userAgentName].Ips = append(useragentMap[userAgentName].Ips, src)
 								}
 							}
-
-							// increment info in record
 
 							mutex.Unlock()
 

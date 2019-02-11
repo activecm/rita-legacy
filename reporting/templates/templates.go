@@ -114,7 +114,7 @@ var StrobesTempl = dbHeader + `
 var BLSourceIPTempl = dbHeader + `
 <div class="container">
   <table>
-  <tr><th>IP</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Lists</th><th>Destinations</th><tr>
+  <tr><th>IP</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Destinations</th><tr>
     {{.Writer}}
   </table>
 </div>
@@ -124,7 +124,7 @@ var BLSourceIPTempl = dbHeader + `
 var BLDestIPTempl = dbHeader + `
 <div class="container">
   <table>
-  <tr><th>IP</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Lists</th><th>Sources</th><tr>
+  <tr><th>IP</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Sources</th><tr>
     {{.Writer}}
   </table>
 </div>
@@ -134,7 +134,7 @@ var BLDestIPTempl = dbHeader + `
 var BLHostnameTempl = dbHeader + `
 <div class="container">
   <table>
-  <tr><th>Hostname</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Lists</th><th>Sources</th><tr>
+  <tr><th>Hostname</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Sources</th><tr>
     {{.Writer}}
   </table>
 </div>
