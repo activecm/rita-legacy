@@ -19,8 +19,10 @@ type domain struct {
 	count int
 }
 
-type explodedDNS struct {
-	domain     string   `bson:"domain"`
-	subdomains []string `bson:"subdomains"`
-	visited    int64    `bson:"visited"`
+// AnalysisView (for reporting)
+type AnalysisView struct {
+	Domain     string   `bson:"domain"`
+	Subdomains []string `bson:"subdomains"`
+	SubCount   int64    `bson:"sub_count"`
+	Visited    int64    `bson:"visited"`
 }

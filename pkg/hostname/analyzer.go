@@ -74,7 +74,7 @@ func (a *analyzer) start() {
 				// if we're under max (most cases), continue
 				// otherwise we'll need to parse the correct size.
 				if len(data.ips) >= max {
-					removeDuplicates(data.ips, res.ips, max)
+					data.ips = removeDuplicates(data.ips, res.ips, max)
 				}
 
 				// create query

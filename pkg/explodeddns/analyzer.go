@@ -71,7 +71,7 @@ func (a *analyzer) start() {
 					break
 				}
 
-				var res explodedDNS
+				var res AnalysisView
 
 				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.ExplodedDNSTable).Find(bson.M{"domain": entry}).Limit(1).One(&res)
 
@@ -82,7 +82,7 @@ func (a *analyzer) start() {
 				var output update
 
 				// Check for errors and parse results
-				if len(res.subdomains) < a.conf.S.DNS.DomainListLimit && subdomain != "" {
+				if len(res.Subdomains) < a.conf.S.DNS.DomainListLimit && subdomain != "" {
 
 					// create query for output depending on whether the domain has subdomains
 					output.query = bson.M{
