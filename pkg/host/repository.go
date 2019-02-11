@@ -1,6 +1,6 @@
 package host
 
-import "github.com/activecm/rita/parser/uconn"
+import "github.com/activecm/rita/pkg/uconn"
 
 // Repository for host collection
 type Repository interface {

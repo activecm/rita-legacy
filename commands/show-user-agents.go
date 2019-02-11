@@ -4,7 +4,7 @@ import (
 	"encoding/csv"
 	"os"
 
-	"github.com/activecm/rita/datatypes/useragent"
+	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/resources"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
@@ -13,7 +13,7 @@ import (
 func init() {
 	command := cli.Command{
 
-		Name:      "show-user-agents",
+		Name:      "show-useragents",
 		Usage:     "Print user agent information",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
@@ -32,7 +32,7 @@ func init() {
 
 			res := resources.InitResources(c.String("config"))
 
-			var agents []useragent.UserAgent
+			var agents []useragent.AnalysisView
 			coll := res.DB.Session.DB(db).C(res.Config.T.UserAgent.UserAgentTable)
 
 			var sortStr string
@@ -65,7 +65,7 @@ func init() {
 	bootstrapCommands(command)
 }
 
-func showAgents(agents []useragent.UserAgent) error {
+func showAgents(agents []useragent.AnalysisView) error {
 	csvWriter := csv.NewWriter(os.Stdout)
 	csvWriter.Write([]string{"User Agent", "Times Used"})
 	for _, agent := range agents {
@@ -75,7 +75,7 @@ func showAgents(agents []useragent.UserAgent) error {
 	return nil
 }
 
-func showAgentsHuman(agents []useragent.UserAgent) error {
+func showAgentsHuman(agents []useragent.AnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetColWidth(100)
 	table.SetHeader([]string{"User Agent", "Times Used"})

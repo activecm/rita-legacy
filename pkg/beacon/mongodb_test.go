@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/activecm/rita/parser/uconn"
+	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/dbtest"
 )

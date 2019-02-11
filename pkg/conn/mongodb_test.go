@@ -26,7 +26,7 @@ func TestBulkDelete(t *testing.T) {
 
 	err := testRepo.BulkDelete(testConns)
 	if err != nil {
-		t.Errorf("Error inserting freq")
+		t.Errorf("Error bulk deleting conns")
 	}
 }
 

@@ -17,6 +17,7 @@ func NewMongoRepository(res *resources.Resources) Repository {
 	}
 }
 
+//BulkDelete ...
 func (r *repo) BulkDelete(conns []*parsetypes.Conn) error {
 	session := r.res.DB.Session.Copy()
 	defer session.Close()

@@ -7,7 +7,7 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/parser/uconn"
+	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo/bson"
 )

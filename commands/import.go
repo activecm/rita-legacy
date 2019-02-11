@@ -58,11 +58,11 @@ func doImport(c *cli.Context) error {
 	// check if requested database name is already taken
 	if dbExists {
 		return cli.NewExitError("\t[!] Database name already in use, please choose another ", -1)
-	} else {
-		err := res.MetaDB.AddNewDB(targetDatabase)
-		if err != nil {
-			return cli.NewExitError(err.Error(), -1)
-		}
+	}
+
+	err := res.MetaDB.AddNewDB(targetDatabase)
+	if err != nil {
+		return cli.NewExitError(err.Error(), -1)
 	}
 
 	// set target database in resources

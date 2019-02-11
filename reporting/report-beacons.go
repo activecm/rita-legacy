@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/parser/beacon"
+	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/bson"

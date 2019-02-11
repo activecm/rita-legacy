@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/activecm/rita/parser/uconn"
+	"github.com/activecm/rita/pkg/uconn"
 	"github.com/globalsign/mgo/bson"
 )
 

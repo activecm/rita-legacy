@@ -27,7 +27,7 @@ func TestInsert(t *testing.T) {
 
 	err := testRepo.Insert(testFreq)
 	if err != nil {
-		t.Errorf("Error inserting freq")
+		t.Errorf("Error inserting to freq collection")
 	}
 }
 

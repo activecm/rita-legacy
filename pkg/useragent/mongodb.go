@@ -1,9 +1,8 @@
-package beacon
+package useragent
 
 import (
 	"runtime"
 
-	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
@@ -24,15 +23,26 @@ func (r *repo) CreateIndexes() error {
 	session := r.res.DB.Session.Copy()
 	defer session.Close()
 
-	collectionName := r.res.Config.T.Beacon.BeaconTable
+	// set collection name
+	collectionName := r.res.Config.T.UserAgent.UserAgentTable
 
-	// Desired indexes
-	indexes := []mgo.Index{
-		{Key: []string{"-score"}},
-		{Key: []string{"$hashed:src"}},
-		{Key: []string{"$hashed:dst"}},
-		{Key: []string{"-connection_count"}},
+	// check if collection already exists
+	names, _ := session.DB(r.res.DB.GetSelectedDB()).CollectionNames()
+
+	// if collection exists, we don't need to do anything else
+	for _, name := range names {
+		if name == collectionName {
+			return nil
+		}
 	}
+
+	// set desired indexes
+	indexes := []mgo.Index{
+		{Key: []string{"user_agent"}, Unique: true},
+		{Key: []string{"times_used"}},
+	}
+
+	// create collection
 	err := r.res.DB.CreateCollection(collectionName, indexes)
 	if err != nil {
 		return err
@@ -41,10 +51,9 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert loops through every new uconn ....
-func (r *repo) Upsert(uconnMap map[string]uconn.Pair) {
+func (r *repo) Upsert(userAgentMap map[string]*Input) {
 	//Create the workers
-	writerWorker := newWriter(r.res.Config.T.Beacon.BeaconTable, r.res.DB, r.res.Config)
+	writerWorker := newWriter(r.res.Config.T.UserAgent.UserAgentTable, r.res.DB, r.res.Config)
 
 	analyzerWorker := newAnalyzer(
 		r.res.DB,
@@ -59,9 +68,9 @@ func (r *repo) Upsert(uconnMap map[string]uconn.Pair) {
 		writerWorker.start()
 	}
 
-	for _, entry := range uconnMap {
-
-		analyzerWorker.collect(entry)
+	for key, value := range userAgentMap {
+		value.name = key
+		analyzerWorker.collect(value)
 
 	}
 }

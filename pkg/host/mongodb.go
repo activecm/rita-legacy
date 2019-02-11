@@ -3,7 +3,7 @@ package host
 import (
 	"runtime"
 
-	"github.com/activecm/rita/parser/uconn"
+	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
