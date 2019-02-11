@@ -1,10 +1,11 @@
-package hostname
+package beacon
 
 import (
 	"io/ioutil"
 	"os"
 	"testing"
 
+	"github.com/activecm/rita/parser/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/dbtest"
 )
@@ -17,23 +18,31 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testHostname = map[string][]string{
-	"a.b.activecountermeasures.com":   []string{"127.0.0.1", "127.0.0.2"},
-	"x.a.b.activecountermeasures.com": []string{"127.0.0.1", "127.0.0.2"},
-	"activecountermeasures.com":       []string{},
-	"google.com":                      []string{"127.0.0.1", "127.0.0.2", "0.0.0.0"},
+var testHost = map[string]uconn.Pair{
+	"test": uconn.Pair{
+		Src:             "127.0.0.1",
+		Dst:             "127.0.0.1",
+		ConnectionCount: 12,
+		IsLocalSrc:      true,
+		IsLocalDst:      true,
+		TotalBytes:      123,
+		AvgBytes:        12,
+		TsList:          []int64{1234567, 1234567},
+		OrigBytesList:   []int64{12, 12},
+		TotalDuration:   123.0,
+		MaxDuration:     12,
+	},
 }
 
 func TestCreateIndexes(t *testing.T) {
 	err := testRepo.CreateIndexes()
 	if err != nil {
-		t.Errorf("Error creating hostnames indexes")
+		t.Errorf("Error creating host indexes")
 	}
 }
 
 func TestUpsert(t *testing.T) {
-	testRepo.Upsert(testHostname)
-
+	testRepo.Upsert(testHost)
 }
 
 // TestMain wraps all tests with the needed initialized mock DB and fixtures

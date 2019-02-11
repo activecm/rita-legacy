@@ -23,6 +23,7 @@ type (
 		Bro          BroStaticCfg         `yaml:"Bro"`
 		Filtering    FilteringStaticCfg   `yaml:"Filtering"`
 		Strobe       StrobeStaticCfg      `yaml:"Strobe"`
+		Hostname     HostnameStaticCfg    `yaml:"Hostname"`
 		Version      string
 		ExactVersion string
 	}
@@ -82,7 +83,8 @@ type (
 
 	//DNSStaticCfg is used to control the DNS analysis module
 	DNSStaticCfg struct {
-		Enabled bool `yaml:"Enabled" default:"true"`
+		Enabled         bool `yaml:"Enabled" default:"true"`
+		DomainListLimit int  `yaml:"DomainListLimit" default:"250000"`
 	}
 
 	//UserAgentStaticCfg is used to control the User Agent analysis module
@@ -100,6 +102,11 @@ type (
 	//StrobeStaticCfg controls the maximum number of connections between any two given hosts
 	StrobeStaticCfg struct {
 		ConnectionLimit int `yaml:"ConnectionLimit" default:"250000"`
+	}
+
+	//HostnameStaticCfg controls the maximum number of ips stored as connections to a given hostname
+	HostnameStaticCfg struct {
+		IPListLimit int `yaml:"IPListLimit" default:"250000"`
 	}
 )
 

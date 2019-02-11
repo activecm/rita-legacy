@@ -35,10 +35,14 @@ BlackListed:
     BlacklistDatabase: "rita-bl"
     CustomIPBlacklists: [test1]
     CustomHostnameBlacklists: [test2]
+DNS:
+    DomainListLimit: 250000
 Beacon:
     DefaultConnectionThresh: 24
 Strobe:
     ConnectionLimit: 250000
+Hostname:
+    IPListLimit: 250000
 Filtering:
     AlwaysInclude: ["8.8.8.8/32"]
     NeverInclude: ["8.8.4.4/32"]
@@ -79,11 +83,17 @@ var testConfigFullExp = StaticCfg{
 		IPBlacklists:       []string{"test1"},
 		HostnameBlacklists: []string{"test2"},
 	},
+	DNS: DNSStaticCfg{
+		DomainListLimit: 250000,
+	},
 	Beacon: BeaconStaticCfg{
 		DefaultConnectionThresh: 24,
 	},
 	Strobe: StrobeStaticCfg{
 		ConnectionLimit: 250000,
+	},
+	Hostname: HostnameStaticCfg{
+		IPListLimit: 250000,
 	},
 	Filtering: FilteringStaticCfg{
 		AlwaysInclude:   []string{"8.8.8.8/32"},

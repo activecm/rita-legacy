@@ -5,8 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/dbtest"
 )
 
@@ -18,39 +17,32 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testUconn = &parsetypes.Uconn{
-	Source:           "127.0.0.1",
-	Destination:      "127.0.0.1",
-	ConnectionCount:  12,
-	LocalSource:      true,
-	LocalDestination: true,
-	TotalBytes:       123,
-	AverageBytes:     12,
-	TSList:           []int64{1234567, 1234567},
-	OrigBytesList:    []int64{12, 12},
-	TotalDuration:    123.0,
-	MaxDuration:      12,
+var testUconn = map[string]Pair{
+	"test": Pair{
+		Src:             "127.0.0.1",
+		Dst:             "127.0.0.1",
+		ConnectionCount: 12,
+		IsLocalSrc:      true,
+		IsLocalDst:      true,
+		TotalBytes:      123,
+		AvgBytes:        12,
+		TsList:          []int64{1234567, 1234567},
+		OrigBytesList:   []int64{12, 12},
+		TotalDuration:   123.0,
+		MaxDuration:     12,
+	},
 }
 
 func TestCreateIndexes(t *testing.T) {
-	err := testRepo.CreateIndexes(testTargetDB)
+	err := testRepo.CreateIndexes()
 	if err != nil {
 		t.Errorf("Error creating uconn indexes")
 	}
 }
 
-func TestInsert(t *testing.T) {
-	err := testRepo.Insert(testUconn, testTargetDB)
-	if err != nil {
-		t.Errorf("Error inserting uconn")
-	}
-}
-
 func TestUpsert(t *testing.T) {
-	err := testRepo.Upsert(testUconn, testTargetDB)
-	if err != nil {
-		t.Errorf("Error creating host indexes")
-	}
+	testRepo.Upsert(testUconn)
+
 }
 
 // TestMain wraps all tests with the needed initialized mock DB and fixtures
@@ -60,18 +52,12 @@ func TestMain(m *testing.M) {
 	Server.SetPath(tempDir)
 
 	// Set the main session variable to the temporary MongoDB instance
-	ssn := Server.Session()
+	res := resources.InitTestResources()
 
-	db := database.DB{Session: ssn}
-
-	testRepo = NewMongoRepository(&db)
+	testRepo = NewMongoRepository(res)
 
 	// Run the test suite
 	retCode := m.Run()
-
-	// Clean up test database and session
-	ssn.DB(testTargetDB).DropDatabase()
-	ssn.Close()
 
 	// Shut down the temporary server and removes data on disk.
 	Server.Stop()
