@@ -443,7 +443,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// create record if it doesn't exist
 							if _, ok := useragentMap[userAgentName]; !ok {
-								useragentMap[userAgentName] = &useragent.Input{OrigIps: []string{}, Seen: 1, Requests: []string{}}
+								useragentMap[userAgentName] = &useragent.Input{OrigIps: []string{src}, Seen: 1, Requests: []string{host}}
 							} else {
 								// increment times seen count
 								useragentMap[userAgentName].Seen++
