@@ -30,6 +30,14 @@ func NewBroDataFactory(fileType string) func() BroData {
 		return func() BroData {
 			return &HTTP{}
 		}
+	case "ssl":
+		return func() BroData {
+			return &SSL{}
+		}
+	case "x509":
+		return func() BroData {
+			return &x509{}
+		}
 	case "freq":
 		return func() BroData {
 			return &Freq{}
