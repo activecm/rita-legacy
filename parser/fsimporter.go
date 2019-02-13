@@ -461,7 +461,31 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							mutex.Unlock()
 
-							// stores the http record in the dns collection
+							// stores the http record in the http collection
+							// datastore.Store(&ImportedData{
+							// 	BroData:          data,
+							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
+							// 	TargetCollection: targetCollection,
+							// })
+
+							/// *************************************************************///
+							///                             SSL                             ///
+							/// *************************************************************///
+						} else if targetCollection == fs.res.Config.T.Structure.SSLTable {
+
+							// parseSSL := reflect.ValueOf(data).Elem()
+
+							// stores the ssl record in the ssl collection
+							// datastore.Store(&ImportedData{
+							// 	BroData:          data,
+							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
+							// 	TargetCollection: targetCollection,
+							// })
+
+							/// *************************************************************///
+							///                             x509                             ///
+							/// *************************************************************///
+						} else if targetCollection == fs.res.Config.T.Structure.X509Table {
 							// datastore.Store(&ImportedData{
 							// 	BroData:          data,
 							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
