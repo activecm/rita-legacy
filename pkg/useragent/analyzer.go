@@ -54,60 +54,23 @@ func (a *analyzer) start() {
 			// set up writer output
 			var output update
 
-			var res useragent
-
-			_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.UserAgent.UserAgentTable).Find(bson.M{"user_agent": data.name}).Limit(1).One(&res)
-
-			// Check for errors and parse results
-			if len(res.ips) < a.conf.S.Hostname.IPListLimit {
-
-				// get max we can still add to the array
-				max := a.conf.S.Hostname.IPListLimit - len(res.ips)
-
-				// if we're under max (most cases), continue
-				// otherwise we'll need to parse the correct size.
-				if len(data.Ips) >= max {
-					removeDuplicates(data.Ips, res.ips, max)
-				}
-
-				// create query
-				output.query = bson.M{
-					"$addToSet": bson.M{"ips": bson.M{"$each": data.Ips}},
-					"$inc":      bson.M{"times_used": data.Seen},
-				}
-
-				// create selector for output
-				output.selector = bson.M{"user_agent": data.name}
-
-				// set to writer channel
-				a.analyzedCallback(output)
+			// create query
+			output.query = bson.M{
+				"$push": bson.M{
+					"orig_ips": bson.M{"$each": data.OrigIps, "$slice": -10},
+					"hosts":    bson.M{"$each": data.Requests, "$slice": -10},
+				},
+				"$inc": bson.M{"times_used": data.Seen},
 			}
+
+			// create selector for output
+			output.selector = bson.M{"user_agent": data.name}
+
+			// set to writer channel
+			a.analyzedCallback(output)
 
 		}
 
 		a.analysisWg.Done()
 	}()
-}
-
-func removeDuplicates(s1 []string, s2 []string, max int) []string {
-	// i know... but it will happen only for very extreme cases. and on only 2 hours of data.
-	// feel free to tear it apart for something better.
-	var parsed []string
-	for _, entry1 := range s1 {
-		found := false
-		for _, entry2 := range s2 {
-			if entry1 == entry2 {
-				found = true
-				break
-			}
-		}
-		if !found {
-			parsed = append(parsed, entry1)
-		}
-
-		if len(parsed) >= max {
-			break
-		}
-	}
-	return parsed
 }

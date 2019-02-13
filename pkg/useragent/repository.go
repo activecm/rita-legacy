@@ -12,17 +12,12 @@ type update struct {
 	query    interface{}
 }
 
-type useragent struct {
-	name string   `bson:"user_agent"`
-	seen int64    `bson:"times_used"`
-	ips  []string `bson:"ips"`
-}
-
 //Input ....
 type Input struct {
-	name string
-	Seen int64
-	Ips  []string
+	name     string
+	Seen     int64
+	OrigIps  []string
+	Requests []string
 }
 
 //AnalysisView (for reporting)

@@ -429,26 +429,44 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// 	TargetCollection: targetCollection,
 							// })
 
+							/// *************************************************************///
+							///                             HTTP                             ///
+							/// *************************************************************///
 						} else if targetCollection == fs.res.Config.T.Structure.HTTPTable {
 							parseHTTP := reflect.ValueOf(data).Elem()
 							userAgentName := parseHTTP.FieldByName("UserAgent").Interface().(string)
 							src := parseHTTP.FieldByName("Source").Interface().(string)
+							host := parseHTTP.FieldByName("Host").Interface().(string)
+
 							// Safely store the number of conns for this uconn
 							mutex.Lock()
 
 							// create record if it doesn't exist
 							if _, ok := useragentMap[userAgentName]; !ok {
-								useragentMap[userAgentName] = &useragent.Input{Ips: []string{}, Seen: 1}
+								useragentMap[userAgentName] = &useragent.Input{OrigIps: []string{src}, Seen: 1, Requests: []string{host}}
 							} else {
+								// increment times seen count
 								useragentMap[userAgentName].Seen++
-								if stringInSlice(src, useragentMap[userAgentName].Ips) == false {
-									useragentMap[userAgentName].Ips = append(useragentMap[userAgentName].Ips, src)
+
+								// add src of useragent request to unique array
+								if stringInSlice(src, useragentMap[userAgentName].OrigIps) == false {
+									useragentMap[userAgentName].OrigIps = append(useragentMap[userAgentName].OrigIps, src)
+								}
+
+								// add request string to unique array
+								if stringInSlice(host, useragentMap[userAgentName].Requests) == false {
+									useragentMap[userAgentName].Requests = append(useragentMap[userAgentName].Requests, host)
 								}
 							}
 
-							// increment info in record
-
 							mutex.Unlock()
+
+							// stores the http record in the dns collection
+							// datastore.Store(&ImportedData{
+							// 	BroData:          data,
+							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
+							// 	TargetCollection: targetCollection,
+							// })
 
 						} else {
 							// We do not analyze any of the other log types (yet)
