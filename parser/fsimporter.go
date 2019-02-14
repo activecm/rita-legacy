@@ -375,11 +375,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 								// stores the conn record in conn collection if below threshold
 								if connCount < fs.connLimit {
-									// datastore.Store(&ImportedData{
-									// 	BroData:          data,
-									// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
-									// 	TargetCollection: targetCollection,
-									// })
+									datastore.Store(&ImportedData{
+										BroData:          data,
+										TargetDatabase:   fs.res.DB.GetSelectedDB(),
+										TargetCollection: targetCollection,
+									})
 								}
 							}
 
