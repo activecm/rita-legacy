@@ -3,7 +3,7 @@ package uconn
 // Repository for uconn collection
 type Repository interface {
 	CreateIndexes() error
-	Upsert(uconnMap map[string]Pair)
+	Upsert(uconnMap map[string]*Pair)
 }
 
 //update ....
@@ -20,11 +20,11 @@ type Pair struct {
 	IsLocalSrc      bool
 	IsLocalDst      bool
 	TotalBytes      int64
-	AvgBytes        float64
 	MaxDuration     float64
 	TotalDuration   float64
 	TsList          []int64
 	OrigBytesList   []int64
+	TXTQueryCount   int64
 }
 
 //AnalysisView (for reporting)
@@ -35,7 +35,6 @@ type AnalysisView struct {
 	LocalDst        bool    `bson:"local_dst"`
 	ConnectionCount int     `bson:"connection_count"`
 	TotalBytes      int     `bson:"total_bytes"`
-	AverageBytes    float32 `bson:"avg_bytes"`
 	TsList          []int64 `bson:"ts_list"`         // Connection timestamps for this src, dst pair
 	OrigIPBytes     []int64 `bson:"orig_bytes_list"` // Src to dst connection sizes for each connection
 	MaxDuration     float32 `bson:"max_duration"`

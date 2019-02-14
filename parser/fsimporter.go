@@ -220,7 +220,7 @@ func indexFiles(files []string, indexingThreads int,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) (
-	[]uconn.Pair, map[string]uconn.Pair, map[string]int, map[string][]string, map[string]*useragent.Input) {
+	[]*uconn.Pair, map[string]*uconn.Pair, map[string]int, map[string][]string, map[string]*useragent.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 	// create log parsing maps
@@ -231,14 +231,14 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	useragentMap := make(map[string]*useragent.Input)
 
 	// Counts the number of uconns per source-destination pair
-	uconnMap := make(map[string]uconn.Pair)
+	uconnMap := make(map[string]*uconn.Pair)
 
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
 
 	// map to hold the too many connections uconns
-	var filterHugeUconnsMap []uconn.Pair
+	var filterHugeUconnsMap []*uconn.Pair
 
 	// Creates a mutex for locking map keys during read-write operations
 	var mutex = &sync.Mutex{}
@@ -297,19 +297,14 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							parseConn := reflect.ValueOf(data).Elem()
 
 							// get source destination pair for connection record
-							uconnPair := uconn.Pair{
-								Src: parseConn.FieldByName("Source").Interface().(string),
-								Dst: parseConn.FieldByName("Destination").Interface().(string),
-							}
+							src := parseConn.FieldByName("Source").Interface().(string)
+							dst := parseConn.FieldByName("Destination").Interface().(string)
 
 							// Run conn pair through filter to filter out certain connections
-							ignore := fs.filterConnPair(uconnPair.Src, uconnPair.Dst)
+							ignore := fs.filterConnPair(src, dst)
 
 							// If connection pair is not subject to filtering, process
 							if !ignore {
-								// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
-								uconnPair.IsLocalSrc = containsIP(fs.GetInternalSubnets(), net.ParseIP(uconnPair.Src))
-								uconnPair.IsLocalDst = containsIP(fs.GetInternalSubnets(), net.ParseIP(uconnPair.Dst))
 								ts := parseConn.FieldByName("TimeStamp").Interface().(int64)
 								origIPBytes := parseConn.FieldByName("OrigIPBytes").Interface().(int64)
 								respIPBytes := parseConn.FieldByName("RespIPBytes").Interface().(int64)
@@ -317,60 +312,53 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								bytes := int64(origIPBytes + respIPBytes)
 
 								// Concatenate the source and destination IPs to use as a map key
-								srcDst := uconnPair.Src + uconnPair.Dst
+								srcDst := src + dst
 
 								// Safely store the number of conns for this uconn
 								mutex.Lock()
 
+								// Check if the map value is set
+								if _, ok := uconnMap[srcDst]; !ok {
+									// create new uconn record with src and dst
+									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
+									// we only need to do this once if the uconn record does not exist
+									uconnMap[srcDst] = &uconn.Pair{
+										Src:        src,
+										Dst:        dst,
+										IsLocalSrc: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
+										IsLocalDst: containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
+									}
+								}
+
 								// Increment the connection count for the src-dst pair
-								connCount := uconnMap[srcDst].ConnectionCount + 1
-								uconnPair.ConnectionCount = connCount
+								uconnMap[srcDst].ConnectionCount++
 
 								// Only append unique timestamps to tslist
-								timestamps := uconnMap[srcDst].TsList
-								if isUniqueTimestamp(ts, timestamps) {
-									uconnPair.TsList = append(timestamps, ts)
-								} else {
-									uconnPair.TsList = timestamps
+								if int64InSlice(ts, uconnMap[srcDst].TsList) == false {
+									uconnMap[srcDst].TsList = append(uconnMap[srcDst].TsList, ts)
 								}
 
 								// Append all origIPBytes to origBytesList
-								uconnPair.OrigBytesList = append(uconnMap[srcDst].OrigBytesList, origIPBytes)
+								uconnMap[srcDst].OrigBytesList = append(uconnMap[srcDst].OrigBytesList, origIPBytes)
 
 								// Calculate and store the total number of bytes exchanged by the uconn pair
-								uconnPair.TotalBytes = uconnMap[srcDst].TotalBytes + bytes
-
-								// Calculate and store the average number of bytes
-								uconnPair.AvgBytes = float64(((int64(uconnMap[srcDst].AvgBytes) * connCount) + bytes) / (connCount + 1))
+								uconnMap[srcDst].TotalBytes += bytes
 
 								// Calculate and store the total duration
-								uconnPair.TotalDuration = uconnMap[srcDst].TotalDuration + duration
+								uconnMap[srcDst].TotalDuration += duration
 
 								// Replace existing duration if current duration is higher
 								if duration > uconnMap[srcDst].MaxDuration {
-									uconnPair.MaxDuration = duration
-								} else {
-									uconnPair.MaxDuration = uconnMap[srcDst].MaxDuration
-								}
-								uconnMap[srcDst] = uconn.Pair{
-									Src:             uconnPair.Src,
-									Dst:             uconnPair.Dst,
-									ConnectionCount: uconnPair.ConnectionCount,
-									IsLocalSrc:      uconnPair.IsLocalSrc,
-									IsLocalDst:      uconnPair.IsLocalDst,
-									TotalBytes:      uconnPair.TotalBytes,
-									AvgBytes:        uconnPair.AvgBytes,
-									TotalDuration:   uconnPair.TotalDuration,
-									MaxDuration:     uconnPair.MaxDuration,
-									TsList:          uconnPair.TsList,
-									OrigBytesList:   uconnPair.OrigBytesList,
+									uconnMap[srcDst].MaxDuration = duration
 								}
 
-								if connCount == fs.connLimit {
+								if uconnMap[srcDst].ConnectionCount == fs.connLimit {
 									// tag strobe for removal from conns after import
-									filterHugeUconnsMap = append(filterHugeUconnsMap, uconnPair)
+									filterHugeUconnsMap = append(filterHugeUconnsMap, uconnMap[srcDst])
 								}
 
+								// putting in variable so we can unlock mutex before datastore call
+								connCount := uconnMap[srcDst].ConnectionCount
 								mutex.Unlock()
 
 								// stores the conn record in conn collection if below threshold
@@ -381,6 +369,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										TargetCollection: targetCollection,
 									})
 								}
+
 							}
 
 							/// *************************************************************///
@@ -420,6 +409,29 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 							}
 
+							// increment txt query count for host in uconn
+							if queryTypeName == "TXT" {
+								// get source destination pair for dns record
+								src := parseDNS.FieldByName("Source").Interface().(string)
+								dst := parseDNS.FieldByName("Destination").Interface().(string)
+
+								// Check if uconn map value is set, because this record could
+								// come before a relevant conns record
+								if _, ok := uconnMap[src+dst]; !ok {
+									// create new uconn record with src and dst
+									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
+									// we only need to do this once if the uconn record does not exist
+									uconnMap[src+dst] = &uconn.Pair{
+										Src:        src,
+										Dst:        dst,
+										IsLocalSrc: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
+										IsLocalDst: containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
+									}
+								}
+								// increment txt query count
+								uconnMap[src+dst].TXTQueryCount++
+							}
+
 							mutex.Unlock()
 
 							// stores the dns record in the dns collection
@@ -443,7 +455,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// create record if it doesn't exist
 							if _, ok := useragentMap[userAgentName]; !ok {
-								useragentMap[userAgentName] = &useragent.Input{OrigIps: []string{src}, Seen: 1, Requests: []string{host}}
+								useragentMap[userAgentName] = &useragent.Input{Seen: 1, OrigIps: []string{src}, Requests: []string{host}}
 							} else {
 								// increment times seen count
 								useragentMap[userAgentName].Seen++
@@ -516,15 +528,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	return filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap, useragentMap
 }
 
-func isUniqueTimestamp(timestamp int64, timestamps []int64) bool {
-	for _, val := range timestamps {
-		if val == timestamp {
-			return false
-		}
-	}
-	return true
-}
-
 //buildExplodedDNS .....
 func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 	fmt.Println("\t[-] Creating Exploded DNS Collection ...")
@@ -543,7 +546,7 @@ func (fs *FSImporter) buildHostnames(hostnameMap map[string][]string) {
 	hostnameRepo.Upsert(hostnameMap)
 }
 
-func (fs *FSImporter) buildUconns(uconnMap map[string]uconn.Pair) {
+func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Pair) {
 	fmt.Println("\t[-] Creating Uconns Collection ...")
 
 	uconnRepo := uconn.NewMongoRepository(fs.res)
@@ -558,7 +561,7 @@ func (fs *FSImporter) buildUconns(uconnMap map[string]uconn.Pair) {
 
 }
 
-func (fs *FSImporter) buildHosts(uconnMap map[string]uconn.Pair) {
+func (fs *FSImporter) buildHosts(uconnMap map[string]*uconn.Pair) {
 	fmt.Println("\t[-] Creating Hosts Collection ...")
 	hostRepo := host.NewMongoRepository(fs.res)
 
@@ -571,7 +574,7 @@ func (fs *FSImporter) buildHosts(uconnMap map[string]uconn.Pair) {
 	hostRepo.Upsert(uconnMap)
 }
 
-func (fs *FSImporter) buildBeacons(uconnMap map[string]uconn.Pair) {
+func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Pair) {
 	fmt.Println("\t[-] Creating Beacons Collection ...")
 
 	beaconRepo := beacon.NewMongoRepository(fs.res)
@@ -597,7 +600,7 @@ func (fs *FSImporter) buildUserAgent(useragentMap map[string]*useragent.Input) {
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
 // entries in the "conn" collection. It also creates new entries in the FrequentConnTable collection.
-func (fs *FSImporter) bulkRemoveHugeUconns(filterHugeUconnsMap []uconn.Pair, uconnMap map[string]uconn.Pair) {
+func (fs *FSImporter) bulkRemoveHugeUconns(filterHugeUconnsMap []*uconn.Pair, uconnMap map[string]*uconn.Pair) {
 
 	connRepo := conn.NewMongoRepository(fs.res)
 	freqRepo := freq.NewMongoRepository(fs.res)
@@ -674,6 +677,16 @@ func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.Me
 
 //stringInSlice ...
 func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
+//int64InSlice ...
+func int64InSlice(a int64, list []int64) bool {
 	for _, b := range list {
 		if b == a {
 			return true

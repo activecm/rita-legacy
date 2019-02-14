@@ -15,12 +15,12 @@ import (
 type (
 	//analyzer : structure for host analysis
 	analyzer struct {
-		db               *database.DB    // provides access to MongoDB
-		conf             *config.Config  // contains details needed to access MongoDB
-		analyzedCallback func(update)    // called on each analyzed result
-		closedCallback   func()          // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan uconn.Pair // holds unanalyzed data
-		analysisWg       sync.WaitGroup  // wait for analysis to finish
+		db               *database.DB     // provides access to MongoDB
+		conf             *config.Config   // contains details needed to access MongoDB
+		analyzedCallback func(update)     // called on each analyzed result
+		closedCallback   func()           // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *uconn.Pair // holds unanalyzed data
+		analysisWg       sync.WaitGroup   // wait for analysis to finish
 	}
 )
 
@@ -31,12 +31,12 @@ func newAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(upd
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan uconn.Pair),
+		analysisChannel:  make(chan *uconn.Pair),
 	}
 }
 
 //collect sends a chunk of data to be analyzed
-func (a *analyzer) collect(data uconn.Pair) {
+func (a *analyzer) collect(data *uconn.Pair) {
 	a.analysisChannel <- data
 }
 
@@ -93,9 +93,9 @@ func (a *analyzer) start() {
 
 				//if the connection has a blacklisted destination (the connection itself is a src though)
 				if blacklistedDst {
-					output = hasBlacklistedDstQuery(data.Src, data.IsLocalSrc, data.MaxDuration, data.TotalBytes, blacklistedSrc, uconnStatsSrc)
+					output = hasBlacklistedDstQuery(data, blacklistedSrc, uconnStatsSrc)
 				} else { //otherwise, just add the result
-					output = standardQuery(data.Src, data.IsLocalSrc, data.MaxDuration, true, blacklistedSrc, uconnStatsSrc)
+					output = standardQuery(data.Src, data.IsLocalSrc, data.MaxDuration, data.TXTQueryCount, true, blacklistedSrc, uconnStatsSrc)
 				}
 
 				// set to writer channel
@@ -108,10 +108,10 @@ func (a *analyzer) start() {
 
 				//if the connection has a blacklisted source (the connection itself is a dst though)
 				if blacklistedSrc {
-					output = hasBlacklistedSrcQuery(data.Dst, data.IsLocalDst, data.MaxDuration, data.TotalBytes, blacklistedDst, uconnStatsDst)
+					output = hasBlacklistedSrcQuery(data, blacklistedDst, uconnStatsDst)
 
 				} else { //otherwise, just add the result
-					output = standardQuery(data.Dst, data.IsLocalDst, data.MaxDuration, false, blacklistedDst, uconnStatsDst)
+					output = standardQuery(data.Dst, data.IsLocalDst, data.MaxDuration, 0, false, blacklistedDst, uconnStatsDst)
 				}
 
 				// set to writer channel
@@ -143,7 +143,7 @@ func (a *analyzer) isBlacklisted(host string) bool {
 }
 
 //standardQuery ...
-func standardQuery(ip string, local bool, maxdur float64, src bool, blacklisted bool, uconnStats uconnRes) update {
+func standardQuery(ip string, local bool, maxdur float64, txtQCount int64, src bool, blacklisted bool, uconnStats uconnRes) update {
 	var output update
 
 	// create query
@@ -167,7 +167,10 @@ func standardQuery(ip string, local bool, maxdur float64, src bool, blacklisted 
 	}
 
 	if src {
-		query["$inc"] = bson.M{"count_src": 1}
+		query["$inc"] = bson.M{
+			"count_src":       1,
+			"txt_query_count": txtQCount,
+		}
 	} else {
 		query["$inc"] = bson.M{"count_dst": 1}
 	}
@@ -181,23 +184,24 @@ func standardQuery(ip string, local bool, maxdur float64, src bool, blacklisted 
 //hasBlacklistedQuery ...
 // If the internal system initiated the connection, then bl_out_count
 // holds the number of unique blacklisted IPs the given host contacted.
-func hasBlacklistedDstQuery(src string, local bool, maxdur float64, bytes int64, blacklisted bool, uconnStats uconnRes) update {
+func hasBlacklistedDstQuery(data *uconn.Pair, blacklisted bool, uconnStats uconnRes) update {
 
 	var output update
 
 	// create query
 	query := bson.M{
 		"$setOnInsert": bson.M{
-			"local":       local,
+			"local":       data.IsLocalSrc,
 			"ipv4":        true,
-			"ipv4_binary": ipv4ToBinary(net.ParseIP(src)),
+			"ipv4_binary": ipv4ToBinary(net.ParseIP(data.Src)),
 		},
 		"$inc": bson.M{
-			"count_src":      1,
-			"bl_out_count":   1,
-			"bl_total_bytes": bytes,
+			"count_src":       1,
+			"bl_out_count":    data.ConnectionCount,
+			"bl_total_bytes":  data.TotalBytes,
+			"txt_query_count": data.TXTQueryCount,
 		},
-		"$max": bson.M{"max_duration": maxdur},
+		"$max": bson.M{"max_duration": data.MaxDuration},
 	}
 
 	if blacklisted {
@@ -211,7 +215,7 @@ func hasBlacklistedDstQuery(src string, local bool, maxdur float64, bytes int64,
 
 	// create selector for output
 	output.query = query
-	output.selector = bson.M{"ip": src}
+	output.selector = bson.M{"ip": data.Src}
 
 	return output
 }
@@ -220,22 +224,22 @@ func hasBlacklistedDstQuery(src string, local bool, maxdur float64, bytes int64,
 // If the blacklisted IP initiated the connection, then bl_in_count
 // holds the number of unique IPs connected to the given
 // host.
-func hasBlacklistedSrcQuery(dst string, local bool, maxdur float64, bytes int64, blacklisted bool, uconnStats uconnRes) update {
+func hasBlacklistedSrcQuery(data *uconn.Pair, blacklisted bool, uconnStats uconnRes) update {
 	var output update
 
 	// create query
 	query := bson.M{
 		"$setOnInsert": bson.M{
-			"local":       local,
+			"local":       data.IsLocalDst,
 			"ipv4":        true,
-			"ipv4_binary": ipv4ToBinary(net.ParseIP(dst)),
+			"ipv4_binary": ipv4ToBinary(net.ParseIP(data.Dst)),
 		},
 		"$inc": bson.M{
 			"count_dst":      1,
-			"bl_in_count":    1,
-			"bl_total_bytes": bytes,
+			"bl_in_count":    data.ConnectionCount,
+			"bl_total_bytes": data.TotalBytes,
 		},
-		"$max": bson.M{"max_duration": maxdur},
+		"$max": bson.M{"max_duration": data.MaxDuration},
 	}
 
 	if blacklisted {
@@ -249,7 +253,7 @@ func hasBlacklistedSrcQuery(dst string, local bool, maxdur float64, bytes int64,
 
 	// create selector for output
 	output.query = query
-	output.selector = bson.M{"ip": dst}
+	output.selector = bson.M{"ip": data.Dst}
 
 	return output
 

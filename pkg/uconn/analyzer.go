@@ -11,7 +11,7 @@ type (
 	analyzer struct {
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan Pair      // holds unanalyzed data
+		analysisChannel  chan *Pair     // holds unanalyzed data
 		analysisWg       sync.WaitGroup // wait for analysis to finish
 	}
 )
@@ -21,12 +21,12 @@ func newAnalyzer(analyzedCallback func(update), closedCallback func()) *analyzer
 	return &analyzer{
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan Pair),
+		analysisChannel:  make(chan *Pair),
 	}
 }
 
 //collect sends a group of domains to be analyzed
-func (a *analyzer) collect(data Pair) {
+func (a *analyzer) collect(data *Pair) {
 	a.analysisChannel <- data
 }
 
