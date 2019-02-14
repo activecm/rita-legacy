@@ -3,7 +3,7 @@
 
 This guide walks through installing several components.
 
-* [Bro/Zeek](https://www.bro.org)
+* [Bro/Zeek](https://www.zeek.org)
 * [MongoDB](https://www.mongodb.com)
 * [RITA](https://github.com/activecm/rita/)
 
