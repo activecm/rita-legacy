@@ -34,9 +34,9 @@ To install each component of RITA by hand, [check out the instructions in the do
 See [this guide](docs/Upgrading.md) for upgrade instructions.
 
 #### Configuration File
-RITA's config file is located at **/etc/rita/config.yaml** though you can specify a custom path on individual commands with the **-c** command line flag.
+RITA's config file is located at `/etc/rita/config.yaml` though you can specify a custom path on individual commands with the `-c` command line flag.
 
-:exclamation: IMPORTANT
+:exclamation: **IMPORTANT** :exclamation:
 * The `Filtering: InternalSubnets` section *must* be configured or you will not see any results in certain modules (e.g. beacons, long connections). If your network uses the standard RFC1918 internal IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) you just need uncomment the default `InternalSubnets` section already in the config file. Otherwise, adjust this section to match your environment. RITA's main purpose is to find the signs of a compromised internal system talking to an external system and will automatically exclude internal to internal connections and external to external connections from parts of the analysis.
 
 You may also wish to change the defaults for the following option:

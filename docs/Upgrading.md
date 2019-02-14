@@ -4,7 +4,7 @@ Updating between versions of RITA is normally straightforward. Most often all yo
 
 You may not need to update your config file at all as we include sane default settings for any new config value inside of RITA. This means that if your config file is missing a value, RITA will still have a default to use. However, if you need to customize any of these new values you'll have to update to the newer config file.
 
-:exclamation: IMPORTANT
+> :exclamation: **IMPORTANT** :exclamation:
 > If you are upgrading to v2 from an earlier version you will need to modify your config file to include values for `Filtering: InternalSubnets`.
 
 In some cases you may also need to update your config file to a newer version. You can always find the latest config file in [`etc/rita.yml`](https://github.com/activecm/rita/blob/master/etc/rita.yaml). If you use the `install.sh` script, the correct version of the config file will be downloaded for you to `/etc/rita/config.yaml.new`.
