@@ -5,7 +5,7 @@ import "github.com/activecm/rita/pkg/uconn"
 // Repository for host collection
 type Repository interface {
 	CreateIndexes() error
-	Upsert(uconnMap map[string]uconn.Pair)
+	Upsert(uconnMap map[string]*uconn.Pair)
 }
 
 //update ....
@@ -22,7 +22,7 @@ type uconnRes struct {
 	TsList          []int64 `bson:"ts_list"`
 	OrigIPBytes     []int64 `bson:"orig_bytes_list"`
 	ConnectionCount int     `bson:"connection_count"`
-	AverageBytes    float32 `bson:"avg_bytes"`
+	TotalBytes      int     `bson:"total_bytes"`
 }
 
 //AnalysisView (for reporting)

@@ -42,7 +42,7 @@ func (r *repo) CreateIndexes() error {
 }
 
 //Upsert loops through every new uconn ....
-func (r *repo) Upsert(uconnMap map[string]uconn.Pair) {
+func (r *repo) Upsert(uconnMap map[string]*uconn.Pair) {
 	//Create the workers
 	writerWorker := newWriter(r.res.Config.T.Beacon.BeaconTable, r.res.DB, r.res.Config)
 

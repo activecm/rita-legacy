@@ -14,12 +14,12 @@ import (
 
 type (
 	analyzer struct {
-		db               *database.DB    // provides access to MongoDB
-		conf             *config.Config  // contains details needed to access MongoDB
-		analyzedCallback func(update)    // called on each analyzed result
-		closedCallback   func()          // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan uconn.Pair // holds unanalyzed data
-		analysisWg       sync.WaitGroup  // wait for analysis to finish
+		db               *database.DB     // provides access to MongoDB
+		conf             *config.Config   // contains details needed to access MongoDB
+		analyzedCallback func(update)     // called on each analyzed result
+		closedCallback   func()           // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *uconn.Pair // holds unanalyzed data
+		analysisWg       sync.WaitGroup   // wait for analysis to finish
 	}
 )
 
@@ -30,12 +30,12 @@ func newAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(upd
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan uconn.Pair),
+		analysisChannel:  make(chan *uconn.Pair),
 	}
 }
 
 //collect sends a chunk of data to be analyzed
-func (a *analyzer) collect(data uconn.Pair) {
+func (a *analyzer) collect(data *uconn.Pair) {
 	a.analysisChannel <- data
 }
 
@@ -201,7 +201,7 @@ func (a *analyzer) start() {
 							"src":                res.Src,
 							"dst":                res.Dst,
 							"connection_count":   res.ConnectionCount,
-							"avg_bytes":          res.AverageBytes,
+							"avg_bytes":          res.TotalBytes / res.ConnectionCount,
 							"ts.range":           tsIntervalRange,
 							"ts.mode":            tsMode,
 							"ts.mode_count":      tsModeCount,

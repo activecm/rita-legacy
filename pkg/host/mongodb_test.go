@@ -18,15 +18,14 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testHost = map[string]uconn.Pair{
-	"test": uconn.Pair{
+var testHost = map[string]*uconn.Pair{
+	"test": &uconn.Pair{
 		Src:             "127.0.0.1",
 		Dst:             "127.0.0.1",
 		ConnectionCount: 12,
 		IsLocalSrc:      true,
 		IsLocalDst:      true,
 		TotalBytes:      123,
-		AvgBytes:        12,
 		TsList:          []int64{1234567, 1234567},
 		OrigBytesList:   []int64{12, 12},
 		TotalDuration:   123.0,
