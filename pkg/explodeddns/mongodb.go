@@ -79,7 +79,7 @@ func (r *repo) Upsert(domainMap map[string]int) {
 	p := mpb.New(mpb.WithWidth(20))
 	bar := p.AddBar(int64(len(domainMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Exploded DNS Analysis:"),
+			decor.Name("\t[-] Exploded DNS Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),

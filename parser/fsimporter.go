@@ -552,72 +552,105 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 //buildExplodedDNS .....
 func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
-	// fmt.Println("\t[-] Creating Exploded DNS Collection ...")
-	// Set up the database
-	explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
-	explodedDNSRepo.CreateIndexes()
-	explodedDNSRepo.Upsert(domainMap)
+
+	if fs.res.Config.S.DNS.Enabled {
+		if len(domainMap) > 0 {
+			// Set up the database
+			explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
+			explodedDNSRepo.CreateIndexes()
+			explodedDNSRepo.Upsert(domainMap)
+		} else {
+			fmt.Println("\t[!] No DNS data to analyze")
+		}
+
+	}
 }
 
 //buildHostnames .....
 func (fs *FSImporter) buildHostnames(hostnameMap map[string][]string) {
-	fmt.Println("\t[-] Creating Hostnames Collection ...")
-	// Set up the database
-	hostnameRepo := hostname.NewMongoRepository(fs.res)
-	hostnameRepo.CreateIndexes()
-	hostnameRepo.Upsert(hostnameMap)
+	// non-optional module
+	if len(hostnameMap) > 0 {
+		// Set up the database
+		hostnameRepo := hostname.NewMongoRepository(fs.res)
+		err := hostnameRepo.CreateIndexes()
+		if err != nil {
+			fs.res.Log.Error(err)
+		}
+		hostnameRepo.Upsert(hostnameMap)
+	} else {
+		fmt.Println("\t[!] No Hostname data to analyze")
+	}
+
 }
 
 func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Pair) {
-	fmt.Println("\t[-] Creating Uconns Collection ...")
+	// non-optional module
+	if len(uconnMap) > 0 {
+		// Set up the database
+		uconnRepo := uconn.NewMongoRepository(fs.res)
 
-	uconnRepo := uconn.NewMongoRepository(fs.res)
+		err := uconnRepo.CreateIndexes()
+		if err != nil {
+			fs.res.Log.Error(err)
+		}
 
-	err := uconnRepo.CreateIndexes()
-	if err != nil {
-		fs.res.Log.Error(err)
+		// send uconns to uconn analysis
+		uconnRepo.Upsert(uconnMap)
+	} else {
+		fmt.Println("\t[!] No Uconn data to analyze")
 	}
-
-	// send uconns to uconn analysis
-	uconnRepo.Upsert(uconnMap)
 
 }
 
 func (fs *FSImporter) buildHosts(uconnMap map[string]*uconn.Pair) {
-	fmt.Println("\t[-] Creating Hosts Collection ...")
-	hostRepo := host.NewMongoRepository(fs.res)
+	// non-optional module
+	if len(uconnMap) > 0 {
+		hostRepo := host.NewMongoRepository(fs.res)
 
-	err := hostRepo.CreateIndexes()
-	if err != nil {
-		fs.res.Log.Error(err)
+		err := hostRepo.CreateIndexes()
+		if err != nil {
+			fs.res.Log.Error(err)
+		}
+
+		// send uconns to host analysis
+		hostRepo.Upsert(uconnMap)
+	} else {
+		fmt.Println("\t[!] No Host data to analyze")
 	}
-
-	// send uconns to host analysis
-	hostRepo.Upsert(uconnMap)
 }
 
 func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Pair) {
-	fmt.Println("\t[-] Creating Beacons Collection ...")
+	if fs.res.Config.S.Beacon.Enabled {
+		if len(uconnMap) > 0 {
+			beaconRepo := beacon.NewMongoRepository(fs.res)
 
-	beaconRepo := beacon.NewMongoRepository(fs.res)
+			err := beaconRepo.CreateIndexes()
+			if err != nil {
+				fs.res.Log.Error(err)
+			}
 
-	err := beaconRepo.CreateIndexes()
-	if err != nil {
-		fs.res.Log.Error(err)
+			// send uconns to beacon analysis
+			beaconRepo.Upsert(uconnMap)
+		} else {
+			fmt.Println("\t[!] No Beacon data to analyze")
+		}
 	}
-
-	// send uconns to beacon analysis
-	beaconRepo.Upsert(uconnMap)
 
 }
 
 //buildUserAgent .....
 func (fs *FSImporter) buildUserAgent(useragentMap map[string]*useragent.Input) {
-	fmt.Println("\t[-] Creating UserAgent Collection ...")
-	// Set up the database
-	useragentRepo := useragent.NewMongoRepository(fs.res)
-	useragentRepo.CreateIndexes()
-	useragentRepo.Upsert(useragentMap)
+
+	if fs.res.Config.S.UserAgent.Enabled {
+		if len(useragentMap) > 0 {
+			// Set up the database
+			useragentRepo := useragent.NewMongoRepository(fs.res)
+			useragentRepo.CreateIndexes()
+			useragentRepo.Upsert(useragentMap)
+		} else {
+			fmt.Println("\t[!] No UserAgent data to analyze")
+		}
+	}
 }
 
 // bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
@@ -656,12 +689,12 @@ func (fs *FSImporter) bulkRemoveHugeUconns(filterHugeUconnsMap []*uconn.Pair, uc
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 	metaDatabase *database.MetaDB, logger *log.Logger) []*fpt.IndexedFile {
 	var toReturn []*fpt.IndexedFile
-	// oldFiles, err := metaDatabase.GetFiles()
-	// if err != nil {
-	// 	logger.WithFields(log.Fields{
-	// 		"error": err.Error(),
-	// 	}).Error("Could not obtain a list of previously parsed files")
-	// }
+	oldFiles, err := metaDatabase.GetFiles()
+	if err != nil {
+		logger.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Error("Could not obtain a list of previously parsed files")
+	}
 	//NOTE: This can be improved to n log n if we need to
 	for _, newFile := range indexedFiles {
 		if newFile == nil {
@@ -670,16 +703,16 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 		}
 
 		have := false
-		// for _, oldFile := range oldFiles {
-		// 	if oldFile.Hash == newFile.Hash && oldFile.TargetDatabase == newFile.TargetDatabase {
-		// 		logger.WithFields(log.Fields{
-		// 			"path":            newFile.Path,
-		// 			"target_database": newFile.TargetDatabase,
-		// 		}).Warning("Refusing to import file into the same database twice")
-		// 		have = true
-		// 		break
-		// 	}
-		// }
+		for _, oldFile := range oldFiles {
+			if oldFile.Hash == newFile.Hash && oldFile.TargetDatabase == newFile.TargetDatabase {
+				logger.WithFields(log.Fields{
+					"path":            newFile.Path,
+					"target_database": newFile.TargetDatabase,
+				}).Warning("Refusing to import file into the same database twice")
+				have = true
+				break
+			}
+		}
 
 		if !have {
 			toReturn = append(toReturn, newFile)
