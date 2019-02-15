@@ -6,7 +6,6 @@ import (
 
 	"github.com/activecm/rita/pkg/explodeddns"
 	"github.com/activecm/rita/resources"
-	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -60,16 +59,7 @@ func getExplodedDNSResultsView(res *resources.Resources) []explodeddns.AnalysisV
 
 	var explodedDNSResults []explodeddns.AnalysisView
 
-	dnsQuery := []bson.M{
-		bson.M{"$project": bson.M{
-			"sub_count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$subdomains", []interface{}{}}}},
-			"visited":   1,
-			"domain":    1,
-		}},
-		bson.M{"$sort": bson.M{"sub_count": -1}},
-	}
-
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.ExplodedDNSTable).Pipe(dnsQuery).All(&explodedDNSResults)
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.ExplodedDNSTable).Find(nil).Sort("-subdomain_count").All(&explodedDNSResults)
 
 	if err != nil {
 		cli.NewExitError(err.Error(), -1)
@@ -84,7 +74,7 @@ func showDNSResults(dnsResults []explodeddns.AnalysisView) error {
 	csvWriter.Write([]string{"Domain", "Unique Subdomains", "Times Looked Up"})
 	for _, result := range dnsResults {
 		csvWriter.Write([]string{
-			result.Domain, i(result.SubCount), i(result.Visited),
+			result.Domain, i(result.SubdomainCount), i(result.Visited),
 		})
 	}
 	csvWriter.Flush()
@@ -96,7 +86,7 @@ func showDNSResultsHuman(dnsResults []explodeddns.AnalysisView) error {
 	table.SetHeader([]string{"Domain", "Unique Subdomains", "Times Looked Up"})
 	for _, result := range dnsResults {
 		table.Append([]string{
-			result.Domain, i(result.SubCount), i(result.Visited),
+			result.Domain, i(result.SubdomainCount), i(result.Visited),
 		})
 	}
 	table.Render()

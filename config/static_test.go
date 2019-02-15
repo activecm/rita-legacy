@@ -36,7 +36,7 @@ BlackListed:
     CustomIPBlacklists: [test1]
     CustomHostnameBlacklists: [test2]
 DNS:
-    DomainListLimit: 250000
+    Enabled: true
 Beacon:
     DefaultConnectionThresh: 24
 Strobe:
@@ -84,7 +84,7 @@ var testConfigFullExp = StaticCfg{
 		HostnameBlacklists: []string{"test2"},
 	},
 	DNS: DNSStaticCfg{
-		DomainListLimit: 250000,
+		Enabled: true,
 	},
 	Beacon: BeaconStaticCfg{
 		DefaultConnectionThresh: 24,

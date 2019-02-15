@@ -83,8 +83,7 @@ type (
 
 	//DNSStaticCfg is used to control the DNS analysis module
 	DNSStaticCfg struct {
-		Enabled         bool `yaml:"Enabled" default:"true"`
-		DomainListLimit int  `yaml:"DomainListLimit" default:"250000"`
+		Enabled bool `yaml:"Enabled" default:"true"`
 	}
 
 	//UserAgentStaticCfg is used to control the User Agent analysis module

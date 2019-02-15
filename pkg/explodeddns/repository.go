@@ -21,8 +21,7 @@ type domain struct {
 
 // AnalysisView (for reporting)
 type AnalysisView struct {
-	Domain     string   `bson:"domain"`
-	Subdomains []string `bson:"subdomains"`
-	SubCount   int64    `bson:"sub_count"`
-	Visited    int64    `bson:"visited"`
+	Domain         string `bson:"domain"`
+	SubdomainCount int64  `bson:"subdomain_count"`
+	Visited        int64  `bson:"visited"`
 }

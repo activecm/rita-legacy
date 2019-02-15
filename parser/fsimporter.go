@@ -530,7 +530,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 //buildExplodedDNS .....
 func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
-	fmt.Println("\t[-] Creating Exploded DNS Collection ...")
+	// fmt.Println("\t[-] Creating Exploded DNS Collection ...")
 	// Set up the database
 	explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
 	explodedDNSRepo.CreateIndexes()
