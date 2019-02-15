@@ -29,6 +29,8 @@ BlackListed:
     MalwareDomainList.com: false
     CustomIPBlacklists: []
     CustomHostnameBlacklists: []
+DNS:
+    Enabled: true
 Beacon:
     DefaultConnectionThresh: 24
 Strobe:

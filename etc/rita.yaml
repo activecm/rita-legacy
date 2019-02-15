@@ -133,10 +133,6 @@ Beacon:
 
 DNS:
     Enabled: true
-    # This sets the list maximum for parsed subdomains that are stored
-    # The theoretical limit due to implementation limitations is ~1,048,573
-    # but in practice timeouts have occurred at lower values.
-    DomainListLimit: 250000
 
 UserAgent:
     Enabled: true

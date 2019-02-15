@@ -2,6 +2,14 @@
 
 
 [[projects]]
+  digest = "1:ac226c42eb54c121e0704c6f7f64c96c7817ad6d6286e5536e8cea72807e1079"
+  name = "github.com/VividCortex/ewma"
+  packages = ["."]
+  pruneopts = ""
+  revision = "b24eb346a94c3ba12c1da1e564dbac1b498a77ce"
+  version = "v1.1.1"
+
+[[projects]]
   digest = "1:5a71fb24ce7cbabaa4e30999bbc93e660ddd843af391b8719fb0d2faf0f81901"
   name = "github.com/activecm/mgorus"
   packages = ["."]
@@ -83,12 +91,12 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:c128ac3e9221e1b2f829b3c8718f8b1c484908c5fcbacf3905e7bba3e15fc99c"
+  digest = "1:fe6cc362a045672e53978d16c406184fd8f964704c3cc8360256154194bd6e30"
   name = "github.com/google/go-github"
   packages = ["github"]
   pruneopts = ""
-  revision = "2b50c3dee76ff3a14edb1cde53bf56e366ab0230"
-  version = "v23.0.0"
+  revision = "1c3f0aaee1ce742b655f1ba8f33740103e904c5c"
+  version = "v24.0.0"
 
 [[projects]]
   digest = "1:cea4aa2038169ee558bf507d5ea02c94ca85bcca28a4c7bb99fd59b31e43a686"
@@ -100,14 +108,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6ded1fe95c91c5ea3e9a50d116bde3172b7514dddc903741f2eb871b2ccd625c"
+  digest = "1:a25ee663ed8bba9afae56e45d50edd0c856ee46d5ce6ce8f1de829c3219995d8"
   name = "github.com/google/safebrowsing"
   packages = [
     ".",
     "internal/safebrowsing_proto",
   ]
   pruneopts = ""
-  revision = "b030ffabe0ab3473e1cb7067cde7be025b7faf20"
+  revision = "0feabcc2960b6fb4ead9f87257f3d1c6de3cafb5"
 
 [[projects]]
   digest = "1:6a874e3ddfb9db2b42bd8c85b6875407c702fa868eed20634ff489bc896ccfd3"
@@ -116,6 +124,14 @@
   pruneopts = ""
   revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
   version = "v1.0.1"
+
+[[projects]]
+  digest = "1:3140e04675a6a91d2a20ea9d10bdadf6072085502e6def6768361260aee4b967"
+  name = "github.com/mattn/go-isatty"
+  packages = ["."]
+  pruneopts = ""
+  revision = "6ca4dbf54d38eea1a992b3c722a76a5d1c4cb25c"
+  version = "v0.0.4"
 
 [[projects]]
   digest = "1:84c28d9899cc4e00c38042d345cea8819275a5a62403a58530cac67022894776"
@@ -127,11 +143,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:28a9131d18ac1b8761f41370e59b7e807148bbd24a926816233522fb64e593bf"
+  digest = "1:536a220abf8df8ff82ef0f2e74171b3e802694f511a794cf8913c531dd0f38fe"
   name = "github.com/olekukonko/tablewriter"
   packages = ["."]
   pruneopts = ""
-  revision = "e6d60cf7ba1f42d86d54cdf5508611c4aafb3970"
+  revision = "93462a5dfaa69905a8243682186e36764caf8680"
 
 [[projects]]
   digest = "1:256484dbbcd271f9ecebc6795b2df8cad4c458dd0f5fd82a8c2fa0c29f233411"
@@ -185,6 +201,19 @@
   version = "v1.20.0"
 
 [[projects]]
+  digest = "1:778474624b95ee1912ed6398fb4107deff53608807ed082a094a84c063adbf24"
+  name = "github.com/vbauerster/mpb"
+  packages = [
+    ".",
+    "cwriter",
+    "decor",
+    "internal",
+  ]
+  pruneopts = ""
+  revision = "fbc6960bc81e6c0ef7f1d32f12923934f1f5836f"
+  version = "v3.3.4"
+
+[[projects]]
   branch = "master"
   digest = "1:5462386895a322b94a79a5de7314310edbd5f4d15f851ae032f146b2c951b3de"
   name = "golang.org/x/crypto"
@@ -194,25 +223,25 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:1d52dac9bdc355f83ad9916bc657baa7d8735a108ae749da8e8d3513a1b15f28"
+  digest = "1:4f7cbb08d72e1163302e2d21415200a7bc281653f5f34eda8a15c0da11a337b0"
   name = "golang.org/x/net"
   packages = [
     "context",
     "idna",
   ]
   pruneopts = ""
-  revision = "65e2d4e15006aab9813ff8769e768bbf4bb667a0"
+  revision = "3a22650c66bd7f4fb6d1e8072ffd7b75c8a27898"
 
 [[projects]]
   branch = "master"
-  digest = "1:c05d7df4515a5ade109706194fbda5cfd23c1754b26e17b012281c2d247c01d9"
+  digest = "1:8fd43bf117947173fcaa2a0595973bd81d94b64c37fbc6749db89de60967e834"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = ""
-  revision = "3b5209105503162ded1863c307ac66fec31120dd"
+  revision = "e77772198cdc3dbfcf7f2de96630204df9fd3a0b"
 
 [[projects]]
   digest = "1:5acd3512b047305d49e8763eef7ba423901e85d5dd2fd1e71778a0ea8de10bd4"
@@ -276,6 +305,8 @@
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
     "github.com/urfave/cli",
+    "github.com/vbauerster/mpb",
+    "github.com/vbauerster/mpb/decor",
     "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"

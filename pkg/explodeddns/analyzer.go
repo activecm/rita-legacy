@@ -76,23 +76,12 @@ func (a *analyzer) start() {
 				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.ExplodedDNSTable).Find(bson.M{"domain": entry}).Limit(1).One(&res)
 
 				// get subdomains
-				subdomain := strings.Join(split[0:max-i], ".")
+				// subdomain := strings.Join(split[0:max-i], ".")
 
 				// set up writer output
 				var output update
 
-				// Check for errors and parse results
-				if len(res.Subdomains) < a.conf.S.DNS.DomainListLimit && subdomain != "" {
-
-					// create query for output depending on whether the domain has subdomains
-					output.query = bson.M{
-						"$addToSet": bson.M{"subdomains": subdomain},
-						"$inc":      bson.M{"visited": data.count},
-					}
-
-				} else {
-					output.query = bson.M{"$inc": bson.M{"visited": data.count}}
-				}
+				output.query = bson.M{"$inc": bson.M{"visited": data.count, "subdomain_count": 1}}
 
 				// create selector for output
 				output.selector = bson.M{"domain": entry}

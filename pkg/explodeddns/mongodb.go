@@ -2,10 +2,13 @@ package explodeddns
 
 import (
 	"runtime"
+	"time"
 
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
+	"github.com/vbauerster/mpb"
+	"github.com/vbauerster/mpb/decor"
 )
 
 type repo struct {
@@ -72,9 +75,22 @@ func (r *repo) Upsert(domainMap map[string]int) {
 		writerWorker.start()
 	}
 
+	// progress bar for troubleshooting
+	p := mpb.New(mpb.WithWidth(20))
+	bar := p.AddBar(int64(len(domainMap)),
+		mpb.PrependDecorators(
+			decor.Name("\t[-] Exploded DNS Analysis:"),
+			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+		),
+		mpb.AppendDecorators(decor.Percentage()),
+	)
+
+	// loop over map entries
 	for entry, count := range domainMap {
-
+		start := time.Now()
 		analyzerWorker.collect(domain{entry, count})
-
+		bar.IncrBy(1, time.Since(start))
 	}
+
+	p.Wait()
 }
