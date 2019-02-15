@@ -2,11 +2,14 @@ package beacon
 
 import (
 	"runtime"
+	"time"
 
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
+	"github.com/vbauerster/mpb"
+	"github.com/vbauerster/mpb/decor"
 )
 
 type repo struct {
@@ -59,9 +62,21 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Pair) {
 		writerWorker.start()
 	}
 
+	// progress bar for troubleshooting
+	p := mpb.New(mpb.WithWidth(20))
+	bar := p.AddBar(int64(len(uconnMap)),
+		mpb.PrependDecorators(
+			decor.Name("\t[-] Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+		),
+		mpb.AppendDecorators(decor.Percentage()),
+	)
+
+	// loop over map entries
 	for _, entry := range uconnMap {
-
+		start := time.Now()
 		analyzerWorker.collect(entry)
-
+		bar.IncrBy(1, time.Since(start))
 	}
+	p.Wait()
 }

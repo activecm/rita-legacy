@@ -2,10 +2,13 @@ package hostname
 
 import (
 	"runtime"
+	"time"
 
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
+	"github.com/vbauerster/mpb"
+	"github.com/vbauerster/mpb/decor"
 )
 
 type repo struct {
@@ -67,9 +70,23 @@ func (r *repo) Upsert(hostnameMap map[string][]string) {
 		writerWorker.start()
 	}
 
+	// progress bar for troubleshooting
+	p := mpb.New(mpb.WithWidth(20))
+	bar := p.AddBar(int64(len(hostnameMap)),
+		mpb.PrependDecorators(
+			decor.Name("\t[-] Hostname Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+		),
+		mpb.AppendDecorators(decor.Percentage()),
+	)
+
+	// loop over map entries
 	for entry, answers := range hostnameMap {
-
+		start := time.Now()
 		analyzerWorker.collect(hostname{entry, answers})
-
+		bar.IncrBy(1, time.Since(start))
 	}
+
+	p.Wait()
+
 }
