@@ -40,6 +40,12 @@ type (
 		neverIncluded   []*net.IPNet
 		connLimit       int64
 	}
+
+	trustedAppTiplet struct {
+		protocol string
+		port     int
+		service  string
+	}
 )
 
 //NewFSImporter creates a new file system importer
@@ -54,6 +60,11 @@ func NewFSImporter(res *resources.Resources,
 		neverIncluded:   getParsedSubnets(res.Config.S.Filtering.NeverInclude),
 		connLimit:       int64(res.Config.S.Strobe.ConnectionLimit),
 	}
+}
+
+var trustedAppReferenceList = [...]trustedAppTiplet{
+	{"tcp", 80, "http"},
+	{"tcp", 443, "ssl"},
 }
 
 //GetInternalSubnets returns the internal subnets from the config file
@@ -310,6 +321,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								respIPBytes := parseConn.FieldByName("RespIPBytes").Interface().(int64)
 								duration := float64(parseConn.FieldByName("Duration").Interface().(float64))
 								bytes := int64(origIPBytes + respIPBytes)
+								protocol := parseConn.FieldByName("Proto").Interface().(string)
+								service := parseConn.FieldByName("Service").Interface().(string)
+								dstPort := parseConn.FieldByName("DestinationPort").Interface().(int)
 
 								// Concatenate the source and destination IPs to use as a map key
 								srcDst := src + dst
@@ -327,6 +341,14 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										Dst:        dst,
 										IsLocalSrc: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
 										IsLocalDst: containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
+									}
+								}
+
+								for _, entry := range trustedAppReferenceList {
+									if (protocol == entry.protocol) && (dstPort == entry.port) {
+										if service != entry.service {
+											uconnMap[srcDst].UntrustedAppConnCount++
+										}
 									}
 								}
 

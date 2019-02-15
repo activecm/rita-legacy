@@ -14,17 +14,18 @@ type update struct {
 
 //Pair ....
 type Pair struct {
-	Src             string
-	Dst             string
-	ConnectionCount int64
-	IsLocalSrc      bool
-	IsLocalDst      bool
-	TotalBytes      int64
-	MaxDuration     float64
-	TotalDuration   float64
-	TsList          []int64
-	OrigBytesList   []int64
-	TXTQueryCount   int64
+	Src                   string
+	Dst                   string
+	ConnectionCount       int64
+	IsLocalSrc            bool
+	IsLocalDst            bool
+	TotalBytes            int64
+	MaxDuration           float64
+	TotalDuration         float64
+	TsList                []int64
+	OrigBytesList         []int64
+	TXTQueryCount         int64
+	UntrustedAppConnCount int64
 }
 
 //AnalysisView (for reporting)
