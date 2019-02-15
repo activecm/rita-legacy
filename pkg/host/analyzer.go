@@ -95,7 +95,7 @@ func (a *analyzer) start() {
 				if blacklistedDst {
 					output = hasBlacklistedDstQuery(data, blacklistedSrc, uconnStatsSrc)
 				} else { //otherwise, just add the result
-					output = standardQuery(data.Src, data.IsLocalSrc, data.MaxDuration, data.TXTQueryCount, true, blacklistedSrc, uconnStatsSrc)
+					output = standardQuery(data.Src, data.IsLocalSrc, data.MaxDuration, data.TXTQueryCount, data.UntrustedAppConnCount, true, blacklistedSrc, uconnStatsSrc)
 				}
 
 				// set to writer channel
@@ -111,7 +111,7 @@ func (a *analyzer) start() {
 					output = hasBlacklistedSrcQuery(data, blacklistedDst, uconnStatsDst)
 
 				} else { //otherwise, just add the result
-					output = standardQuery(data.Dst, data.IsLocalDst, data.MaxDuration, 0, false, blacklistedDst, uconnStatsDst)
+					output = standardQuery(data.Dst, data.IsLocalDst, data.MaxDuration, 0, 0, false, blacklistedDst, uconnStatsDst)
 				}
 
 				// set to writer channel
@@ -143,7 +143,7 @@ func (a *analyzer) isBlacklisted(host string) bool {
 }
 
 //standardQuery ...
-func standardQuery(ip string, local bool, maxdur float64, txtQCount int64, src bool, blacklisted bool, uconnStats uconnRes) update {
+func standardQuery(ip string, local bool, maxdur float64, txtQCount int64, untrustedACC int64, src bool, blacklisted bool, uconnStats uconnRes) update {
 	var output update
 
 	// create query
@@ -170,6 +170,7 @@ func standardQuery(ip string, local bool, maxdur float64, txtQCount int64, src b
 		query["$inc"] = bson.M{
 			"count_src":       1,
 			"txt_query_count": txtQCount,
+			"upps_count":      untrustedACC,
 		}
 	} else {
 		query["$inc"] = bson.M{"count_dst": 1}
@@ -200,6 +201,7 @@ func hasBlacklistedDstQuery(data *uconn.Pair, blacklisted bool, uconnStats uconn
 			"bl_out_count":    data.ConnectionCount,
 			"bl_total_bytes":  data.TotalBytes,
 			"txt_query_count": data.TXTQueryCount,
+			"upps_count":      data.UntrustedAppConnCount,
 		},
 		"$max": bson.M{"max_duration": data.MaxDuration},
 	}
