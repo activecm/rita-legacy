@@ -127,6 +127,10 @@ __install() {
 			printf "$_ITEM Bro IDS is already installed \n"
 		fi
 
+		#Unconditionally installed whether this is a new install or an upgrade
+		#Install this before calling __configure_bro so the modules are in place when "broctl deploy" restarts bro
+		__install_ja3
+
 		if [ "$_BRO_INSTALLED" = "true" ]; then
 			__configure_bro
 		fi
@@ -197,6 +201,24 @@ __install_bro() {
 	_BRO_PKG_INSTALLED=true
 	_BRO_INSTALLED=true
 	_BRO_PATH="/opt/bro/bin"
+}
+
+__install_ja3() {
+	local_path=$_BRO_PATH/../share/bro/site/
+
+	sudo mkdir -p $local_path/ja3/
+
+	for one_file in __load__.bro intel_ja3.bro ja3.bro ja3s.bro ; do
+		if [ ! -e $local_path/ja3/$one_file ]; then
+			curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/master/bro//$one_file" -o "$local_file/ja3/$one_file"
+		fi
+	done
+
+	if ! grep -q '^[^#]*@load \./ja3' $local_path/local.bro
+		echo '' >>$local_path/local.bro
+		echo '#Load ja3 support libraries' >>$local_path/local.bro
+		echo '@load ./ja3' >>$local_path/local.bro
+	fi
 }
 
 __configure_bro() {
