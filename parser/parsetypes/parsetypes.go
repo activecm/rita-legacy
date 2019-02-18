@@ -18,10 +18,6 @@ func NewBroDataFactory(fileType string) func() BroData {
 		return func() BroData {
 			return &Conn{}
 		}
-	case "uconn":
-		return func() BroData {
-			return &Uconn{}
-		}
 	case "dns":
 		return func() BroData {
 			return &DNS{}
@@ -37,10 +33,6 @@ func NewBroDataFactory(fileType string) func() BroData {
 	case "x509":
 		return func() BroData {
 			return &x509{}
-		}
-	case "freq":
-		return func() BroData {
-			return &Freq{}
 		}
 	}
 	return nil

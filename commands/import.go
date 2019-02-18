@@ -46,20 +46,6 @@ func doImport(c *cli.Context) error {
 		return cli.NewExitError("Both <directory to import> and <database prefix> are required to override the config file.", -1)
 	}
 
-	// get all database names
-	names, _ := res.DB.Session.DatabaseNames()
-
-	// check if database exists
-	dbExists := util.StringInSlice(targetDatabase, names)
-
-	// NOTE: a flag will be added for appending to a dataset (ie, rolling 24 and this will be
-	//       treated differently. But for the individual import, the program should not try
-	//       to append to an existing dataset.
-	// check if requested database name is already taken
-	if dbExists {
-		return cli.NewExitError("\t[!] Database name already in use, please choose another ", -1)
-	}
-
 	err := res.MetaDB.AddNewDB(targetDatabase)
 	if err != nil {
 		return cli.NewExitError(err.Error(), -1)
@@ -89,9 +75,6 @@ func doImport(c *cli.Context) error {
 		res.Config.S.Bro.ImportBuffer, res.Log)
 	importer.Run(datastore)
 	res.Log.Infof("Finished importing %s\n", res.Config.S.Bro.ImportDirectory)
-
-	res.MetaDB.MarkDBImported(targetDatabase, true)
-	res.MetaDB.MarkDBAnalyzed(targetDatabase, true)
 
 	return nil
 }

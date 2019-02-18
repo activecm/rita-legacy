@@ -5,9 +5,10 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/pkg/freq"
+	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
+	"github.com/globalsign/mgo/bson"
 )
 
 func printStrobes(db string, res *resources.Resources) error {
@@ -21,19 +22,17 @@ func printStrobes(db string, res *resources.Resources) error {
 		return err
 	}
 
-	var strobes []freq.AnalysisView
-	coll := res.DB.Session.DB(db).C(res.Config.T.Strobe.StrobeTable)
-	coll.Find(nil).Sort("-connection_count").Limit(1000).All(&strobes)
+	data := getStrobeResultsView(res)
 
-	w, err := getStrobesWriter(strobes)
+	w, err := getStrobesWriter(data)
 	if err != nil {
 		return err
 	}
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getStrobesWriter(strobes []freq.AnalysisView) (string, error) {
-	tmpl := "<tr><td>{{.Source}}</td><td>{{.Destination}}</td><td>{{.ConnectionCount}}</td></tr>\n"
+func getStrobesWriter(strobes []beacon.StrobeAnalysisView) (string, error) {
+	tmpl := "<tr><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.ConnectionCount}}</td></tr>\n"
 	out, err := template.New("Strobes").Parse(tmpl)
 	if err != nil {
 		return "", err
@@ -46,4 +45,19 @@ func getStrobesWriter(strobes []freq.AnalysisView) (string, error) {
 		}
 	}
 	return w.String(), nil
+}
+
+//getStrobeResultsView ...
+func getStrobeResultsView(res *resources.Resources) []beacon.StrobeAnalysisView {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	var strobes []beacon.StrobeAnalysisView
+
+	strobeQuery := bson.M{"strobe": true}
+
+	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Find(strobeQuery).Sort("-connection_count").Limit(1000).All(&strobes)
+
+	return strobes
+
 }

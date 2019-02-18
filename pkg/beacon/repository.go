@@ -8,32 +8,31 @@ type Repository interface {
 	Upsert(uconnMap map[string]*uconn.Pair)
 }
 
+type updateInfo struct {
+	selector interface{}
+	query    interface{}
+}
+
 //update ....
 type update struct {
-	beaconSelector interface{}
-	beaconQuery    interface{}
-	hostSelector   interface{}
-	hostQuery      interface{}
+	beacon updateInfo
+	host   updateInfo
+	uconn  updateInfo
 }
 
+type uconnDat struct {
+	Count       int     `bson:"count"`
+	Ts          []int64 `bson:"ts"`
+	OrigIPBytes []int64 `bson:"bytes"`
+	// MaxDur      float32 `bson:"maxdur"`
+	// TBytes      int     `bson:"tbytes"`
+}
 type uconnRes struct {
-	Src             string  `bson:"src"`
-	Dst             string  `bson:"dst"`
-	TsList          []int64 `bson:"ts_list"`
-	OrigIPBytes     []int64 `bson:"orig_bytes_list"`
-	ConnectionCount int     `bson:"connection_count"`
-	TotalBytes      int     `bson:"total_bytes"`
-}
-
-//AnalysisView (for reporting)
-type AnalysisView struct {
-	Src         string  `bson:"src"`
-	Dst         string  `bson:"dst"`
-	Connections int64   `bson:"connection_count"`
-	AvgBytes    float64 `bson:"avg_bytes"`
-	Ts          TSData  `bson:"ts"`
-	Ds          DSData  `bson:"ds"`
-	Score       float64 `bson:"score"`
+	Src             string     `bson:"src"`
+	Dst             string     `bson:"dst"`
+	Dat             []uconnDat `bson:"dat"`
+	ConnectionCount int64      `bson:"connection_count"`
+	TotalBytes      int64      `bson:"total_bytes"`
 }
 
 //TSData ...
@@ -53,4 +52,22 @@ type DSData struct {
 	Range      int64   `bson:"range"`
 	Mode       int64   `bson:"mode"`
 	ModeCount  int64   `bson:"mode_count"`
+}
+
+//AnalysisView (for reporting)
+type AnalysisView struct {
+	Src         string  `bson:"src"`
+	Dst         string  `bson:"dst"`
+	Connections int64   `bson:"connection_count"`
+	AvgBytes    float64 `bson:"avg_bytes"`
+	Ts          TSData  `bson:"ts"`
+	Ds          DSData  `bson:"ds"`
+	Score       float64 `bson:"score"`
+}
+
+//StrobeAnalysisView (for reporting)
+type StrobeAnalysisView struct {
+	Src             string `bson:"src"`
+	Dst             string `bson:"dst"`
+	ConnectionCount int64  `bson:"connection_count"`
 }

@@ -9,6 +9,7 @@ import (
 type (
 	//analyzer : structure for exploded dns analysis
 	analyzer struct {
+		connLimit        int64
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan *Pair     // holds unanalyzed data
@@ -17,8 +18,9 @@ type (
 )
 
 //newAnalyzer creates a new collector for parsing hostnames
-func newAnalyzer(analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(connLimit int64, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
+		connLimit:        connLimit,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
 		analysisChannel:  make(chan *Pair),
@@ -47,24 +49,49 @@ func (a *analyzer) start() {
 			var output update
 
 			// create query
-			output.query = bson.M{
+			query := bson.M{
 				"$setOnInsert": bson.M{
-					"src":       data.Src,
-					"dst":       data.Dst,
 					"local_src": data.IsLocalSrc,
 					"local_dst": data.IsLocalDst,
 				},
-				"$addToSet": bson.M{"ts_list": bson.M{"$each": data.TsList}},
 				"$inc": bson.M{
 					"connection_count": data.ConnectionCount,
 					"total_duration":   data.TotalDuration,
 					"total_bytes":      data.TotalBytes,
 				},
-				"$max":  bson.M{"max_duration": data.MaxDuration},
-				"$push": bson.M{"orig_bytes_list": bson.M{"$each": data.OrigBytesList}},
 			}
-			//
-			// // create selector for output
+
+			// if this connection qualifies to be a strobe with the current number
+			// of connections in the currently parsing in data, don't store bytes and ts.
+			// it will not qualify to be downgraded to a beacon until this chunk is
+			// outdated and removed. If only importing once - still just a strobe.
+			if data.ConnectionCount >= a.connLimit {
+				query["$set"] = bson.M{"strobe": true}
+				query["$push"] = bson.M{
+					"dat": bson.M{
+						"count":  data.ConnectionCount,
+						"bytes":  []interface{}{},
+						"ts":     []interface{}{},
+						"maxdur": data.MaxDuration,
+						"tbytes": data.TotalBytes,
+					},
+				}
+			} else {
+				query["$push"] = bson.M{
+					"dat": bson.M{
+						"count":  data.ConnectionCount,
+						"bytes":  data.OrigBytesList,
+						"ts":     data.TsList,
+						"maxdur": data.MaxDuration,
+						"tbytes": data.TotalBytes,
+					},
+				}
+			}
+
+			// assign formatted query to output
+			output.query = query
+
+			// create selector for output
 			output.selector = bson.M{"src": data.Src, "dst": data.Dst}
 
 			// set to writer channel

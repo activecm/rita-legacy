@@ -13,7 +13,7 @@ type (
 		targetCollection string
 		db               *database.DB   // provides access to MongoDB
 		conf             *config.Config // contains details needed to access MongoDB
-		writeChannel     chan update    // holds analyzed data
+		writeChannel     chan *update   // holds analyzed data
 		writeWg          sync.WaitGroup // wait for writing to finish
 	}
 )
@@ -24,12 +24,12 @@ func newWriter(targetCollection string, db *database.DB, conf *config.Config) *w
 		targetCollection: targetCollection,
 		db:               db,
 		conf:             conf,
-		writeChannel:     make(chan update),
+		writeChannel:     make(chan *update),
 	}
 }
 
 //collect sends a group of results to the writer for writing out to the database
-func (w *writer) collect(data update) {
+func (w *writer) collect(data *update) {
 	w.writeChannel <- data
 }
 
@@ -48,18 +48,35 @@ func (w *writer) start() {
 
 		for data := range w.writeChannel {
 
-			// update beacons table
-			_, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.beaconSelector, data.beaconQuery)
+			if data.beacon.query != nil {
+				// update beacons table
+				_, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.beacon.selector, data.beacon.query)
 
-			if err != nil {
-				fmt.Println(err)
+				if err != nil {
+					fmt.Println(err)
+				}
+
+				// update hosts table
+				_, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.host.selector, data.host.query)
+
+				if err != nil {
+					fmt.Println(err)
+				}
 			}
 
-			// update hosts table
-			_, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.hostSelector, data.hostQuery)
+			if data.uconn.query != nil {
+				// update uconns table
+				_, err := ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.UniqueConnTable).Upsert(data.uconn.selector, data.uconn.query)
 
-			if err != nil {
-				fmt.Println(err)
+				if err != nil {
+					fmt.Println(err)
+				}
+
+				//delete the record
+				_, err = ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).RemoveAll(data.uconn.selector)
+				if err != nil {
+					fmt.Println(err)
+				}
 			}
 
 		}

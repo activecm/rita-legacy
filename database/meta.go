@@ -30,6 +30,12 @@ type (
 		Version string        `bson:"NewestVersion"`   // Top level name of the database
 	}
 
+	// Range defines a min and max value
+	Range struct {
+		Min int64 `bson:"min"`
+		Max int64 `bson:"max"`
+	}
+
 	// DBMetaInfo defines some information about the database
 	DBMetaInfo struct {
 		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
@@ -38,6 +44,7 @@ type (
 		Analyzed       bool          `bson:"analyzed"`        // Has this database been analyzed
 		ImportVersion  string        `bson:"import_version"`  // Rita version at import
 		AnalyzeVersion string        `bson:"analyze_version"` // Rita version at analyze
+		TsRange        Range         `bson:"ts_range"`
 	}
 )
 
@@ -116,7 +123,7 @@ func (m *MetaDB) DeleteDB(name string) error {
 	defer ssn.Close()
 
 	//delete the record
-	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Remove(bson.M{"name": name})
+	_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).RemoveAll(bson.M{"name": name})
 	if err != nil {
 		return err
 	}
@@ -149,11 +156,53 @@ func (m *MetaDB) MarkDBImported(name string, complete bool) error {
 	defer ssn.Close()
 
 	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
-		Update(bson.M{"_id": dbr.ID}, bson.M{
-			"$set": bson.D{
-				{"import_finished", complete},
-			},
-		})
+		Update(
+			bson.M{"_id": dbr.ID},
+			bson.M{
+				"$set": bson.M{
+					"import_finished": complete,
+				}},
+		)
+
+	if err != nil {
+		m.log.WithFields(log.Fields{
+			"metadb_attempted":   m.config.S.Bro.MetaDB,
+			"database_requested": name,
+			"_id":                dbr.ID.Hex,
+			"error":              err.Error(),
+		}).Error("could not update database entry in meta")
+		return err
+	}
+	return nil
+}
+
+// AddTSRange adds the min and max timestamps found in current dataset
+func (m *MetaDB) AddTSRange(name string, min int64, max int64) error {
+	dbr, err := m.GetDBMetaInfo(name)
+
+	if err != nil {
+		m.log.WithFields(log.Fields{
+			"database_requested": name,
+			"error":              err.Error(),
+		}).Error("database not found in metadata directory")
+		return err
+	}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+		Upsert(
+			bson.M{"_id": dbr.ID},
+			bson.M{
+				"$set": bson.M{
+					"ts_range.min": min,
+					"ts_range.max": max,
+				}},
+		)
 
 	if err != nil {
 		m.log.WithFields(log.Fields{

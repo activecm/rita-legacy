@@ -14,18 +14,16 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
-	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/pkg/blacklist"
-	"github.com/activecm/rita/pkg/conn"
 	"github.com/activecm/rita/pkg/explodeddns"
-	"github.com/activecm/rita/pkg/freq"
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
+	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -58,7 +56,6 @@ func NewFSImporter(res *resources.Resources,
 		internal:        getParsedSubnets(res.Config.S.Filtering.InternalSubnets),
 		alwaysIncluded:  getParsedSubnets(res.Config.S.Filtering.AlwaysInclude),
 		neverIncluded:   getParsedSubnets(res.Config.S.Filtering.NeverInclude),
-		connLimit:       int64(res.Config.S.Strobe.ConnectionLimit),
 	}
 }
 
@@ -74,11 +71,6 @@ func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
 
 //Run starts importing a given path into a datastore
 func (fs *FSImporter) Run(datastore Datastore) {
-	// build the rita-bl database before parsing
-	if fs.res.Config.S.Blacklisted.Enabled {
-		blacklist.BuildBlacklistedCollections(fs.res)
-	}
-
 	// track the time spent parsing
 	start := time.Now()
 	fs.res.Log.WithFields(
@@ -94,6 +86,12 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	//hash the files and get their stats
 	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res.Config, fs.res.Log)
 
+	// if no compatible files for import were found, handle error
+	if !(len(indexedFiles) > 0) {
+		fmt.Println("\n\t[!] No compatible log files found in directory")
+		return
+	}
+
 	progTime := time.Now()
 	fs.res.Log.WithFields(
 		log.Fields{
@@ -102,24 +100,27 @@ func (fs *FSImporter) Run(datastore Datastore) {
 		},
 	).Info("Finished collecting file details. Starting upload.")
 
+	fmt.Println("\t[-] Verifying log files have not been previously parsed into the target dataset ... ")
+	// check list of files against metadatabase records to ensure that the a file
+	// won't be imported into the same database twice.
 	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
 
-	// obviously this is temporary
+	// if all files were removed because they've already been imported, handle error
 	if !(len(indexedFiles) > 0) {
-		fmt.Println("\n\t[!!!!!] dumb error with file hashing that ethan is working on fixing, please choose a different database name and try again! ")
+		fmt.Println("\n\t[!] All files in this directory have already been parsed into database: ", fs.res.DB.GetSelectedDB())
 		return
 	}
 
-	// create blacklisted reference Collection
-	fmt.Println("\t[-] Creating blacklist reference collection ... ")
-	blacklist.BuildBlacklistedCollections(fs.res)
+	// create blacklisted reference Collection if blacklisted module is enabled
+	if fs.res.Config.S.Blacklisted.Enabled {
+		blacklist.BuildBlacklistedCollections(fs.res)
+	}
 
 	// parse in those files!
-	filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap, useragentMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+	uconnMap, explodeddnsMap, hostnameMap, useragentMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
-	// Must wait for all mongodatastore inserts to finish before attempting to delete
+	// Must wait for all mongodatastore inserts to finish
 	datastore.Flush()
-	fs.bulkRemoveHugeUconns(filterHugeUconnsMap, uconnMap)
 
 	// build Uconns table
 	fs.buildUconns(uconnMap)
@@ -139,10 +140,15 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	// build or update UserAgent table
 	fs.buildUserAgent(useragentMap)
 
-	fmt.Println("\t[-] Waiting for all inserts to finish ... ")
-
+	// record file+database name hash in metadabase to prevent duplicate content
 	fmt.Println("\t[-] Indexing log entries ... ")
 	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
+
+	// add min/max timestamps to metaDatabase and mark results as imported and analyzed
+	fmt.Println("\t[-] Updating metadatabase ... ")
+	fs.updateTimestampRange()
+	fs.res.MetaDB.MarkDBImported(fs.res.DB.GetSelectedDB(), true)
+	fs.res.MetaDB.MarkDBAnalyzed(fs.res.DB.GetSelectedDB(), true)
 
 	progTime = time.Now()
 	fs.res.Log.WithFields(
@@ -231,7 +237,7 @@ func indexFiles(files []string, indexingThreads int,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) (
-	[]*uconn.Pair, map[string]*uconn.Pair, map[string]int, map[string][]string, map[string]*useragent.Input) {
+	map[string]*uconn.Pair, map[string]int, map[string][]string, map[string]*useragent.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 	// create log parsing maps
@@ -248,9 +254,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
 
-	// map to hold the too many connections uconns
-	var filterHugeUconnsMap []*uconn.Pair
-
 	// Creates a mutex for locking map keys during read-write operations
 	var mutex = &sync.Mutex{}
 
@@ -261,9 +264,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 			wg *sync.WaitGroup, start int, jump int, length int) {
 			//comb over array
 			for j := start; j < length; j += jump {
-				fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
 
-				//read the file
+				// open the file
 				fileHandle, err := os.Open(indexedFiles[j].Path)
 				if err != nil {
 					logger.WithFields(log.Fields{
@@ -271,15 +273,20 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						"error": err.Error(),
 					}).Error("Could not open file for parsing")
 				}
+
+				// read the file
 				fileScanner, err := getFileScanner(fileHandle)
 				if err != nil {
 					logger.WithFields(log.Fields{
 						"file":  indexedFiles[j].Path,
 						"error": err.Error(),
-					}).Error("Could not open file for parsing")
+					}).Error("Could not read from the file")
 				}
+				fmt.Printf("\r\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
 
+				// This loops through every line of the file
 				for fileScanner.Scan() {
+					// go to next line if there was an issue
 					if fileScanner.Err() != nil {
 						break
 					}
@@ -374,23 +381,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									uconnMap[srcDst].MaxDuration = duration
 								}
 
-								if uconnMap[srcDst].ConnectionCount == fs.connLimit {
-									// tag strobe for removal from conns after import
-									filterHugeUconnsMap = append(filterHugeUconnsMap, uconnMap[srcDst])
-								}
-
-								// putting in variable so we can unlock mutex before datastore call
-								connCount := uconnMap[srcDst].ConnectionCount
 								mutex.Unlock()
 
 								// stores the conn record in conn collection if below threshold
-								if connCount < fs.connLimit {
-									datastore.Store(&ImportedData{
-										BroData:          data,
-										TargetDatabase:   fs.res.DB.GetSelectedDB(),
-										TargetCollection: targetCollection,
-									})
-								}
+								//
+								// datastore.Store(&ImportedData{
+								// 	BroData:          data,
+								// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
+								// 	TargetCollection: targetCollection,
+								// })
 
 							}
 
@@ -547,7 +546,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	return filterHugeUconnsMap, uconnMap, explodeddnsMap, hostnameMap, useragentMap
+	return uconnMap, explodeddnsMap, hostnameMap, useragentMap
 }
 
 //buildExplodedDNS .....
@@ -557,7 +556,10 @@ func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 		if len(domainMap) > 0 {
 			// Set up the database
 			explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
-			explodedDNSRepo.CreateIndexes()
+			err := explodedDNSRepo.CreateIndexes()
+			if err != nil {
+				fs.res.Log.Error(err)
+			}
 			explodedDNSRepo.Upsert(domainMap)
 		} else {
 			fmt.Println("\t[!] No DNS data to analyze")
@@ -645,7 +647,10 @@ func (fs *FSImporter) buildUserAgent(useragentMap map[string]*useragent.Input) {
 		if len(useragentMap) > 0 {
 			// Set up the database
 			useragentRepo := useragent.NewMongoRepository(fs.res)
-			useragentRepo.CreateIndexes()
+			err := useragentRepo.CreateIndexes()
+			if err != nil {
+				fs.res.Log.Error(err)
+			}
 			useragentRepo.Upsert(useragentMap)
 		} else {
 			fmt.Println("\t[!] No UserAgent data to analyze")
@@ -653,33 +658,91 @@ func (fs *FSImporter) buildUserAgent(useragentMap map[string]*useragent.Input) {
 	}
 }
 
-// bulkRemoveHugeUconns loops through every IP pair in filterHugeUconnsMap and deletes all corresponding
-// entries in the "conn" collection. It also creates new entries in the FrequentConnTable collection.
-func (fs *FSImporter) bulkRemoveHugeUconns(filterHugeUconnsMap []*uconn.Pair, uconnMap map[string]*uconn.Pair) {
+func (fs *FSImporter) updateTimestampRange() {
+	session := fs.res.DB.Session.Copy()
+	defer session.Close()
 
-	connRepo := conn.NewMongoRepository(fs.res)
-	freqRepo := freq.NewMongoRepository(fs.res)
+	// set collection name
+	collectionName := fs.res.Config.T.Structure.UniqueConnTable
 
-	fmt.Println("\t[-] Creating Strobes and removing unused connection info ... ")
-	freqConns := make([]*parsetypes.Conn, 0)
-	for _, freqConn := range filterHugeUconnsMap {
-		freqConns = append(freqConns, &parsetypes.Conn{
-			Source:      freqConn.Src,
-			Destination: freqConn.Dst,
-		})
-		freqRepo.Insert(
-			&parsetypes.Freq{
-				Source:          freqConn.Src,
-				Destination:     freqConn.Dst,
-				ConnectionCount: freqConn.ConnectionCount,
-			})
-		// remove entry out of uconns map so it doesn't end up in uconns collection
-		srcDst := freqConn.Src + freqConn.Dst
-		delete(uconnMap, srcDst)
+	// check if collection already exists
+	names, _ := session.DB(fs.res.DB.GetSelectedDB()).CollectionNames()
+
+	exists := false
+	// make sure collection exists
+	for _, name := range names {
+		if name == collectionName {
+			exists = true
+			break
+		}
 	}
 
-	// Execute the bulk deletion
-	connRepo.BulkDelete(freqConns)
+	if !exists {
+		return
+	}
+
+	query := []bson.M{
+		bson.M{"$project": bson.M{"_id": 0, "dat": 1}},
+		bson.M{"$unwind": "$dat"},
+		bson.M{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
+		bson.M{"$unwind": "$ts"},
+		bson.M{"$project": bson.M{"_id": 0, "ts": 1}},
+	}
+
+	minQ := []bson.M{
+		bson.M{"$sort": bson.M{"ts": 1}},
+		bson.M{"$limit": 1},
+	}
+
+	// Build query for aggregation
+	timestampMinQuery := append(query, minQ...)
+
+	var resultMin struct {
+		Timestamp int64 `bson:"ts"`
+	}
+
+	// get iminimum timestamp
+	// sort by the timestamp, limit it to 1 (only returns first result)
+	err := session.DB(fs.res.DB.GetSelectedDB()).C(collectionName).Pipe(timestampMinQuery).One(&resultMin)
+
+	if err != nil {
+		fs.res.Log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Error("Could not retrieve minimum timestamp:", err)
+		return
+	}
+
+	maxQ := []bson.M{
+		bson.M{"$sort": bson.M{"ts_list": -1}},
+		bson.M{"$limit": 1},
+	}
+
+	// Build query for aggregation
+	timestampMaxQuery := append(query, maxQ...)
+
+	var resultMax struct {
+		Timestamp int64 `bson:"ts"`
+	}
+
+	// get max timestamp
+	// sort by the timestamp, limit it to 1 (only returns first result)
+	err = session.DB(fs.res.DB.GetSelectedDB()).C(collectionName).Pipe(timestampMaxQuery).One(&resultMax)
+
+	if err != nil {
+		fs.res.Log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Error("Could not retrieve maximum timestamp:", err)
+		return
+	}
+
+	// set range in metadatabase
+	err = fs.res.MetaDB.AddTSRange(fs.res.DB.GetSelectedDB(), resultMin.Timestamp, resultMax.Timestamp)
+	if err != nil {
+		fs.res.Log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Error("Could not set ts range in metadatabase: ", err)
+	}
+
 }
 
 //removeOldFilesFromIndex checks all indexedFiles passed in to ensure
