@@ -11,6 +11,7 @@ import (
 
 type (
 	dissector struct {
+		connLimit         int64             // limit for strobe classification
 		db                *database.DB      // provides access to MongoDB
 		conf              *config.Config    // contains details needed to access MongoDB
 		dissectedCallback func(*uconn.Pair) // called on each analyzed result
@@ -21,8 +22,9 @@ type (
 )
 
 //newdissector creates a new collector for gathering data
-func newDissector(db *database.DB, conf *config.Config, dissectedCallback func(*uconn.Pair), closedCallback func()) *dissector {
+func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(*uconn.Pair), closedCallback func()) *dissector {
 	return &dissector{
+		connLimit:         connLimit,
 		db:                db,
 		conf:              conf,
 		dissectedCallback: dissectedCallback,
@@ -67,7 +69,6 @@ func (d *dissector) start() {
 					bson.M{"src": data.Src},
 					bson.M{"dst": data.Dst},
 					bson.M{"connection_count": bson.M{"$gt": d.conf.S.Beacon.DefaultConnectionThresh}},
-					// bson.M{"connection_count": bson.M{"$lt": 150000}},
 					bson.M{"strobe": bson.M{"$ne": true}},
 				}}},
 				bson.M{"$limit": 1},
@@ -81,7 +82,7 @@ func (d *dissector) start() {
 				analysisInput := &uconn.Pair{Src: res.Src, Dst: res.Dst, ConnectionCount: res.ConnectionCount, TotalBytes: res.TotalBytes}
 
 				// check if uconn has become a strobe
-				if res.ConnectionCount > 2500 {
+				if res.ConnectionCount > d.connLimit {
 					// set to writer channel
 					d.dissectedCallback(analysisInput)
 

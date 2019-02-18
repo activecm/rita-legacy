@@ -46,9 +46,18 @@ func doImport(c *cli.Context) error {
 		return cli.NewExitError("Both <directory to import> and <database prefix> are required to override the config file.", -1)
 	}
 
-	err := res.MetaDB.AddNewDB(targetDatabase)
-	if err != nil {
-		return cli.NewExitError(err.Error(), -1)
+	// get all database names
+	names, _ := res.DB.Session.DatabaseNames()
+
+	// check if database exists
+	dbExists := util.StringInSlice(targetDatabase, names)
+
+	// Add new metadatabase record for db if doesn't already exist
+	if !dbExists {
+		err := res.MetaDB.AddNewDB(targetDatabase)
+		if err != nil {
+			return cli.NewExitError(err.Error(), -1)
+		}
 	}
 
 	// set target database in resources

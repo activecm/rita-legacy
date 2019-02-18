@@ -155,8 +155,8 @@ func (m *MetaDB) MarkDBImported(name string, complete bool) error {
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
-		Update(
+	_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+		Upsert(
 			bson.M{"_id": dbr.ID},
 			bson.M{
 				"$set": bson.M{
@@ -241,8 +241,8 @@ func (m *MetaDB) MarkDBAnalyzed(name string, complete bool) error {
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
-		Update(bson.M{"_id": dbr.ID}, bson.M{
+	_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+		Upsert(bson.M{"_id": dbr.ID}, bson.M{
 			"$set": bson.D{
 				{"analyzed", complete},
 				{"analyze_version", versionTag},

@@ -9,7 +9,7 @@ import (
 type (
 	//analyzer : structure for exploded dns analysis
 	analyzer struct {
-		connLimit        int64
+		connLimit        int64          // limit for strobe classification
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan *Pair     // holds unanalyzed data

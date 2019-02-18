@@ -57,6 +57,7 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Pair) {
 	)
 
 	dissectorWorker := newDissector(
+		int64(r.res.Config.S.Strobe.ConnectionLimit),
 		r.res.DB,
 		r.res.Config,
 		analyzerWorker.collect,
@@ -80,17 +81,11 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Pair) {
 		mpb.AppendDecorators(decor.Percentage()),
 	)
 
-	// i := 0
 	// loop over map entries
 	for _, entry := range uconnMap {
 		start := time.Now()
 		dissectorWorker.collect(entry)
 		bar.IncrBy(1, time.Since(start))
-		// if i == 5 {
-		// 	break
-		// }
-		// i++
-
 	}
 	p.Wait()
 }
