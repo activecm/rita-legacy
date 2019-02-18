@@ -681,21 +681,16 @@ func (fs *FSImporter) updateTimestampRange() {
 		return
 	}
 
-	query := []bson.M{
+	// Build query for aggregation
+	timestampMinQuery := []bson.M{
 		bson.M{"$project": bson.M{"_id": 0, "dat": 1}},
 		bson.M{"$unwind": "$dat"},
 		bson.M{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
 		bson.M{"$unwind": "$ts"},
 		bson.M{"$project": bson.M{"_id": 0, "ts": 1}},
-	}
-
-	minQ := []bson.M{
 		bson.M{"$sort": bson.M{"ts": 1}},
 		bson.M{"$limit": 1},
 	}
-
-	// Build query for aggregation
-	timestampMinQuery := append(query, minQ...)
 
 	var resultMin struct {
 		Timestamp int64 `bson:"ts"`
@@ -712,13 +707,16 @@ func (fs *FSImporter) updateTimestampRange() {
 		return
 	}
 
-	maxQ := []bson.M{
+	// Build query for aggregation
+	timestampMaxQuery := []bson.M{
+		bson.M{"$project": bson.M{"_id": 0, "dat": 1}},
+		bson.M{"$unwind": "$dat"},
+		bson.M{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
+		bson.M{"$unwind": "$ts"},
+		bson.M{"$project": bson.M{"_id": 0, "ts": 1}},
 		bson.M{"$sort": bson.M{"ts": -1}},
 		bson.M{"$limit": 1},
 	}
-
-	// Build query for aggregation
-	timestampMaxQuery := append(query, maxQ...)
 
 	var resultMax struct {
 		Timestamp int64 `bson:"ts"`
