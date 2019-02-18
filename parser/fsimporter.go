@@ -713,7 +713,7 @@ func (fs *FSImporter) updateTimestampRange() {
 	}
 
 	maxQ := []bson.M{
-		bson.M{"$sort": bson.M{"ts_list": -1}},
+		bson.M{"$sort": bson.M{"ts": -1}},
 		bson.M{"$limit": 1},
 	}
 
