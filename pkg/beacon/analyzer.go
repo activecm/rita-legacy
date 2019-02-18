@@ -16,7 +16,7 @@ type (
 	analyzer struct {
 		db               *database.DB     // provides access to MongoDB
 		conf             *config.Config   // contains details needed to access MongoDB
-		analyzedCallback func(update)     // called on each analyzed result
+		analyzedCallback func(*update)    // called on each analyzed result
 		closedCallback   func()           // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan *uconn.Pair // holds unanalyzed data
 		analysisWg       sync.WaitGroup   // wait for analysis to finish
@@ -24,7 +24,7 @@ type (
 )
 
 //newAnalyzer creates a new collector for gathering data
-func newAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(*update), closedCallback func()) *analyzer {
 	return &analyzer{
 		db:               db,
 		conf:             conf,
@@ -53,47 +53,42 @@ func (a *analyzer) start() {
 		ssn := a.db.Session.Copy()
 		defer ssn.Close()
 
-		for data := range a.analysisChannel {
+		for res := range a.analysisChannel {
 
-			// This will work for both updating and inserting completely new Beacons
-			// for every new uconn record we have, we will check the uconns table. This
-			// will always return a result because even with a brand new database, we already
-			// created the uconns table. It will only continue and analyze if the connection
-			// meets the required specs, again working for both an update and a new src-dst pair.
-			// We would have to perform this check regardless if we want the rolling update
-			// option to remain, and this gets us the vetting for both situations, and Only
-			// works on the current entries - not a re-aggregation on the whole collection,
-			// and individual lookups like this are really fast. This also ensures a unique
-			// set of timestamps for analysis.
-			uconnFindQuery := bson.M{
-				"$and": []bson.M{
-					bson.M{"src": data.Src},
-					bson.M{"dst": data.Dst},
-					bson.M{"connection_count": bson.M{"$gt": a.conf.S.Beacon.DefaultConnectionThresh}},
-					bson.M{"connection_count": bson.M{"$lt": 150000}},
-					bson.M{"ts_list.4": bson.M{"$exists": true}},
-				}}
+			output := &update{}
 
-			var res uconnRes
+			// if uconn has turned into a strobe, we will not have any timestamps here,
+			// and need to update uconn table with the strobe flag. This is being done
+			// here and not in uconns because uconns doesn't do reads, and doesn't know
+			// the updated conn count
+			if (res.TsList) == nil {
+				output.uconn = updateInfo{
+					// update hosts record
+					query: bson.M{
+						"$set": bson.M{"strobe": true},
+					},
+					// create selector for output
+					selector: bson.M{"src": res.Src, "dst": res.Dst},
+				}
 
-			_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.UniqueConnTable).Find(uconnFindQuery).Limit(1).One(&res)
+				// set to writer channel
+				a.analyzedCallback(output)
 
-			// Check for errors and parse results
-			// this is here because it will still return an empty document even if there are no results
-			// this verifies that. There's probably a better way, but i'm having a brain fart. I think we normally
-			// return an iterator and go over results (won't enter loop if none), but those are way less efficient if you
-			// are expecting only one entry, I read a thingie about it.
-			if len(res.TsList) > 0 {
+			} else {
 
 				//sort the size and timestamps since they may have arrived out of order
 				sort.Sort(util.SortableInt64(res.TsList))
-				sort.Sort(util.SortableInt64(res.OrigIPBytes))
+				sort.Sort(util.SortableInt64(res.OrigBytesList))
+
+				//remove subsecond communications
+				//these will appear as beacons if we do not remove them
+				res.TsList = removeConsecutiveDuplicates(res.TsList)
 
 				//store the diff slice length since we use it a lot
 				//for timestamps this is one less then the data slice length
 				//since we are calculating the times in between readings
 				tsLength := len(res.TsList) - 1
-				dsLength := len(res.OrigIPBytes)
+				dsLength := len(res.OrigBytesList)
 
 				//find the delta times between the timestamps
 				diff := make([]int64, tsLength)
@@ -115,9 +110,9 @@ func (a *analyzer) start() {
 				tsBowleyDen := tsHigh - tsLow
 
 				//we do the same for datasizes
-				dsLow := res.OrigIPBytes[util.Round(.25*float64(dsLength-1))]
-				dsMid := res.OrigIPBytes[util.Round(.5*float64(dsLength-1))]
-				dsHigh := res.OrigIPBytes[util.Round(.75*float64(dsLength-1))]
+				dsLow := res.OrigBytesList[util.Round(.25*float64(dsLength-1))]
+				dsMid := res.OrigBytesList[util.Round(.5*float64(dsLength-1))]
+				dsHigh := res.OrigBytesList[util.Round(.75*float64(dsLength-1))]
 				dsBowleyNum := dsLow + dsHigh - 2*dsMid
 				dsBowleyDen := dsHigh - dsLow
 
@@ -142,7 +137,7 @@ func (a *analyzer) start() {
 
 				dsDevs := make([]int64, dsLength)
 				for i := 0; i < dsLength; i++ {
-					dsDevs[i] = util.Abs(res.OrigIPBytes[i] - dsMid)
+					dsDevs[i] = util.Abs(res.OrigBytesList[i] - dsMid)
 				}
 
 				sort.Sort(util.SortableInt64(devs))
@@ -153,13 +148,13 @@ func (a *analyzer) start() {
 
 				//Store the range for human analysis
 				tsIntervalRange := diff[tsLength-1] - diff[0]
-				dsRange := res.OrigIPBytes[dsLength-1] - res.OrigIPBytes[0]
+				dsRange := res.OrigBytesList[dsLength-1] - res.OrigBytesList[0]
 
 				//get a list of the intervals found in the data,
 				//the number of times the interval was found,
 				//and the most occurring interval
 				intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
-				dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(res.OrigIPBytes)
+				dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(res.OrigBytesList)
 
 				//more skewed distributions receive a lower score
 				//less skewed distributions receive a higher score
@@ -193,10 +188,9 @@ func (a *analyzer) start() {
 				dsScore := dsSum / 3.0
 				score := (tsSum + dsSum) / 5.0
 
-				// update beacon
-				output := update{
-					// create query
-					beaconQuery: bson.M{
+				// update beacon query
+				output.beacon = updateInfo{
+					query: bson.M{
 						"$set": bson.M{
 							"src":                res.Src,
 							"dst":                res.Dst,
@@ -221,15 +215,16 @@ func (a *analyzer) start() {
 							"score":              score,
 						},
 					},
-					// create selector for output
-					beaconSelector: bson.M{"src": res.Src, "dst": res.Dst},
+					selector: bson.M{"src": res.Src, "dst": res.Dst},
+				}
 
+				output.host = updateInfo{
 					// update hosts record
-					hostQuery: bson.M{
+					query: bson.M{
 						"$max": bson.M{"max_beacon_score": score},
 					},
 					// create selector for output
-					hostSelector: bson.M{"ip": res.Src},
+					selector: bson.M{"ip": res.Src},
 				}
 
 				// set to writer channel
@@ -283,4 +278,21 @@ func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64
 		counts[last]++
 	}
 	return result, counts
+}
+
+//removeConsecutiveDuplicates removes consecutive duplicates
+func removeConsecutiveDuplicates(numberList []int64) []int64 {
+	//Avoid some reallocations
+	result := make([]int64, 0, len(numberList)/2)
+	last := numberList[0]
+	result = append(result, last)
+
+	for idx := 1; idx < len(numberList); idx++ {
+		if last != numberList[idx] {
+			result = append(result, numberList[idx])
+		}
+		last = numberList[idx]
+	}
+	return result
+
 }

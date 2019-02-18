@@ -64,6 +64,7 @@ func (r *repo) Upsert(uconnMap map[string]*Pair) {
 	writerWorker := newWriter(r.res.Config.T.Structure.UniqueConnTable, r.res.DB, r.res.Config)
 
 	analyzerWorker := newAnalyzer(
+		int64(r.res.Config.S.Strobe.ConnectionLimit),
 		writerWorker.collect,
 		writerWorker.close,
 	)

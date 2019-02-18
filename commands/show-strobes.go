@@ -4,8 +4,9 @@ import (
 	"encoding/csv"
 	"os"
 
-	"github.com/activecm/rita/pkg/freq"
+	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/resources"
+	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -31,9 +32,7 @@ func init() {
 			}
 
 			res := resources.InitResources(c.String("config"))
-
-			var strobes []freq.AnalysisView
-			coll := res.DB.Session.DB(db).C(res.Config.T.Strobe.StrobeTable)
+			res.DB.SelectDB(db)
 
 			var sortStr string
 			if c.Bool("connection-count") {
@@ -42,20 +41,20 @@ func init() {
 				sortStr = "-connection_count"
 			}
 
-			coll.Find(nil).Sort(sortStr).All(&strobes)
+			data := getStrobeResultsView(res, sortStr)
 
-			if len(strobes) == 0 {
+			if len(data) == 0 {
 				return cli.NewExitError("No results were found for "+db, -1)
 			}
 
 			if c.Bool("human-readable") {
-				err := showStrobesHuman(strobes)
+				err := showStrobesHuman(data)
 				if err != nil {
 					return cli.NewExitError(err.Error(), -1)
 				}
 				return nil
 			}
-			err := showStrobes(strobes)
+			err := showStrobes(data)
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -65,23 +64,38 @@ func init() {
 	bootstrapCommands(command)
 }
 
-func showStrobes(strobes []freq.AnalysisView) error {
+func showStrobes(strobes []beacon.StrobeAnalysisView) error {
 	csvWriter := csv.NewWriter(os.Stdout)
 	csvWriter.Write([]string{"Source", "Destination", "Connection Count"})
 	for _, strobe := range strobes {
-		csvWriter.Write([]string{strobe.Source, strobe.Destination, i(strobe.ConnectionCount)})
+		csvWriter.Write([]string{strobe.Src, strobe.Dst, i(strobe.ConnectionCount)})
 	}
 	csvWriter.Flush()
 	return nil
 }
 
-func showStrobesHuman(strobes []freq.AnalysisView) error {
+func showStrobesHuman(strobes []beacon.StrobeAnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetColWidth(100)
 	table.SetHeader([]string{"Source", "Destination", "Connection Count"})
 	for _, strobe := range strobes {
-		table.Append([]string{strobe.Source, strobe.Destination, i(strobe.ConnectionCount)})
+		table.Append([]string{strobe.Src, strobe.Dst, i(strobe.ConnectionCount)})
 	}
 	table.Render()
 	return nil
+}
+
+//getStrobeResultsView ...
+func getStrobeResultsView(res *resources.Resources, sort string) []beacon.StrobeAnalysisView {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	var strobes []beacon.StrobeAnalysisView
+
+	strobeQuery := bson.M{"strobe": true}
+
+	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Find(strobeQuery).Sort(sort).All(&strobes)
+
+	return strobes
+
 }
