@@ -42,6 +42,7 @@ __entry() {
 	# Optional Dependencies
 	_INSTALL_BRO=true
 	_INSTALL_MONGO=true
+	_INSTALL_RITA=true
 
 	# Install locations
 	_INSTALL_PREFIX=/usr/local
@@ -74,11 +75,19 @@ __entry() {
 			--disable-mongo)
 				_INSTALL_MONGO=false
 				;;
+			--disable-rita)
+				_INSTALL_RITA=false
+				;;
 			*)
 			;;
-	  esac
-	  shift
+		esac
+		shift
 	done
+
+	if [ "$_INSTALL_BRO" = "false" -a "$_INSTALL_MONGO" = "false" -a "$_INSTALL_RITA" = "false" ]; then
+		echo "No packages were selected for installation, exiting."
+		exit 0
+	fi
 
 	if ! [ $(id -u) = 0 ]; then
 		echo "You do not have permissions to install RITA!"
@@ -156,7 +165,10 @@ __install() {
 		fi
 	fi
 
-	__load "$_ITEM Installing RITA" __install_rita
+	if [ "$_INSTALL_RITA" = "true" ]; then
+		__load "$_ITEM Installing RITA" __install_rita
+	fi
+
 	if [ "$_REINSTALL_RITA" = "true" ]; then
 		printf "$_IMPORTANT $_RITA_CONFIG_FILE may need to be updated for this version of RITA. \n"
 		printf "$_IMPORTANT A default config file has been created at $_RITA_REINSTALL_CONFIG_FILE. \n"
@@ -462,9 +474,11 @@ __explain() {
 	if [ $_MONGO_INSTALLED = "false" -a $_INSTALL_MONGO = "true" ]; then
 		printf "$_SUBITEM Install MongoDB \n"
 	fi
-	printf "$_SUBITEM Install RITA to $_BIN_PATH/rita \n"
-	printf "$_SUBITEM Create a runtime directory for RITA in $_VAR_PATH \n"
-	printf "$_SUBITEM Create a configuration directory for RITA in $_CONFIG_PATH \n"
+	if ( ! __installation_exist ) && [ $_INSTALL_RITA = "true" ]; then
+		printf "$_SUBITEM Install RITA to $_BIN_PATH/rita \n"
+		printf "$_SUBITEM Create a runtime directory for RITA in $_VAR_PATH \n"
+		printf "$_SUBITEM Create a configuration directory for RITA in $_CONFIG_PATH \n"
+	fi
 	sleep 5s
 }
 
