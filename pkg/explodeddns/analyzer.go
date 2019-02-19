@@ -52,6 +52,22 @@ func (a *analyzer) start() {
 		defer ssn.Close()
 		for data := range a.analysisChannel {
 
+			// check if this query string has already been parsed to add to the subdomain count by checking
+			// if the whole string is already in the hostname table.
+			var res []struct {
+				Host string `bson:"host"`
+			}
+
+			_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.HostnamesTable).Find(bson.M{"host": data.name}).All(&res)
+
+			// flag to keep track of whether we need to increment the subs count
+			alreadyCountedSubsFlag := false
+
+			// if its already in the hostnames table, we only need to update the visited count
+			if len(res) > 0 {
+				alreadyCountedSubsFlag = true
+			}
+
 			// split name on periods
 			split := strings.Split(data.name, ".")
 
@@ -71,23 +87,45 @@ func (a *analyzer) start() {
 					break
 				}
 
-				var res AnalysisView
+				var res2 []interface{}
 
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.ExplodedDNSTable).Find(bson.M{"domain": entry}).Limit(1).One(&res)
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.ExplodedDNSTable).Find(bson.M{"domain": entry}).All(&res2)
 
-				// get subdomains
-				// subdomain := strings.Join(split[0:max-i], ".")
+				if !(len(res2) > 0) {
+					// set up writer output
+					var output update
 
-				// set up writer output
-				var output update
+					output.query = bson.M{
+						"$push": bson.M{"dat": bson.M{"visited": data.count}},
+						"$inc":  bson.M{"subdomain_count": 1},
+					}
 
-				output.query = bson.M{"$inc": bson.M{"visited": data.count, "subdomain_count": 1}}
+					// create selector for output
+					output.selector = bson.M{"domain": entry}
 
-				// create selector for output
-				output.selector = bson.M{"domain": entry}
+					// set to writer channel
+					a.analyzedCallback(output)
+				} else {
+					// set up writer output
+					var output update
 
-				// set to writer channel
-				a.analyzedCallback(output)
+					if alreadyCountedSubsFlag {
+						output.query = bson.M{ // will be updated in future with chunk number
+							"$inc": bson.M{"dat.0.visited": data.count},
+						}
+					} else {
+						output.query = bson.M{ // will be updated in future with chunk number
+							"$inc": bson.M{"subdomain_count": 1, "dat.0.visited": data.count},
+						}
+					}
+
+					// create selector for output
+					output.selector = bson.M{"domain": entry}
+
+					// set to writer channel
+					a.analyzedCallback(output)
+				}
+
 			}
 
 		}

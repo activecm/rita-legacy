@@ -122,13 +122,13 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	// Must wait for all mongodatastore inserts to finish
 	datastore.Flush()
 
-	// build Uconns table
+	// build Uconns table. Must go before beacons.
 	fs.buildUconns(uconnMap)
 
-	// build Hosts table
+	// build Hosts table.
 	fs.buildHosts(uconnMap)
 
-	// build or update the exploded DNS table
+	// build or update the exploded DNS table. Must go before hostnames
 	fs.buildExplodedDNS(explodeddnsMap)
 
 	// build or update the exploded DNS table
