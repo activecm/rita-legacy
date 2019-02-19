@@ -215,6 +215,7 @@ func indexFiles(files []string, indexingThreads int,
 			for j := start; j < length; j += jump {
 				indexedFile, err := newIndexedFile(files[j], cfg, logger)
 				if err != nil {
+					fmt.Println("error on " + files[j])
 					logger.WithFields(log.Fields{
 						"file":  files[j],
 						"error": err.Error(),
@@ -501,6 +502,18 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// 	TargetCollection: targetCollection,
 							// })
 
+							/// *************************************************************///
+							///                           Notice                             ///
+							/// *************************************************************///
+						} else if targetCollection == fs.res.Config.T.Structure.NoticeTable {
+							// parseNotice := reflect.ValueOf(data).Elem()
+
+							// stores the notice record in the notice collection
+							// datastore.Store(&ImportedData{
+							// 	BroData:          data,
+							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
+							// 	TargetCollection: targetCollection,
+							// })
 							/// *************************************************************///
 							///                             SSL                             ///
 							/// *************************************************************///

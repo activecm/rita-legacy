@@ -23,6 +23,7 @@ type (
 		ConnTable         string `default:"conn"`
 		HTTPTable         string `default:"http"`
 		DNSTable          string `default:"dns"`
+		NoticeTable       string `default:"notice"`
 		SSLTable          string `default:"ssl"`
 		X509Table         string `default:"x509"`
 		UniqueConnTable   string `default:"uconn"`

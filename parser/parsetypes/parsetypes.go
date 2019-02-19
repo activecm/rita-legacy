@@ -26,6 +26,10 @@ func NewBroDataFactory(fileType string) func() BroData {
 		return func() BroData {
 			return &HTTP{}
 		}
+	case "notice":
+		return func() BroData {
+			return &Notice{}
+		}
 	case "ssl":
 		return func() BroData {
 			return &SSL{}
