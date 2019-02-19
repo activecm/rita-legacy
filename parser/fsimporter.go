@@ -473,7 +473,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							src := parseHTTP.FieldByName("Source").Interface().(string)
 							host := parseHTTP.FieldByName("Host").Interface().(string)
 
-							// Safely store the number of conns for this uconn
+							// Safely store useragent information
 							mutex.Lock()
 
 							// create record if it doesn't exist
@@ -507,8 +507,34 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							///                             SSL                             ///
 							/// *************************************************************///
 						} else if targetCollection == fs.res.Config.T.Structure.SSLTable {
+							parseSSL := reflect.ValueOf(data).Elem()
+							ja3Hash := parseSSL.FieldByName("JA3").Interface().(string)
+							src := parseSSL.FieldByName("Source").Interface().(string)
+							host := parseSSL.FieldByName("ServerName").Interface().(string)
 
-							// parseSSL := reflect.ValueOf(data).Elem()
+							fmt.Println(ja3Hash)
+							// Safely store ja3 information
+							mutex.Lock()
+
+							// create record if it doesn't exist
+							if _, ok := useragentMap[ja3Hash]; !ok {
+								useragentMap[ja3Hash] = &useragent.Input{Seen: 1, OrigIps: []string{src}, Requests: []string{host}}
+							} else {
+								// increment times seen count
+								useragentMap[ja3Hash].Seen++
+
+								// add src of ssl request to unique array
+								if stringInSlice(src, useragentMap[ja3Hash].OrigIps) == false {
+									useragentMap[ja3Hash].OrigIps = append(useragentMap[ja3Hash].OrigIps, src)
+								}
+
+								// add request string to unique array
+								if stringInSlice(host, useragentMap[ja3Hash].Requests) == false {
+									useragentMap[ja3Hash].Requests = append(useragentMap[ja3Hash].Requests, host)
+								}
+							}
+
+							mutex.Unlock()
 
 							// stores the ssl record in the ssl collection
 							// datastore.Store(&ImportedData{

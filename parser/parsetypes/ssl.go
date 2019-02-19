@@ -85,6 +85,8 @@ type (
 		ValidationStatus string `bson:"validation_status"  bro:"validation_status" brotype:"string"`
 		// ValidationCode  : Numeric SSL/TLS version that the server chose
 		ValidationCode int `bson:"validation_code" bro:"validation_code" brotype:"int"`
+		// JA3 hash
+		JA3 string `bson:"ja3" bro:"ja3" brotype:"string"`
 	}
 )
 
