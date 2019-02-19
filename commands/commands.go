@@ -49,8 +49,8 @@ var (
 
 	blSortFlag = cli.StringFlag{
 		Name:  "sort, s",
-		Usage: "Sort by conn (# of connections), uconn (# of unique connections), total_bytes (# of bytes)",
-		Value: "conn",
+		Usage: "Sort by conn_count (# of connections), uconn_count (# of unique connections), total_bytes (# of bytes)",
+		Value: "conn_count",
 	}
 
 	blConnFlag = cli.BoolFlag{

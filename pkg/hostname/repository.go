@@ -34,9 +34,8 @@ type uconnRes struct {
 //AnalysisView (for reporting)
 type AnalysisView struct {
 	Host              string   `bson:"host"`
-	IPs               []string `bson:"ips"`
 	Connections       int      `bson:"conn_count"`
 	UniqueConnections int      `bson:"uconn_count"`
 	TotalBytes        int      `bson:"total_bytes"`
-	ConnectedHosts    []string `bson:",omitempty"`
+	ConnectedHosts    []string `bson:"srcs,omitempty"`
 }

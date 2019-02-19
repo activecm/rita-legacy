@@ -40,7 +40,10 @@ func (r *repo) CreateIndexes() error {
 	}
 
 	// set desired indexes
-	indexes := []mgo.Index{{Key: []string{"host"}, Unique: true}}
+	indexes := []mgo.Index{
+		{Key: []string{"host"}, Unique: true},
+		{Key: []string{"dat.ips"}},
+	}
 
 	// create collection
 	err := r.res.DB.CreateCollection(collectionName, indexes)

@@ -54,11 +54,21 @@ func (a *analyzer) start() {
 			// set up writer output
 			var output update
 
+			if len(data.OrigIps) > 10 {
+				data.OrigIps = data.OrigIps[:10]
+			}
+
+			if len(data.Requests) > 10 {
+				data.Requests = data.Requests[:10]
+			}
 			// create query
 			output.query = bson.M{
 				"$push": bson.M{
-					"orig_ips": bson.M{"$each": data.OrigIps, "$slice": -10},
-					"hosts":    bson.M{"$each": data.Requests, "$slice": -10},
+					"dat": bson.M{
+						"seen":     data.Seen,
+						"orig_ips": data.OrigIps,
+						"hosts":    data.Requests,
+					},
 				},
 				"$inc": bson.M{"times_used": data.Seen},
 			}
