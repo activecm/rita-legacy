@@ -9,7 +9,6 @@ import (
 	"github.com/globalsign/mgo/bson"
 
 	"github.com/activecm/rita/pkg/hostname"
-	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 )
@@ -21,35 +20,14 @@ func printBLHostnames(db string, res *resources.Resources) error {
 	}
 	defer f.Close()
 
-	var blHosts []hostname.AnalysisView
-	res.DB.Session.DB(db).
-		C(res.Config.T.DNS.HostnamesTable).
-		Find(bson.M{"blacklisted": true}).Sort("-conn").All(&blHosts)
-
-	//for each blacklisted host
-	for i, entry := range blHosts {
-
-		//and loop over the ips associated with the host
-		for _, ip := range entry.IPs {
-			//then find all of the hosts which talked to the ip
-			var connected []uconn.AnalysisView
-			res.DB.Session.DB(db).
-				C(res.Config.T.Structure.UniqueConnTable).Find(
-				bson.M{"dst": ip},
-			).All(&connected)
-			//and aggregate the source ip addresses
-			for _, uconn := range connected {
-				blHosts[i].ConnectedHosts = append(blHosts[i].ConnectedHosts, uconn.Src)
-			}
-		}
-	}
+	data := getBlacklistedHostnameResultsView(res, 0, "conn_count")
 
 	out, err := template.New("bl-hostnames.html").Parse(templates.BLHostnameTempl)
 	if err != nil {
 		return err
 	}
 
-	w, err := getBLHostnameWriter(blHosts)
+	w, err := getBLHostnameWriter(data)
 	if err != nil {
 		return err
 	}
@@ -58,7 +36,7 @@ func printBLHostnames(db string, res *resources.Resources) error {
 }
 
 func getBLHostnameWriter(results []hostname.AnalysisView) (string, error) {
-	tmpl := "<tr><td>{{.Hostname}}</td><td>{{.Connections}}</td><td>{{.UniqueConnections}}</td>" +
+	tmpl := "<tr><td>{{.Host}}</td><td>{{.Connections}}</td><td>{{.UniqueConnections}}</td>" +
 		"<td>{{.TotalBytes}}</td>" +
 		"<td>{{range $idx, $host := .ConnectedHosts}}{{if $idx}}, {{end}}{{ $host }}{{end}}</td>" +
 		"</tr>\n"
@@ -78,4 +56,41 @@ func getBLHostnameWriter(results []hostname.AnalysisView) (string, error) {
 		}
 	}
 	return w.String(), nil
+}
+
+//getBeaconResultsView finds beacons greater than a given cutoffScore
+//and links the data from the unique connections table back in to the results
+func getBlacklistedHostnameResultsView(res *resources.Resources, cutoffScore float64, sort string) []hostname.AnalysisView {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	blHostsQuery := []bson.M{
+		bson.M{"$match": bson.M{"blacklisted": true}},
+		bson.M{"$unwind": "$dat"},
+		bson.M{"$project": bson.M{"host": 1, "ip": "$dat.ips"}},
+		bson.M{"$unwind": "$ip"},
+		bson.M{"$lookup": bson.M{
+			"from":         "uconn",
+			"localField":   "ip",
+			"foreignField": "dst",
+			"as":           "uconn",
+		}},
+		bson.M{"$unwind": "$uconn"},
+		bson.M{"$group": bson.M{
+			"_id":         "$host",
+			"host":        bson.M{"$first": "$host"},
+			"total_bytes": bson.M{"$sum": "$uconn.total_bytes"},
+			"conn_count":  bson.M{"$sum": "$uconn.connection_count"},
+			"uconn_count": bson.M{"$sum": 1},
+			"srcs":        bson.M{"$push": "$uconn.src"},
+		}},
+		bson.M{"$sort": bson.M{sort: -1}},
+	}
+
+	var blHosts []hostname.AnalysisView
+
+	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.HostnamesTable).Pipe(blHostsQuery).All(&blHosts)
+
+	return blHosts
+
 }
