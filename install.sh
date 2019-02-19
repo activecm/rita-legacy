@@ -130,6 +130,7 @@ __install() {
 		#Unconditionally installed whether this is a new install or an upgrade
 		#Install this before calling __configure_bro so the modules are in place when "broctl deploy" restarts bro
 		__install_ja3
+		__enable_ssl_certificate_logging
 
 		if [ "$_BRO_INSTALLED" = "true" ]; then
 			__configure_bro
@@ -218,6 +219,26 @@ __install_ja3() {
 		echo '' >>$local_path/local.bro
 		echo '#Load ja3 support libraries' >>$local_path/local.bro
 		echo '@load ./ja3' >>$local_path/local.bro
+	fi
+}
+
+__enable_ssl_certificate_logging() {
+	local_path=$_BRO_PATH/../share/bro/site/
+
+	sudo mkdir -p $local_path
+
+	if ! grep -q '^[^#]*@load  *protocols/ssl/validate-certs' $local_path/local.bro ; then
+		echo '' >>$local_path/local.bro
+		echo '#Enable certificate validation' >>$local_path/local.bro
+		echo '@load protocols/ssl/validate-certs' >>$local_path/local.bro
+	fi
+
+	if ! grep -q '^[^#]*@load  *policy/protocols/ssl/extract-certs-pem' $local_path/local.bro ; then
+		echo '' >>$local_path/local.bro
+		echo '#Log certificates' >>$local_path/local.bro
+		echo '@load policy/protocols/ssl/extract-certs-pem' >>$local_path/local.bro
+		echo 'redef SSL::extract_certs_pem = ALL_HOSTS;' >>$local_path/local.bro
+		echo '' >>$local_path/local.bro
 	fi
 }
 
