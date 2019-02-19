@@ -214,7 +214,7 @@ __install_ja3() {
 		fi
 	done
 
-	if [ ! grep -q '^[^#]*@load \./ja3' $local_path/local.bro ]; then
+	if ! grep -q '^[^#]*@load \./ja3' $local_path/local.bro ; then
 		echo '' >>$local_path/local.bro
 		echo '#Load ja3 support libraries' >>$local_path/local.bro
 		echo '@load ./ja3' >>$local_path/local.bro
