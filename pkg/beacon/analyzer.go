@@ -184,9 +184,9 @@ func (a *analyzer) start() {
 				dsSum := dsSkewScore + dsMadmScore + dsSmallnessScore
 
 				//score averages
-				tsScore := tsSum / 2.0
-				dsScore := dsSum / 3.0
-				score := (tsSum + dsSum) / 5.0
+				tsScore := math.Ceil((tsSum/2.0)*1000) / 1000
+				dsScore := math.Ceil((dsSum/3.0)*1000) / 1000
+				score := math.Ceil(((tsSum+dsSum)/5.0)*1000) / 1000
 
 				// update beacon query
 				output.beacon = updateInfo{
@@ -221,7 +221,7 @@ func (a *analyzer) start() {
 				output.host = updateInfo{
 					// update hosts record
 					query: bson.M{
-						"$max": bson.M{"max_beacon_score": score},
+						"$max": bson.M{"dat.0.max_beacon_score": score},
 					},
 					// create selector for output
 					selector: bson.M{"ip": res.Src},
