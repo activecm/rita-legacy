@@ -7,7 +7,6 @@ import (
 	"github.com/globalsign/mgo/bson"
 
 	"github.com/activecm/rita/pkg/host"
-	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 )
@@ -19,38 +18,67 @@ func printBLDestIPs(db string, res *resources.Resources) error {
 	}
 	defer f.Close()
 
-	var blIPs []host.AnalysisView
-
-	blacklistFindQuery := bson.M{
+	match := bson.M{
 		"$and": []bson.M{
 			bson.M{"blacklisted": true},
-			bson.M{"count_dst": bson.M{"$gt": 0}},
+			bson.M{"dat.count_dst": bson.M{"$gt": 0}},
 		}}
 
-	res.DB.Session.DB(db).
-		C(res.Config.T.Structure.HostTable).
-		Find(blacklistFindQuery).Sort("-conn").All(&blIPs)
-
-	for i, entry := range blIPs {
-		var connected []uconn.AnalysisView
-		res.DB.Session.DB(db).
-			C(res.Config.T.Structure.UniqueConnTable).Find(
-			bson.M{"dst": entry.Host},
-		).All(&connected)
-		for _, uconn := range connected {
-			blIPs[i].ConnectedHosts = append(blIPs[i].ConnectedHosts, uconn.Src)
-		}
-	}
+	data := getBlacklistedIPsResultsView(res, "conn_count", 1000, match, "dst", "src")
 
 	out, err := template.New("bl-dest-ips.html").Parse(templates.BLDestIPTempl)
 	if err != nil {
 		return err
 	}
 
-	w, err := getBLIPWriter(blIPs)
+	w, err := getBLIPWriter(data)
 	if err != nil {
 		return err
 	}
 
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
+}
+
+//getBlaclistedIPsResultsView
+func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit int, match bson.M, field1 string, field2 string) []host.AnalysisView {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	var blIPs []host.AnalysisView
+
+	blIPQuery := []bson.M{
+		bson.M{"$match": match},
+		bson.M{"$project": bson.M{"host": "$ip"}},
+		bson.M{"$lookup": bson.M{
+			"from":         "uconn",
+			"localField":   "host",
+			"foreignField": field1,
+			"as":           "u",
+		}},
+		bson.M{"$unwind": "$u"},
+		bson.M{"$unwind": "$u.dat"},
+		bson.M{"$project": bson.M{"host": 1, "conns": "$u.dat.count", "bytes": "$u.dat.tbytes", "ip": ("$u." + field2)}},
+		bson.M{"$group": bson.M{
+			"_id":         "$host",
+			"host":        bson.M{"$first": "$host"},
+			"ips":         bson.M{"$addToSet": "$ip"},
+			"conn_count":  bson.M{"$sum": "$conns"},
+			"total_bytes": bson.M{"$sum": "$bytes"},
+		}},
+		bson.M{"$sort": bson.M{sort: -1}},
+		bson.M{"$limit": limit},
+		bson.M{"$project": bson.M{
+			"_id":         0,
+			"uconn_count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
+			"ips":         1,
+			"conn_count":  1,
+			"host":        1,
+			"total_bytes": 1,
+		}},
+	}
+
+	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).All(&blIPs)
+
+	return blIPs
+
 }
