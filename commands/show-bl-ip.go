@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/activecm/rita/pkg/host"
-	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
@@ -55,7 +54,7 @@ func parseBLArgs(c *cli.Context) (string, string, bool, bool, error) {
 	if db == "" {
 		return db, sort, connected, human, cli.NewExitError("Specify a database", -1)
 	}
-	if sort != "conn" && sort != "uconn" && sort != "total_bytes" {
+	if sort != "conn_count" && sort != "total_bytes" {
 		return db, sort, connected, human, cli.NewExitError("Invalid option passed to sort flag", -1)
 	}
 	return db, sort, connected, human, nil
@@ -67,43 +66,27 @@ func printBLSourceIPs(c *cli.Context) error {
 		return err
 	}
 	res := resources.InitResources(c.String("config"))
+	res.DB.SelectDB(db)
 
-	var blIPs []host.AnalysisView
-
-	blacklistFindQuery := bson.M{
+	match := bson.M{
 		"$and": []bson.M{
 			bson.M{"blacklisted": true},
-			bson.M{"count_src": bson.M{"$gt": 0}},
+			bson.M{"dat.count_src": bson.M{"$gt": 0}},
 		}}
+	limit := 1000
+	data := getBlacklistedIPsResultsView(res, sort, limit, match, "src", "dst")
 
-	res.DB.Session.DB(db).
-		C(res.Config.T.Structure.HostTable).
-		Find(blacklistFindQuery).Sort("-" + sort).All(&blIPs)
-
-	if len(blIPs) == 0 {
+	if len(data) == 0 {
 		return cli.NewExitError("No results were found for "+db, -1)
 	}
 
-	if connected {
-		for i, entry := range blIPs {
-			var connected []uconn.AnalysisView
-			res.DB.Session.DB(db).
-				C(res.Config.T.Structure.UniqueConnTable).Find(
-				bson.M{"src": entry.Host},
-			).All(&connected)
-			for _, uconn := range connected {
-				blIPs[i].ConnectedHosts = append(blIPs[i].ConnectedHosts, uconn.Dst)
-			}
-		}
-	}
-
 	if human {
-		err = showBLIPsHuman(blIPs, connected, true)
+		err = showBLIPsHuman(data, connected, true)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
 	} else {
-		err = showBLIPs(blIPs, connected, true)
+		err = showBLIPs(data, connected, true)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
@@ -116,44 +99,30 @@ func printBLDestIPs(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
 	res := resources.InitResources(c.String("config"))
+	res.DB.SelectDB(db)
 
-	var blIPs []host.AnalysisView
-
-	blacklistFindQuery := bson.M{
+	match := bson.M{
 		"$and": []bson.M{
 			bson.M{"blacklisted": true},
-			bson.M{"count_dst": bson.M{"$gt": 0}},
+			bson.M{"dat.count_dst": bson.M{"$gt": 0}},
 		}}
 
-	res.DB.Session.DB(db).
-		C(res.Config.T.Structure.HostTable).
-		Find(blacklistFindQuery).Sort("-" + sort).All(&blIPs)
+	limit := 1000
+	data := getBlacklistedIPsResultsView(res, sort, limit, match, "dst", "src")
 
-	if len(blIPs) == 0 {
+	if len(data) == 0 {
 		return cli.NewExitError("No results were found for "+db, -1)
 	}
 
-	if connected {
-		for i, entry := range blIPs {
-			var connected []uconn.AnalysisView
-			res.DB.Session.DB(db).
-				C(res.Config.T.Structure.UniqueConnTable).Find(
-				bson.M{"dst": entry.Host},
-			).All(&connected)
-			for _, uconn := range connected {
-				blIPs[i].ConnectedHosts = append(blIPs[i].ConnectedHosts, uconn.Src)
-			}
-		}
-	}
-
 	if human {
-		err = showBLIPsHuman(blIPs, connected, false)
+		err = showBLIPsHuman(data, connected, false)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
 	} else {
-		err = showBLIPs(blIPs, connected, false)
+		err = showBLIPs(data, connected, false)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
@@ -217,4 +186,48 @@ func showBLIPsHuman(ips []host.AnalysisView, connectedHosts, source bool) error 
 	}
 	table.Render()
 	return nil
+}
+
+//getBlaclistedIPsResultsView
+func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit int, match bson.M, field1 string, field2 string) []host.AnalysisView {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	var blIPs []host.AnalysisView
+
+	blIPQuery := []bson.M{
+		bson.M{"$match": match},
+		bson.M{"$project": bson.M{"host": "$ip"}},
+		bson.M{"$lookup": bson.M{
+			"from":         "uconn",
+			"localField":   "host",
+			"foreignField": field1,
+			"as":           "u",
+		}},
+		bson.M{"$unwind": "$u"},
+		bson.M{"$unwind": "$u.dat"},
+		bson.M{"$project": bson.M{"host": 1, "conns": "$u.dat.count", "bytes": "$u.dat.tbytes", "ip": ("$u." + field2)}},
+		bson.M{"$group": bson.M{
+			"_id":         "$host",
+			"host":        bson.M{"$first": "$host"},
+			"ips":         bson.M{"$addToSet": "$ip"},
+			"conn_count":  bson.M{"$sum": "$conns"},
+			"total_bytes": bson.M{"$sum": "$bytes"},
+		}},
+		bson.M{"$sort": bson.M{sort: -1}},
+		bson.M{"$limit": limit},
+		bson.M{"$project": bson.M{
+			"_id":         0,
+			"uconn_count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
+			"ips":         1,
+			"conn_count":  1,
+			"host":        1,
+			"total_bytes": 1,
+		}},
+	}
+
+	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).All(&blIPs)
+
+	return blIPs
+
 }

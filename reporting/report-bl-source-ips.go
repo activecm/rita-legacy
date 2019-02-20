@@ -9,7 +9,6 @@ import (
 	"github.com/globalsign/mgo/bson"
 
 	"github.com/activecm/rita/pkg/host"
-	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 )
@@ -21,35 +20,20 @@ func printBLSourceIPs(db string, res *resources.Resources) error {
 	}
 	defer f.Close()
 
-	var blIPs []host.AnalysisView
-
-	blacklistFindQuery := bson.M{
+	match := bson.M{
 		"$and": []bson.M{
 			bson.M{"blacklisted": true},
-			bson.M{"count_src": bson.M{"$gt": 0}},
+			bson.M{"dat.count_src": bson.M{"$gt": 0}},
 		}}
 
-	res.DB.Session.DB(db).
-		C(res.Config.T.Structure.HostTable).
-		Find(blacklistFindQuery).Sort("-conn").All(&blIPs)
-
-	for i, entry := range blIPs {
-		var connected []uconn.AnalysisView
-		res.DB.Session.DB(db).
-			C(res.Config.T.Structure.UniqueConnTable).Find(
-			bson.M{"src": entry.Host},
-		).All(&connected)
-		for _, uconn := range connected {
-			blIPs[i].ConnectedHosts = append(blIPs[i].ConnectedHosts, uconn.Dst)
-		}
-	}
+	data := getBlacklistedIPsResultsView(res, "conn_count", 1000, match, "src", "dst")
 
 	out, err := template.New("bl-source-ips.html").Parse(templates.BLSourceIPTempl)
 	if err != nil {
 		return err
 	}
 
-	w, err := getBLIPWriter(blIPs)
+	w, err := getBLIPWriter(data)
 	if err != nil {
 		return err
 	}
