@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net"
 	"os"
 	"path"
@@ -327,6 +328,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								origIPBytes := parseConn.FieldByName("OrigIPBytes").Interface().(int64)
 								respIPBytes := parseConn.FieldByName("RespIPBytes").Interface().(int64)
 								duration := float64(parseConn.FieldByName("Duration").Interface().(float64))
+								duration = math.Ceil((duration)*10000) / 10000
 								bytes := int64(origIPBytes + respIPBytes)
 								protocol := parseConn.FieldByName("Proto").Interface().(string)
 								service := parseConn.FieldByName("Service").Interface().(string)
