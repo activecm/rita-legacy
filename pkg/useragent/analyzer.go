@@ -61,8 +61,9 @@ func (a *analyzer) start() {
 			if len(data.Requests) > 10 {
 				data.Requests = data.Requests[:10]
 			}
+
 			// create query
-			output.query = bson.M{
+			output.userAgent.query = bson.M{
 				"$push": bson.M{
 					"dat": bson.M{
 						"seen":     data.Seen,
@@ -73,8 +74,53 @@ func (a *analyzer) start() {
 				"$inc": bson.M{"times_used": data.Seen},
 			}
 
+			if len(data.OrigIps) < 5 {
+				maxLeft := 5 - len(data.OrigIps)
+
+				query := []bson.M{
+					bson.M{"$match": bson.M{"user_agent": data.name}},
+					bson.M{"$unwind": "$dat"},
+					bson.M{"$unwind": "$dat.orig_ips"},
+					bson.M{"$group": bson.M{
+						"_id": "$_.id",
+						"ips": bson.M{"$addToSet": "$dat.orig_ips"},
+					}},
+					bson.M{"$project": bson.M{
+						"count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
+						"ips":   "$ips",
+					}},
+					bson.M{"$match": bson.M{"count": bson.M{"$lt": maxLeft}}},
+				}
+
+				var resList []struct {
+					ips   []string `bson:"ips"`
+					count int      `bson:"count"`
+				}
+
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.UserAgent.UserAgentTable).Pipe(query).All(&resList)
+
+				if len(resList) > 0 {
+					output.host.query = bson.M{
+						"$push": bson.M{
+							//TODO still need to find a query to get blacklisted, and ipv4_binary
+							//  accurately added to the host database
+							"blacklisted": "true",
+							"dat": bson.M{
+								"$inc": bson.M{"count_dst": resList[0].count},
+							},
+							"ipv4_binary": "3518000993",
+							"local":       "true",
+						},
+					}
+					output.host.selector = bson.M{"ip": resList[0].ips[0]}
+					// flag both the ips in the returned result and the current ones.
+					// you will need to add another output here. since its going to a different collection than useragent,
+					// look at the beacons pkg for how i'm doing that. You'll need an output struct with other table outputs.
+				}
+			}
+
 			// create selector for output
-			output.selector = bson.M{"user_agent": data.name}
+			output.userAgent.selector = bson.M{"user_agent": data.name}
 
 			// set to writer channel
 			a.analyzedCallback(output)

@@ -49,10 +49,16 @@ func (w *writer) start() {
 
 		for data := range w.writeChannel {
 
-			_, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.selector, data.query)
-
+			_, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.userAgent.selector, data.userAgent.query)
 			if err != nil {
 				fmt.Println(err)
+			}
+
+			if data.host.query != nil {
+				_, err = ssn.DB(w.db.GetSelectedDB()).C("host").Upsert(data.host.selector, data.host.query)
+				if err != nil {
+					fmt.Println(err)
+				}
 			}
 		}
 		w.writeWg.Done()

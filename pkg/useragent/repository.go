@@ -6,10 +6,15 @@ type Repository interface {
 	Upsert(useragentMap map[string]*Input)
 }
 
-//update ....
-type update struct {
+type updateInfo struct {
 	selector interface{}
 	query    interface{}
+}
+
+//update ....
+type update struct {
+	userAgent updateInfo
+	host      updateInfo
 }
 
 //Input ....
