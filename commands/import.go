@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/activecm/rita/parser"
@@ -111,11 +112,19 @@ func (i *Importer) setTargetDatabase() error {
 }
 
 func (i *Importer) setImportDirectory() error {
-	var err error
-	i.importDir, err = filepath.Abs(i.importDir)
+
+	// parse directory path
+	filePath, err := filepath.Abs(i.importDir)
 	if err != nil {
 		return cli.NewExitError(err.Error(), -1)
 	}
+
+	// check if directory exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return cli.NewExitError(err.Error(), -1)
+	}
+
+	// assign import directory
 	i.res.Config.S.Bro.ImportDirectory = i.importDir
 	return nil
 }

@@ -44,6 +44,9 @@ type (
 		Analyzed       bool          `bson:"analyzed"`        // Has this database been analyzed
 		ImportVersion  string        `bson:"import_version"`  // Rita version at import
 		AnalyzeVersion string        `bson:"analyze_version"` // Rita version at analyze
+		Rolling        bool          `bson:"rolling"`
+		TotalChunks    int           `bson:"total_chunks"`
+		CurrentChunk   int           `bson:"current_chunk"`
 		TsRange        Range         `bson:"ts_range"`
 	}
 )
