@@ -62,6 +62,13 @@ func (w *writer) start() {
 					fmt.Println(err)
 				}
 			}
+
+			if data.host.query != nil {
+				_, err = ssn.DB(w.db.GetSelectedDB()).C("host").Upsert(data.host.selector, data.host.query)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
 		}
 		w.writeWg.Done()
 	}()
