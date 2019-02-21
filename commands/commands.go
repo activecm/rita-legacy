@@ -41,7 +41,7 @@ var (
 	// for rolling analysis: says how many chunks are in a given day
 	totalChunksFlag = cli.IntFlag{
 		Name:  "numchunks, NC",
-		Usage: "For rolling analysis: How many chunks are in a given day, with import frequency being every (24/numchunks) hours (Example: 12 = import every 2 hrs, 24 = every hour, 6 = every 4 hrs)",
+		Usage: "For rolling analysis: How many chunks are in a given day, with import frequency being every (24/numchunks) hours. Number must be a multiple of 24. (Example: 12 = import every 2 hrs, 24 = every hour, 6 = every 4 hrs)",
 		Value: -1,
 	}
 

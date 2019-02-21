@@ -76,11 +76,11 @@ func (i *Importer) parseArgs() error {
 		if (i.totalChunks == -1) || (i.currentChunk == -1) {
 			return cli.NewExitError("Both `--numchunks <total number of chunks>` and `--chunk <current chunk number>` must be provided for rolling analysis import.", -1)
 		}
-		if !(i.totalChunks > 0) {
-			return cli.NewExitError("Total number of chunks must be between 1 and 24", -1)
+		if !(i.totalChunks > 0) || ((24 % i.totalChunks) != 0) {
+			return cli.NewExitError("Total number of chunks must be a multiple of 24 (Valid chunk sizes: 1, 2, 4, 6, 8, 12)", -1)
 		}
 		if !(i.currentChunk > 0) || (i.currentChunk > i.totalChunks) {
-			return cli.NewExitError("Current chunk number must be <= (total number of chunks)", -1)
+			return cli.NewExitError("Current chunk number cannot be greater than the total number of chunks", -1)
 		}
 	}
 
