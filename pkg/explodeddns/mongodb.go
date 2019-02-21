@@ -43,7 +43,7 @@ func (r *repo) CreateIndexes() error {
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"domain"}, Unique: true},
-		{Key: []string{"visited"}},
+		// {Key: []string{"visited"}},
 		{Key: []string{"subdomains"}},
 	}
 
@@ -63,6 +63,7 @@ func (r *repo) Upsert(domainMap map[string]int) {
 	writerWorker := newWriter(r.res.Config.T.DNS.ExplodedDNSTable, r.res.DB, r.res.Config)
 
 	analyzerWorker := newAnalyzer(
+		r.res.Config.S.Bro.CurrentChunk,
 		r.res.DB,
 		r.res.Config,
 		writerWorker.collect,
@@ -85,11 +86,16 @@ func (r *repo) Upsert(domainMap map[string]int) {
 		mpb.AppendDecorators(decor.Percentage()),
 	)
 
+	// counter := 0
 	// loop over map entries
 	for entry, count := range domainMap {
 		start := time.Now()
+		// counter++
 		analyzerWorker.collect(domain{entry, count})
 		bar.IncrBy(1, time.Since(start))
+		// if counter > 2 {
+		// 	break
+		// }
 	}
 
 	p.Wait()

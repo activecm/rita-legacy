@@ -47,26 +47,39 @@ func (r *repo) CreateIndexes() error {
 //Upsert loops through every new uconn ....
 func (r *repo) Upsert(uconnMap map[string]*uconn.Pair) {
 	//Create the workers
-	writerWorker := newWriter(r.res.Config.T.Beacon.BeaconTable, r.res.DB, r.res.Config)
+	writerWorker := newWriter(
+		r.res.Config.T.Beacon.BeaconTable,
+		r.res.DB,
+		r.res.Config,
+	)
 
 	analyzerWorker := newAnalyzer(
+		r.res.Config.S.Bro.CurrentChunk,
 		r.res.DB,
 		r.res.Config,
 		writerWorker.collect,
 		writerWorker.close,
 	)
 
-	dissectorWorker := newDissector(
-		int64(r.res.Config.S.Strobe.ConnectionLimit),
+	sorterWorker := newSorter(
 		r.res.DB,
 		r.res.Config,
 		analyzerWorker.collect,
 		analyzerWorker.close,
 	)
 
+	dissectorWorker := newDissector(
+		int64(r.res.Config.S.Strobe.ConnectionLimit),
+		r.res.DB,
+		r.res.Config,
+		sorterWorker.collect,
+		sorterWorker.close,
+	)
+
 	//kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		dissectorWorker.start()
+		sorterWorker.start()
 		analyzerWorker.start()
 		writerWorker.start()
 	}

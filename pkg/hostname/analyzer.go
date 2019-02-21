@@ -1,6 +1,7 @@
 package hostname
 
 import (
+	"strconv"
 	"strings"
 	"sync"
 
@@ -12,6 +13,8 @@ import (
 type (
 	//analyzer : structure for exploded dns analysis
 	analyzer struct {
+		chunk            int            //current chunk (0 if not on rolling analysis)
+		chunkStr         string         //current chunk (0 if not on rolling analysis)
 		db               *database.DB   // provides access to MongoDB
 		conf             *config.Config // contains details needed to access MongoDB
 		analyzedCallback func(update)   // called on each analyzed result
@@ -22,8 +25,10 @@ type (
 )
 
 //newAnalyzer creates a new collector for parsing hostnames
-func newAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
+		chunk:            chunk,
+		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
@@ -79,17 +84,25 @@ func (a *analyzer) start() {
 				// flag as blacklisted if blacklisted
 				output.query = bson.M{
 					"$push": bson.M{
-						"dat": bson.M{"ips": data.ips},
+						"dat": bson.M{
+							"ips": data.ips,
+							"cid": a.chunk,
+						},
 					},
 					"$set": bson.M{
 						"blacklisted": true,
+						"cid":         a.chunk,
 					},
 				}
 			} else {
 				output.query = bson.M{
 					"$push": bson.M{
-						"dat": bson.M{"ips": data.ips},
+						"dat": bson.M{
+							"ips": data.ips,
+							"cid": a.chunk,
+						},
 					},
+					"$set": bson.M{"cid": a.chunk},
 				}
 			}
 

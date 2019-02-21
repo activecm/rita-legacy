@@ -3,6 +3,7 @@ package host
 import (
 	"encoding/binary"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -15,6 +16,8 @@ import (
 type (
 	//analyzer : structure for host analysis
 	analyzer struct {
+		chunk            int              //current chunk (0 if not on rolling analysis)
+		chunkStr         string           //current chunk (0 if not on rolling analysis)
 		db               *database.DB     // provides access to MongoDB
 		conf             *config.Config   // contains details needed to access MongoDB
 		analyzedCallback func(update)     // called on each analyzed result
@@ -25,8 +28,10 @@ type (
 )
 
 //newAnalyzer creates a new collector for gathering data
-func newAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
+		chunk:            chunk,
+		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
@@ -87,9 +92,9 @@ func (a *analyzer) start() {
 
 				//if the connection has a blacklisted destination (the connection itself is a src though)
 				if blacklistedDst {
-					output = hasBlacklistedDstQuery(data, blacklistedSrc, newRecordFlag)
+					output = hasBlacklistedDstQuery(a.chunk, a.chunkStr, data, blacklistedSrc, newRecordFlag)
 				} else { //otherwise, just add the result
-					output = standardQuery(data.Src, data.IsLocalSrc, data.MaxDuration, data.TXTQueryCount, data.UntrustedAppConnCount, true, blacklistedSrc, newRecordFlag)
+					output = standardQuery(a.chunk, a.chunkStr, data.Src, data.IsLocalSrc, data.MaxDuration, data.TXTQueryCount, data.UntrustedAppConnCount, true, blacklistedSrc, newRecordFlag)
 				}
 
 				// set to writer channel
@@ -112,10 +117,10 @@ func (a *analyzer) start() {
 
 				//if the connection has a blacklisted source (the connection itself is a dst though)
 				if blacklistedSrc {
-					output = hasBlacklistedSrcQuery(data, blacklistedDst, newRecordFlag)
+					output = hasBlacklistedSrcQuery(a.chunk, a.chunkStr, data, blacklistedDst, newRecordFlag)
 
 				} else { //otherwise, just add the result
-					output = standardQuery(data.Dst, data.IsLocalDst, data.MaxDuration, 0, 0, false, blacklistedDst, newRecordFlag)
+					output = standardQuery(a.chunk, a.chunkStr, data.Dst, data.IsLocalDst, data.MaxDuration, 0, 0, false, blacklistedDst, newRecordFlag)
 				}
 
 				// set to writer channel
@@ -137,7 +142,7 @@ func ipv4ToBinary(ipv4 net.IP) int64 {
 }
 
 //standardQuery ...
-func standardQuery(ip string, local bool, maxdur float64, txtQCount int64, untrustedACC int64, src bool, blacklisted bool, newFlag bool) update {
+func standardQuery(chunk int, chunkStr string, ip string, local bool, maxdur float64, txtQCount int64, untrustedACC int64, src bool, blacklisted bool, newFlag bool) update {
 	var output update
 
 	// create query
@@ -147,7 +152,7 @@ func standardQuery(ip string, local bool, maxdur float64, txtQCount int64, untru
 			"ipv4_binary": ipv4ToBinary(net.ParseIP(ip)),
 		},
 
-		"$set": bson.M{"blacklisted": blacklisted},
+		"$set": bson.M{"blacklisted": blacklisted, "cid": chunk},
 	}
 
 	if newFlag {
@@ -157,27 +162,28 @@ func standardQuery(ip string, local bool, maxdur float64, txtQCount int64, untru
 					"count_src":       1,
 					"txt_query_count": txtQCount,
 					"upps_count":      untrustedACC,
-					"cid":             0,
 					"max_duration":    maxdur,
+					"cid":             chunk,
 				}}
 		} else {
 			query["$push"] = bson.M{
 				"dat": bson.M{
 					"count_dst": 1,
+					"cid":       chunk,
 				}}
 		}
 
 	} else {
 		if src {
 			query["$inc"] = bson.M{
-				"dat.0.count_src":       1,
-				"dat.0.txt_query_count": txtQCount,
-				"dat.0.upps_count":      untrustedACC,
+				"dat." + chunkStr + ".count_src":       1,
+				"dat." + chunkStr + ".txt_query_count": txtQCount,
+				"dat." + chunkStr + ".upps_count":      untrustedACC,
 			}
 		} else {
-			query["$inc"] = bson.M{"dat.0.count_dst": 1}
+			query["$inc"] = bson.M{"dat." + chunkStr + ".count_dst": 1}
 		}
-		query["$max"] = bson.M{"dat.0.max_duration": maxdur}
+		query["$max"] = bson.M{"dat." + chunkStr + ".max_duration": maxdur}
 	}
 
 	// create selector for output
@@ -190,7 +196,7 @@ func standardQuery(ip string, local bool, maxdur float64, txtQCount int64, untru
 //hasBlacklistedQuery ...
 // If the internal system initiated the connection, then bl_out_count
 // holds the number of unique blacklisted IPs the given host contacted.
-func hasBlacklistedDstQuery(data *uconn.Pair, blacklisted bool, newFlag bool) update {
+func hasBlacklistedDstQuery(chunk int, chunkStr string, data *uconn.Pair, blacklisted bool, newFlag bool) update {
 
 	var output update
 
@@ -200,7 +206,7 @@ func hasBlacklistedDstQuery(data *uconn.Pair, blacklisted bool, newFlag bool) up
 			"local":       data.IsLocalSrc,
 			"ipv4_binary": ipv4ToBinary(net.ParseIP(data.Src)),
 		},
-		"$set": bson.M{"blacklisted": blacklisted},
+		"$set": bson.M{"blacklisted": blacklisted, "cid": chunk},
 	}
 
 	if newFlag {
@@ -212,20 +218,20 @@ func hasBlacklistedDstQuery(data *uconn.Pair, blacklisted bool, newFlag bool) up
 				"bl_total_bytes":  data.TotalBytes,
 				"txt_query_count": data.TXTQueryCount,
 				"upps_count":      data.UntrustedAppConnCount,
-				"cid":             0,
+				"cid":             chunk,
 				"max_duration":    data.MaxDuration,
 			}}
 
 	} else {
 
 		query["$inc"] = bson.M{
-			"dat.0.count_src":       1,
-			"dat.0.bl_out_count":    data.ConnectionCount,
-			"dat.0.bl_total_bytes":  data.TotalBytes,
-			"dat.0.txt_query_count": data.TXTQueryCount,
-			"dat.0.upps_count":      data.UntrustedAppConnCount,
+			"dat." + chunkStr + ".count_src":       1,
+			"dat." + chunkStr + ".bl_out_count":    data.ConnectionCount,
+			"dat." + chunkStr + ".bl_total_bytes":  data.TotalBytes,
+			"dat." + chunkStr + ".txt_query_count": data.TXTQueryCount,
+			"dat." + chunkStr + ".upps_count":      data.UntrustedAppConnCount,
 		}
-		query["$max"] = bson.M{"dat.0.max_duration": data.MaxDuration}
+		query["$max"] = bson.M{"dat." + chunkStr + ".max_duration": data.MaxDuration}
 	}
 
 	// create selector for output
@@ -239,7 +245,7 @@ func hasBlacklistedDstQuery(data *uconn.Pair, blacklisted bool, newFlag bool) up
 // If the blacklisted IP initiated the connection, then bl_in_count
 // holds the number of unique IPs connected to the given
 // host.
-func hasBlacklistedSrcQuery(data *uconn.Pair, blacklisted bool, newFlag bool) update {
+func hasBlacklistedSrcQuery(chunk int, chunkStr string, data *uconn.Pair, blacklisted bool, newFlag bool) update {
 	var output update
 
 	// create query
@@ -248,7 +254,7 @@ func hasBlacklistedSrcQuery(data *uconn.Pair, blacklisted bool, newFlag bool) up
 			"local":       data.IsLocalDst,
 			"ipv4_binary": ipv4ToBinary(net.ParseIP(data.Dst)),
 		},
-		"$set": bson.M{"blacklisted": blacklisted},
+		"$set": bson.M{"blacklisted": blacklisted, "cid": chunk},
 	}
 
 	if newFlag {
@@ -258,18 +264,18 @@ func hasBlacklistedSrcQuery(data *uconn.Pair, blacklisted bool, newFlag bool) up
 				"count_dst":      1,
 				"bl_in_count":    data.ConnectionCount,
 				"bl_total_bytes": data.TotalBytes,
-				"cid":            0,
 				"max_duration":   data.MaxDuration,
+				"cid":            chunk,
 			}}
 
 	} else {
 
 		query["$inc"] = bson.M{
-			"dat.0.count_dst":      1,
-			"dat.0.bl_in_count":    data.ConnectionCount,
-			"dat.0.bl_total_bytes": data.TotalBytes,
+			"dat." + chunkStr + ".count_dst":      1,
+			"dat." + chunkStr + ".bl_in_count":    data.ConnectionCount,
+			"dat." + chunkStr + ".bl_total_bytes": data.TotalBytes,
 		}
-		query["$max"] = bson.M{"dat.0.max_duration": data.MaxDuration}
+		query["$max"] = bson.M{"dat." + chunkStr + ".max_duration": data.MaxDuration}
 	}
 
 	// create selector for output

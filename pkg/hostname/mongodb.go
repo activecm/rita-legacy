@@ -61,6 +61,7 @@ func (r *repo) Upsert(hostnameMap map[string][]string) {
 	writerWorker := newWriter(r.res.Config.T.DNS.HostnamesTable, r.res.DB, r.res.Config)
 
 	analyzerWorker := newAnalyzer(
+		r.res.Config.S.Bro.CurrentChunk,
 		r.res.DB,
 		r.res.Config,
 		writerWorker.collect,

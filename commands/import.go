@@ -23,67 +23,151 @@ func init() {
 		Flags: []cli.Flag{
 			threadFlag,
 			configFlag,
+			rollingFlag,
+			totalChunksFlag,
+			currentChunkFlag,
 		},
 		Action: func(c *cli.Context) error {
-			r := doImport(c)
+			importer := NewImporter(c)
+			err := importer.run()
 			fmt.Printf(updateCheck(c.String("config")))
-			return r
+			return err
 		},
 	}
 
 	bootstrapCommands(importCommand)
 }
 
-// doImport runs the importer
-func doImport(c *cli.Context) error {
-	res := resources.InitResources(c.String("config"))
-	importDir := c.Args().Get(0)
-	targetDatabase := c.Args().Get(1)
+type (
+	//Importer ...
+	Importer struct {
+		res            *resources.Resources
+		configFile     string
+		importDir      string
+		targetDatabase string
+		rolling        bool
+		totalChunks    int
+		currentChunk   int
+		threads        int
+	}
+)
+
+//NewImporter ....
+func NewImporter(c *cli.Context) *Importer {
+	return &Importer{
+		configFile:     c.String("config"),
+		importDir:      c.Args().Get(0),
+		targetDatabase: c.Args().Get(1),
+		rolling:        c.Bool("rolling"),
+		totalChunks:    c.Int("numchunks"),
+		currentChunk:   c.Int("chunk"),
+		threads:        util.Max(c.Int("threads")/2, 1),
+	}
+}
+
+func (i *Importer) parseArgs() error {
 
 	//check if one argument is set but not the other
-	if importDir != "" && targetDatabase == "" ||
-		importDir == "" && targetDatabase != "" {
-		return cli.NewExitError("Both <directory to import> and <database prefix> are required to override the config file.", -1)
+	if i.importDir == "" || i.targetDatabase == "" {
+		return cli.NewExitError("Both <directory to import> and <database prefix> are required.", -1)
 	}
 
+	if i.rolling {
+		if (i.totalChunks == -1) || (i.currentChunk == -1) {
+			return cli.NewExitError("Both `--numchunks <total number of chunks>` and `--chunk <current chunk number>` must be provided for rolling analysis import.", -1)
+		}
+		if !(i.totalChunks > 0) {
+			return cli.NewExitError("Total number of chunks must be between 1 and 24", -1)
+		}
+		if !(i.currentChunk > 0) || (i.currentChunk > i.totalChunks) {
+			return cli.NewExitError("Current chunk number must be <= (total number of chunks)", -1)
+		}
+	}
+
+	i.res = resources.InitResources(i.configFile)
+
+	return nil
+}
+
+func (i *Importer) setTargetDatabase() error {
 	// get all database names
-	names, _ := res.DB.Session.DatabaseNames()
+	names, _ := i.res.DB.Session.DatabaseNames()
 
 	// check if database exists
-	dbExists := util.StringInSlice(targetDatabase, names)
+	dbExists := util.StringInSlice(i.targetDatabase, names)
 
 	// Add new metadatabase record for db if doesn't already exist
 	if !dbExists {
-		err := res.MetaDB.AddNewDB(targetDatabase)
+		err := i.res.MetaDB.AddNewDB(i.targetDatabase)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
 	}
 
-	// set target database in resources
-	res.DB.SelectDB(targetDatabase)
+	i.res.DB.SelectDB(i.targetDatabase)
+	i.res.Config.S.Bro.DBRoot = i.targetDatabase
 
-	//check if the user overrode the config file
-	if importDir != "" && targetDatabase != "" {
-		//expand relative path
-		//nolint: vetshadow
-		importDir, err := filepath.Abs(importDir)
-		if err != nil {
-			return cli.NewExitError(err.Error(), -1)
-		}
+	return nil
+}
 
-		res.Config.S.Bro.ImportDirectory = importDir
-		res.Config.S.Bro.DBRoot = targetDatabase
+func (i *Importer) setImportDirectory() error {
+	var err error
+	i.importDir, err = filepath.Abs(i.importDir)
+	if err != nil {
+		return cli.NewExitError(err.Error(), -1)
+	}
+	i.res.Config.S.Bro.ImportDirectory = i.importDir
+	return nil
+}
+
+func (i *Importer) setRolling() error {
+	if i.rolling {
+		i.res.Config.S.Bro.Rolling = true
+		i.res.Config.S.Bro.TotalChunks = i.totalChunks
+		i.res.Config.S.Bro.CurrentChunk = i.currentChunk - 1
+	} else {
+		i.res.Config.S.Bro.Rolling = false
+		i.res.Config.S.Bro.TotalChunks = 1
+		i.res.Config.S.Bro.CurrentChunk = 0
 	}
 
-	res.Log.Infof("Importing %s\n", res.Config.S.Bro.ImportDirectory)
-	fmt.Println("[+] Importing " + res.Config.S.Bro.ImportDirectory)
-	threads := util.Max(c.Int("threads")/2, 1)
-	importer := parser.NewFSImporter(res, threads, threads)
-	datastore := parser.NewMongoDatastore(res.DB.Session, res.MetaDB,
-		res.Config.S.Bro.ImportBuffer, res.Log)
+	return nil
+}
+
+// run runs the importer
+func (i *Importer) run() error {
+	// verify command line arguments
+	err := i.parseArgs()
+	if err != nil {
+		return err
+	}
+
+	// set up target database
+	err = i.setTargetDatabase()
+	if err != nil {
+		return err
+	}
+
+	err = i.setImportDirectory()
+	if err != nil {
+		return err
+	}
+
+	err = i.setRolling()
+	if err != nil {
+		return err
+	}
+
+	i.res.Log.Infof("Importing %s\n", i.res.Config.S.Bro.ImportDirectory)
+	fmt.Println("[+] Importing " + i.res.Config.S.Bro.ImportDirectory)
+
+	importer := parser.NewFSImporter(i.res, i.threads, i.threads)
+	datastore := parser.NewMongoDatastore(i.res.DB.Session, i.res.MetaDB,
+		i.res.Config.S.Bro.ImportBuffer, i.res.Log)
+
 	importer.Run(datastore)
-	res.Log.Infof("Finished importing %s\n", res.Config.S.Bro.ImportDirectory)
+
+	i.res.Log.Infof("Finished importing %s\n", i.res.Config.S.Bro.ImportDirectory)
 
 	return nil
 }

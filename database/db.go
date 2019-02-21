@@ -192,31 +192,3 @@ func (d *DB) AggregateCollection(sourceCollection string,
 	}
 	return iter
 }
-
-//MapReduceCollection builds collections via javascript map reduce jobs
-func (d *DB) MapReduceCollection(sourceCollection string, job mgo.MapReduce) bool {
-	// Make a copy of the current session
-	session := d.Session.Copy()
-	defer session.Close()
-
-	// Identify the source collection we will aggregate information from into the new collection
-	if !d.CollectionExists(sourceCollection) {
-		d.log.Warning("Failed map reduce: (Source collection: ", sourceCollection, " doesn't exist)")
-		return false
-	}
-	collection := session.DB(d.selected).C(sourceCollection)
-
-	// Map reduce that shit
-	_, err := collection.Find(nil).MapReduce(&job, nil)
-
-	// If error, Throw computer against wall and drink 2 angry beers while
-	// questioning your life, purpose, and relationships.
-	if err != nil {
-		d.log.WithFields(log.Fields{
-			"error": err.Error(),
-		}).Error("Failed map reduce")
-		return false
-	}
-
-	return true
-}
