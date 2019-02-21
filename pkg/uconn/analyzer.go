@@ -1,6 +1,7 @@
 package uconn
 
 import (
+	"strconv"
 	"sync"
 
 	"github.com/globalsign/mgo/bson"
@@ -9,6 +10,8 @@ import (
 type (
 	//analyzer : structure for exploded dns analysis
 	analyzer struct {
+		chunk            int            //current chunk (0 if not on rolling analysis)
+		chunkStr         string         //current chunk (0 if not on rolling analysis)
 		connLimit        int64          // limit for strobe classification
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
@@ -18,8 +21,10 @@ type (
 )
 
 //newAnalyzer creates a new collector for parsing hostnames
-func newAnalyzer(connLimit int64, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, connLimit int64, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
+		chunk:            chunk,
+		chunkStr:         strconv.Itoa(chunk),
 		connLimit:        connLimit,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
@@ -66,7 +71,7 @@ func (a *analyzer) start() {
 			// it will not qualify to be downgraded to a beacon until this chunk is
 			// outdated and removed. If only importing once - still just a strobe.
 			if data.ConnectionCount >= a.connLimit {
-				query["$set"] = bson.M{"strobe": true}
+				query["$set"] = bson.M{"strobe": true, "cid": a.chunk}
 				query["$push"] = bson.M{
 					"dat": bson.M{
 						"count":  data.ConnectionCount,
@@ -74,6 +79,7 @@ func (a *analyzer) start() {
 						"ts":     []interface{}{},
 						"maxdur": data.MaxDuration,
 						"tbytes": data.TotalBytes,
+						"cid":    a.chunk,
 					},
 				}
 			} else {
@@ -84,8 +90,10 @@ func (a *analyzer) start() {
 						"ts":     data.TsList,
 						"maxdur": data.MaxDuration,
 						"tbytes": data.TotalBytes,
+						"cid":    a.chunk,
 					},
 				}
+				query["$set"] = bson.M{"cid": a.chunk}
 			}
 
 			// assign formatted query to output

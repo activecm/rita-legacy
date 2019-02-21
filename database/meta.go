@@ -170,7 +170,7 @@ func (m *MetaDB) MarkDBImported(name string, complete bool) error {
 			"database_requested": name,
 			"_id":                dbr.ID.Hex,
 			"error":              err.Error(),
-		}).Error("could not update database entry in meta")
+		}).Error("could not update database entry as imported in metadatabase")
 		return err
 	}
 	return nil
@@ -184,7 +184,7 @@ func (m *MetaDB) AddTSRange(name string, min int64, max int64) error {
 		m.log.WithFields(log.Fields{
 			"database_requested": name,
 			"error":              err.Error(),
-		}).Error("database not found in metadata directory")
+		}).Error("Could not add timestamp range: database not found in metadata directory")
 		return err
 	}
 
@@ -210,7 +210,7 @@ func (m *MetaDB) AddTSRange(name string, min int64, max int64) error {
 			"database_requested": name,
 			"_id":                dbr.ID.Hex,
 			"error":              err.Error(),
-		}).Error("could not update database entry in meta")
+		}).Error("Could not update timestamp range for database entry in metadatabase")
 		return err
 	}
 	return nil

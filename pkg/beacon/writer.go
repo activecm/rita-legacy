@@ -72,7 +72,7 @@ func (w *writer) start() {
 					fmt.Println(err)
 				}
 
-				//delete the record
+				//delete the record (no longer a beacon - its a strobe)
 				_, err = ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).RemoveAll(data.uconn.selector)
 				if err != nil {
 					fmt.Println(err)

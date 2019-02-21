@@ -2,18 +2,13 @@ package parser
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net"
 	"os"
-	"path"
 	"reflect"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/pkg/blacklist"
@@ -32,6 +27,9 @@ type (
 	//FSImporter provides the ability to import bro files from the file system
 	FSImporter struct {
 		res             *resources.Resources
+		rolling         bool
+		totalChunks     int
+		currentChunk    int
 		indexingThreads int
 		parseThreads    int
 		internal        []*net.IPNet
@@ -52,6 +50,9 @@ func NewFSImporter(res *resources.Resources,
 	indexingThreads int, parseThreads int) *FSImporter {
 	return &FSImporter{
 		res:             res,
+		rolling:         res.Config.S.Bro.Rolling,
+		totalChunks:     res.Config.S.Bro.TotalChunks,
+		currentChunk:    res.Config.S.Bro.CurrentChunk,
 		indexingThreads: indexingThreads,
 		parseThreads:    parseThreads,
 		internal:        getParsedSubnets(res.Config.S.Filtering.InternalSubnets),
@@ -80,9 +81,16 @@ func (fs *FSImporter) Run(datastore Datastore) {
 		},
 	).Info("Starting filesystem import. Collecting file details.")
 
-	fmt.Println("\t[-] Finding files to parse ... ")
-	//find all of the bro log paths
-	files := readDir(fs.res.Config.S.Bro.ImportDirectory, fs.res.Log)
+	var files []string
+	//find all of the potential bro log paths
+	if fs.rolling {
+		fmt.Println("\t[-] Finding next CHUNK'S files to parse ... ")
+		files = readDirRolling(fs.currentChunk, fs.totalChunks, fs.res.Config.S.Bro.ImportDirectory, fs.res.Log)
+	} else {
+		fmt.Println("\t[-] Finding files to parse ... ")
+		files = readDir(fs.res.Config.S.Bro.ImportDirectory, fs.res.Log)
+
+	}
 
 	//hash the files and get their stats
 	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res.Config, fs.res.Log)
@@ -172,67 +180,6 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	fmt.Println("\t[-] Done!")
 }
 
-// readDir recursively reads the directory looking for log and .gz files
-func readDir(cpath string, logger *log.Logger) []string {
-	var toReturn []string
-	files, err := ioutil.ReadDir(cpath)
-	if err != nil {
-		logger.WithFields(log.Fields{
-			"error": err.Error(),
-			"path":  cpath,
-		}).Error("Error when reading directory")
-	}
-
-	for _, file := range files {
-		// Stop RITA from following symlinks
-		// In the case that RITA is pointed directly at Bro, it should not
-		// parse the "current" symlink which points to the spool.
-		if file.IsDir() && file.Mode() != os.ModeSymlink {
-			toReturn = append(toReturn, readDir(path.Join(cpath, file.Name()), logger)...)
-		}
-		if strings.HasSuffix(file.Name(), "gz") ||
-			strings.HasSuffix(file.Name(), "log") {
-			toReturn = append(toReturn, path.Join(cpath, file.Name()))
-		}
-	}
-	return toReturn
-}
-
-//indexFiles takes in a list of bro files, a number of threads, and parses
-//some metadata out of the files
-func indexFiles(files []string, indexingThreads int,
-	cfg *config.Config, logger *log.Logger) []*fpt.IndexedFile {
-	n := len(files)
-	output := make([]*fpt.IndexedFile, n)
-	indexingWG := new(sync.WaitGroup)
-
-	for i := 0; i < indexingThreads; i++ {
-		indexingWG.Add(1)
-
-		go func(files []string, indexedFiles []*fpt.IndexedFile,
-			sysConf *config.Config, logger *log.Logger,
-			wg *sync.WaitGroup, start int, jump int, length int) {
-
-			for j := start; j < length; j += jump {
-				indexedFile, err := newIndexedFile(files[j], cfg, logger)
-				if err != nil {
-					logger.WithFields(log.Fields{
-						"file":  files[j],
-						"error": err.Error(),
-					}).Warning("An error was encountered while indexing a file")
-					//errored on files will be nil
-					continue
-				}
-				indexedFiles[j] = indexedFile
-			}
-			wg.Done()
-		}(files, output, cfg, logger, indexingWG, i, indexingThreads, n)
-	}
-
-	indexingWG.Wait()
-	return output
-}
-
 //parseFiles takes in a list of indexed bro files, the number of
 //threads to use to parse the files, whether or not to sort data by date,
 //a MongoDB datastore object to store the bro data in, and a logger to report
@@ -283,7 +230,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						"error": err.Error(),
 					}).Error("Could not read from the file")
 				}
-				fmt.Printf("\r\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
+				fmt.Println("\t[-] Parsing " + indexedFiles[j].Path + " -> " + indexedFiles[j].TargetDatabase)
 
 				// This loops through every line of the file
 				for fileScanner.Scan() {
@@ -743,54 +690,6 @@ func (fs *FSImporter) updateTimestampRange() {
 		}).Error("Could not set ts range in metadatabase: ", err)
 	}
 
-}
-
-//removeOldFilesFromIndex checks all indexedFiles passed in to ensure
-//that they have not previously been imported into the same database.
-//The files are compared based on their hashes (md5 of first 15000 bytes)
-//and the database they are slated to be imported into.
-func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
-	metaDatabase *database.MetaDB, logger *log.Logger) []*fpt.IndexedFile {
-	var toReturn []*fpt.IndexedFile
-	oldFiles, err := metaDatabase.GetFiles()
-	if err != nil {
-		logger.WithFields(log.Fields{
-			"error": err.Error(),
-		}).Error("Could not obtain a list of previously parsed files")
-	}
-	//NOTE: This can be improved to n log n if we need to
-	for _, newFile := range indexedFiles {
-		if newFile == nil {
-			//this file was errored on earlier, i.e. we didn't find a tgtDB etc.
-			continue
-		}
-
-		have := false
-		for _, oldFile := range oldFiles {
-			if oldFile.Hash == newFile.Hash && oldFile.TargetDatabase == newFile.TargetDatabase {
-				logger.WithFields(log.Fields{
-					"path":            newFile.Path,
-					"target_database": newFile.TargetDatabase,
-				}).Warning("Refusing to import file into the same database twice")
-				have = true
-				break
-			}
-		}
-
-		if !have {
-			toReturn = append(toReturn, newFile)
-		}
-	}
-	return toReturn
-}
-
-//updateFilesIndex updates the files collection in the metaDB with the newly parsed files
-func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.MetaDB,
-	logger *log.Logger) {
-	err := metaDatabase.AddParsedFiles(indexedFiles)
-	if err != nil {
-		logger.Error("Could not update the list of parsed files")
-	}
 }
 
 //stringInSlice ...

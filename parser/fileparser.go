@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"compress/gzip"
 	"errors"
+	"io/ioutil"
 	"os"
+	"path"
 	"reflect"
 	"strconv"
 	"strings"
@@ -14,6 +16,98 @@ import (
 	pt "github.com/activecm/rita/parser/parsetypes"
 	log "github.com/sirupsen/logrus"
 )
+
+// readDir recursively reads the directory looking for log and .gz files
+func readDir(cpath string, logger *log.Logger) []string {
+	var toReturn []string
+	files, err := ioutil.ReadDir(cpath)
+	if err != nil {
+		logger.WithFields(log.Fields{
+			"error": err.Error(),
+			"path":  cpath,
+		}).Error("Error when reading directory")
+	}
+
+	for _, file := range files {
+		// Stop RITA from following symlinks
+		// In the case that RITA is pointed directly at Bro, it should not
+		// parse the "current" symlink which points to the spool.
+		if file.IsDir() && file.Mode() != os.ModeSymlink {
+			toReturn = append(toReturn, readDir(path.Join(cpath, file.Name()), logger)...)
+		}
+		if strings.HasSuffix(file.Name(), "gz") ||
+			strings.HasSuffix(file.Name(), "log") {
+			toReturn = append(toReturn, path.Join(cpath, file.Name()))
+		}
+	}
+	return toReturn
+}
+
+// readDirRolling recursively reads the directory looking for log and .gz files
+// that match the timestamps of the associated chunk
+func readDirRolling(currentChunk int, totalChunks int, cpath string, logger *log.Logger) []string {
+	var toReturn []string
+	files, err := ioutil.ReadDir(cpath)
+	if err != nil {
+		logger.WithFields(log.Fields{
+			"error": err.Error(),
+			"path":  cpath,
+		}).Error("Error when reading directory")
+	}
+
+	frequency := 24 / totalChunks
+
+	startChunk := int64(currentChunk * frequency)
+	endChunk := startChunk + int64(frequency)
+
+	for _, file := range files {
+		// Stop RITA from following symlinks
+		// In the case that RITA is pointed directly at Bro, it should not
+		// parse the "current" symlink which points to the spool.
+		// if file.IsDir() && file.Mode() != os.ModeSymlink {
+		// 	toReturn = append(toReturn, readDir(path.Join(cpath, file.Name()), logger)...)
+		// }
+		if strings.HasSuffix(file.Name(), "log.gz") {
+			fileName := strings.TrimSuffix(file.Name(), ".log.gz")
+			split := strings.Split(fileName, ".")
+			ts := split[len(split)-1]
+			ts = strings.Replace(ts, "-", ":", 1)
+			split2 := strings.Split(ts, ":")
+			ts1, _ := strconv.ParseInt(split2[0], 10, 32)
+			ts2, _ := strconv.ParseInt(split2[3], 10, 32)
+
+			if endChunk == 24 && ts1 == 23 && ts2 == 0 {
+				ts2 = 24
+			}
+
+			if (ts1 >= startChunk) && (ts1 < endChunk) &&
+				(ts2 > startChunk) && (ts2 <= endChunk) {
+				// fmt.Println(file.Name())
+				toReturn = append(toReturn, path.Join(cpath, file.Name()))
+			}
+
+		} else if strings.HasSuffix(file.Name(), "log") {
+			fileName := strings.TrimSuffix(file.Name(), ".log.gz")
+			split := strings.Split(fileName, ".")
+			ts := split[len(split)-1]
+			ts = strings.Replace(ts, "-", ":", 1)
+			split2 := strings.Split(ts, ":")
+			ts1, _ := strconv.ParseInt(split2[0], 10, 32)
+			ts2, _ := strconv.ParseInt(split2[3], 10, 32)
+
+			if endChunk == 24 && ts1 == 23 && ts2 == 0 {
+				ts2 = 24
+			}
+
+			if (ts1 >= startChunk) && (ts1 < endChunk) &&
+				(ts2 > startChunk) && (ts2 <= endChunk) {
+				// fmt.Println(file.Name())
+				toReturn = append(toReturn, path.Join(cpath, file.Name()))
+			}
+		}
+	}
+	return toReturn
+}
 
 // getFileScanner returns a buffered file scanner for a bro log file
 func getFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {

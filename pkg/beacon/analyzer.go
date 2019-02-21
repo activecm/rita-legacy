@@ -3,6 +3,7 @@ package beacon
 import (
 	"math"
 	"sort"
+	"strconv"
 	"sync"
 
 	"github.com/activecm/rita/config"
@@ -14,6 +15,8 @@ import (
 
 type (
 	analyzer struct {
+		chunk            int              //current chunk (0 if not on rolling analysis)
+		chunkStr         string           //current chunk (0 if not on rolling analysis)
 		db               *database.DB     // provides access to MongoDB
 		conf             *config.Config   // contains details needed to access MongoDB
 		analyzedCallback func(*update)    // called on each analyzed result
@@ -24,8 +27,10 @@ type (
 )
 
 //newAnalyzer creates a new collector for gathering data
-func newAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(*update), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(*update), closedCallback func()) *analyzer {
 	return &analyzer{
+		chunk:            chunk,
+		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
@@ -75,14 +80,6 @@ func (a *analyzer) start() {
 				a.analyzedCallback(output)
 
 			} else {
-
-				//sort the size and timestamps since they may have arrived out of order
-				sort.Sort(util.SortableInt64(res.TsList))
-				sort.Sort(util.SortableInt64(res.OrigBytesList))
-
-				//remove subsecond communications
-				//these will appear as beacons if we do not remove them
-				res.TsList = removeConsecutiveDuplicates(res.TsList)
 
 				//store the diff slice length since we use it a lot
 				//for timestamps this is one less then the data slice length
@@ -213,6 +210,7 @@ func (a *analyzer) start() {
 							"ds.skew":            dsSkew,
 							"ds.score":           dsScore,
 							"score":              score,
+							"cid":                a.chunk,
 						},
 					},
 					selector: bson.M{"src": res.Src, "dst": res.Dst},
@@ -221,7 +219,7 @@ func (a *analyzer) start() {
 				output.host = updateInfo{
 					// update hosts record
 					query: bson.M{
-						"$max": bson.M{"dat.0.max_beacon_score": score},
+						"$max": bson.M{"dat." + a.chunkStr + ".max_beacon_score": score},
 					},
 					// create selector for output
 					selector: bson.M{"ip": res.Src},
@@ -254,45 +252,4 @@ func createCountMap(sortedIn []int64) ([]int64, []int64, int64, int64) {
 		}
 	}
 	return distinct, countsArr, mode, max
-}
-
-//CountAndRemoveConsecutiveDuplicates removes consecutive
-//duplicates in an array of integers and counts how many
-//instances of each number exist in the array.
-//Similar to `uniq -c`, but counts all duplicates, not just
-//consecutive duplicates.
-func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64]int64) {
-	//Avoid some reallocations
-	result := make([]int64, 0, len(numberList)/2)
-	counts := make(map[int64]int64)
-
-	last := numberList[0]
-	result = append(result, last)
-	counts[last]++
-
-	for idx := 1; idx < len(numberList); idx++ {
-		if last != numberList[idx] {
-			result = append(result, numberList[idx])
-		}
-		last = numberList[idx]
-		counts[last]++
-	}
-	return result, counts
-}
-
-//removeConsecutiveDuplicates removes consecutive duplicates
-func removeConsecutiveDuplicates(numberList []int64) []int64 {
-	//Avoid some reallocations
-	result := make([]int64, 0, len(numberList)/2)
-	last := numberList[0]
-	result = append(result, last)
-
-	for idx := 1; idx < len(numberList); idx++ {
-		if last != numberList[idx] {
-			result = append(result, numberList[idx])
-		}
-		last = numberList[idx]
-	}
-	return result
-
 }

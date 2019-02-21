@@ -1,6 +1,7 @@
 package explodeddns
 
 import (
+	"strconv"
 	"strings"
 	"sync"
 
@@ -12,6 +13,8 @@ import (
 type (
 	//analyzer : structure for exploded dns analysis
 	analyzer struct {
+		chunk            int            //current chunk (0 if not on rolling analysis)
+		chunkStr         string         //current chunk (0 if not on rolling analysis)
 		db               *database.DB   // provides access to MongoDB
 		conf             *config.Config // contains details needed to access MongoDB
 		analyzedCallback func(update)   // called on each analyzed result
@@ -22,8 +25,10 @@ type (
 )
 
 //newAnalyzer creates a new collector for parsing subdomains
-func newAnalyzer(db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
+		chunk:            chunk,
+		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
@@ -87,17 +92,25 @@ func (a *analyzer) start() {
 					break
 				}
 
-				var res2 []interface{}
+				var res2 []dns
 
 				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.ExplodedDNSTable).Find(bson.M{"domain": entry}).All(&res2)
 
-				if !(len(res2) > 0) {
+				// if this is a brand NEW domain string and isn't in the exploded dns table:
+				if len(res2) <= 0 {
+
 					// set up writer output
 					var output update
 
 					output.query = bson.M{
-						"$push": bson.M{"dat": bson.M{"visited": data.count}},
-						"$inc":  bson.M{"subdomain_count": 1},
+						"$push": bson.M{"dat": bson.M{
+							"visited": data.count,
+							"cid":     a.chunk,
+						}},
+						"$set": bson.M{
+							"subdomain_count": 1,
+							"cid":             a.chunk,
+						},
 					}
 
 					// create selector for output
@@ -105,18 +118,65 @@ func (a *analyzer) start() {
 
 					// set to writer channel
 					a.analyzedCallback(output)
+
+					// if this domain string is already EXISTING in the exploded dns table:
 				} else {
+
+					// set last updated value
+					lastUpdated := res2[0].CID
+
 					// set up writer output
 					var output update
 
-					if alreadyCountedSubsFlag {
-						output.query = bson.M{ // will be updated in future with chunk number
-							"$inc": bson.M{"dat.0.visited": data.count},
+					// we need to find out if we can push to an existing chunk that was
+					// created in the current import or if the last update was before this,
+					// meaning we need to create a new chunk and push it in.
+					if lastUpdated == a.chunk {
+
+						// this means, if the full domain is already in the hostnames table,
+						// we've parsed it in on a previous rita import and should not add to the
+						// subdomain count, only the visited count as the subdomain count is unique
+						if alreadyCountedSubsFlag {
+							output.query = bson.M{
+								"$inc": bson.M{"dat." + a.chunkStr + ".visited": data.count},
+								"$set": bson.M{"cid": a.chunk},
+							}
+						} else {
+							output.query = bson.M{
+								"$inc": bson.M{
+									"subdomain_count":                1,
+									"dat." + a.chunkStr + ".visited": data.count,
+								},
+								"$set": bson.M{"cid": a.chunk},
+							}
 						}
-					} else {
-						output.query = bson.M{ // will be updated in future with chunk number
-							"$inc": bson.M{"subdomain_count": 1, "dat.0.visited": data.count},
+
+					} else { // chunk is outdated, need to make a new one
+
+						// this means, if the full domain is already in the hostnames table,
+						// we've parsed it in on a previous rita import and should not add to the
+						// subdomain count, only the visited count as the subdomain count is unique
+						if alreadyCountedSubsFlag {
+							output.query = bson.M{
+								"$push": bson.M{"dat": bson.M{
+									"visited": data.count,
+									"cid":     a.chunk,
+								}},
+								"$set": bson.M{"cid": a.chunk},
+							}
+						} else {
+							output.query = bson.M{
+								"$inc": bson.M{
+									"subdomain_count": 1,
+								},
+								"$push": bson.M{"dat": bson.M{
+									"visited": data.count,
+									"cid":     a.chunk,
+								}},
+								"$set": bson.M{"cid": a.chunk},
+							}
 						}
+
 					}
 
 					// create selector for output

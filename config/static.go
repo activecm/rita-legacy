@@ -57,6 +57,9 @@ type (
 		DBRoot          string `yaml:"DBRoot" default:"RITA"`
 		MetaDB          string `yaml:"MetaDB" default:"MetaDatabase"`
 		ImportBuffer    int    `yaml:"ImportBuffer" default:"30000"`
+		Rolling         bool
+		TotalChunks     int
+		CurrentChunk    int
 	}
 
 	//UserCfgStaticCfg contains

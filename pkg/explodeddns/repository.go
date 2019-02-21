@@ -20,6 +20,13 @@ type domain struct {
 }
 
 // AnalysisView (for reporting)
+type dns struct {
+	Domain         string `bson:"domain"`
+	SubdomainCount int64  `bson:"subdomain_count"`
+	CID            int    `bson:"cid"`
+}
+
+// AnalysisView (for reporting)
 type AnalysisView struct {
 	Domain         string `bson:"domain"`
 	SubdomainCount int64  `bson:"subdomain_count"`
