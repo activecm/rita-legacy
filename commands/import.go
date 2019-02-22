@@ -70,19 +70,31 @@ func (i *Importer) parseArgs() error {
 
 	//check if one argument is set but not the other
 	if i.importDir == "" || i.targetDatabase == "" {
-		return cli.NewExitError("Both <directory to import> and <database prefix> are required.", -1)
+		return cli.NewExitError("\n\t[!] Both <directory to import> and <database prefix> are required.", -1)
 	}
 
+	// check if rolling flag was passed in
 	if i.rolling {
+
+		// verify that required flag values were provided
 		if (i.totalChunks == -1) || (i.currentChunk == -1) {
-			return cli.NewExitError("Both `--numchunks <total number of chunks>` and `--chunk <current chunk number>` must be provided for rolling analysis import.", -1)
+			return cli.NewExitError("\n\t[!] Both `--numchunks <total number of chunks>` and `--chunk <current chunk number>` must be provided for rolling analysis import.", -1)
 		}
+
+		// verifies the chunk is a divisor of 24 (we currently support 24 hour's worth of data in a rolling dataset)
 		if !(i.totalChunks > 0) || ((24 % i.totalChunks) != 0) {
-			return cli.NewExitError("Total number of chunks must be a divisor of 24 (Valid chunk sizes: 1, 2, 4, 6, 8, 12)", -1)
+			return cli.NewExitError("\n\t[!] Total number of chunks must be a divisor of 24 (Valid chunk sizes: 1, 2, 4, 6, 8, 12)", -1)
 		}
-		if !(i.currentChunk > 0) || (i.currentChunk > i.totalChunks) {
-			return cli.NewExitError("Current chunk number cannot be greater than the total number of chunks", -1)
+
+		// validate chunk size
+		if !(i.currentChunk > 0) {
+			return cli.NewExitError("\n\t[!] Current chunk number must be greater than 0", -1)
 		}
+
+		if i.currentChunk > i.totalChunks {
+			return cli.NewExitError("\n\t[!] Current chunk number cannot be greater than the total number of chunks", -1)
+		}
+
 	}
 
 	i.res = resources.InitResources(i.configFile)
@@ -101,7 +113,7 @@ func (i *Importer) setTargetDatabase() error {
 	if !dbExists {
 		err := i.res.MetaDB.AddNewDB(i.targetDatabase)
 		if err != nil {
-			return cli.NewExitError(err.Error(), -1)
+			return cli.NewExitError(fmt.Errorf("\n\t[!] %v", err.Error()), -1)
 		}
 	}
 
@@ -121,7 +133,7 @@ func (i *Importer) setImportDirectory() error {
 
 	// check if directory exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return cli.NewExitError(err.Error(), -1)
+		return cli.NewExitError(fmt.Errorf("\n\t[!] %v", err.Error()), -1)
 	}
 
 	// assign import directory
@@ -131,10 +143,19 @@ func (i *Importer) setImportDirectory() error {
 
 func (i *Importer) setRolling() error {
 	if i.rolling {
+		// verify that numchunks matches originally set value if database was already
+		// set as a rolling database in previous imports
+		err := i.res.MetaDB.VerifyIfAlreadyRollingDB(i.targetDatabase, i.totalChunks, i.currentChunk)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("\n\t[!] %v", err.Error()), -1)
+		}
+
+		// set stuff if no errors
 		i.res.Config.S.Bro.Rolling = true
 		i.res.Config.S.Bro.TotalChunks = i.totalChunks
 		i.res.Config.S.Bro.CurrentChunk = i.currentChunk - 1
 	} else {
+		// set single import defaults (1 total chunks, and we're on the first and only chunk)
 		i.res.Config.S.Bro.Rolling = false
 		i.res.Config.S.Bro.TotalChunks = 1
 		i.res.Config.S.Bro.CurrentChunk = 0
@@ -151,24 +172,26 @@ func (i *Importer) run() error {
 		return err
 	}
 
+	// set up import directory
+	err = i.setImportDirectory()
+	if err != nil {
+		return err
+	}
+
 	// set up target database
 	err = i.setTargetDatabase()
 	if err != nil {
 		return err
 	}
 
-	err = i.setImportDirectory()
-	if err != nil {
-		return err
-	}
-
+	// set up rolling stats if they apply
 	err = i.setRolling()
 	if err != nil {
 		return err
 	}
 
 	i.res.Log.Infof("Importing %s\n", i.res.Config.S.Bro.ImportDirectory)
-	fmt.Println("[+] Importing " + i.res.Config.S.Bro.ImportDirectory)
+	fmt.Println("\n\t[+] Importing " + i.res.Config.S.Bro.ImportDirectory + " :")
 
 	importer := parser.NewFSImporter(i.res, i.threads, i.threads)
 	datastore := parser.NewMongoDatastore(i.res.DB.Session, i.res.MetaDB,

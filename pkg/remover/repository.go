@@ -1,16 +1,16 @@
 package remover
 
-// Repository
+// Repository ....
 type Repository interface {
-	Remove()
+	Remove(int) error
 }
 
-// //update ....
-// type update struct {
-// 	selector interface{}
-// 	query    interface{}
-// }
-//
+//update ....
+type update struct {
+	selector interface{}
+	query    interface{}
+}
+
 // //Input ....
 // type Input struct {
 // 	name     string
