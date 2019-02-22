@@ -1,4 +1,4 @@
-package beacon
+package remover
 
 import (
 	"fmt"
@@ -20,9 +20,9 @@ type (
 )
 
 //newWriter creates a new writer object to write output data
-func newWriter(targetCollection string, db *database.DB, conf *config.Config) *writer {
+func newWriter(cid int, db *database.DB, conf *config.Config) *writer {
 	return &writer{
-		cid:          int,
+		cid:          cid,
 		db:           db,
 		conf:         conf,
 		writeChannel: make(chan string),

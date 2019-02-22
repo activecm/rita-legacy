@@ -15,6 +15,7 @@ import (
 	"github.com/activecm/rita/pkg/explodeddns"
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
+	"github.com/activecm/rita/pkg/remover"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/resources"
@@ -83,10 +84,14 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	var files []string
 	//find all of the potential bro log paths
+
+	// if rolling dataset
 	if fs.rolling {
-		fmt.Println("\t[-] Finding next CHUNK'S files to parse ... ")
+
+		fmt.Println("\t[-] Finding next chunk's files to parse ... ")
 		files = readDirRolling(fs.currentChunk, fs.totalChunks, fs.res.Config.S.Bro.ImportDirectory, fs.res.Log)
-	} else {
+
+	} else { // if regular dataset
 		fmt.Println("\t[-] Finding files to parse ... ")
 		files = readDir(fs.res.Config.S.Bro.ImportDirectory, fs.res.Log)
 
@@ -116,8 +121,25 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	// if all files were removed because they've already been imported, handle error
 	if !(len(indexedFiles) > 0) {
-		fmt.Println("\n\t[!] All files in this directory have already been parsed into database: ", fs.res.DB.GetSelectedDB())
+		if fs.rolling {
+			fmt.Println("\t[!] All files pertaining to the current chunk entry have already been parsed into database: ", fs.res.DB.GetSelectedDB())
+		} else {
+			fmt.Println("\t[!] All files in this directory have already been parsed into database: ", fs.res.DB.GetSelectedDB())
+		}
 		return
+	}
+
+	if fs.rolling {
+		chunkSet, err := fs.res.MetaDB.IsChunkSet(fs.currentChunk, fs.res.DB.GetSelectedDB())
+		if err != nil {
+			fmt.Println("\t[!] Could not find CID entry in metadatabase")
+			return
+		}
+
+		if chunkSet {
+			fmt.Println("\t[-] Removing outdated data from rolling dataset ... ")
+			fs.removeAnalysisChunk(fs.currentChunk)
+		}
 	}
 
 	// create blacklisted reference Collection if blacklisted module is enabled
@@ -158,6 +180,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	fs.updateTimestampRange()
 	fs.res.MetaDB.MarkDBImported(fs.res.DB.GetSelectedDB(), true)
 	fs.res.MetaDB.MarkDBAnalyzed(fs.res.DB.GetSelectedDB(), true)
+	fs.res.MetaDB.SetChunk(fs.currentChunk, fs.res.DB.GetSelectedDB(), true)
 
 	progTime = time.Now()
 	fs.res.Log.WithFields(
@@ -515,6 +538,22 @@ func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 		}
 
 	}
+}
+
+//buildHostnames .....
+func (fs *FSImporter) removeAnalysisChunk(cid int) error {
+
+	// Set up the remover
+	removerRepo := remover.NewMongoRemover(fs.res)
+	err := removerRepo.Remove(cid)
+	if err != nil {
+		fs.res.Log.Error(err)
+		fmt.Println(err)
+		return err
+	}
+
+	return nil
+
 }
 
 //buildHostnames .....

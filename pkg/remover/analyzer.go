@@ -1,4 +1,4 @@
-package useragent
+package remover
 
 import (
 	"strconv"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
-	"github.com/globalsign/mgo/bson"
 )
 
 type (
@@ -18,7 +17,7 @@ type (
 		conf             *config.Config // contains details needed to access MongoDB
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *Input    // holds unanalyzed data
+		analysisChannel  chan string    // holds unanalyzed data
 		analysisWg       sync.WaitGroup // wait for analysis to finish
 	}
 )
@@ -32,12 +31,12 @@ func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallba
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan *Input),
+		analysisChannel:  make(chan string),
 	}
 }
 
 //collect sends a group of domains to be analyzed
-func (a *analyzer) collect(data *Input) {
+func (a *analyzer) collect(data string) {
 	a.analysisChannel <- data
 }
 
@@ -55,36 +54,10 @@ func (a *analyzer) start() {
 		ssn := a.db.Session.Copy()
 		defer ssn.Close()
 
-		for data := range a.analysisChannel {
-			// set up writer output
-			var output update
-
-			if len(data.OrigIps) > 10 {
-				data.OrigIps = data.OrigIps[:10]
-			}
-
-			if len(data.Requests) > 10 {
-				data.Requests = data.Requests[:10]
-			}
-			// create query
-			output.query = bson.M{
-				"$push": bson.M{
-					"dat": bson.M{
-						"seen":     data.Seen,
-						"orig_ips": data.OrigIps,
-						"hosts":    data.Requests,
-						"cid":      a.chunk,
-					},
-				},
-				"$inc": bson.M{"times_used": data.Seen},
-				"$set": bson.M{"cid": a.chunk},
-			}
-
-			// create selector for output
-			output.selector = bson.M{"user_agent": data.name}
+		for _ = range a.analysisChannel {
 
 			// set to writer channel
-			a.analyzedCallback(output)
+			// a.analyzedCallback(data)
 
 		}
 

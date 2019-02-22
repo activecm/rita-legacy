@@ -1,6 +1,8 @@
 package database
 
 import (
+	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -36,6 +38,11 @@ type (
 		Max int64 `bson:"max"`
 	}
 
+	// CID contains chunk ids
+	CID struct {
+		value int `bson:"value"`
+	}
+
 	// DBMetaInfo defines some information about the database
 	DBMetaInfo struct {
 		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
@@ -47,7 +54,8 @@ type (
 		Rolling        bool          `bson:"rolling"`
 		TotalChunks    int           `bson:"total_chunks"`
 		CurrentChunk   int           `bson:"current_chunk"`
-		TsRange        Range         `bson:"ts_range"`
+		// CIDList        []CID         `bson:"cid_list"`
+		TsRange Range `bson:"ts_range"`
 	}
 )
 
@@ -62,6 +70,70 @@ func NewMetaDB(config *config.Config, dbHandle *mgo.Session,
 	}
 
 	return metaDB
+}
+
+//VerifyIfAlreadyRollingDB ....
+func (m *MetaDB) VerifyIfAlreadyRollingDB(db string, numchunks int, chunk int) error {
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	// pull down dataset record from metadatabase
+	var result DBMetaInfo
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"name": db}).One(&result)
+
+	if err != nil {
+		return err
+	}
+
+	// if dataset is an already existing dataset marked as rolling = true
+	if result.Rolling {
+
+		// make sure number of chunks matches the one that's on file for that dataset
+		if result.TotalChunks != numchunks {
+			return fmt.Errorf("\n\t[!] The total chunk size for existing rolling dataset <"+db+"> is set to <%d> and cannot be changed unless the dataset is deleted and recreated.", result.TotalChunks)
+		}
+
+		// set current chunk number
+		_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+			Upsert(
+				bson.M{"name": db},                             // selector
+				bson.M{"$set": bson.M{"current_chunk": chunk}}, // data
+			)
+
+		if err != nil {
+			return err
+		}
+		// otherwise, if dataset record exists and is analyzed, but its not a rolling dataset, return error
+	} else if result.Analyzed == true {
+
+		return fmt.Errorf("\n\t[!] Cannot append to an already analyzed, non-rolling dataset as a rolling dataset. Please choose another target dataset")
+
+		// otherwise, if unanlyzed, freshly created dataset, create fields necessary for rolling analysis.
+	} else {
+
+		for i := 0; i < numchunks; i++ {
+
+			q := bson.M{
+				"$set": bson.M{
+					"rolling":                              true,
+					"total_chunks":                         numchunks,
+					"current_chunk":                        chunk,
+					"cid_list." + strconv.Itoa(i) + ".set": false,
+				}}
+
+			_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+				Upsert(
+					bson.M{"name": db}, // selector
+					q,                  // data
+				)
+			if err != nil {
+				return err
+			}
+		}
+
+	}
+
+	return nil
 }
 
 //LastCheck returns most recent version check
@@ -90,7 +162,8 @@ func (m *MetaDB) AddNewDB(name string) error {
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Insert(
+	_, err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Upsert(
+		bson.M{"name": name},
 		DBMetaInfo{
 			Name:           name,
 			ImportFinished: false,
@@ -317,6 +390,63 @@ func (m *MetaDB) runDBMetaInfoQuery(queryDoc bson.M) ([]DBMetaInfo, error) {
 	}
 
 	return results, nil
+}
+
+// SetChunk ....
+func (m *MetaDB) SetChunk(cid int, db string, analyzed bool) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	_, err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+		Upsert(
+			bson.M{"name": db},
+			bson.M{
+				"$set": bson.M{
+					"cid_list." + strconv.Itoa(cid) + ".set": analyzed,
+				}},
+		)
+
+	if err != nil {
+		m.log.WithFields(log.Fields{
+			"metadb_attempted":   m.config.S.Bro.MetaDB,
+			"database_requested": db,
+			"error":              err.Error(),
+		}).Error("Could not update CID analyzed value for database entry in metadatabase")
+		return err
+	}
+	return nil
+}
+
+// IsChunkSet ....
+func (m *MetaDB) IsChunkSet(cid int, db string) (bool, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	query := bson.M{
+		"$and": []interface{}{
+			bson.M{"name": db},
+			bson.M{"cid_list." + strconv.Itoa(cid) + ".set": true},
+		},
+	}
+
+	var results []interface{}
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(query).All(&results)
+
+	if err != nil {
+		return false, err
+	}
+
+	if len(results) > 0 {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // GetDBMetaInfo returns a meta db entry. This is the only function which
