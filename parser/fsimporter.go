@@ -550,6 +550,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							ja3Hash := parseSSL.FieldByName("JA3").Interface().(string)
 							src := parseSSL.FieldByName("Source").Interface().(string)
 							host := parseSSL.FieldByName("ServerName").Interface().(string)
+							certStatus := parseSSL.FieldByName("ValidationStatus").Interface().(string)
 
 							// fmt.Println(ja3Hash)
 							// Safely store ja3 information
@@ -575,6 +576,29 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							mutex.Unlock()
 
+							mutex.Lock()
+							//if there's any problem in the certificate, mark it invalid
+							if certStatus != "ok" && certStatus != "-" {
+								src := parseSSL.FieldByName("Source").Interface().(string)
+								dst := parseSSL.FieldByName("Destination").Interface().(string)
+
+								// Check if uconn map value is set, because this record could
+								// come before a relevant conns record
+								if _, ok := uconnMap[src+dst]; !ok {
+									// create new uconn record with src and dst
+									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
+									// we only need to do this once if the uconn record does not exist
+									fmt.Println("Invalid cert")
+									uconnMap[src+dst] = &uconn.Pair{
+										Src:         src,
+										Dst:         dst,
+										IsLocalSrc:  containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
+										IsLocalDst:  containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
+										InvalidCert: true,
+									}
+								}
+							}
+							mutex.Unlock()
 							// stores the ssl record in the ssl collection
 							// datastore.Store(&ImportedData{
 							// 	BroData:          data,
