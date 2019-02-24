@@ -76,7 +76,6 @@ func (a *analyzer) start() {
 						"cid":      a.chunk,
 					},
 				},
-				"$inc": bson.M{"times_used": data.Seen},
 				"$set": bson.M{"cid": a.chunk},
 			}
 

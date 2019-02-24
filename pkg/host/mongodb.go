@@ -4,7 +4,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
@@ -47,7 +46,7 @@ func (r *repo) CreateIndexes() error {
 }
 
 //Upsert loops through every domain ....
-func (r *repo) Upsert(uconnMap map[string]*uconn.Pair) {
+func (r *repo) Upsert(hostMap map[string]*IP) {
 
 	//Create the workers
 	writerWorker := newWriter(r.res.Config.T.Structure.HostTable, r.res.DB, r.res.Config)
@@ -68,7 +67,7 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Pair) {
 
 	// progress bar for troubleshooting
 	p := mpb.New(mpb.WithWidth(20))
-	bar := p.AddBar(int64(len(uconnMap)),
+	bar := p.AddBar(int64(len(hostMap)),
 		mpb.PrependDecorators(
 			decor.Name("\t[-] Host Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
@@ -77,7 +76,10 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Pair) {
 	)
 
 	// loop over map entries
-	for _, entry := range uconnMap {
+	for _, entry := range hostMap {
+		// if entry.Host == "10.55.100.106" {
+		//
+		// }
 		start := time.Now()
 		analyzerWorker.collect(entry)
 		bar.IncrBy(1, time.Since(start))

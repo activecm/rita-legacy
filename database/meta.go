@@ -166,9 +166,8 @@ func (m *MetaDB) AddNewDB(name string) error {
 		bson.M{"name": name},
 		DBMetaInfo{
 			Name:           name,
-			ImportFinished: false,
 			Analyzed:       false,
-			ImportVersion:  m.config.S.Version,
+			AnalyzeVersion: m.config.S.Version,
 		},
 	)
 	if err != nil {
@@ -511,26 +510,6 @@ func (m *MetaDB) CheckCompatibleAnalyze(targetDatabase string) (bool, error) {
 // GetUnAnalyzedDatabases builds a list of database names which have yet to be analyzed
 func (m *MetaDB) GetUnAnalyzedDatabases() []string {
 	dbs, err := m.runDBMetaInfoQuery(bson.M{"analyzed": false})
-	if err != nil {
-		return nil
-	}
-	var results []string
-	for _, db := range dbs {
-		results = append(results, db.Name)
-	}
-	return results
-}
-
-// GetAnalyzeReadyDatabases builds a list of database names which are ready to be analyzed
-func (m *MetaDB) GetAnalyzeReadyDatabases() []string {
-	//note import_finished is queried as {"$ne": false} rather than just true
-	//since prior to version 1.1.0, the field did not exist.
-	dbs, err := m.runDBMetaInfoQuery(
-		bson.M{
-			"analyzed":        false,
-			"import_finished": bson.M{"$ne": false},
-		},
-	)
 	if err != nil {
 		return nil
 	}

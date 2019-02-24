@@ -2,6 +2,7 @@ package reporting
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"os"
 
@@ -22,7 +23,7 @@ func printStrobes(db string, res *resources.Resources) error {
 		return err
 	}
 
-	data := getStrobeResultsView(res)
+	data := getStrobeResultsView(res, "conn_count", 1000)
 
 	w, err := getStrobesWriter(data)
 	if err != nil {
@@ -48,16 +49,31 @@ func getStrobesWriter(strobes []beacon.StrobeAnalysisView) (string, error) {
 }
 
 //getStrobeResultsView ...
-func getStrobeResultsView(res *resources.Resources) []beacon.StrobeAnalysisView {
+func getStrobeResultsView(res *resources.Resources, sort string, limit int) []beacon.StrobeAnalysisView {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
 	var strobes []beacon.StrobeAnalysisView
 
-	strobeQuery := bson.M{"strobe": true}
+	strobeQuery := []bson.M{
+		bson.M{"$match": bson.M{"strobe": true}},
+		bson.M{"$unwind": "$dat"},
+		bson.M{"$project": bson.M{"src": 1, "dst": 1, "conns": "$dat.count"}},
+		bson.M{"$group": bson.M{
+			"_id":        "$_id",
+			"src":        bson.M{"$first": "$src"},
+			"dst":        bson.M{"$first": "$dst"},
+			"conn_count": bson.M{"$sum": "$conns"},
+		}},
+		bson.M{"$sort": bson.M{sort: -1}},
+		bson.M{"$limit": limit},
+	}
 
-	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Find(strobeQuery).Sort("-connection_count").Limit(1000).All(&strobes)
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).All(&strobes)
+
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	return strobes
-
 }

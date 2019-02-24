@@ -49,10 +49,24 @@ func (w *writer) start() {
 
 		for data := range w.writeChannel {
 
-			//delete the record if it hasn't been updated since the target delete chunk
-			_, err := ssn.DB(w.db.GetSelectedDB()).C(data).RemoveAll(bson.M{"cid": w.cid})
+			//delete the ENTIRE record if it hasn't been updated since the chunk we are trying to remove
+			info, err := ssn.DB(w.db.GetSelectedDB()).C(data).RemoveAll(bson.M{"cid": w.cid})
 			if err != nil {
 				fmt.Println(err)
+			}
+
+			if err != nil ||
+
+				((info.Updated == 0) && (info.Removed == 0) && (info.Matched != 0)) {
+				fmt.Println("failed to delete whole document: ", err, info, data)
+			}
+
+			// this ONLY deletes a specific chunk's DATA from a record that HAS been updated recently and doesn't need to be completely
+			// removed - only the target chunk's stats should be removed from it
+			info, err = ssn.DB(w.db.GetSelectedDB()).C(data).UpdateAll(bson.M{"dat.cid": w.cid}, bson.M{"$pull": bson.M{"dat": bson.M{"cid": w.cid}}})
+			if err != nil ||
+				((info.Updated == 0) && (info.Removed == 0) && (info.Matched != 0)) {
+				fmt.Println("failed to delete chunk: ", err, info, data)
 			}
 
 		}

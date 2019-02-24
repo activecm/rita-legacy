@@ -68,29 +68,85 @@ func (d *dissector) start() {
 				bson.M{"$match": bson.M{"$and": []bson.M{
 					bson.M{"src": data.Src},
 					bson.M{"dst": data.Dst},
-					bson.M{"connection_count": bson.M{"$gt": d.conf.S.Beacon.DefaultConnectionThresh}},
 					bson.M{"strobe": bson.M{"$ne": true}},
 				}}},
 				bson.M{"$limit": 1},
+				bson.M{"$project": bson.M{
+					"src":    "$src",
+					"dst":    "$dst",
+					"ts":     "$dat.ts",
+					"bytes":  "$dat.bytes",
+					"count":  "$dat.count",
+					"tbytes": "$dat.tbytes",
+				}},
+				bson.M{"$unwind": "$count"},
+				bson.M{"$project": bson.M{
+					"src":    1,
+					"dst":    1,
+					"ts":     1,
+					"bytes":  1,
+					"count":  bson.M{"$sum": "$count"},
+					"tbytes": 1,
+				}},
+				bson.M{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.Beacon.DefaultConnectionThresh}}},
+				bson.M{"$unwind": "$tbytes"},
+				bson.M{"$project": bson.M{
+					"src":    1,
+					"dst":    1,
+					"ts":     1,
+					"bytes":  1,
+					"count":  1,
+					"tbytes": bson.M{"$sum": "$tbytes"},
+				}},
+				bson.M{"$unwind": "$ts"},
+				bson.M{"$unwind": "$ts"},
+				bson.M{"$group": bson.M{
+					"_id":    "$_id",
+					"src":    bson.M{"$first": "$src"},
+					"dst":    bson.M{"$first": "$dst"},
+					"ts":     bson.M{"$addToSet": "$ts"},
+					"bytes":  bson.M{"$first": "$bytes"},
+					"count":  bson.M{"$first": "$count"},
+					"tbytes": bson.M{"$first": "$tbytes"},
+				}},
+				bson.M{"$unwind": "$bytes"},
+				bson.M{"$unwind": "$bytes"},
+				bson.M{"$group": bson.M{
+					"_id":    "$_id",
+					"src":    bson.M{"$first": "$src"},
+					"dst":    bson.M{"$first": "$dst"},
+					"ts":     bson.M{"$first": "$ts"},
+					"bytes":  bson.M{"$push": "$bytes"},
+					"count":  bson.M{"$first": "$count"},
+					"tbytes": bson.M{"$first": "$tbytes"},
+				}},
 			}
-			var res uconnRes
+
+			var res struct {
+				Src    string  `bson:"src"`
+				Dst    string  `bson:"dst"`
+				Count  int64   `bson:"count"`
+				Ts     []int64 `bson:"ts"`
+				Bytes  []int64 `bson:"bytes"`
+				TBytes int64   `bson:"tbytes"`
+			}
+
 			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnTable).Pipe(uconnFindQuery).One(&res)
 
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results
-			if len(res.Dat) > 0 {
-				analysisInput := &uconn.Pair{Src: res.Src, Dst: res.Dst, ConnectionCount: res.ConnectionCount, TotalBytes: res.TotalBytes}
+			if res.Count > 0 {
+				analysisInput := &uconn.Pair{Src: res.Src, Dst: res.Dst, ConnectionCount: res.Count, TotalBytes: res.TBytes}
 
 				// check if uconn has become a strobe
-				if res.ConnectionCount > d.connLimit {
+				if analysisInput.ConnectionCount > d.connLimit {
 					// set to writer channel
 					d.dissectedCallback(analysisInput)
 
 				} else { // otherwise, parse timestamps and orig ip bytes
-					for _, entry := range res.Dat {
-						analysisInput.TsList = append(analysisInput.TsList, entry.Ts...)
-						analysisInput.OrigBytesList = append(analysisInput.OrigBytesList, entry.OrigIPBytes...)
-					}
+
+					analysisInput.TsList = res.Ts
+					analysisInput.OrigBytesList = res.Bytes
 
 					// send to writer channel if we have over 3 timestamps (analysis needs this verification)
 					if len(analysisInput.TsList) > 3 {

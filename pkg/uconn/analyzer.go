@@ -59,11 +59,6 @@ func (a *analyzer) start() {
 					"local_src": data.IsLocalSrc,
 					"local_dst": data.IsLocalDst,
 				},
-				"$inc": bson.M{
-					"connection_count": data.ConnectionCount,
-					"total_duration":   data.TotalDuration,
-					"total_bytes":      data.TotalBytes,
-				},
 			}
 
 			// if this connection qualifies to be a strobe with the current number
@@ -79,6 +74,7 @@ func (a *analyzer) start() {
 						"ts":     []interface{}{},
 						"maxdur": data.MaxDuration,
 						"tbytes": data.TotalBytes,
+						"tdur":   data.TotalDuration,
 						"cid":    a.chunk,
 					},
 				}
@@ -90,6 +86,7 @@ func (a *analyzer) start() {
 						"ts":     data.TsList,
 						"maxdur": data.MaxDuration,
 						"tbytes": data.TotalBytes,
+						"tdur":   data.TotalDuration,
 						"cid":    a.chunk,
 					},
 				}

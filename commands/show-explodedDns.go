@@ -2,6 +2,7 @@ package commands
 
 import (
 	"encoding/csv"
+	"fmt"
 	"os"
 
 	"github.com/activecm/rita/pkg/explodeddns"
@@ -30,7 +31,7 @@ func init() {
 			res := resources.InitResources(c.String("config"))
 			res.DB.SelectDB(db)
 
-			data := getExplodedDNSResultsView(res)
+			data := getExplodedDNSResultsView(res, 1000)
 
 			if len(data) == 0 {
 				return cli.NewExitError("No results were found for "+db, -1)
@@ -51,36 +52,6 @@ func init() {
 		},
 	}
 	bootstrapCommands(command)
-}
-
-//getExplodedDNSResultsView gets the exploded dns results
-func getExplodedDNSResultsView(res *resources.Resources) []explodeddns.AnalysisView {
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	var explodedDNSResults []explodeddns.AnalysisView
-
-	explodedDNSQuery := []bson.M{
-		bson.M{"$unwind": "$dat"},
-		bson.M{"$project": bson.M{"domain": 1, "subdomain_count": 1, "visited": "$dat.visited"}},
-		bson.M{"$unwind": "$visited"},
-		bson.M{"$group": bson.M{
-			"_id":             "$domain",
-			"domain":          bson.M{"$first": "$domain"},
-			"visited":         bson.M{"$sum": "$visited"},
-			"subdomain_count": bson.M{"$first": "$subdomain_count"},
-		}},
-		bson.M{"$sort": bson.M{"subdomain_count": -1}},
-	}
-
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.ExplodedDNSTable).Pipe(explodedDNSQuery).All(&explodedDNSResults)
-
-	if err != nil {
-		cli.NewExitError(err.Error(), -1)
-	}
-
-	return explodedDNSResults
-
 }
 
 func showDNSResults(dnsResults []explodeddns.AnalysisView) error {
@@ -105,4 +76,40 @@ func showDNSResultsHuman(dnsResults []explodeddns.AnalysisView) error {
 	}
 	table.Render()
 	return nil
+}
+
+//getExplodedDNSResultsView gets the exploded dns results
+func getExplodedDNSResultsView(res *resources.Resources, limit int) []explodeddns.AnalysisView {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	var explodedDNSResults []explodeddns.AnalysisView
+
+	explodedDNSQuery := []bson.M{
+		bson.M{"$sort": bson.M{"subdomain_count": -1}},
+		bson.M{"$limit": limit},
+		bson.M{"$unwind": "$dat"},
+		bson.M{"$project": bson.M{"domain": 1, "subdomain_count": 1, "visited": "$dat.visited"}},
+		bson.M{"$group": bson.M{
+			"_id":             "$domain",
+			"visited":         bson.M{"$sum": "$visited"},
+			"subdomain_count": bson.M{"$first": "$subdomain_count"},
+		}},
+		bson.M{"$project": bson.M{
+			"_id":             0,
+			"domain":          "$_id",
+			"visited":         1,
+			"subdomain_count": 1,
+		}},
+		bson.M{"$sort": bson.M{"subdomain_count": -1}},
+	}
+
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.ExplodedDNSTable).Pipe(explodedDNSQuery).All(&explodedDNSResults)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return explodedDNSResults
+
 }

@@ -20,7 +20,7 @@ func printBLHostnames(db string, res *resources.Resources) error {
 	}
 	defer f.Close()
 
-	data := getBlacklistedHostnameResultsView(res, 0, "conn_count")
+	data := getBlacklistedHostnameResultsView(res, "conn_count", 1000)
 
 	out, err := template.New("bl-hostnames.html").Parse(templates.BLHostnameTempl)
 	if err != nil {
@@ -58,9 +58,8 @@ func getBLHostnameWriter(results []hostname.AnalysisView) (string, error) {
 	return w.String(), nil
 }
 
-//getBeaconResultsView finds beacons greater than a given cutoffScore
-//and links the data from the unique connections table back in to the results
-func getBlacklistedHostnameResultsView(res *resources.Resources, cutoffScore float64, sort string) []hostname.AnalysisView {
+//getBlacklistedHostnameResultsView ....
+func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, limit int) []hostname.AnalysisView {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -76,15 +75,24 @@ func getBlacklistedHostnameResultsView(res *resources.Resources, cutoffScore flo
 			"as":           "uconn",
 		}},
 		bson.M{"$unwind": "$uconn"},
+		bson.M{"$unwind": "$uconn.dat"},
+		bson.M{"$project": bson.M{"host": 1, "conns": "$uconn.dat.count", "bytes": "$uconn.dat.tbytes", "ip": "$uconn.src"}},
 		bson.M{"$group": bson.M{
 			"_id":         "$host",
-			"host":        bson.M{"$first": "$host"},
-			"total_bytes": bson.M{"$sum": "$uconn.total_bytes"},
-			"conn_count":  bson.M{"$sum": "$uconn.connection_count"},
-			"uconn_count": bson.M{"$sum": 1},
-			"srcs":        bson.M{"$push": "$uconn.src"},
+			"ips":         bson.M{"$addToSet": "$ip"},
+			"conn_count":  bson.M{"$sum": "$conns"},
+			"total_bytes": bson.M{"$sum": "$bytes"},
 		}},
 		bson.M{"$sort": bson.M{sort: -1}},
+		bson.M{"$limit": limit},
+		bson.M{"$project": bson.M{
+			"_id":         0,
+			"host":        "$_id",
+			"uconn_count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
+			"ips":         1,
+			"conn_count":  1,
+			"total_bytes": 1,
+		}},
 	}
 
 	var blHosts []hostname.AnalysisView

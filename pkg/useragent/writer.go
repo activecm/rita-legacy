@@ -49,10 +49,11 @@ func (w *writer) start() {
 
 		for data := range w.writeChannel {
 
-			_, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.selector, data.query)
+			info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.selector, data.query)
 
-			if err != nil {
-				fmt.Println(err)
+			if err != nil ||
+				((info.Updated == 0) && (info.UpsertedId == nil)) {
+				fmt.Println(err, info, data)
 			}
 		}
 		w.writeWg.Done()

@@ -1,4 +1,4 @@
-package hostname
+package blacklist
 
 import (
 	"fmt"
@@ -52,7 +52,7 @@ func (w *writer) start() {
 			info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.selector, data.query)
 
 			if err != nil ||
-				((info.Updated == 0) && (info.UpsertedId == nil)) {
+				((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
 				fmt.Println(err, info, data)
 			}
 		}
