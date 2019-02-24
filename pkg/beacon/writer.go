@@ -50,32 +50,36 @@ func (w *writer) start() {
 
 			if data.beacon.query != nil {
 				// update beacons table
-				_, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.beacon.selector, data.beacon.query)
+				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.beacon.selector, data.beacon.query)
 
-				if err != nil {
-					fmt.Println(err)
+				if err != nil ||
+					((info.Updated == 0) && (info.UpsertedId == nil)) {
+					fmt.Println(err, info, data)
 				}
 
 				// update hosts table
-				_, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.host.selector, data.host.query)
+				info, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.host.selector, data.host.query)
 
-				if err != nil {
-					fmt.Println(err)
+				if err != nil ||
+					((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
+					fmt.Println(err, info, data)
 				}
 			}
 
 			if data.uconn.query != nil {
 				// update uconns table
-				_, err := ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.UniqueConnTable).Upsert(data.uconn.selector, data.uconn.query)
+				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.UniqueConnTable).Upsert(data.uconn.selector, data.uconn.query)
 
-				if err != nil {
-					fmt.Println(err)
+				if err != nil ||
+					((info.Updated == 0) && (info.UpsertedId == nil)) {
+					fmt.Println(err, info, data)
 				}
 
 				//delete the record (no longer a beacon - its a strobe)
-				_, err = ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).RemoveAll(data.uconn.selector)
-				if err != nil {
-					fmt.Println(err)
+				info, err = ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).RemoveAll(data.uconn.selector)
+				if err != nil ||
+					((info.Updated == 0) && (info.Removed == 0) && (info.Matched == 0) && (info.UpsertedId == nil)) {
+					fmt.Println(err, info, data)
 				}
 			}
 

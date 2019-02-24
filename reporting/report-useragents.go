@@ -2,12 +2,14 @@ package reporting
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"os"
 
 	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
+	"github.com/globalsign/mgo/bson"
 )
 
 func printUserAgents(db string, res *resources.Resources) error {
@@ -21,11 +23,9 @@ func printUserAgents(db string, res *resources.Resources) error {
 		return err
 	}
 
-	var agents []useragent.AnalysisView
-	coll := res.DB.Session.DB(db).C(res.Config.T.UserAgent.UserAgentTable)
-	coll.Find(nil).Sort("times_used").Limit(1000).All(&agents)
+	data := getUseragentResultsView(res, "times_used", 1, 1000)
 
-	w, err := getUserAgentsWriter(agents)
+	w, err := getUserAgentsWriter(data)
 	if err != nil {
 		return err
 	}
@@ -46,4 +46,37 @@ func getUserAgentsWriter(agents []useragent.AnalysisView) (string, error) {
 		}
 	}
 	return w.String(), nil
+}
+
+//getUseragentResultsView gets the useragent results
+func getUseragentResultsView(res *resources.Resources, sort string, sortDirection int, limit int) []useragent.AnalysisView {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	var useragentResults []useragent.AnalysisView
+
+	useragentQuery := []bson.M{
+		bson.M{"$project": bson.M{"user_agent": 1, "times_used": "$dat.seen"}},
+		bson.M{"$unwind": "$times_used"},
+		bson.M{"$group": bson.M{
+			"_id":        "$user_agent",
+			"times_used": bson.M{"$sum": "$times_used"},
+		}},
+		bson.M{"$project": bson.M{
+			"_id":        0,
+			"user_agent": "$_id",
+			"times_used": 1,
+		}},
+		bson.M{"$sort": bson.M{sort: sortDirection}},
+		bson.M{"$limit": limit},
+	}
+
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.UserAgent.UserAgentTable).Pipe(useragentQuery).All(&useragentResults)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return useragentResults
+
 }

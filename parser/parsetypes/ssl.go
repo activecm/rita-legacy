@@ -70,7 +70,7 @@ type (
 		// prevent duplicates. Note: may not be present in older bro versions.
 		Logged bool `bson:"logged" bro:"logged" brotype:"bool"`
 		// CertChainFuids
-		CertChainFuids []string `bson:"cert_chain" bro:"cert_chain" brotype:"vector[string]"`
+		CertChainFuids []string `bson:"cert_chain_fuids" bro:"cert_chain_fuids" brotype:"vector[string]"`
 		// ClientCertChainFuids
 		ClientCertChainFuids []string `bson:"client_cert_chain_fuids"  bro:"client_cert_chain_fuids" brotype:"vector[string]"`
 		// Subject

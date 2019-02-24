@@ -22,7 +22,7 @@ func NewMongoRemover(res *resources.Resources) Repository {
 //Upsert loops through every new uconn ....
 func (r *remover) Remove(cid int) error {
 
-	fmt.Println("\t[-] Removing chunk: ", cid, "!")
+	fmt.Println("\t[-] Removing matching chunk: ", cid+1)
 
 	modules := []string{
 		r.res.Config.T.Beacon.BeaconTable,

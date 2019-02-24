@@ -2,6 +2,7 @@ package commands
 
 import (
 	"encoding/csv"
+	"fmt"
 	"os"
 	"sort"
 	"strconv"
@@ -226,7 +227,11 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit i
 		}},
 	}
 
-	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).All(&blIPs)
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).All(&blIPs)
+
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	return blIPs
 

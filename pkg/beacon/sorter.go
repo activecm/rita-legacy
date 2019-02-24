@@ -56,9 +56,6 @@ func (s *sorter) start() {
 				sort.Sort(util.SortableInt64(data.TsList))
 				sort.Sort(util.SortableInt64(data.OrigBytesList))
 
-				//remove subsecond communications
-				//these will appear as beacons if we do not remove them
-				data.TsList = removeConsecutiveDuplicates(data.TsList)
 			}
 
 			s.sortedCallback(data)
@@ -90,21 +87,4 @@ func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64
 		counts[last]++
 	}
 	return result, counts
-}
-
-//removeConsecutiveDuplicates removes consecutive duplicates
-func removeConsecutiveDuplicates(numberList []int64) []int64 {
-	//Avoid some reallocations
-	result := make([]int64, 0, len(numberList)/2)
-	last := numberList[0]
-	result = append(result, last)
-
-	for idx := 1; idx < len(numberList); idx++ {
-		if last != numberList[idx] {
-			result = append(result, numberList[idx])
-		}
-		last = numberList[idx]
-	}
-	return result
-
 }

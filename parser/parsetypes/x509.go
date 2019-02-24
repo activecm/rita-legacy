@@ -8,7 +8,7 @@ type (
 	// x509 provides a data structure for bro's connection data
 	x509 struct {
 		// TimeStamp of this connection
-		TimeStamp int64 `bson:"ts" bro:"ts" brotype:"time"`
+		// TimeStamp int64 `bson:"ts" bro:"ts" brotype:"time"`
 		// FileID is the file id of this certificate.
 		FileID string `bson:"file_id" bro:"id" brotype:"string"`
 		// CertificateVersion : version number

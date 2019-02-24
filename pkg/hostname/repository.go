@@ -37,5 +37,5 @@ type AnalysisView struct {
 	Connections       int      `bson:"conn_count"`
 	UniqueConnections int      `bson:"uconn_count"`
 	TotalBytes        int      `bson:"total_bytes"`
-	ConnectedHosts    []string `bson:"srcs,omitempty"`
+	ConnectedHosts    []string `bson:"ips,omitempty"`
 }

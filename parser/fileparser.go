@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -80,14 +81,22 @@ func readDirRolling(currentChunk int, totalChunks int, cpath string, logger *log
 				ts2 = 24
 			}
 
-			if (ts1 >= startChunk) && (ts1 < endChunk) &&
-				(ts2 > startChunk) && (ts2 <= endChunk) {
-				// fmt.Println(file.Name())
-				toReturn = append(toReturn, path.Join(cpath, file.Name()))
+			if ts1 == ts2 {
+				if (ts1 >= startChunk) && (ts2 <= endChunk) {
+					// fmt.Println(file.Name())
+					toReturn = append(toReturn, path.Join(cpath, file.Name()))
+				}
+			} else {
+
+				if (ts1 >= startChunk) && (ts1 < endChunk) &&
+					(ts2 > startChunk) && (ts2 <= endChunk) {
+					// fmt.Println(file.Name())
+					toReturn = append(toReturn, path.Join(cpath, file.Name()))
+				}
 			}
 
 		} else if strings.HasSuffix(file.Name(), "log") {
-			fileName := strings.TrimSuffix(file.Name(), ".log.gz")
+			fileName := strings.TrimSuffix(file.Name(), ".log")
 			split := strings.Split(fileName, ".")
 			ts := split[len(split)-1]
 			ts = strings.Replace(ts, "-", ":", 1)
@@ -99,10 +108,18 @@ func readDirRolling(currentChunk int, totalChunks int, cpath string, logger *log
 				ts2 = 24
 			}
 
-			if (ts1 >= startChunk) && (ts1 < endChunk) &&
-				(ts2 > startChunk) && (ts2 <= endChunk) {
-				// fmt.Println(file.Name())
-				toReturn = append(toReturn, path.Join(cpath, file.Name()))
+			if ts1 == ts2 {
+				if (ts1 >= startChunk) && (ts2 <= endChunk) {
+					// fmt.Println(file.Name())
+					toReturn = append(toReturn, path.Join(cpath, file.Name()))
+				}
+			} else {
+
+				if (ts1 >= startChunk) && (ts1 < endChunk) &&
+					(ts2 > startChunk) && (ts2 <= endChunk) {
+					// fmt.Println(file.Name())
+					toReturn = append(toReturn, path.Join(cpath, file.Name()))
+				}
 			}
 		}
 	}
@@ -233,6 +250,7 @@ func mapBroHeaderToParserType(header *fpt.BroHeader, broDataFactory func() pt.Br
 		}
 
 		if header.Types[index] != lu.broType {
+			fmt.Println(header.Types[index], lu.broType)
 			return nil, errors.New("Type mismatch found in log")
 		}
 	}

@@ -2,6 +2,7 @@ package reporting
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"os"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/bson"
-	"github.com/urfave/cli"
 )
 
 func printDNS(db string, res *resources.Resources) error {
@@ -65,25 +65,29 @@ func getExplodedDNSResultsView(res *resources.Resources, limit int) []explodeddn
 	var explodedDNSResults []explodeddns.AnalysisView
 
 	explodedDNSQuery := []bson.M{
+		bson.M{"$sort": bson.M{"subdomain_count": -1}},
+		bson.M{"$limit": limit},
 		bson.M{"$unwind": "$dat"},
 		bson.M{"$project": bson.M{"domain": 1, "subdomain_count": 1, "visited": "$dat.visited"}},
-		bson.M{"$unwind": "$visited"},
 		bson.M{"$group": bson.M{
 			"_id":             "$domain",
-			"domain":          bson.M{"$first": "$domain"},
 			"visited":         bson.M{"$sum": "$visited"},
 			"subdomain_count": bson.M{"$first": "$subdomain_count"},
 		}},
+		bson.M{"$project": bson.M{
+			"_id":             0,
+			"domain":          "$_id",
+			"visited":         1,
+			"subdomain_count": 1,
+		}},
 		bson.M{"$sort": bson.M{"subdomain_count": -1}},
-		bson.M{"$limit": limit},
 	}
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.ExplodedDNSTable).Pipe(explodedDNSQuery).All(&explodedDNSResults)
 
 	if err != nil {
-		cli.NewExitError(err.Error(), -1)
+		fmt.Println(err)
 	}
 
 	return explodedDNSResults
-
 }

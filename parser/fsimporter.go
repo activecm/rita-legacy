@@ -1,11 +1,13 @@
 package parser
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 	"net"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -132,7 +134,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	if fs.rolling {
 		chunkSet, err := fs.res.MetaDB.IsChunkSet(fs.currentChunk, fs.res.DB.GetSelectedDB())
 		if err != nil {
-			fmt.Println("\t[!] Could not find CID entry in metadatabase")
+			fmt.Println("\t[!] Could not find CID List entry in metadatabase")
 			return
 		}
 
@@ -148,16 +150,16 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	}
 
 	// parse in those files!
-	uconnMap, explodeddnsMap, hostnameMap, useragentMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+	uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
 	// Must wait for all mongodatastore inserts to finish
 	datastore.Flush()
 
+	// build Hosts table.
+	fs.buildHosts(hostMap)
+
 	// build Uconns table. Must go before beacons.
 	fs.buildUconns(uconnMap)
-
-	// build Hosts table.
-	fs.buildHosts(uconnMap)
 
 	// build or update the exploded DNS table. Must go before hostnames
 	fs.buildExplodedDNS(explodeddnsMap)
@@ -170,6 +172,9 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	// build or update UserAgent table
 	fs.buildUserAgent(useragentMap)
+
+	// build Hosts table.
+	fs.markBlacklistedPeers(hostMap)
 
 	// record file+database name hash in metadabase to prevent duplicate content
 	fmt.Println("\t[-] Indexing log entries ... ")
@@ -208,7 +213,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) (
-	map[string]*uconn.Pair, map[string]int, map[string][]string, map[string]*useragent.Input) {
+	map[string]*uconn.Pair, map[string]*host.IP, map[string]int, map[string][]string, map[string]*useragent.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 	// create log parsing maps
@@ -220,6 +225,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 	// Counts the number of uconns per source-destination pair
 	uconnMap := make(map[string]*uconn.Pair)
+
+	// Counts the number of uconns per source-destination pair
+	hostMap := make(map[string]*host.IP)
 
 	//set up parallel parsing
 	n := len(indexedFiles)
@@ -275,10 +283,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						//figure out which collection (dns, http, or conn) this line is heading for
 						targetCollection := indexedFiles[j].TargetCollection
 
+						switch targetCollection {
+
 						/// *************************************************************///
 						///                           CONNS                              ///
 						/// *************************************************************///
-						if targetCollection == fs.res.Config.T.Structure.ConnTable {
+						case fs.res.Config.T.Structure.ConnTable:
 
 							// Use reflection to access the conn entry's fields. At this point inside
 							// the if statement we know parseConn is a "conn" instance, but the code
@@ -311,6 +321,28 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								mutex.Lock()
 
 								// Check if the map value is set
+								if _, ok := hostMap[src]; !ok {
+									// create new host record with src and dst
+									hostMap[src] = &host.IP{
+										Host:    src,
+										IsLocal: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
+										IP4:     isIPv4(src),
+										IP4Bin:  ipv4ToBinary(net.ParseIP(src)),
+									}
+								}
+
+								// Check if the map value is set
+								if _, ok := hostMap[dst]; !ok {
+									// create new host record with src and dst
+									hostMap[dst] = &host.IP{
+										Host:    dst,
+										IsLocal: containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
+										IP4:     isIPv4(dst),
+										IP4Bin:  ipv4ToBinary(net.ParseIP(dst)),
+									}
+								}
+
+								// Check if the map value is set
 								if _, ok := uconnMap[srcDst]; !ok {
 									// create new uconn record with src and dst
 									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
@@ -321,18 +353,31 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										IsLocalSrc: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
 										IsLocalDst: containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
 									}
+
+									hostMap[src].CountSrc++
+									hostMap[dst].CountDst++
 								}
 
 								for _, entry := range trustedAppReferenceList {
 									if (protocol == entry.protocol) && (dstPort == entry.port) {
 										if service != entry.service {
-											uconnMap[srcDst].UntrustedAppConnCount++
+											hostMap[src].UntrustedAppConnCount++
 										}
 									}
 								}
 
 								// Increment the connection count for the src-dst pair
 								uconnMap[srcDst].ConnectionCount++
+								hostMap[src].ConnectionCount++
+								hostMap[dst].ConnectionCount++
+
+								if stringInSlice(dst, hostMap[src].ConnectedDstHosts) == false {
+									hostMap[src].ConnectedDstHosts = append(hostMap[src].ConnectedDstHosts, dst)
+								}
+
+								if stringInSlice(src, hostMap[dst].ConnectedSrcHosts) == false {
+									hostMap[dst].ConnectedSrcHosts = append(hostMap[dst].ConnectedSrcHosts, src)
+								}
 
 								// Only append unique timestamps to tslist
 								if int64InSlice(ts, uconnMap[srcDst].TsList) == false {
@@ -344,13 +389,24 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 								// Calculate and store the total number of bytes exchanged by the uconn pair
 								uconnMap[srcDst].TotalBytes += bytes
+								hostMap[src].TotalBytes += bytes
+								hostMap[dst].TotalBytes += bytes
 
 								// Calculate and store the total duration
 								uconnMap[srcDst].TotalDuration += duration
+								hostMap[src].TotalDuration += duration
+								hostMap[dst].TotalDuration += duration
 
 								// Replace existing duration if current duration is higher
 								if duration > uconnMap[srcDst].MaxDuration {
 									uconnMap[srcDst].MaxDuration = duration
+								}
+
+								if duration > hostMap[src].MaxDuration {
+									hostMap[src].MaxDuration = duration
+								}
+								if duration > hostMap[dst].MaxDuration {
+									hostMap[dst].MaxDuration = duration
 								}
 
 								mutex.Unlock()
@@ -368,7 +424,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							/// *************************************************************///
 							///                             DNS                             ///
 							/// *************************************************************///
-						} else if targetCollection == fs.res.Config.T.Structure.DNSTable {
+						case fs.res.Config.T.Structure.DNSTable:
 							parseDNS := reflect.ValueOf(data).Elem()
 
 							domain := parseDNS.FieldByName("Query").Interface().(string)
@@ -406,23 +462,23 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							if queryTypeName == "TXT" {
 								// get source destination pair for dns record
 								src := parseDNS.FieldByName("Source").Interface().(string)
-								dst := parseDNS.FieldByName("Destination").Interface().(string)
+								// dst := parseDNS.FieldByName("Destination").Interface().(string)
 
-								// Check if uconn map value is set, because this record could
+								// Check if host map value is set, because this record could
 								// come before a relevant conns record
-								if _, ok := uconnMap[src+dst]; !ok {
+								if _, ok := hostMap[src]; !ok {
 									// create new uconn record with src and dst
 									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
 									// we only need to do this once if the uconn record does not exist
-									uconnMap[src+dst] = &uconn.Pair{
-										Src:        src,
-										Dst:        dst,
-										IsLocalSrc: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
-										IsLocalDst: containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
+									hostMap[src] = &host.IP{
+										Host:    src,
+										IsLocal: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
+										IP4:     isIPv4(src),
+										IP4Bin:  ipv4ToBinary(net.ParseIP(src)),
 									}
 								}
 								// increment txt query count
-								uconnMap[src+dst].TXTQueryCount++
+								hostMap[src].TXTQueryCount++
 							}
 
 							mutex.Unlock()
@@ -437,7 +493,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							/// *************************************************************///
 							///                             HTTP                             ///
 							/// *************************************************************///
-						} else if targetCollection == fs.res.Config.T.Structure.HTTPTable {
+						case fs.res.Config.T.Structure.HTTPTable:
 							parseHTTP := reflect.ValueOf(data).Elem()
 							userAgentName := parseHTTP.FieldByName("UserAgent").Interface().(string)
 							src := parseHTTP.FieldByName("Source").Interface().(string)
@@ -476,7 +532,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							/// *************************************************************///
 							///                             SSL                             ///
 							/// *************************************************************///
-						} else if targetCollection == fs.res.Config.T.Structure.SSLTable {
+						case fs.res.Config.T.Structure.SSLTable:
 
 							// parseSSL := reflect.ValueOf(data).Elem()
 
@@ -490,20 +546,13 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							/// *************************************************************///
 							///                             x509                             ///
 							/// *************************************************************///
-						} else if targetCollection == fs.res.Config.T.Structure.X509Table {
+						case fs.res.Config.T.Structure.X509Table:
 							// datastore.Store(&ImportedData{
 							// 	BroData:          data,
 							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
 							// 	TargetCollection: targetCollection,
 							// })
 
-						} else {
-							// We do not analyze any of the other log types (yet)
-							// datastore.Store(&ImportedData{
-							// 	BroData:          data,
-							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
-							// 	TargetCollection: targetCollection,
-							// })
 						}
 					}
 				}
@@ -518,7 +567,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	return uconnMap, explodeddnsMap, hostnameMap, useragentMap
+	return uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap
 }
 
 //buildExplodedDNS .....
@@ -551,6 +600,8 @@ func (fs *FSImporter) removeAnalysisChunk(cid int) error {
 		fmt.Println(err)
 		return err
 	}
+
+	fs.res.MetaDB.SetChunk(cid, fs.res.DB.GetSelectedDB(), false)
 
 	return nil
 
@@ -592,9 +643,9 @@ func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Pair) {
 
 }
 
-func (fs *FSImporter) buildHosts(uconnMap map[string]*uconn.Pair) {
+func (fs *FSImporter) buildHosts(hostMap map[string]*host.IP) {
 	// non-optional module
-	if len(uconnMap) > 0 {
+	if len(hostMap) > 0 {
 		hostRepo := host.NewMongoRepository(fs.res)
 
 		err := hostRepo.CreateIndexes()
@@ -603,9 +654,19 @@ func (fs *FSImporter) buildHosts(uconnMap map[string]*uconn.Pair) {
 		}
 
 		// send uconns to host analysis
-		hostRepo.Upsert(uconnMap)
+		hostRepo.Upsert(hostMap)
 	} else {
 		fmt.Println("\t[!] No Host data to analyze")
+	}
+}
+
+func (fs *FSImporter) markBlacklistedPeers(hostMap map[string]*host.IP) {
+	// non-optional module
+	if len(hostMap) > 0 {
+		blacklistRepo := blacklist.NewMongoRepository(fs.res)
+
+		// send uconns to host analysis
+		blacklistRepo.Upsert()
 	}
 }
 
@@ -671,11 +732,9 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// Build query for aggregation
 	timestampMinQuery := []bson.M{
-		bson.M{"$project": bson.M{"_id": 0, "dat": 1}},
-		bson.M{"$unwind": "$dat"},
 		bson.M{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
 		bson.M{"$unwind": "$ts"},
-		bson.M{"$project": bson.M{"_id": 0, "ts": 1}},
+		bson.M{"$unwind": "$ts"}, // Not an error, must unwind it twice
 		bson.M{"$sort": bson.M{"ts": 1}},
 		bson.M{"$limit": 1},
 	}
@@ -697,11 +756,9 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// Build query for aggregation
 	timestampMaxQuery := []bson.M{
-		bson.M{"$project": bson.M{"_id": 0, "dat": 1}},
-		bson.M{"$unwind": "$dat"},
 		bson.M{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
 		bson.M{"$unwind": "$ts"},
-		bson.M{"$project": bson.M{"_id": 0, "ts": 1}},
+		bson.M{"$unwind": "$ts"}, // Not an error, must unwind it twice
 		bson.M{"$sort": bson.M{"ts": -1}},
 		bson.M{"$limit": 1},
 	}
@@ -749,4 +806,14 @@ func int64InSlice(a int64, list []int64) bool {
 		}
 	}
 	return false
+}
+
+//isIPv4 checks if an ip is ipv4
+func isIPv4(address string) bool {
+	return strings.Count(address, ":") < 2
+}
+
+//ipv4ToBinary generates binary representations of the IPv4 addresses
+func ipv4ToBinary(ipv4 net.IP) int64 {
+	return int64(binary.BigEndian.Uint32(ipv4[12:16]))
 }

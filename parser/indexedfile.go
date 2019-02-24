@@ -183,7 +183,7 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 			"error": err.Error(),
 		}).Error("Could not obtain a list of previously parsed files")
 	}
-	//NOTE: This can be improved to n log n if we need to
+
 	for _, newFile := range indexedFiles {
 		if newFile == nil {
 			//this file was errored on earlier, i.e. we didn't find a tgtDB etc.

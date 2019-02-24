@@ -108,8 +108,8 @@ func (a *analyzer) start() {
 							"cid":     a.chunk,
 						}},
 						"$set": bson.M{
-							"subdomain_count": 1,
 							"cid":             a.chunk,
+							"subdomain_count": 1,
 						},
 					}
 
@@ -138,18 +138,22 @@ func (a *analyzer) start() {
 						// subdomain count, only the visited count as the subdomain count is unique
 						if alreadyCountedSubsFlag {
 							output.query = bson.M{
-								"$inc": bson.M{"dat." + a.chunkStr + ".visited": data.count},
-								"$set": bson.M{"cid": a.chunk},
+								"$inc": bson.M{"dat.$.visited": data.count},
 							}
 						} else {
 							output.query = bson.M{
 								"$inc": bson.M{
-									"subdomain_count":                1,
-									"dat." + a.chunkStr + ".visited": data.count,
+									"subdomain_count": 1,
+									"dat.$.visited":   data.count,
 								},
-								"$set": bson.M{"cid": a.chunk},
 							}
 						}
+
+						// create selector for output
+						output.selector = bson.M{"domain": entry, "dat.cid": a.chunk}
+
+						// set to writer channel
+						a.analyzedCallback(output)
 
 					} else { // chunk is outdated, need to make a new one
 
@@ -158,14 +162,15 @@ func (a *analyzer) start() {
 						// subdomain count, only the visited count as the subdomain count is unique
 						if alreadyCountedSubsFlag {
 							output.query = bson.M{
+								"$set": bson.M{"cid": a.chunk},
 								"$push": bson.M{"dat": bson.M{
 									"visited": data.count,
 									"cid":     a.chunk,
 								}},
-								"$set": bson.M{"cid": a.chunk},
 							}
 						} else {
 							output.query = bson.M{
+								"$set": bson.M{"cid": a.chunk},
 								"$inc": bson.M{
 									"subdomain_count": 1,
 								},
@@ -173,17 +178,17 @@ func (a *analyzer) start() {
 									"visited": data.count,
 									"cid":     a.chunk,
 								}},
-								"$set": bson.M{"cid": a.chunk},
 							}
 						}
 
+						// create selector for output
+						output.selector = bson.M{"domain": entry}
+
+						// set to writer channel
+						a.analyzedCallback(output)
+
 					}
 
-					// create selector for output
-					output.selector = bson.M{"domain": entry}
-
-					// set to writer channel
-					a.analyzedCallback(output)
 				}
 
 			}
