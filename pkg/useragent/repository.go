@@ -11,10 +11,18 @@ type updateInfo struct {
 	query    interface{}
 }
 
+//
+// //update ....
+// type update struct {
+// 	userAgent updateInfo
+// 	host      updateInfo
+// }
+
 //update ....
 type update struct {
-	userAgent updateInfo
-	host      updateInfo
+	selector   interface{}
+	query      interface{}
+	collection string
 }
 
 //Input ....

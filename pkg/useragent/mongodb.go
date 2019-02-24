@@ -42,7 +42,7 @@ func (r *repo) CreateIndexes() error {
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"user_agent"}, Unique: true},
-		{Key: []string{"times_used"}},
+		{Key: []string{"dat.seen"}},
 	}
 
 	// create collection
@@ -56,7 +56,7 @@ func (r *repo) CreateIndexes() error {
 
 func (r *repo) Upsert(userAgentMap map[string]*Input) {
 	//Create the workers
-	writerWorker := newWriter(r.res.Config.T.UserAgent.UserAgentTable, r.res.DB, r.res.Config)
+	writerWorker := newWriter(r.res.DB, r.res.Config)
 
 	analyzerWorker := newAnalyzer(
 		r.res.Config.S.Bro.CurrentChunk,
