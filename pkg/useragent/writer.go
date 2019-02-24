@@ -11,21 +11,19 @@ import (
 type (
 	//writer blah blah
 	writer struct { //structure for writing blacklist results to mongo
-		targetCollection string
-		db               *database.DB   // provides access to MongoDB
-		conf             *config.Config // contains details needed to access MongoDB
-		writeChannel     chan update    // holds analyzed data
-		writeWg          sync.WaitGroup // wait for writing to finish
+		db           *database.DB   // provides access to MongoDB
+		conf         *config.Config // contains details needed to access MongoDB
+		writeChannel chan update    // holds analyzed data
+		writeWg      sync.WaitGroup // wait for writing to finish
 	}
 )
 
 //newWriter creates a new writer object to write output data to blacklisted collections
-func newWriter(targetCollection string, db *database.DB, conf *config.Config) *writer {
+func newWriter(db *database.DB, conf *config.Config) *writer {
 	return &writer{
-		targetCollection: targetCollection,
-		db:               db,
-		conf:             conf,
-		writeChannel:     make(chan update),
+		db:           db,
+		conf:         conf,
+		writeChannel: make(chan update),
 	}
 }
 
@@ -49,12 +47,21 @@ func (w *writer) start() {
 
 		for data := range w.writeChannel {
 
-			info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.selector, data.query)
+			info, err := ssn.DB(w.db.GetSelectedDB()).C(data.collection).Upsert(data.selector, data.query)
 
 			if err != nil ||
 				((info.Updated == 0) && (info.UpsertedId == nil)) {
 				fmt.Println(err, info, data)
 			}
+
+			// if data.host.query != nil {
+			// 	info, err = ssn.DB(w.db.GetSelectedDB()).C("host").Upsert(data.host.selector, data.host.query)
+			// 	if err != nil ||
+			// 		((info.Updated == 0) && (info.UpsertedId == nil)) {
+			// 		fmt.Println(err, info, data)
+			// 	}
+			//
+			// }
 		}
 		w.writeWg.Done()
 	}()

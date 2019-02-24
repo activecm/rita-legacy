@@ -66,6 +66,7 @@ func (a *analyzer) start() {
 			if len(data.Requests) > 10 {
 				data.Requests = data.Requests[:10]
 			}
+
 			// create query
 			output.query = bson.M{
 				"$push": bson.M{
@@ -79,14 +80,109 @@ func (a *analyzer) start() {
 				"$set": bson.M{"cid": a.chunk},
 			}
 
+			output.collection = a.conf.T.UserAgent.UserAgentTable
 			// create selector for output
 			output.selector = bson.M{"user_agent": data.name}
 
 			// set to writer channel
 			a.analyzedCallback(output)
 
+			// this is for flagging rarely used j3 and useragent hosts
+			if len(data.OrigIps) < 5 {
+				maxLeft := 5 - len(data.OrigIps)
+
+				query := []bson.M{
+					bson.M{"$match": bson.M{"user_agent": data.name}},
+					bson.M{"$project": bson.M{"ips": "$dat.orig_ips", "user_agent": 1}},
+					bson.M{"$unwind": "$ips"},
+					bson.M{"$unwind": "$ips"}, // not an error, needs to be done twice
+					bson.M{"$group": bson.M{
+						"_id": "$user_agent",
+						"ips": bson.M{"$addToSet": "$ips"},
+					}},
+					bson.M{"$project": bson.M{
+						"count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
+						"ips":   "$ips",
+					}},
+					bson.M{"$match": bson.M{"count": bson.M{"$lte": maxLeft}}},
+				}
+
+				var resList struct {
+					ID    string   `bson:"_id"`
+					IPS   []string `bson:"ips"`
+					Count int      `bson:"count"`
+				}
+
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.UserAgent.UserAgentTable).Pipe(query).One(&resList)
+
+				for _, entry := range resList.IPS {
+
+					newRecordFlag := false
+
+					type hostRes struct {
+						CID int `bson:"cid"`
+					}
+
+					var res2 []hostRes
+
+					_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(bson.M{"ip": entry, "dat.rsig": data.name}).All(&res2)
+
+					if !(len(res2) > 0) {
+						newRecordFlag = true
+						// fmt.Println("host no results", res2, data.Host)
+					} else {
+
+						if res2[0].CID != a.chunk {
+							// fmt.Println("host existing", a.chunk, res2, data.Host)
+							newRecordFlag = true
+						}
+					}
+
+					output := hostQuery(a.chunk, data.name, entry, newRecordFlag)
+					output.collection = a.conf.T.Structure.HostTable
+
+					// set to writer channel
+					a.analyzedCallback(output)
+
+				}
+			}
+
 		}
 
 		a.analysisWg.Done()
 	}()
+}
+
+//hostQuery ...
+func hostQuery(chunk int, useragentStr string, ip string, newFlag bool) update {
+	var output update
+
+	// create query
+	query := bson.M{}
+
+	if newFlag {
+		query["$push"] = bson.M{
+			"dat": bson.M{
+				"rsig":  useragentStr,
+				"rsigc": 1,
+				"cid":   chunk,
+			}}
+
+		// create selector for output ,
+		output.query = query
+		output.selector = bson.M{"ip": ip}
+
+	} else {
+
+		query["$set"] = bson.M{
+			"dat.$.rsigc": 1,
+			"dat.$.chunk": chunk,
+		}
+
+		// create selector for output
+		output.query = query
+		output.selector = bson.M{"ip": ip, "dat.cid": chunk}
+	}
+
+	return output
 }
