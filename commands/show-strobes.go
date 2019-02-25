@@ -35,14 +35,13 @@ func init() {
 			res := resources.InitResources(c.String("config"))
 			res.DB.SelectDB(db)
 
-			var sortStr string
-			if c.Bool("connection-count") {
-				sortStr = "connection_count"
-			} else {
-				sortStr = "-connection_count"
+			sortStr := "conn_count"
+			sortDirection := -1
+			if c.Bool("connection-count") == false {
+				sortDirection = 1
 			}
 
-			data := getStrobeResultsView(res, sortStr, 1000)
+			data := getStrobeResultsView(res, sortStr, sortDirection, 1000)
 
 			if len(data) == 0 {
 				return cli.NewExitError("No results were found for "+db, -1)
@@ -87,7 +86,7 @@ func showStrobesHuman(strobes []beacon.StrobeAnalysisView) error {
 }
 
 //getStrobeResultsView ...
-func getStrobeResultsView(res *resources.Resources, sort string, limit int) []beacon.StrobeAnalysisView {
+func getStrobeResultsView(res *resources.Resources, sort string, sortDir int, limit int) []beacon.StrobeAnalysisView {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -103,7 +102,7 @@ func getStrobeResultsView(res *resources.Resources, sort string, limit int) []be
 			"dst":        bson.M{"$first": "$dst"},
 			"conn_count": bson.M{"$sum": "$conns"},
 		}},
-		bson.M{"$sort": bson.M{sort: -1}},
+		bson.M{"$sort": bson.M{sort: sortDir}},
 		bson.M{"$limit": limit},
 	}
 

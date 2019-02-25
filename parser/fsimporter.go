@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -183,7 +184,6 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	// add min/max timestamps to metaDatabase and mark results as imported and analyzed
 	fmt.Println("\t[-] Updating metadatabase ... ")
 	fs.updateTimestampRange()
-	fs.res.MetaDB.MarkDBImported(fs.res.DB.GetSelectedDB(), true)
 	fs.res.MetaDB.MarkDBAnalyzed(fs.res.DB.GetSelectedDB(), true)
 	fs.res.MetaDB.SetChunk(fs.currentChunk, fs.res.DB.GetSelectedDB(), true)
 
@@ -313,6 +313,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								protocol := parseConn.FieldByName("Proto").Interface().(string)
 								service := parseConn.FieldByName("Service").Interface().(string)
 								dstPort := parseConn.FieldByName("DestinationPort").Interface().(int)
+								var tuple string
+								if service == "" {
+									tuple = strconv.Itoa(dstPort) + ":" + protocol + ":-"
+								} else {
+									tuple = strconv.Itoa(dstPort) + ":" + protocol + ":" + service
+								}
 
 								// Concatenate the source and destination IPs to use as a map key
 								srcDst := src + dst
@@ -364,6 +370,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 											hostMap[src].UntrustedAppConnCount++
 										}
 									}
+								}
+
+								// increment unique dst port: proto : sevice tuple list for host
+								if stringInSlice(tuple, uconnMap[srcDst].Tuples) == false {
+									uconnMap[srcDst].Tuples = append(uconnMap[srcDst].Tuples, tuple)
 								}
 
 								// Increment the connection count for the src-dst pair

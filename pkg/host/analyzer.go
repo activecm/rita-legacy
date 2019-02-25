@@ -71,10 +71,7 @@ func (a *analyzer) start() {
 				var output update
 				newRecordFlag := false
 				type hostRes struct {
-					// IP string `bson:"ip"`
-					// blacklisted bool   `bson:"blacklisted"`
 					CID int `bson:"cid"`
-					// dat         []interface{} `bson:"dat"`Host string `bson:"host"`
 				}
 
 				var res2 []hostRes
@@ -120,6 +117,7 @@ func standardQuery(chunk int, chunkStr string, ip string, local bool, ip4 bool, 
 	}
 
 	if newFlag {
+
 		query["$push"] = bson.M{
 			"dat": bson.M{
 				"count_src":       countSrc,

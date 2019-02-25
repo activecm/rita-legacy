@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"errors"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -38,14 +37,12 @@ type collectionWriter struct {
 
 //MongoDatastore provides a backend for storing bro data in MongoDB
 type MongoDatastore struct {
-	session       *mgo.Session
-	metaDB        *database.MetaDB
-	bufferSize    int
-	logger        *log.Logger
-	writerWG      *sync.WaitGroup
-	writeMap      storeMap
-	analyzedDBs   []string
-	unanalyzedDBs []string
+	session    *mgo.Session
+	metaDB     *database.MetaDB
+	bufferSize int
+	logger     *log.Logger
+	writerWG   *sync.WaitGroup
+	writeMap   storeMap
 }
 
 //NewMongoDatastore returns a new MongoDatastore and caches the existing
@@ -62,8 +59,6 @@ func NewMongoDatastore(session *mgo.Session, metaDB *database.MetaDB,
 			databases: make(map[string]*collectionMap),
 			rwLock:    new(sync.Mutex),
 		},
-		analyzedDBs:   metaDB.GetAnalyzedDatabases(),
-		unanalyzedDBs: metaDB.GetUnAnalyzedDatabases(),
 	}
 }
 
@@ -138,42 +133,6 @@ func (mongo *MongoDatastore) getCollectionMap(data *ImportedData) (*collectionMa
 	collMap, ok := mongo.writeMap.databases[data.TargetDatabase]
 	if ok {
 		return collMap, nil
-	}
-
-	//check if the database is already analyzed
-
-	//iterate over indices to save RAM
-	//nolint: golint
-	for i := range mongo.analyzedDBs {
-		if mongo.analyzedDBs[i] == data.TargetDatabase {
-			return nil, errors.New("cannot import bro data into already analyzed database")
-		}
-	}
-
-	//check if the database was created in an earlier parse
-	targetDBExists := false
-	//nolint: golint
-	for i := range mongo.unanalyzedDBs {
-		if mongo.unanalyzedDBs[i] == data.TargetDatabase {
-			targetDBExists = true
-		}
-	}
-
-	if targetDBExists {
-		compatible, err := mongo.metaDB.CheckCompatibleImport(data.TargetDatabase)
-		if err != nil {
-			return nil, err
-		}
-		if !compatible {
-			return nil, errors.New("cannot import bro data into already populated, incompatible database")
-		}
-	} else {
-		//create the database if it doesn't exist
-		err := mongo.metaDB.AddNewDB(data.TargetDatabase)
-		if err != nil {
-			return nil, err
-		}
-		mongo.unanalyzedDBs = append(mongo.unanalyzedDBs, data.TargetDatabase)
 	}
 
 	mongo.writeMap.databases[data.TargetDatabase] = &collectionMap{
