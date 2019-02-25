@@ -15,6 +15,7 @@ import (
 
 type (
 	analyzer struct {
+		connLimit        int64            // limit for strobe classification
 		chunk            int              //current chunk (0 if not on rolling analysis)
 		chunkStr         string           //current chunk (0 if not on rolling analysis)
 		db               *database.DB     // provides access to MongoDB
@@ -27,8 +28,9 @@ type (
 )
 
 //newAnalyzer creates a new collector for gathering data
-func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(*update), closedCallback func()) *analyzer {
+func newAnalyzer(connLimit int64, chunk int, db *database.DB, conf *config.Config, analyzedCallback func(*update), closedCallback func()) *analyzer {
 	return &analyzer{
+		connLimit:        connLimit,
 		chunk:            chunk,
 		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
@@ -176,14 +178,17 @@ func (a *analyzer) start() {
 					dsSmallnessScore = 0
 				}
 
+				// connection count scoring
+				tsConnCountScore := float64(res.ConnectionCount) / float64(a.connLimit)
+
 				//score numerators
-				tsSum := tsSkewScore + tsMadmScore
+				tsSum := tsSkewScore + tsMadmScore + tsConnCountScore
 				dsSum := dsSkewScore + dsMadmScore + dsSmallnessScore
 
 				//score averages
-				tsScore := math.Ceil((tsSum/2.0)*1000) / 1000
+				tsScore := math.Ceil((tsSum/3.0)*1000) / 1000
 				dsScore := math.Ceil((dsSum/3.0)*1000) / 1000
-				score := math.Ceil(((tsSum+dsSum)/5.0)*1000) / 1000
+				score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
 
 				// update beacon query
 				output.beacon = updateInfo{
@@ -200,6 +205,7 @@ func (a *analyzer) start() {
 							"ts.interval_counts": intervalCounts,
 							"ts.dispersion":      tsMadm,
 							"ts.skew":            tsSkew,
+							"ts.conns_score":     tsConnCountScore,
 							"ts.score":           tsScore,
 							"ds.range":           dsRange,
 							"ds.mode":            dsMode,

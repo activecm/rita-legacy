@@ -54,6 +54,7 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Pair) {
 	)
 
 	analyzerWorker := newAnalyzer(
+		int64(r.res.Config.S.Strobe.ConnectionLimit),
 		r.res.Config.S.Bro.CurrentChunk,
 		r.res.DB,
 		r.res.Config,
