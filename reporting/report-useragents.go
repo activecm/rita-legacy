@@ -23,7 +23,7 @@ func printUserAgents(db string, res *resources.Resources) error {
 		return err
 	}
 
-	data := getUseragentResultsView(res, "times_used", 1, 1000)
+	data := getUseragentResultsView(res, "seen", 1, 1000)
 
 	w, err := getUserAgentsWriter(data)
 	if err != nil {
@@ -56,16 +56,16 @@ func getUseragentResultsView(res *resources.Resources, sort string, sortDirectio
 	var useragentResults []useragent.AnalysisView
 
 	useragentQuery := []bson.M{
-		bson.M{"$project": bson.M{"user_agent": 1, "times_used": "$dat.seen"}},
-		bson.M{"$unwind": "$times_used"},
+		bson.M{"$project": bson.M{"user_agent": 1, "seen": "$dat.seen"}},
+		bson.M{"$unwind": "$seen"},
 		bson.M{"$group": bson.M{
-			"_id":        "$user_agent",
-			"times_used": bson.M{"$sum": "$times_used"},
+			"_id":  "$user_agent",
+			"seen": bson.M{"$sum": "$seen"},
 		}},
 		bson.M{"$project": bson.M{
 			"_id":        0,
 			"user_agent": "$_id",
-			"times_used": 1,
+			"seen":       1,
 		}},
 		bson.M{"$sort": bson.M{sort: sortDirection}},
 		bson.M{"$limit": limit},

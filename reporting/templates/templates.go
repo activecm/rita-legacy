@@ -144,7 +144,7 @@ var BLHostnameTempl = dbHeader + `
 var LongConnsTempl = dbHeader + `
 <div class="container">
   <table>
-	<tr><th>Source</th><th>Source Port</th><th>Destination</th><th>Destination Port</th><th>Duration</th><th>Protocol</th></tr>
+	<tr><th>Source</th><th>Destination</th><th>DstPort:Protocol:Service</th><th>Duration</th></tr>
 	  {{.Writer}}
 	</table>
 </div>

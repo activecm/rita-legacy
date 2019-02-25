@@ -78,7 +78,7 @@ func showConns(connResults []uconn.LongConnAnalysisView) error {
 func showConnsHuman(connResults []uconn.LongConnAnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Source IP", "Destination IP",
-		"Port:Protocol:Service", "Duration"})
+		"DstPort:Protocol:Service", "Duration"})
 	for _, result := range connResults {
 		table.Append([]string{
 			result.Src,
@@ -110,6 +110,12 @@ func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, 
 			"src":    bson.M{"$first": "$src"},
 			"dst":    bson.M{"$first": "$dst"},
 			"tuples": bson.M{"$addToSet": "$tuples"},
+		}},
+		bson.M{"$project": bson.M{
+			"maxdur": 1,
+			"src":    1,
+			"dst":    1,
+			"tuples": bson.M{"$slice": []interface{}{"$tuples", 5}},
 		}},
 		bson.M{"$sort": bson.M{sort: sortDirection}},
 		bson.M{"$limit": limit},

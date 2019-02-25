@@ -36,5 +36,5 @@ type Input struct {
 //AnalysisView (for reporting)
 type AnalysisView struct {
 	UserAgent string `bson:"user_agent"`
-	TimesUsed int64  `bson:"times_used"`
+	TimesUsed int64  `bson:"seen"`
 }
