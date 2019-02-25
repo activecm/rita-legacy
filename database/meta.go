@@ -38,24 +38,17 @@ type (
 		Max int64 `bson:"max"`
 	}
 
-	// CID contains chunk ids
-	CID struct {
-		value int `bson:"value"`
-	}
-
 	// DBMetaInfo defines some information about the database
 	DBMetaInfo struct {
 		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
 		Name           string        `bson:"name"`            // Top level name of the database
 		ImportFinished bool          `bson:"import_finished"` // Has this database been entirely imported
 		Analyzed       bool          `bson:"analyzed"`        // Has this database been analyzed
-		ImportVersion  string        `bson:"import_version"`  // Rita version at import
 		AnalyzeVersion string        `bson:"analyze_version"` // Rita version at analyze
 		Rolling        bool          `bson:"rolling"`
 		TotalChunks    int           `bson:"total_chunks"`
 		CurrentChunk   int           `bson:"current_chunk"`
-		// CIDList        []CID         `bson:"cid_list"`
-		TsRange Range `bson:"ts_range"`
+		TsRange        Range         `bson:"ts_range"`
 	}
 )
 
@@ -336,36 +329,6 @@ func (m *MetaDB) MarkDBAnalyzed(name string, complete bool) error {
 	return nil
 }
 
-//migrateDBMetaInfo is used to ensure compatibility with previous database schemas.
-//migrateDBMetaInfo does not migrate any data in the database. Rather,
-//it converts old DBMetaInfo representations into new ones in memory.
-//We follow the reasoning that RITA should be able to read documents from
-//older versions.
-func migrateDBMetaInfo(inInfo DBMetaInfo) (DBMetaInfo, error) {
-	var inVersion semver.Version
-	var err error
-	if inInfo.ImportVersion != "" {
-		inVersion, err = semver.ParseTolerant(inInfo.ImportVersion)
-		if err != nil {
-			return inInfo, err
-		}
-	} else {
-		//The only published version of RITA without the ImportVersion field
-		//is RITA v0.9.1
-		inVersion = semver.Version{Major: 0, Minor: 9, Patch: 1}
-	}
-	if inVersion.LT(semver.Version{Major: 1, Minor: 1, Patch: 0}) {
-		/*
-		*	Before version 1.1.0, database records in the MetaDB lacked
-		* the ImportFinished flag. The flag was introduced to prevent
-		* the simultaneous import and analysis of a database.
-		* See: https://github.com/activecm/rita/blob/9fd7ed84a1bad3aba879e890fad83152266c8156/database/meta.go#L26
-		 */
-		inInfo.ImportFinished = true
-	}
-	return inInfo, nil
-}
-
 // runDBMetaInfoQuery runs a MongoDB query against the MetaDB Databases Table
 // and performs any necessary data migration
 func (m *MetaDB) runDBMetaInfoQuery(queryDoc bson.M) ([]DBMetaInfo, error) {
@@ -379,13 +342,6 @@ func (m *MetaDB) runDBMetaInfoQuery(queryDoc bson.M) ([]DBMetaInfo, error) {
 	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(queryDoc).All(&results)
 	if err != nil {
 		return results, err
-	}
-
-	for i := range results {
-		results[i], err = migrateDBMetaInfo(results[i])
-		if err != nil {
-			return results, err
-		}
 	}
 
 	return results, nil
@@ -477,20 +433,6 @@ func (m *MetaDB) GetDatabases() []string {
 	}
 	return results
 
-}
-
-//CheckCompatibleImport checks if a database was imported with a version of
-//RITA which is compatible with the running version
-func (m *MetaDB) CheckCompatibleImport(targetDatabase string) (bool, error) {
-	dbData, err := m.GetDBMetaInfo(targetDatabase)
-	if err != nil {
-		return false, err
-	}
-	existingVer, err := semver.ParseTolerant(dbData.ImportVersion)
-	if err != nil {
-		return false, err
-	}
-	return m.config.R.Version.Major == existingVer.Major, nil
 }
 
 //CheckCompatibleAnalyze checks if a database was analyzed with a version of
