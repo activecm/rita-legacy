@@ -20,21 +20,6 @@ type update struct {
 	uconn  updateInfo
 }
 
-// type uconnDat struct {
-// 	Count       int64   `bson:"count"`
-// 	Ts          []int64 `bson:"ts"`
-// 	OrigIPBytes []int64 `bson:"bytes"`
-// 	MaxDur      float32 `bson:"maxdur"`
-// 	TBytes      int64   `bson:"tbytes"`
-// }
-// type uconnRes struct {
-// 	Src string     `bson:"src"`
-// 	Dst string     `bson:"dst"`
-// 	Dat []uconnDat `bson:"dat"`
-// 	// ConnectionCount int64      `bson:"connection_count"`
-// 	// TotalBytes      int64      `bson:"total_bytes"`
-// }
-
 //TSData ...
 type TSData struct {
 	Range      int64   `bson:"range"`
@@ -52,6 +37,17 @@ type DSData struct {
 	Range      int64   `bson:"range"`
 	Mode       int64   `bson:"mode"`
 	ModeCount  int64   `bson:"mode_count"`
+}
+
+type analysisInput struct {
+	// intervals
+	// intervalCounts
+	// tsMode
+	// tsModeCount
+	// dsSizes
+	// dsCounts
+	// dsMode
+	// dsModeCount
 }
 
 //AnalysisView (for reporting)

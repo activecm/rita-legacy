@@ -424,14 +424,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 								mutex.Unlock()
 
-								// stores the conn record in conn collection if below threshold
-								//
-								// datastore.Store(&ImportedData{
-								// 	BroData:          data,
-								// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
-								// 	TargetCollection: targetCollection,
-								// })
-
 							}
 
 							/// *************************************************************///
@@ -496,13 +488,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							mutex.Unlock()
 
-							// stores the dns record in the dns collection
-							// datastore.Store(&ImportedData{
-							// 	BroData:          data,
-							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
-							// 	TargetCollection: targetCollection,
-							// })
-
 							/// *************************************************************///
 							///                             HTTP                             ///
 							/// *************************************************************///
@@ -535,13 +520,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							mutex.Unlock()
 
-							// stores the http record in the http collection
-							// datastore.Store(&ImportedData{
-							// 	BroData:          data,
-							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
-							// 	TargetCollection: targetCollection,
-							// })
-
 							/// *************************************************************///
 							///                             SSL                             ///
 							/// *************************************************************///
@@ -549,7 +527,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							parseSSL := reflect.ValueOf(data).Elem()
 							ja3Hash := parseSSL.FieldByName("JA3").Interface().(string)
 							src := parseSSL.FieldByName("Source").Interface().(string)
+							dst := parseSSL.FieldByName("Destination").Interface().(string)
 							host := parseSSL.FieldByName("ServerName").Interface().(string)
+							certStatus := parseSSL.FieldByName("ValidationStatus").Interface().(string)
 
 							// fmt.Println(ja3Hash)
 							// Safely store ja3 information
@@ -557,7 +537,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// create record if it doesn't exist
 							if _, ok := useragentMap[ja3Hash]; !ok {
-								useragentMap[ja3Hash] = &useragent.Input{Seen: 1, OrigIps: []string{src}, Requests: []string{host}}
+								useragentMap[ja3Hash] = &useragent.Input{
+									Seen: 1,
+									OrigIps: []string{src},
+									Requests: []string{host},
+									JA3: true,
+								}
 							} else {
 								// increment times seen count
 								useragentMap[ja3Hash].Seen++
@@ -573,25 +558,27 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 							}
 
+							//if there's any problem in the certificate, mark it invalid
+							if certStatus != "ok" && certStatus != "-"  && certStatus != ""  && certStatus != " "  {
+								// fmt.Println(certStatus)
+								// Check if uconn map value is set, because this record could
+								// come before a relevant conns record
+								if _, ok := uconnMap[src+dst]; !ok {
+									// create new uconn record if it does not exist
+									uconnMap[src+dst] = &uconn.Pair{
+										Src:        src,
+										Dst:        dst,
+										IsLocalSrc: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
+										IsLocalDst: containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
+									}
+								}
+								// mark as having invalid cert
+								if stringInSlice(certStatus, uconnMap[src+dst].InvalidCerts) == false {
+									uconnMap[src+dst].InvalidCerts = append(uconnMap[src+dst].InvalidCerts, certStatus)
+								}
+
+							}
 							mutex.Unlock()
-
-							// stores the ssl record in the ssl collection
-							// datastore.Store(&ImportedData{
-							// 	BroData:          data,
-							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
-							// 	TargetCollection: targetCollection,
-							// })
-
-							/// *************************************************************///
-							///                             x509                             ///
-							/// *************************************************************///
-						case fs.res.Config.T.Structure.X509Table:
-							// datastore.Store(&ImportedData{
-							// 	BroData:          data,
-							// 	TargetDatabase:   fs.res.DB.GetSelectedDB(),
-							// 	TargetCollection: targetCollection,
-							// })
-
 						}
 					}
 				}

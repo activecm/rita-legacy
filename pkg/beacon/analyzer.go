@@ -59,8 +59,6 @@ func (a *analyzer) close() {
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
-		ssn := a.db.Session.Copy()
-		defer ssn.Close()
 
 		for res := range a.analysisChannel {
 
@@ -228,14 +226,7 @@ func (a *analyzer) start() {
 					selector: bson.M{"src": res.Src, "dst": res.Dst},
 				}
 
-				output.host = updateInfo{
-					// update hosts record
-					query: bson.M{
-						"$max": bson.M{"dat." + a.chunkStr + ".max_beacon_score": score},
-					},
-					// create selector for output
-					selector: bson.M{"ip": res.Src},
-				}
+				output.host = a.hostQuery(score, res.InvalidCertFlag, res.Src, res.Dst)
 
 				// set to writer channel
 				a.analyzedCallback(output)
@@ -264,4 +255,64 @@ func createCountMap(sortedIn []int64) ([]int64, []int64, int64, int64) {
 		}
 	}
 	return distinct, countsArr, mode, max
+}
+
+func (a *analyzer) hostQuery(score float64, icert bool, src string, dst string) updateInfo {
+
+	var output updateInfo
+
+	// create query
+	query := bson.M{}
+
+	if icert == true {
+		ssn := a.db.Session.Copy()
+		defer ssn.Close()
+		newFlag := false
+
+		var res3 []interface{}
+
+		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(bson.M{"ip": src, "dat.icdst": dst}).All(&res3)
+
+		if !(len(res3) > 0) {
+			newFlag = true
+		}
+
+		if newFlag {
+
+			query["$push"] = bson.M{
+				"dat": bson.M{
+					"icdst":            dst,
+					"icert":            1,
+					"max_beacon_score": score,
+					"cid":              a.chunk,
+				}}
+
+			// create selector for output
+			output.query = query
+			output.selector = bson.M{"ip": src}
+
+		} else {
+
+			query["$set"] = bson.M{
+				"dat.$.icert": 1,
+				"dat.$.cid":   a.chunk,
+			}
+			query["$max"] = bson.M{"dat.$.max_beacon_score": score}
+
+			// create selector for output
+			output.query = query
+			output.selector = bson.M{"ip": src, "dat.icdst": dst}
+
+		}
+	} else {
+
+		query["$max"] = bson.M{"dat.$.max_beacon_score": score}
+
+		// create selector for output
+		output.query = query
+		output.selector = bson.M{"ip": src, "dat.cid": a.chunk}
+
+	}
+
+	return output
 }

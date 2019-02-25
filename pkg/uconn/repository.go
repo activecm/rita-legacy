@@ -25,6 +25,8 @@ type Pair struct {
 	TsList          []int64
 	OrigBytesList   []int64
 	Tuples          []string
+	InvalidCerts    []string
+	InvalidCertFlag bool
 }
 
 //LongConnAnalysisView (for reporting)

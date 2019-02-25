@@ -68,7 +68,7 @@ func (a *analyzer) start() {
 			}
 
 			// create query
-			output.query = bson.M{
+			query := bson.M{
 				"$push": bson.M{
 					"dat": bson.M{
 						"seen":     data.Seen,
@@ -77,8 +77,11 @@ func (a *analyzer) start() {
 						"cid":      a.chunk,
 					},
 				},
-				"$set": bson.M{"cid": a.chunk},
+				"$set":         bson.M{"cid": a.chunk},
+				"$setOnInsert": bson.M{"ja3": data.JA3},
 			}
+
+			output.query = query
 
 			output.collection = a.conf.T.UserAgent.UserAgentTable
 			// create selector for output

@@ -177,7 +177,7 @@ func hasBlacklistedSrcQuery(chunk int, ip string, entry uconnRes, newFlag bool) 
 
 		// create selector for output
 		output.query = query
-		output.selector = bson.M{"ip": entry.Host, "dat.cid": chunk}
+		output.selector = bson.M{"ip": entry.Host, "dat.bl": ip}
 	}
 
 	return output
