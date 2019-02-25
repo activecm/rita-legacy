@@ -44,7 +44,7 @@ func (r *repo) CreateIndexes() error {
 	indexes := []mgo.Index{
 		{Key: []string{"domain"}, Unique: true},
 		// {Key: []string{"visited"}},
-		{Key: []string{"subdomains"}},
+		{Key: []string{"subdomain_count"}},
 	}
 
 	// create collection
