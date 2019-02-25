@@ -35,7 +35,7 @@ func init() {
 			res := resources.InitResources(c.String("config"))
 			res.DB.SelectDB(db)
 
-			sort := "times_used"
+			sort := "seen"
 			sortDirection := 1
 			if c.Bool("least-used") == false {
 				sortDirection = -1
@@ -93,16 +93,16 @@ func getUseragentResultsView(res *resources.Resources, sort string, sortDirectio
 	var useragentResults []useragent.AnalysisView
 
 	useragentQuery := []bson.M{
-		bson.M{"$project": bson.M{"user_agent": 1, "times_used": "$dat.seen"}},
-		bson.M{"$unwind": "$times_used"},
+		bson.M{"$project": bson.M{"user_agent": 1, "seen": "$dat.seen"}},
+		bson.M{"$unwind": "$seen"},
 		bson.M{"$group": bson.M{
-			"_id":        "$user_agent",
-			"times_used": bson.M{"$sum": "$times_used"},
+			"_id":  "$user_agent",
+			"seen": bson.M{"$sum": "$seen"},
 		}},
 		bson.M{"$project": bson.M{
 			"_id":        0,
 			"user_agent": "$_id",
-			"times_used": 1,
+			"seen":       1,
 		}},
 		bson.M{"$sort": bson.M{sort: sortDirection}},
 		bson.M{"$limit": limit},

@@ -33,4 +33,5 @@ type LongConnAnalysisView struct {
 	Dst         string   `bson:"dst"`
 	MaxDuration float64  `bson:"maxdur"`
 	Tuples      []string `bson:"tuples"`
+	TupleStr    string
 }
