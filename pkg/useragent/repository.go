@@ -31,6 +31,7 @@ type Input struct {
 	Seen     int64
 	OrigIps  []string
 	Requests []string
+	JA3      bool
 }
 
 //AnalysisView (for reporting)
