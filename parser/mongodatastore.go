@@ -96,7 +96,7 @@ func (mongo *MongoDatastore) Index() {
 	defer ssn.Close()
 
 	mongo.writeMap.rwLock.Lock()
-	for database, collMap := range mongo.writeMap.databases {
+	for _, collMap := range mongo.writeMap.databases {
 		collMap.rwLock.Lock()
 		for _, collWriter := range collMap.collections {
 			collection := ssn.DB(collWriter.targetDatabase).C(collWriter.targetCollection)
@@ -113,10 +113,6 @@ func (mongo *MongoDatastore) Index() {
 		}
 		collMap.rwLock.Unlock()
 
-		//swallow err as err is logged in metadb
-		//the current code cannot recover from this error without
-		//a bit of a rewrite
-		mongo.metaDB.MarkDBImported(database, true)
 	}
 	mongo.writeMap.rwLock.Unlock()
 }

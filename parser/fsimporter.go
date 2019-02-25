@@ -162,6 +162,9 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	// build Uconns table. Must go before beacons.
 	fs.buildUconns(uconnMap)
 
+	// update ts range for dataset (needs to be run before beacons)
+	fs.updateTimestampRange()
+
 	// build or update the exploded DNS table. Must go before hostnames
 	fs.buildExplodedDNS(explodeddnsMap)
 
@@ -183,7 +186,6 @@ func (fs *FSImporter) Run(datastore Datastore) {
 
 	// add min/max timestamps to metaDatabase and mark results as imported and analyzed
 	fmt.Println("\t[-] Updating metadatabase ... ")
-	fs.updateTimestampRange()
 	fs.res.MetaDB.MarkDBAnalyzed(fs.res.DB.GetSelectedDB(), true)
 	fs.res.MetaDB.SetChunk(fs.currentChunk, fs.res.DB.GetSelectedDB(), true)
 

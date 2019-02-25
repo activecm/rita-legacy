@@ -205,16 +205,18 @@ func (m *MetaDB) DeleteDB(name string) error {
 	return nil
 }
 
-// MarkDBImported marks a database as having been completely imported
-func (m *MetaDB) MarkDBImported(name string, complete bool) error {
+// GetTSRange adds the min and max timestamps for current dataset
+func (m *MetaDB) GetTSRange(name string) (int64, int64, error) {
 	dbr, err := m.GetDBMetaInfo(name)
+
+	var min, max int64
 
 	if err != nil {
 		m.log.WithFields(log.Fields{
 			"database_requested": name,
 			"error":              err.Error(),
-		}).Error("database not found in metadata directory")
-		return err
+		}).Error("Could not add timestamp range: database not found in metadata directory")
+		return min, max, err
 	}
 
 	m.lock.Lock()
@@ -223,14 +225,17 @@ func (m *MetaDB) MarkDBImported(name string, complete bool) error {
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
-		Upsert(
-			bson.M{"_id": dbr.ID},
-			bson.M{
-				"$set": bson.M{
-					"import_finished": complete,
-				}},
-		)
+	type tsInfo struct {
+		Min int64 `bson:"min" json:"min"`
+		Max int64 `bson:"max" json:"max"`
+	}
+
+	var tsRes struct {
+		TSRange tsInfo `bson:"ts_range"`
+	}
+
+	// get min and max timestamps
+	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"name": name}).One(&tsRes)
 
 	if err != nil {
 		m.log.WithFields(log.Fields{
@@ -238,10 +243,14 @@ func (m *MetaDB) MarkDBImported(name string, complete bool) error {
 			"database_requested": name,
 			"_id":                dbr.ID.Hex,
 			"error":              err.Error(),
-		}).Error("could not update database entry as imported in metadatabase")
-		return err
+		}).Error("Could not retrieve timestamp range from metadatabase: ", err)
+		return min, max, err
 	}
-	return nil
+
+	min = tsRes.TSRange.Min
+	max = tsRes.TSRange.Max
+
+	return min, max, nil
 }
 
 // AddTSRange adds the min and max timestamps found in current dataset

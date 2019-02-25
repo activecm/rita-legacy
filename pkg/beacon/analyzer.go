@@ -15,7 +15,8 @@ import (
 
 type (
 	analyzer struct {
-		connLimit        int64            // limit for strobe classification
+		tsMin            int64            // min timestamp for the whole dataset
+		tsMax            int64            // max timestamp for the whole dataset
 		chunk            int              //current chunk (0 if not on rolling analysis)
 		chunkStr         string           //current chunk (0 if not on rolling analysis)
 		db               *database.DB     // provides access to MongoDB
@@ -28,9 +29,10 @@ type (
 )
 
 //newAnalyzer creates a new collector for gathering data
-func newAnalyzer(connLimit int64, chunk int, db *database.DB, conf *config.Config, analyzedCallback func(*update), closedCallback func()) *analyzer {
+func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.Config, analyzedCallback func(*update), closedCallback func()) *analyzer {
 	return &analyzer{
-		connLimit:        connLimit,
+		tsMin:            min,
+		tsMax:            max,
 		chunk:            chunk,
 		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
@@ -179,7 +181,11 @@ func (a *analyzer) start() {
 				}
 
 				// connection count scoring
-				tsConnCountScore := float64(res.ConnectionCount) / float64(a.connLimit)
+				tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 10.0
+				tsConnCountScore := float64(res.ConnectionCount) / tsConnDiv
+				if tsConnCountScore > 1.0 {
+					tsConnCountScore = 1.0
+				}
 
 				//score numerators
 				tsSum := tsSkewScore + tsMadmScore + tsConnCountScore
