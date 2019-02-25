@@ -4,7 +4,7 @@
 # activecountermeasures.com
 
 # CONSTANTS
-_RITA_VERSION="v2.0.0-beta1"
+_RITA_VERSION="v2.0.0"
 _MONGO_VERSION="3.6"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
@@ -42,6 +42,7 @@ __entry() {
 	# Optional Dependencies
 	_INSTALL_BRO=true
 	_INSTALL_MONGO=true
+	_INSTALL_RITA=true
 
 	# Install locations
 	_INSTALL_PREFIX=/usr/local
@@ -74,11 +75,19 @@ __entry() {
 			--disable-mongo)
 				_INSTALL_MONGO=false
 				;;
+			--disable-rita)
+				_INSTALL_RITA=false
+				;;
 			*)
 			;;
-	  esac
-	  shift
+		esac
+		shift
 	done
+
+	if [ "$_INSTALL_BRO" = "false" -a "$_INSTALL_MONGO" = "false" -a "$_INSTALL_RITA" = "false" ]; then
+		echo "No packages were selected for installation, exiting."
+		exit 0
+	fi
 
 	if ! [ $(id -u) = 0 ]; then
 		echo "You do not have permissions to install RITA!"
@@ -127,6 +136,11 @@ __install() {
 			printf "$_ITEM Bro IDS is already installed \n"
 		fi
 
+		#Unconditionally installed whether this is a new install or an upgrade
+		#Install this before calling __configure_bro so the modules are in place when "broctl deploy" restarts bro
+		__install_ja3
+		__enable_ssl_certificate_logging
+
 		if [ "$_BRO_INSTALLED" = "true" ]; then
 			__configure_bro
 		fi
@@ -152,7 +166,10 @@ __install() {
 		fi
 	fi
 
-	__load "$_ITEM Installing RITA" __install_rita
+	if [ "$_INSTALL_RITA" = "true" ]; then
+		__load "$_ITEM Installing RITA" __install_rita
+	fi
+
 	if [ "$_REINSTALL_RITA" = "true" ]; then
 		printf "$_IMPORTANT $_RITA_CONFIG_FILE may need to be updated for this version of RITA. \n"
 		printf "$_IMPORTANT A default config file has been created at $_RITA_REINSTALL_CONFIG_FILE. \n"
@@ -197,6 +214,44 @@ __install_bro() {
 	_BRO_PKG_INSTALLED=true
 	_BRO_INSTALLED=true
 	_BRO_PATH="/opt/bro/bin"
+}
+
+__install_ja3() {
+	local_path=$_BRO_PATH/../share/bro/site/
+
+	sudo mkdir -p $local_path/ja3/
+
+	for one_file in __load__.bro intel_ja3.bro ja3.bro ja3s.bro ; do
+		if [ ! -e $local_path/ja3/$one_file ]; then
+			curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/master/bro//$one_file" -o "$local_file/ja3/$one_file"
+		fi
+	done
+
+	if ! grep -q '^[^#]*@load \./ja3' $local_path/local.bro ; then
+		echo '' >>$local_path/local.bro
+		echo '#Load ja3 support libraries' >>$local_path/local.bro
+		echo '@load ./ja3' >>$local_path/local.bro
+	fi
+}
+
+__enable_ssl_certificate_logging() {
+	local_path=$_BRO_PATH/../share/bro/site/
+
+	sudo mkdir -p $local_path
+
+	if ! grep -q '^[^#]*@load  *protocols/ssl/validate-certs' $local_path/local.bro ; then
+		echo '' >>$local_path/local.bro
+		echo '#Enable certificate validation' >>$local_path/local.bro
+		echo '@load protocols/ssl/validate-certs' >>$local_path/local.bro
+	fi
+
+	if ! grep -q '^[^#]*@load  *policy/protocols/ssl/extract-certs-pem' $local_path/local.bro ; then
+		echo '' >>$local_path/local.bro
+		echo '#Log certificates' >>$local_path/local.bro
+		echo '@load policy/protocols/ssl/extract-certs-pem' >>$local_path/local.bro
+		echo 'redef SSL::extract_certs_pem = ALL_HOSTS;' >>$local_path/local.bro
+		echo '' >>$local_path/local.bro
+	fi
 }
 
 __configure_bro() {
@@ -440,9 +495,11 @@ __explain() {
 	if [ $_MONGO_INSTALLED = "false" -a $_INSTALL_MONGO = "true" ]; then
 		printf "$_SUBITEM Install MongoDB \n"
 	fi
-	printf "$_SUBITEM Install RITA to $_BIN_PATH/rita \n"
-	printf "$_SUBITEM Create a runtime directory for RITA in $_VAR_PATH \n"
-	printf "$_SUBITEM Create a configuration directory for RITA in $_CONFIG_PATH \n"
+	if ( ! __installation_exist ) && [ $_INSTALL_RITA = "true" ]; then
+		printf "$_SUBITEM Install RITA to $_BIN_PATH/rita \n"
+		printf "$_SUBITEM Create a runtime directory for RITA in $_VAR_PATH \n"
+		printf "$_SUBITEM Create a configuration directory for RITA in $_CONFIG_PATH \n"
+	fi
 	sleep 5s
 }
 

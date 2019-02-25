@@ -190,10 +190,14 @@ func (i *Importer) run() error {
 		return err
 	}
 
+	importer := parser.NewFSImporter(i.res, i.threads, i.threads)
+	if len(importer.GetInternalSubnets()) == 0 {
+		return cli.NewExitError("Internal subnets are not defined. Please set the InternalSubnets section of the config file.", -1)
+	}
+
 	i.res.Log.Infof("Importing %s\n", i.res.Config.S.Bro.ImportDirectory)
 	fmt.Println("\n\t[+] Importing " + i.res.Config.S.Bro.ImportDirectory + " :")
 
-	importer := parser.NewFSImporter(i.res, i.threads, i.threads)
 	datastore := parser.NewMongoDatastore(i.res.DB.Session, i.res.MetaDB,
 		i.res.Config.S.Bro.ImportBuffer, i.res.Log)
 
