@@ -62,10 +62,10 @@ func initRunningConfig(static *StaticCfg, running *RunningCfg) error {
 
 	running.Version, err = semver.ParseTolerant(static.Version)
 	if err != nil {
-		fmt.Println("[!] Version error: please ensure that you cloned the git repo and are using make to build.")
-		fmt.Println("[!] See the following resources for further information:")
-		fmt.Println("\thttps://github.com/activecm/rita/blob/master/Contributing.md#common-issues")
-		fmt.Println("\thttps://github.com/activecm/rita/blob/master/docs/Manual%20Installation.md")
+		fmt.Println("\t[!] Version error: please ensure that you cloned the git repo and are using make to build.")
+		fmt.Println("\t[!] See the following resources for further information:")
+		fmt.Println("\t[>] https://github.com/activecm/rita/blob/master/Contributing.md#common-issues")
+		fmt.Println("\t[>] https://github.com/activecm/rita/blob/master/docs/Manual%20Installation.md")
 	}
 	return err
 }

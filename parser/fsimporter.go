@@ -15,6 +15,7 @@ import (
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/pkg/blacklist"
+	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/explodeddns"
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
@@ -151,7 +152,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	}
 
 	// parse in those files!
-	uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+	uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
 
 	// Must wait for all mongodatastore inserts to finish
 	datastore.Flush()
@@ -177,7 +178,10 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	// build or update UserAgent table
 	fs.buildUserAgent(useragentMap)
 
-	// build Hosts table.
+	// build or update Certificate table
+	fs.buildCertificates(certMap)
+
+	// update blacklisted peers in hosts collection
 	fs.markBlacklistedPeers(hostMap)
 
 	// record file+database name hash in metadabase to prevent duplicate content
@@ -215,7 +219,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) (
-	map[string]*uconn.Pair, map[string]*host.IP, map[string]int, map[string][]string, map[string]*useragent.Input) {
+	map[string]*uconn.Pair, map[string]*host.IP, map[string]int, map[string][]string, map[string]*useragent.Input, map[string]*certificate.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 	// create log parsing maps
@@ -224,6 +228,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	hostnameMap := make(map[string][]string)
 
 	useragentMap := make(map[string]*useragent.Input)
+
+	certMap := make(map[string]*certificate.Input)
 
 	// Counts the number of uconns per source-destination pair
 	uconnMap := make(map[string]*uconn.Pair)
@@ -538,10 +544,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// create record if it doesn't exist
 							if _, ok := useragentMap[ja3Hash]; !ok {
 								useragentMap[ja3Hash] = &useragent.Input{
-									Seen: 1,
-									OrigIps: []string{src},
+									Seen:     1,
+									OrigIps:  []string{src},
 									Requests: []string{host},
-									JA3: true,
+									JA3:      true,
 								}
 							} else {
 								// increment times seen count
@@ -559,10 +565,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							}
 
 							//if there's any problem in the certificate, mark it invalid
-							if certStatus != "ok" && certStatus != "-"  && certStatus != ""  && certStatus != " "  {
+							if certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " " {
 								// fmt.Println(certStatus)
 								// Check if uconn map value is set, because this record could
-								// come before a relevant conns record
+								// come before a relevant uconns record
 								if _, ok := uconnMap[src+dst]; !ok {
 									// create new uconn record if it does not exist
 									uconnMap[src+dst] = &uconn.Pair{
@@ -573,8 +579,32 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									}
 								}
 								// mark as having invalid cert
-								if stringInSlice(certStatus, uconnMap[src+dst].InvalidCerts) == false {
-									uconnMap[src+dst].InvalidCerts = append(uconnMap[src+dst].InvalidCerts, certStatus)
+								uconnMap[src+dst].InvalidCertFlag = true
+
+								// update relevant cert record
+								if _, ok := certMap[dst]; !ok {
+									// create new uconn record if it does not exist
+									certMap[dst] = &certificate.Input{
+										Host: dst,
+									}
+								}
+
+								// increment times seen count
+								certMap[dst].Seen++
+
+								for _, tuple := range uconnMap[src+dst].Tuples {
+									// mark as having invalid cert
+									if stringInSlice(tuple, certMap[dst].Tuples) == false {
+										certMap[dst].Tuples = append(certMap[dst].Tuples, tuple)
+									}
+								}
+								// mark as having invalid cert
+								if stringInSlice(certStatus, certMap[dst].InvalidCerts) == false {
+									certMap[dst].InvalidCerts = append(certMap[dst].InvalidCerts, certStatus)
+								}
+								// add src of ssl request to unique array
+								if stringInSlice(src, certMap[dst].OrigIps) == false {
+									certMap[dst].OrigIps = append(certMap[dst].OrigIps, src)
 								}
 
 							}
@@ -593,7 +623,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	return uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap
+	return uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap
 }
 
 //buildExplodedDNS .....
@@ -613,6 +643,23 @@ func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 		}
 
 	}
+}
+
+//buildExplodedDNS .....
+func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
+
+	if len(certMap) > 0 {
+		// Set up the database
+		certificateRepo := certificate.NewMongoRepository(fs.res)
+		err := certificateRepo.CreateIndexes()
+		if err != nil {
+			fs.res.Log.Error(err)
+		}
+		certificateRepo.Upsert(certMap)
+	} else {
+		fmt.Println("\t[!] No certificate data to analyze")
+	}
+
 }
 
 //buildHostnames .....
