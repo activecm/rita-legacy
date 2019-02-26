@@ -150,9 +150,3 @@ Strobe:
     # The theoretical limit due to implementation limitations is ~1,048,573
     # but in practice timeouts have occurred at lower values.
     ConnectionLimit: 250000
-
-Hostname:
-    # This sets the list maximum for connection source hosts that are stored.
-    # The theoretical limit due to implementation limitations is ~1,048,573
-    # but in practice timeouts have occurred at lower values.
-    IPListLimit: 250000

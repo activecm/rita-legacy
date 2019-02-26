@@ -8,6 +8,7 @@ type (
 		Structure StructureTableCfg
 		Beacon    BeaconTableCfg
 		UserAgent UserAgentTableCfg
+		Cert      CertificateTableCfg
 		Meta      MetaTableCfg
 	}
 
@@ -22,7 +23,6 @@ type (
 		HTTPTable       string `default:"http"`
 		DNSTable        string `default:"dns"`
 		SSLTable        string `default:"ssl"`
-		X509Table       string `default:"x509"`
 		UniqueConnTable string `default:"uconn"`
 		HostTable       string `default:"host"`
 	}
@@ -41,6 +41,11 @@ type (
 	//UserAgentTableCfg is used to control the useragent analysis module
 	UserAgentTableCfg struct {
 		UserAgentTable string `default:"useragent"`
+	}
+
+	//CertificateTableCfg is used to control the useragent analysis module
+	CertificateTableCfg struct {
+		CertificateTable string `default:"cert"`
 	}
 
 	//MetaTableCfg contains the meta db collection names

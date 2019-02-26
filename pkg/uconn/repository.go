@@ -25,7 +25,7 @@ type Pair struct {
 	TsList          []int64
 	OrigBytesList   []int64
 	Tuples          []string
-	InvalidCerts    []string
+	// InvalidCerts    []string
 	InvalidCertFlag bool
 }
 

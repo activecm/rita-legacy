@@ -125,18 +125,6 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$first": "$tbytes"},
 					"icerts": bson.M{"$first": "$icerts"},
 				}},
-				bson.M{"$unwind": "$icerts"},
-				bson.M{"$unwind": "$icerts"},
-				bson.M{"$group": bson.M{
-					"_id":    "$_id",
-					"src":    bson.M{"$first": "$src"},
-					"dst":    bson.M{"$first": "$dst"},
-					"ts":     bson.M{"$first": "$ts"},
-					"bytes":  bson.M{"$first": "$bytes"},
-					"count":  bson.M{"$first": "$count"},
-					"tbytes": bson.M{"$first": "$tbytes"},
-					"icerts": bson.M{"$push": "$icerts"},
-				}},
 				bson.M{"$project": bson.M{
 					"_id":    "$_id",
 					"src":    1,
@@ -145,7 +133,7 @@ func (d *dissector) start() {
 					"bytes":  1,
 					"count":  1,
 					"tbytes": 1,
-					"icerts": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$icerts", 0}}},
+					"icerts": bson.M{"$anyElementTrue": []interface{}{"$icerts"}},
 				}},
 			}
 
@@ -156,7 +144,7 @@ func (d *dissector) start() {
 				Ts     []int64 `bson:"ts"`
 				Bytes  []int64 `bson:"bytes"`
 				TBytes int64   `bson:"tbytes"`
-				ICerts int     `bson:"icerts"`
+				ICerts bool    `bson:"icerts"`
 			}
 
 			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnTable).Pipe(uconnFindQuery).One(&res)
@@ -164,11 +152,7 @@ func (d *dissector) start() {
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results
 			if res.Count > 0 {
-				invalidCertFlag := false
-				if res.ICerts > 0 {
-					invalidCertFlag = true
-				}
-				analysisInput := &uconn.Pair{Src: res.Src, Dst: res.Dst, ConnectionCount: res.Count, TotalBytes: res.TBytes, InvalidCertFlag: invalidCertFlag}
+				analysisInput := &uconn.Pair{Src: res.Src, Dst: res.Dst, ConnectionCount: res.Count, TotalBytes: res.TBytes, InvalidCertFlag: res.ICerts}
 
 				// check if uconn has become a strobe
 				if analysisInput.ConnectionCount > d.connLimit {
@@ -186,7 +170,6 @@ func (d *dissector) start() {
 					}
 
 				}
-
 			}
 
 		}

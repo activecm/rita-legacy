@@ -65,10 +65,6 @@ func (a *analyzer) start() {
 				data.Tuples = data.Tuples[:5]
 			}
 
-			if len(data.InvalidCerts) > 5 {
-				data.InvalidCerts = data.InvalidCerts[:5]
-			}
-
 			// if this connection qualifies to be a strobe with the current number
 			// of connections in the currently parsing in data, don't store bytes and ts.
 			// it will not qualify to be downgraded to a beacon until this chunk is
@@ -81,7 +77,7 @@ func (a *analyzer) start() {
 						"bytes":  []interface{}{},
 						"ts":     []interface{}{},
 						"tuples": data.Tuples,
-						"icerts": data.InvalidCerts,
+						"icerts": data.InvalidCertFlag,
 						"maxdur": data.MaxDuration,
 						"tbytes": data.TotalBytes,
 						"tdur":   data.TotalDuration,
@@ -95,7 +91,7 @@ func (a *analyzer) start() {
 						"bytes":  data.OrigBytesList,
 						"ts":     data.TsList,
 						"tuples": data.Tuples,
-						"icerts": data.InvalidCerts,
+						"icerts": data.InvalidCertFlag,
 						"maxdur": data.MaxDuration,
 						"tbytes": data.TotalBytes,
 						"tdur":   data.TotalDuration,
