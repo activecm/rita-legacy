@@ -147,7 +147,7 @@ func (d *dissector) start() {
 				ICerts bool    `bson:"icerts"`
 			}
 
-			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnTable).Pipe(uconnFindQuery).One(&res)
+			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnTable).Pipe(uconnFindQuery).AllowDiskUse().One(&res)
 
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results

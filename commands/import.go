@@ -198,10 +198,7 @@ func (i *Importer) run() error {
 	i.res.Log.Infof("Importing %s\n", i.res.Config.S.Bro.ImportDirectory)
 	fmt.Println("\n\t[+] Importing " + i.res.Config.S.Bro.ImportDirectory + " :")
 
-	datastore := parser.NewMongoDatastore(i.res.DB.Session, i.res.MetaDB,
-		i.res.Config.S.Bro.ImportBuffer, i.res.Log)
-
-	importer.Run(datastore)
+	importer.Run()
 
 	i.res.Log.Infof("Finished importing %s\n", i.res.Config.S.Bro.ImportDirectory)
 
