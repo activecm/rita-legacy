@@ -60,7 +60,7 @@ func showBeaconReport(data []beacon.AnalysisView) error {
 	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
 		"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
 		"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
-		"Size Skew", "Intvl Dispersion", "Size Dispersion", "Intvl Duration"})
+		"Size Skew", "Intvl Dispersion", "Size Dispersion"})
 
 	for _, d := range data {
 		table.Append(
