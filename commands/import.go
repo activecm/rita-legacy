@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/activecm/rita/parser"
 	"github.com/activecm/rita/resources"
@@ -71,6 +72,11 @@ func (i *Importer) parseArgs() error {
 	//check if one argument is set but not the other
 	if i.importDir == "" || i.targetDatabase == "" {
 		return cli.NewExitError("\n\t[!] Both <directory to import> and <database prefix> are required.", -1)
+	}
+
+	err := i.checkForInvalidDBChars(i.targetDatabase)
+	if err != nil {
+		return cli.NewExitError(err.Error(), -1)
 	}
 
 	// check if rolling flag was passed in
@@ -202,5 +208,14 @@ func (i *Importer) run() error {
 
 	i.res.Log.Infof("Finished importing %s\n", i.res.Config.S.Bro.ImportDirectory)
 
+	return nil
+}
+
+// validates target db name
+func (i *Importer) checkForInvalidDBChars(db string) error {
+	invalidChars := "/\\.,*<>:|?$#"
+	if strings.ContainsAny(db, invalidChars) {
+		return fmt.Errorf("\n\t[!] database cannot contain the characters < /, \\, ., \", *, <, >, :, |, ?, $ > as well as spaces or the null character")
+	}
 	return nil
 }
