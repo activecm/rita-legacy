@@ -1,6 +1,6 @@
 # Upgrading RITA
 
-Updating between versions of RITA is normally straightforward. Most often all you need to do is download the newest RITA binary and replace the one on your system. You can also use the `install.sh` installer to update between versions.
+Updating between versions of RITA is normally straightforward. Most often all you need to do is download the newest RITA binary and replace the one on your system. You can also use the appropriate `install.sh` installer to update between versions. Download and run the `install.sh` file from the [releases page](https://github.com/activecm/rita/releases) that corresponds with the version of RITA you wish to install.
 
 You may not need to update your config file at all as we include sane default settings for any new config value inside of RITA. This means that if your config file is missing a value, RITA will still have a default to use. However, if you need to customize any of these new values you'll have to update to the newer config file.
 
