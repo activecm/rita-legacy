@@ -40,9 +40,8 @@ Bro:
     ImportDirectory: /opt/bro/logs/
 
     # Files directly in the ImportDirectory will be imported into a database
-    # given by DBRoot. Files in a subfolder of ImportDirectory will be imported
-    # into DBRoot-$SUBFOLDER_NAME.
-    DBRoot: "RITA"
+    # with the name DBName.
+    DBName: "RITA"
 
     # This database holds information about the procesed files and databases.
     MetaDB: MetaDatabase

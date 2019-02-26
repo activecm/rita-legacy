@@ -62,7 +62,7 @@ Note that any value listed in the `Filtering` section should be in CIDR format. 
       * `rita import path/to/your/bro_logs/ database_name`
     * **Option 2**: Set up the Bro configuration in `/etc/rita/config.yaml` for repeated imports
       * Set `ImportDirectory` to the `path/to/your/bro_logs`. The default is `/opt/bro/logs`
-      * Set `DBRoot` to an identifier common to your set of logs
+      * Set `DBName` to an identifier common to your set of logs
   * Filtering and whitelisting of connection logs happens at import time, and those optional settings can be found in the `/etc/rita/config.yaml` configuration file.
 
 #### Analyzing Data With RITA

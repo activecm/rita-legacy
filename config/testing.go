@@ -20,7 +20,7 @@ LogConfig:
     LogToDB: true
 Bro:
     ImportDirectory: null
-    DBRoot: RITA-TEST
+    DBName: RITA-TEST
     MetaDB: RITA-TEST-MetaDatabase
     ImportBuffer: 100000
 BlackListed:

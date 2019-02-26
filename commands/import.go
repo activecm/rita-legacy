@@ -16,9 +16,9 @@ func init() {
 	importCommand := cli.Command{
 		Name:  "import",
 		Usage: "Import bro logs into a target database",
-		UsageText: "rita import [command options] [<import directory> <database root>]\n\n" +
+		UsageText: "rita import [command options] [<import directory> <database name>]\n\n" +
 			"Logs directly in <import directory> will be imported into a database" +
-			" named <database root>.\n<import directory> and <database root> will be" +
+			" named <database name>.\n<import directory> and <database name> will be" +
 			" loaded from the configuration file unless BOTH arguments are supplied.",
 		Flags: []cli.Flag{
 			threadFlag,
@@ -69,7 +69,7 @@ func (i *Importer) parseArgs() error {
 
 	//check if one argument is set but not the other
 	if i.importDir == "" || i.targetDatabase == "" {
-		return cli.NewExitError("\n\t[!] Both <directory to import> and <database prefix> are required.", -1)
+		return cli.NewExitError("\n\t[!] Both <directory to import> and <database name> are required.", -1)
 	}
 
 	err := i.checkForInvalidDBChars(i.targetDatabase)
@@ -122,7 +122,7 @@ func (i *Importer) setTargetDatabase() error {
 	}
 
 	i.res.DB.SelectDB(i.targetDatabase)
-	i.res.Config.S.Bro.DBRoot = i.targetDatabase
+	i.res.Config.S.Bro.DBName = i.targetDatabase
 
 	return nil
 }

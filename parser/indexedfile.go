@@ -83,7 +83,7 @@ func newIndexedFile(filePath string, config *config.Config,
 		return toReturn, errors.New("Could not find a target collection for file")
 	}
 
-	toReturn.TargetDatabase = config.S.Bro.DBRoot
+	toReturn.TargetDatabase = config.S.Bro.DBName
 
 	fileHandle.Close()
 	return toReturn, nil
