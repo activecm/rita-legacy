@@ -76,7 +76,7 @@ func (r *repo) Upsert(certMap map[string]*Input) {
 	p := mpb.New(mpb.WithWidth(20))
 	bar := p.AddBar(int64(len(certMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] UserAgent Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Invalid Cert Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
