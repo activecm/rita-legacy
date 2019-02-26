@@ -76,8 +76,8 @@ func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
 	return fs.internal
 }
 
-//Run starts importing a given path into a datastore
-func (fs *FSImporter) Run(datastore Datastore) {
+//Run starts the importing
+func (fs *FSImporter) Run() {
 	// track the time spent parsing
 	start := time.Now()
 	fs.res.Log.WithFields(
@@ -152,10 +152,9 @@ func (fs *FSImporter) Run(datastore Datastore) {
 	}
 
 	// parse in those files!
-	uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFiles, fs.parseThreads, datastore, fs.res.Log)
+	uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFiles, fs.parseThreads, fs.res.Log)
 
 	// Must wait for all mongodatastore inserts to finish
-	datastore.Flush()
 
 	// build Hosts table.
 	fs.buildHosts(hostMap)
@@ -201,8 +200,6 @@ func (fs *FSImporter) Run(datastore Datastore) {
 		},
 	).Info("Finished upload. Starting indexing")
 
-	datastore.Index()
-
 	progTime = time.Now()
 	fs.res.Log.WithFields(
 		log.Fields{
@@ -218,7 +215,7 @@ func (fs *FSImporter) Run(datastore Datastore) {
 //threads to use to parse the files, whether or not to sort data by date,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
-func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, datastore Datastore, logger *log.Logger) (
+func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, logger *log.Logger) (
 	map[string]*uconn.Pair, map[string]*host.IP, map[string]int, map[string][]string, map[string]*useragent.Input, map[string]*certificate.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
@@ -818,7 +815,7 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// get iminimum timestamp
 	// sort by the timestamp, limit it to 1 (only returns first result)
-	err := session.DB(fs.res.DB.GetSelectedDB()).C(collectionName).Pipe(timestampMinQuery).One(&resultMin)
+	err := session.DB(fs.res.DB.GetSelectedDB()).C(collectionName).Pipe(timestampMinQuery).AllowDiskUse().One(&resultMin)
 
 	if err != nil {
 		fs.res.Log.WithFields(log.Fields{
@@ -842,7 +839,7 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// get max timestamp
 	// sort by the timestamp, limit it to 1 (only returns first result)
-	err = session.DB(fs.res.DB.GetSelectedDB()).C(collectionName).Pipe(timestampMaxQuery).One(&resultMax)
+	err = session.DB(fs.res.DB.GetSelectedDB()).C(collectionName).Pipe(timestampMaxQuery).AllowDiskUse().One(&resultMax)
 
 	if err != nil {
 		fs.res.Log.WithFields(log.Fields{

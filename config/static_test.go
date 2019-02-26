@@ -41,8 +41,6 @@ Beacon:
     DefaultConnectionThresh: 24
 Strobe:
     ConnectionLimit: 250000
-Hostname:
-    IPListLimit: 250000
 Filtering:
     AlwaysInclude: ["8.8.8.8/32"]
     NeverInclude: ["8.8.4.4/32"]

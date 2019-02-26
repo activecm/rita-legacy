@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/dbtest"
 )
@@ -18,16 +17,11 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testHost = map[string]*uconn.Pair{
-	"test": &uconn.Pair{
-		Src:             "127.0.0.1",
-		Dst:             "127.0.0.1",
+var testHost = map[string]*IP{
+	"test": &IP{
+		Host:            "127.0.0.1",
 		ConnectionCount: 12,
-		IsLocalSrc:      true,
-		IsLocalDst:      true,
 		TotalBytes:      123,
-		TsList:          []int64{1234567, 1234567},
-		OrigBytesList:   []int64{12, 12},
 		TotalDuration:   123.0,
 		MaxDuration:     12,
 	},

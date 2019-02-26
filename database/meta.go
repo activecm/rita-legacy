@@ -42,7 +42,6 @@ type (
 	DBMetaInfo struct {
 		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
 		Name           string        `bson:"name"`            // Top level name of the database
-		ImportFinished bool          `bson:"import_finished"` // Has this database been entirely imported
 		Analyzed       bool          `bson:"analyzed"`        // Has this database been analyzed
 		AnalyzeVersion string        `bson:"analyze_version"` // Rita version at analyze
 		Rolling        bool          `bson:"rolling"`
