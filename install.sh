@@ -223,7 +223,7 @@ __install_ja3() {
 
 	for one_file in __load__.bro intel_ja3.bro ja3.bro ja3s.bro ; do
 		if [ ! -e $local_path/ja3/$one_file ]; then
-			curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/master/bro//$one_file" -o "$local_file/ja3/$one_file"
+			sudo curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/master/bro//$one_file" -o "$local_file/ja3/$one_file"
 		fi
 	done
 
