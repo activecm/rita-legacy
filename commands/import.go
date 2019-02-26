@@ -18,10 +18,8 @@ func init() {
 		Usage: "Import bro logs into a target database",
 		UsageText: "rita import [command options] [<import directory> <database root>]\n\n" +
 			"Logs directly in <import directory> will be imported into a database" +
-			" named <database root>. Files in a subfolder of <import directory> will be imported" +
-			" into <database root>-$SUBFOLDER_NAME. <import directory>" +
-			" and <database root> will be loaded from the configuration file unless" +
-			" BOTH arguments are supplied.",
+			" named <database root>.\n<import directory> and <database root> will be" +
+			" loaded from the configuration file unless BOTH arguments are supplied.",
 		Flags: []cli.Flag{
 			threadFlag,
 			configFlag,
