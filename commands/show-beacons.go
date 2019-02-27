@@ -60,7 +60,7 @@ func showBeaconReport(data []beacon.AnalysisView) error {
 	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
 		"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
 		"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
-		"Size Skew", "Intvl Dispersion", "Size Dispersion", "Intvl Duration"})
+		"Size Skew", "Intvl Dispersion", "Size Dispersion"})
 
 	for _, d := range data {
 		table.Append(
@@ -78,11 +78,10 @@ func showBeaconReport(data []beacon.AnalysisView) error {
 
 func showBeaconCsv(data []beacon.AnalysisView) error {
 	csvWriter := csv.NewWriter(os.Stdout)
-	headers := []string{
-		"Score", "Source", "Destination", "Connections",
-		"Avg Bytes", "TS Range", "DS Range", "TS Mode", "DS Mode", "TS Mode Count",
-		"DS Mode Count", "TS Skew", "DS Skew", "TS Dispersion", "DS Dispersion",
-	}
+	headers := []string{"Score", "Source IP", "Destination IP",
+		"Connections", "Avg Bytes", "Intvl Range", "Size Range", "Top Intvl",
+		"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
+		"Size Skew", "Intvl Dispersion", "Size Dispersion"}
 	csvWriter.Write(headers)
 
 	for _, d := range data {
