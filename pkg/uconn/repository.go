@@ -27,6 +27,7 @@ type Pair struct {
 	Tuples          []string
 	// InvalidCerts    []string
 	InvalidCertFlag bool
+	UPPSFlag        bool
 }
 
 //LongConnAnalysisView (for reporting)
