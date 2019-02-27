@@ -93,4 +93,7 @@ func (r *repo) Upsert(uconnMap map[string]*Pair) {
 		bar.IncrBy(1, time.Since(start))
 	}
 	p.Wait()
+
+	// start the closing cascade (this will also close the other channels)
+	analyzerWorker.close()
 }

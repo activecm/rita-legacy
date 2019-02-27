@@ -82,7 +82,7 @@ func (m *MetaDB) VerifyIfAlreadyRollingDB(db string, numchunks int, chunk int) e
 
 		// make sure number of chunks matches the one that's on file for that dataset
 		if result.TotalChunks != numchunks {
-			return fmt.Errorf("\n\t[!] The total chunk size for existing rolling dataset <"+db+"> is set to <%d> and cannot be changed unless the dataset is deleted and recreated.", result.TotalChunks)
+			return fmt.Errorf("The total chunk size for existing rolling dataset [ "+db+" ] is set to [ %d ] and cannot be changed unless the dataset is deleted and recreated.", result.TotalChunks)
 		}
 
 		// set current chunk number
@@ -98,7 +98,7 @@ func (m *MetaDB) VerifyIfAlreadyRollingDB(db string, numchunks int, chunk int) e
 		// otherwise, if dataset record exists and is analyzed, but its not a rolling dataset, return error
 	} else if result.Analyzed == true {
 
-		return fmt.Errorf("\n\t[!] Cannot append to an already analyzed, non-rolling dataset as a rolling dataset. Please choose another target dataset")
+		return fmt.Errorf("Cannot append to an already analyzed, non-rolling dataset as a rolling dataset. Please choose another target dataset")
 
 		// otherwise, if unanlyzed, freshly created dataset, create fields necessary for rolling analysis.
 	} else {

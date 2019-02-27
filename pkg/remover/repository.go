@@ -7,8 +7,9 @@ type Repository interface {
 
 //update ....
 type update struct {
-	selector interface{}
-	query    interface{}
+	selector   interface{}
+	query      interface{}
+	collection string
 }
 
 // //Input ....

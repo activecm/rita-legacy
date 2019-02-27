@@ -90,9 +90,6 @@ var testConfigFullExp = StaticCfg{
 	Strobe: StrobeStaticCfg{
 		ConnectionLimit: 250000,
 	},
-	Hostname: HostnameStaticCfg{
-		IPListLimit: 250000,
-	},
 	Filtering: FilteringStaticCfg{
 		AlwaysInclude:   []string{"8.8.8.8/32"},
 		NeverInclude:    []string{"8.8.4.4/32"},

@@ -69,6 +69,7 @@ func (a *analyzer) start() {
 			// here and not in uconns because uconns doesn't do reads, and doesn't know
 			// the updated conn count
 			if (res.TsList) == nil {
+
 				output.uconn = updateInfo{
 					// update hosts record
 					query: bson.M{

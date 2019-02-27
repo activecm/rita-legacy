@@ -53,7 +53,7 @@ func (w *writer) start() {
 
 			if err != nil ||
 				((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
-				fmt.Println(err, info, data)
+				fmt.Println("bl updater: ", err, info, data)
 			}
 		}
 		w.writeWg.Done()

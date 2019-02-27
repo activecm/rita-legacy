@@ -53,7 +53,7 @@ func (w *writer) start() {
 
 			if err != nil ||
 				((info.Updated == 0) && (info.UpsertedId == nil)) {
-				fmt.Println(err, info, data)
+				fmt.Println("hostname module: ", err, info, data)
 			}
 		}
 		w.writeWg.Done()

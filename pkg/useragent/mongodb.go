@@ -56,7 +56,10 @@ func (r *repo) CreateIndexes() error {
 
 func (r *repo) Upsert(userAgentMap map[string]*Input) {
 	//Create the workers
-	writerWorker := newWriter(r.res.DB, r.res.Config)
+	writerWorker := newWriter(
+		r.res.DB,
+		r.res.Config,
+	)
 
 	analyzerWorker := newAnalyzer(
 		r.res.Config.S.Bro.CurrentChunk,
@@ -91,4 +94,7 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 	}
 
 	p.Wait()
+
+	// start the closing cascade (this will also close the other channels)
+	analyzerWorker.close()
 }

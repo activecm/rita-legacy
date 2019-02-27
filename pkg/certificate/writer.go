@@ -50,7 +50,7 @@ func (w *writer) start() {
 			info, err := ssn.DB(w.db.GetSelectedDB()).C(data.collection).Upsert(data.selector, data.query)
 			if err != nil ||
 				((info.Updated == 0) && (info.UpsertedId == nil)) {
-				fmt.Println(err, info, data)
+				fmt.Println("cert module: ", err, info, data)
 			}
 
 		}

@@ -54,7 +54,7 @@ func (w *writer) start() {
 
 				if err != nil ||
 					((info.Updated == 0) && (info.UpsertedId == nil)) {
-					fmt.Println(err, info, data)
+					fmt.Println("beacons module: ", err, info, data)
 				}
 
 				// update hosts table
@@ -62,7 +62,7 @@ func (w *writer) start() {
 
 				if err != nil ||
 					((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
-					fmt.Println(err, info, data)
+					fmt.Println("beacons module: ", err, info, data)
 				}
 			}
 
@@ -72,14 +72,14 @@ func (w *writer) start() {
 
 				if err != nil ||
 					((info.Updated == 0) && (info.UpsertedId == nil)) {
-					fmt.Println(err, info, data)
+					fmt.Println("beacons module: ", err, info, data)
 				}
 
 				//delete the record (no longer a beacon - its a strobe)
 				info, err = ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).RemoveAll(data.uconn.selector)
 				if err != nil ||
 					((info.Updated == 0) && (info.Removed == 0) && (info.Matched == 0) && (info.UpsertedId == nil)) {
-					fmt.Println(err, info, data)
+					fmt.Println("beacons module: ", err, info, data)
 				}
 			}
 
