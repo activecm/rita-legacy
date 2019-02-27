@@ -476,23 +476,28 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							if queryTypeName == "TXT" {
 								// get source destination pair for dns record
 								src := parseDNS.FieldByName("Source").Interface().(string)
-								// dst := parseDNS.FieldByName("Destination").Interface().(string)
+								dst := parseDNS.FieldByName("Destination").Interface().(string)
 
-								// Check if host map value is set, because this record could
-								// come before a relevant conns record
-								if _, ok := hostMap[src]; !ok {
-									// create new uconn record with src and dst
-									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
-									// we only need to do this once if the uconn record does not exist
-									hostMap[src] = &host.IP{
-										Host:    src,
-										IsLocal: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
-										IP4:     isIPv4(src),
-										IP4Bin:  ipv4ToBinary(net.ParseIP(src)),
+								// Run conn pair through filter to filter out certain connections
+								ignore := fs.filterConnPair(src, dst)
+								if !ignore {
+									// Check if host map value is set, because this record could
+									// come before a relevant conns record
+									if _, ok := hostMap[src]; !ok {
+										// create new uconn record with src and dst
+										// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
+										// we only need to do this once if the uconn record does not exist
+										hostMap[src] = &host.IP{
+											Host:    src,
+											IsLocal: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
+											IP4:     isIPv4(src),
+											IP4Bin:  ipv4ToBinary(net.ParseIP(src)),
+										}
 									}
+									// increment txt query count
+									hostMap[src].TXTQueryCount++
 								}
-								// increment txt query count
-								hostMap[src].TXTQueryCount++
+
 							}
 
 							mutex.Unlock()
@@ -569,47 +574,50 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							//if there's any problem in the certificate, mark it invalid
 							if certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " " {
-								// fmt.Println(certStatus)
-								// Check if uconn map value is set, because this record could
-								// come before a relevant uconns record
-								if _, ok := uconnMap[src+dst]; !ok {
-									// create new uconn record if it does not exist
-									uconnMap[src+dst] = &uconn.Pair{
-										Src:        src,
-										Dst:        dst,
-										IsLocalSrc: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
-										IsLocalDst: containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
+								// Run conn pair through filter to filter out certain connections
+								ignore := fs.filterConnPair(src, dst)
+								if !ignore {
+									// fmt.Println(certStatus)
+									// Check if uconn map value is set, because this record could
+									// come before a relevant uconns record
+									if _, ok := uconnMap[src+dst]; !ok {
+										// create new uconn record if it does not exist
+										uconnMap[src+dst] = &uconn.Pair{
+											Src:        src,
+											Dst:        dst,
+											IsLocalSrc: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
+											IsLocalDst: containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
+										}
 									}
-								}
-								// mark as having invalid cert
-								uconnMap[src+dst].InvalidCertFlag = true
-
-								// update relevant cert record
-								if _, ok := certMap[dst]; !ok {
-									// create new uconn record if it does not exist
-									certMap[dst] = &certificate.Input{
-										Host: dst,
-									}
-								}
-
-								// increment times seen count
-								certMap[dst].Seen++
-
-								for _, tuple := range uconnMap[src+dst].Tuples {
 									// mark as having invalid cert
-									if stringInSlice(tuple, certMap[dst].Tuples) == false {
-										certMap[dst].Tuples = append(certMap[dst].Tuples, tuple)
+									uconnMap[src+dst].InvalidCertFlag = true
+
+									// update relevant cert record
+									if _, ok := certMap[dst]; !ok {
+										// create new uconn record if it does not exist
+										certMap[dst] = &certificate.Input{
+											Host: dst,
+										}
+									}
+
+									// increment times seen count
+									certMap[dst].Seen++
+
+									for _, tuple := range uconnMap[src+dst].Tuples {
+										// mark as having invalid cert
+										if stringInSlice(tuple, certMap[dst].Tuples) == false {
+											certMap[dst].Tuples = append(certMap[dst].Tuples, tuple)
+										}
+									}
+									// mark as having invalid cert
+									if stringInSlice(certStatus, certMap[dst].InvalidCerts) == false {
+										certMap[dst].InvalidCerts = append(certMap[dst].InvalidCerts, certStatus)
+									}
+									// add src of ssl request to unique array
+									if stringInSlice(src, certMap[dst].OrigIps) == false {
+										certMap[dst].OrigIps = append(certMap[dst].OrigIps, src)
 									}
 								}
-								// mark as having invalid cert
-								if stringInSlice(certStatus, certMap[dst].InvalidCerts) == false {
-									certMap[dst].InvalidCerts = append(certMap[dst].InvalidCerts, certStatus)
-								}
-								// add src of ssl request to unique array
-								if stringInSlice(src, certMap[dst].OrigIps) == false {
-									certMap[dst].OrigIps = append(certMap[dst].OrigIps, src)
-								}
-
 							}
 							mutex.Unlock()
 						}
