@@ -23,7 +23,7 @@ LogConfig:
     LogToDB: true
 Bro:
     ImportDirectory: /opt/bro/logs/
-    DBRoot: "RITA"
+    DBName: "RITA"
     MetaDB: MetaDatabase
     ImportBuffer: 100000
 UserConfig:
@@ -66,7 +66,7 @@ var testConfigFullExp = StaticCfg{
 	},
 	Bro: BroStaticCfg{
 		ImportDirectory: "/opt/bro/logs",
-		DBRoot:          "RITA",
+		DBName:          "RITA",
 		MetaDB:          "MetaDatabase",
 		ImportBuffer:    100000,
 	},

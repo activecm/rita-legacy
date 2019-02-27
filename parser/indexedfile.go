@@ -1,13 +1,11 @@
 package parser
 
 import (
-	"bytes"
 	"crypto/md5"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -85,11 +83,7 @@ func newIndexedFile(filePath string, config *config.Config,
 		return toReturn, errors.New("Could not find a target collection for file")
 	}
 
-	toReturn.TargetDatabase = getTargetDatabase(filePath, &config.S.Bro)
-	if toReturn.TargetDatabase == "" {
-		fileHandle.Close()
-		return toReturn, errors.New("Could not find a dataset for file")
-	}
+	toReturn.TargetDatabase = config.S.Bro.DBName
 
 	fileHandle.Close()
 	return toReturn, nil
@@ -112,27 +106,6 @@ func getFileHash(fileHandle *os.File, fInfo os.FileInfo) (string, error) {
 	fileHandle.Seek(0, 0)
 	var byteset []byte
 	return fmt.Sprintf("%x", hash.Sum(byteset)), nil
-}
-
-//getTargetDatabase assigns a database to a log file based on the path,
-//and the bro config
-func getTargetDatabase(filePath string, broConfig *config.BroStaticCfg) string {
-	var targetDatabase bytes.Buffer
-	targetDatabase.WriteString(broConfig.DBRoot)
-	//Append subfolders to target db
-	relativeStartIndex := len(broConfig.ImportDirectory)
-	pathSep := string(os.PathSeparator)
-	relativePath := filePath[relativeStartIndex+len(pathSep):]
-
-	//This routine uses Split rather than substring (0, index of path sep)
-	//because we may wish to add all the subdirectories to the db prefix
-	pathPieces := strings.Split(relativePath, pathSep)
-	//if there is more than just the file name
-	if len(pathPieces) > 1 {
-		targetDatabase.WriteString("-")
-		targetDatabase.WriteString(pathPieces[0])
-	}
-	return targetDatabase.String()
 }
 
 //indexFiles takes in a list of bro files, a number of threads, and parses

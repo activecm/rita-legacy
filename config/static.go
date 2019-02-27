@@ -53,7 +53,7 @@ type (
 	//BroStaticCfg controls the file parser
 	BroStaticCfg struct {
 		ImportDirectory string `yaml:"ImportDirectory" default:"/opt/bro/logs/"`
-		DBRoot          string `yaml:"DBRoot" default:"RITA"`
+		DBName          string `yaml:"DBName" default:"RITA"`
 		MetaDB          string `yaml:"MetaDB" default:"MetaDatabase"`
 		ImportBuffer    int    `yaml:"ImportBuffer" default:"30000"`
 		Rolling         bool
