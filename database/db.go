@@ -1,7 +1,6 @@
 package database
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/activecm/mgosec"
@@ -132,15 +131,6 @@ func (d *DB) CreateCollection(name string, indeces []mgo.Index) error {
 	// Make a copy of the current session
 	session := d.Session.Copy()
 	defer session.Close()
-
-	if len(name) < 1 {
-		return errors.New("name error: check collection name in yaml file and config")
-	}
-
-	// Check if ollection already exists
-	if d.CollectionExists(name) {
-		return errors.New("collection already exists")
-	}
 
 	d.log.Debug("Building collection: ", name)
 

@@ -370,10 +370,17 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									hostMap[dst].CountDst++
 								}
 
-								for _, entry := range trustedAppReferenceList {
-									if (protocol == entry.protocol) && (dstPort == entry.port) {
-										if service != entry.service {
-											hostMap[src].UntrustedAppConnCount++
+								// this is to keep track of how many times a host connected to
+								// an unexpected port - proto - service Tuple
+								// we only want to increment the count once per unique destination,
+								// not once per connection, hence the flag and the check
+								if uconnMap[srcDst].UPPSFlag == false {
+									for _, entry := range trustedAppReferenceList {
+										if (protocol == entry.protocol) && (dstPort == entry.port) {
+											if service != entry.service {
+												hostMap[src].UntrustedAppConnCount++
+												uconnMap[srcDst].UPPSFlag = true
+											}
 										}
 									}
 								}
