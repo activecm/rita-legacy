@@ -88,8 +88,8 @@ func getExplodedDNSResultsView(res *resources.Resources, limit int) []explodeddn
 	explodedDNSQuery := []bson.M{
 		bson.M{"$sort": bson.M{"subdomain_count": -1}},
 		bson.M{"$limit": limit},
-		bson.M{"$unwind": "$dat"},
 		bson.M{"$project": bson.M{"domain": 1, "subdomain_count": 1, "visited": "$dat.visited"}},
+		bson.M{"$unwind": "$visited"},
 		bson.M{"$group": bson.M{
 			"_id":             "$domain",
 			"visited":         bson.M{"$sum": "$visited"},

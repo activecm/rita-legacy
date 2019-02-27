@@ -91,4 +91,7 @@ func (r *repo) Upsert(certMap map[string]*Input) {
 	}
 
 	p.Wait()
+
+	// start the closing cascade (this will also close the other channels)
+	analyzerWorker.close()
 }

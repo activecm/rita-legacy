@@ -86,17 +86,15 @@ func (r *repo) Upsert(domainMap map[string]int) {
 		mpb.AppendDecorators(decor.Percentage()),
 	)
 
-	// counter := 0
 	// loop over map entries
 	for entry, count := range domainMap {
 		start := time.Now()
-		// counter++
 		analyzerWorker.collect(domain{entry, count})
 		bar.IncrBy(1, time.Since(start))
-		// if counter > 2 {
-		// 	break
-		// }
 	}
 
 	p.Wait()
+
+	// start the closing cascade (this will also close the other channels)
+	analyzerWorker.close()
 }

@@ -11,52 +11,69 @@ import (
 
 type (
 	writer struct {
-		cid          int            // chuck id for deletion
-		db           *database.DB   // provides access to MongoDB
-		conf         *config.Config // contains details needed to access MongoDB
-		writeChannel chan string    // holds analyzed data
-		writeWg      sync.WaitGroup // wait for writing to finish
+		cid               int            // chuck id for deletion
+		db                *database.DB   // provides access to MongoDB
+		conf              *config.Config // contains details needed to access MongoDB
+		cidRemoverChannel chan string    // holds target collection names
+		updaterChannel    chan update    // holds update queries
+		writeWg           sync.WaitGroup // wait for writing to finish
 	}
 )
 
-//newWriter creates a new writer object to write output data
-func newWriter(cid int, db *database.DB, conf *config.Config) *writer {
+//newCIDRemover creates a new writer object to write output data
+func newCIDRemover(cid int, db *database.DB, conf *config.Config) *writer {
 	return &writer{
-		cid:          cid,
-		db:           db,
-		conf:         conf,
-		writeChannel: make(chan string),
+		cid:               cid,
+		db:                db,
+		conf:              conf,
+		cidRemoverChannel: make(chan string),
+	}
+}
+
+//newUpdater creates a new writer object to write output data
+func newUpdater(cid int, db *database.DB, conf *config.Config) *writer {
+	return &writer{
+		cid:            cid,
+		db:             db,
+		conf:           conf,
+		updaterChannel: make(chan update),
 	}
 }
 
 //collect sends a group of results to the writer for writing out to the database
-func (w *writer) collect(data string) {
-	w.writeChannel <- data
+func (w *writer) collectCIDRemover(data string) {
+	w.cidRemoverChannel <- data
 }
 
-//close waits for the write threads to finish
-func (w *writer) close() {
-	close(w.writeChannel)
+//collect sends a group of results to the writer for writing out to the database
+func (w *writer) collectUpdater(data update) {
+	w.updaterChannel <- data
+}
+
+//closeCIDRemover waits for the write threads to finish
+func (w *writer) closeCIDRemover() {
+	close(w.cidRemoverChannel)
 	w.writeWg.Wait()
 }
 
-//start kicks off a new write thread
-func (w *writer) start() {
+//closeUpdater waits for the write threads to finish
+func (w *writer) closeUpdater() {
+	close(w.updaterChannel)
+	w.writeWg.Wait()
+}
+
+//startCIDRemover kicks off a new write thread
+func (w *writer) startCIDRemover() {
 	w.writeWg.Add(1)
 	go func() {
 		ssn := w.db.Session.Copy()
 		defer ssn.Close()
 
-		for data := range w.writeChannel {
+		for data := range w.cidRemoverChannel {
 
 			//delete the ENTIRE record if it hasn't been updated since the chunk we are trying to remove
 			info, err := ssn.DB(w.db.GetSelectedDB()).C(data).RemoveAll(bson.M{"cid": w.cid})
-			if err != nil {
-				fmt.Println(err)
-			}
-
 			if err != nil ||
-
 				((info.Updated == 0) && (info.Removed == 0) && (info.Matched != 0)) {
 				fmt.Println("failed to delete whole document: ", err, info, data)
 			}
@@ -67,6 +84,25 @@ func (w *writer) start() {
 			if err != nil ||
 				((info.Updated == 0) && (info.Removed == 0) && (info.Matched != 0)) {
 				fmt.Println("failed to delete chunk: ", err, info, data)
+			}
+
+		}
+		w.writeWg.Done()
+	}()
+}
+
+//startUpdater kicks off a new write thread
+func (w *writer) startUpdater() {
+	w.writeWg.Add(1)
+	go func() {
+		ssn := w.db.Session.Copy()
+		defer ssn.Close()
+
+		for data := range w.updaterChannel {
+
+			err := ssn.DB(w.db.GetSelectedDB()).C(data.collection).Update(data.selector, data.query)
+			if err != nil {
+				fmt.Println(err, data)
 			}
 
 		}

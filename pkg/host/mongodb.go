@@ -77,12 +77,12 @@ func (r *repo) Upsert(hostMap map[string]*IP) {
 
 	// loop over map entries
 	for _, entry := range hostMap {
-		// if entry.Host == "10.55.100.106" {
-		//
-		// }
 		start := time.Now()
 		analyzerWorker.collect(entry)
 		bar.IncrBy(1, time.Since(start))
 	}
 	p.Wait()
+
+	// start the closing cascade (this will also close the other channels)
+	analyzerWorker.close()
 }

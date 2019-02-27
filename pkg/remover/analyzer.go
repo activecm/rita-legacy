@@ -2,10 +2,12 @@ package remover
 
 import (
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/globalsign/mgo/bson"
 )
 
 type (
@@ -51,16 +53,55 @@ func (a *analyzer) close() {
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
-		ssn := a.db.Session.Copy()
-		defer ssn.Close()
 
-		for _ = range a.analysisChannel {
+		for data := range a.analysisChannel {
 
-			// set to writer channel
-			// a.analyzedCallback(data)
+			a.reduceDNSSubCount(data)
 
 		}
 
 		a.analysisWg.Done()
 	}()
+}
+
+func (a *analyzer) reduceDNSSubCount(name string) {
+
+	// split name on periods
+	split := strings.Split(name, ".")
+
+	// we will not count the very last item, because it will be either all or
+	// a part of the tlds. This means that something like ".co.uk" will still
+	// not be fully excluded, but it will greatly reduce the complexity for the
+	// most common tlds
+	max := len(split) - 1
+
+	for i := 1; i <= max; i++ {
+		// parse domain which will be the part we are on until the end of the string
+		entry := strings.Join(split[max-i:], ".")
+
+		// in some of these strings, the empty space will get counted as a domain,
+		// this was an issue in the old version of exploded dns and caused inaccuracies
+		if (entry == "") || (entry == "in-addr.arpa") {
+			break
+		}
+
+		// set up writer output
+		var output update
+
+		output.query = bson.M{
+			"$inc": bson.M{
+				"subdomain_count": -1,
+			},
+		}
+
+		// create selector for output
+		output.selector = bson.M{"domain": entry}
+
+		output.collection = a.conf.T.DNS.ExplodedDNSTable
+
+		// set to writer channel
+		a.analyzedCallback(output)
+
+	}
+
 }

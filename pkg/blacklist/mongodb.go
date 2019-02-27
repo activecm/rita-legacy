@@ -54,4 +54,7 @@ func (r *repo) Upsert() {
 
 	}
 
+	// start the closing cascade (this will also close the other channels)
+	analyzerWorker.close()
+
 }

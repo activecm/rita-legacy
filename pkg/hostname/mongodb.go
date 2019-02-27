@@ -93,4 +93,7 @@ func (r *repo) Upsert(hostnameMap map[string][]string) {
 
 	p.Wait()
 
+	// start the closing cascade (this will also close the other channels)
+	analyzerWorker.close()
+
 }

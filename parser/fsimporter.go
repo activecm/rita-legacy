@@ -154,7 +154,9 @@ func (fs *FSImporter) Run() {
 	// parse in those files!
 	uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFiles, fs.parseThreads, fs.res.Log)
 
-	// Must wait for all mongodatastore inserts to finish
+	// Set chunk before we continue so if process dies, we still verify with a delete if
+	// any data was written out.
+	fs.res.MetaDB.SetChunk(fs.currentChunk, fs.res.DB.GetSelectedDB(), true)
 
 	// build Hosts table.
 	fs.buildHosts(hostMap)
@@ -190,7 +192,6 @@ func (fs *FSImporter) Run() {
 	// add min/max timestamps to metaDatabase and mark results as imported and analyzed
 	fmt.Println("\t[-] Updating metadatabase ... ")
 	fs.res.MetaDB.MarkDBAnalyzed(fs.res.DB.GetSelectedDB(), true)
-	fs.res.MetaDB.SetChunk(fs.currentChunk, fs.res.DB.GetSelectedDB(), true)
 
 	progTime = time.Now()
 	fs.res.Log.WithFields(
@@ -449,13 +450,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								hostnameMap[domain] = []string{}
 							}
 
+							// geo.vortex.data.microsoft.com.akadns.net
+
 							if queryTypeName == "A" {
 								answers := parseDNS.FieldByName("Answers").Interface().([]string)
 								for _, answer := range answers {
-									// make sure we aren't storing more than the configured max
-									if len(hostnameMap[domain]) >= fs.res.Config.S.Hostname.IPListLimit {
-										break
-									}
 									// Check if answer is an IP address
 									if net.ParseIP(answer) != nil {
 										if stringInSlice(answer, hostnameMap[domain]) == false {
