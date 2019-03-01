@@ -86,10 +86,8 @@ func getExplodedDNSResultsView(res *resources.Resources, limit int) []explodeddn
 	var explodedDNSResults []explodeddns.AnalysisView
 
 	explodedDNSQuery := []bson.M{
-		bson.M{"$sort": bson.M{"subdomain_count": -1}},
-		bson.M{"$limit": limit},
+		bson.M{"$unwind": "$dat"},
 		bson.M{"$project": bson.M{"domain": 1, "subdomain_count": 1, "visited": "$dat.visited"}},
-		bson.M{"$unwind": "$visited"},
 		bson.M{"$group": bson.M{
 			"_id":             "$domain",
 			"visited":         bson.M{"$sum": "$visited"},
@@ -101,7 +99,9 @@ func getExplodedDNSResultsView(res *resources.Resources, limit int) []explodeddn
 			"visited":         1,
 			"subdomain_count": 1,
 		}},
+		bson.M{"$sort": bson.M{"visited": -1}},
 		bson.M{"$sort": bson.M{"subdomain_count": -1}},
+		bson.M{"$limit": limit},
 	}
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.ExplodedDNSTable).Pipe(explodedDNSQuery).All(&explodedDNSResults)

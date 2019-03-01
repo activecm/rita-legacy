@@ -108,7 +108,9 @@ func (a *analyzer) start() {
 							"cid":     a.chunk,
 						}},
 						"$set": bson.M{
-							"cid":             a.chunk,
+							"cid": a.chunk,
+						},
+						"$inc": bson.M{
 							"subdomain_count": 1,
 						},
 					}
