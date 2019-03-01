@@ -117,11 +117,16 @@ func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, li
 	blHostsQuery := []bson.M{
 		bson.M{"$match": bson.M{"blacklisted": true}},
 		bson.M{"$unwind": "$dat"},
-		bson.M{"$project": bson.M{"host": 1, "ip": "$dat.ips"}},
-		bson.M{"$unwind": "$ip"},
+		bson.M{"$project": bson.M{"host": 1, "ips": "$dat.ips"}},
+		bson.M{"$unwind": "$ips"},
+		bson.M{"$group": bson.M{
+			"_id": "$host",
+			"ips": bson.M{"$addToSet": "$ips"},
+		}},
+		bson.M{"$unwind": "$ips"},
 		bson.M{"$lookup": bson.M{
 			"from":         "uconn",
-			"localField":   "ip",
+			"localField":   "ips",
 			"foreignField": "dst",
 			"as":           "uconn",
 		}},
@@ -129,7 +134,7 @@ func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, li
 		bson.M{"$unwind": "$uconn.dat"},
 		bson.M{"$project": bson.M{"host": 1, "conns": "$uconn.dat.count", "bytes": "$uconn.dat.tbytes", "ip": "$uconn.src"}},
 		bson.M{"$group": bson.M{
-			"_id":         "$host",
+			"_id":         "$_id",
 			"ips":         bson.M{"$addToSet": "$ip"},
 			"conn_count":  bson.M{"$sum": "$conns"},
 			"total_bytes": bson.M{"$sum": "$bytes"},
