@@ -7,17 +7,19 @@ Brought to you by [Active Countermeasures](https://www.activecountermeasures.com
 
 RITA is an open source framework for network traffic analysis.
 
-The framework ingests [Bro/Zeek Logs](https://www.zeek.org/), and currently supports the following major features:
+The framework ingests [Bro/Zeek Logs](https://www.zeek.org/) in TSV format, and currently supports the following major features:
  - **Beaconing Detection**: Search for signs of beaconing behavior in and out of your network
  - **DNS Tunneling Detection** Search for signs of DNS based covert channels
  - **Blacklist Checking**: Query blacklists to search for suspicious domains and hosts
 
 ### Automatic Installation
-**The automatic  installer is officially supported on Ubuntu 16.04 LTS, Security Onion, and CentOS 7**
+**The automatic installer is officially supported on Ubuntu 16.04 LTS, Security Onion\*, and CentOS 7**
 
 * Download the latest `install.sh` file from the [release page](https://github.com/activecm/rita/releases/latest)
 * Make the installer executable: `chmod +x ./install.sh`
 * Run the installer: `sudo ./install.sh`
+
+\* Please see the [Security Onion RITA wiki page](https://github.com/Security-Onion-Solutions/security-onion/wiki/RITA) for further information pertaining to using RITA on Security Onion.
 
 ### Manual Installation
 To install each component of RITA by hand, [check out the instructions in the docs](docs/Manual%20Installation.md).
