@@ -390,6 +390,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									uconnMap[srcDst].Tuples = append(uconnMap[srcDst].Tuples, tuple)
 								}
 
+								// Check if invalid cert record was written before the uconns
+								// record, we'll need to update it with the tuples.
+								if _, ok := certMap[dst]; ok {
+									// add tuple to invlaid cert list
+									if stringInSlice(tuple, certMap[dst].Tuples) == false {
+										certMap[dst].Tuples = append(certMap[dst].Tuples, tuple)
+									}
+								}
+
 								// Increment the connection count for the src-dst pair
 								uconnMap[srcDst].ConnectionCount++
 								hostMap[src].ConnectionCount++
