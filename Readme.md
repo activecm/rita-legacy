@@ -59,12 +59,7 @@ Note that any value listed in the `Filtering` section should be in CIDR format. 
       * The automated installer for RITA installs pre-compiled Bro binaries
 
 #### Importing Data Into RITA
-  * After installing, `rita` should be in your `PATH` and the config file should be set up ready to go. Once your Bro install has collected some logs (Bro will normally rotate logs on the hour) you can run `rita import`. Alternatively, you can manually import existing logs using one of the following options:
-    * **Option 1**: Import directly from the terminal (one time import)
-      * `rita import path/to/your/bro_logs/ database_name`
-    * **Option 2**: Set up the Bro configuration in `/etc/rita/config.yaml` for repeated imports
-      * Set `ImportDirectory` to the `path/to/your/bro_logs`. The default is `/opt/bro/logs`
-      * Set `DBName` to an identifier common to your set of logs
+  * After installing, `rita` should be in your `PATH` and the config file should be set up, ready to go. Once your Bro install has collected some logs (Bro will normally rotate logs on the hour), you can run `rita import path/to/your/bro_logs/ database_name` to import the data into RITA and analyze it.
   * Filtering and whitelisting of connection logs happens at import time, and those optional settings can be found in the `/etc/rita/config.yaml` configuration file.
 
 #### Analyzing Data With RITA

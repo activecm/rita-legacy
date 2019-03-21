@@ -52,10 +52,10 @@ type (
 
 	//BroStaticCfg controls the file parser
 	BroStaticCfg struct {
-		ImportDirectory string `yaml:"ImportDirectory" default:"/opt/bro/logs/"`
-		DBName          string `yaml:"DBName" default:"RITA"`
 		MetaDB          string `yaml:"MetaDB" default:"MetaDatabase"`
 		ImportBuffer    int    `yaml:"ImportBuffer" default:"30000"`
+		ImportDirectory string
+		DBName          string
 		Rolling         bool
 		TotalChunks     int
 		CurrentChunk    int
@@ -141,7 +141,6 @@ func parseStaticConfig(cfgFile []byte, config *StaticCfg) error {
 
 	// clean all filepaths
 	config.Log.RitaLogPath = filepath.Clean(config.Log.RitaLogPath)
-	config.Bro.ImportDirectory = filepath.Clean(config.Bro.ImportDirectory)
 
 	// grab the version constants set by the build process
 	config.Version = Version

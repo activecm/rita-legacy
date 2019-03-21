@@ -22,8 +22,6 @@ LogConfig:
     LogToFile: true
     LogToDB: true
 Bro:
-    ImportDirectory: /opt/bro/logs/
-    DBName: "RITA"
     MetaDB: MetaDatabase
     ImportBuffer: 100000
 UserConfig:
@@ -65,10 +63,8 @@ var testConfigFullExp = StaticCfg{
 		LogToDB:     true,
 	},
 	Bro: BroStaticCfg{
-		ImportDirectory: "/opt/bro/logs",
-		DBName:          "RITA",
-		MetaDB:          "MetaDatabase",
-		ImportBuffer:    100000,
+		MetaDB:       "MetaDatabase",
+		ImportBuffer: 100000,
 	},
 	UserConfig: UserCfgStaticCfg{
 		UpdateCheckFrequency: 14,
@@ -117,15 +113,10 @@ func TestFilePathCleaning(t *testing.T) {
 	testConfig := `
 LogConfig:
     RitaLogPath: /var/lib/rita/incorrect/./../logs/
-Bro:
-    ImportDirectory: /opt/bro/incorrect/./../../bro/logs/
 `
 	testConfigExp := StaticCfg{
 		Log: LogStaticCfg{
 			RitaLogPath: "/var/lib/rita/logs",
-		},
-		Bro: BroStaticCfg{
-			ImportDirectory: "/opt/bro/logs",
 		},
 	}
 	config := &StaticCfg{}

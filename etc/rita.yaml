@@ -36,13 +36,6 @@ LogConfig:
 
 # The section Bro configures the bro ingestor
 Bro:
-    # Path to a top level directory of log files
-    ImportDirectory: /opt/bro/logs/
-
-    # Files directly in the ImportDirectory will be imported into a database
-    # with the name DBName.
-    DBName: "RITA"
-
     # This database holds information about the procesed files and databases.
     MetaDB: MetaDatabase
 
