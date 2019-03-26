@@ -2,6 +2,7 @@ package parsetypes
 
 import (
 	"github.com/activecm/rita/config"
+	"strings"
 )
 
 //BroData holds a line of a bro log
@@ -13,20 +14,23 @@ type BroData interface {
 //NewBroDataFactory creates a new BroData based on the string
 //which appears in that log's objType field
 func NewBroDataFactory(fileType string) func() BroData {
-	switch fileType {
-	case "conn":
+	//Note: we use HasPrefix rather than equality for the checks
+	//in order to support configurations which tag the log types.
+	//For instance, Security Onion splits the http log out by
+	//interface producing http_eth0, http_eth1, etc.
+	if strings.HasPrefix(fileType, "conn") {
 		return func() BroData {
 			return &Conn{}
 		}
-	case "dns":
+	} else if strings.HasPrefix(fileType, "dns") {
 		return func() BroData {
 			return &DNS{}
 		}
-	case "http":
+	} else if strings.HasPrefix(fileType, "http") {
 		return func() BroData {
 			return &HTTP{}
 		}
-	case "ssl":
+	} else if strings.HasPrefix(fileType, "ssl") {
 		return func() BroData {
 			return &SSL{}
 		}
