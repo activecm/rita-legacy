@@ -107,23 +107,8 @@ func (i *Importer) parseArgs() error {
 }
 
 func (i *Importer) setTargetDatabase() error {
-	// get all database names
-	names, _ := i.res.DB.Session.DatabaseNames()
-
-	// check if database exists
-	dbExists := util.StringInSlice(i.targetDatabase, names)
-
-	// Add new metadatabase record for db if doesn't already exist
-	if !dbExists {
-		err := i.res.MetaDB.AddNewDB(i.targetDatabase)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("\n\t[!] %v", err.Error()), -1)
-		}
-	}
-
 	i.res.DB.SelectDB(i.targetDatabase)
 	i.res.Config.S.Bro.DBName = i.targetDatabase
-
 	return nil
 }
 
@@ -149,7 +134,7 @@ func (i *Importer) setRolling() error {
 	if i.rolling {
 		// verify that numchunks matches originally set value if database was already
 		// set as a rolling database in previous imports
-		err := i.res.MetaDB.VerifyIfAlreadyRollingDB(i.targetDatabase, i.totalChunks, i.currentChunk)
+		err := i.res.MetaDB.EnsureRollingSettingsMatch(i.targetDatabase, i.totalChunks)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("\n\t[!] %v", err.Error()), -1)
 		}

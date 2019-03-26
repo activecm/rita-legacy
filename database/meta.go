@@ -64,8 +64,43 @@ func NewMetaDB(config *config.Config, dbHandle *mgo.Session,
 	return metaDB
 }
 
-//VerifyIfAlreadyRollingDB ....
-func (m *MetaDB) VerifyIfAlreadyRollingDB(db string, numchunks int, chunk int) error {
+//EnsureRollingSettingsMatch ensures that the rolling database settings in the
+//metadb match the provided arguments if the database settings exist at all
+func (m *MetaDB) EnsureRollingSettingsMatch(db string, numchunks int) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	// pull down dataset record from metadatabase
+	var result DBMetaInfo
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"name": db}).One(&result)
+
+	if err != nil && err != mgo.ErrNotFound {
+		return err
+	}
+
+	// if dataset doesn't exist yet
+	if err == mgo.ErrNotFound {
+		return nil
+	}
+
+	// if dataset is an already existing dataset marked as rolling = true
+	if result.Rolling {
+		// make sure number of chunks matches the one that's on file for that dataset
+		if result.TotalChunks != numchunks {
+			return fmt.Errorf("The total chunk size for existing rolling dataset [ "+db+" ] is set to [ %d ] and cannot be changed unless the dataset is deleted and recreated.", result.TotalChunks)
+		}
+	}
+
+	return nil
+}
+
+//SetRollingSettings ensures that a given db is marked as rolling,
+//ensures that total_chunks matches numchunks, and sets the current_chunk to chunk.
+func (m *MetaDB) SetRollingSettings(db string, numchunks int, chunk int) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
@@ -79,7 +114,6 @@ func (m *MetaDB) VerifyIfAlreadyRollingDB(db string, numchunks int, chunk int) e
 
 	// if dataset is an already existing dataset marked as rolling = true
 	if result.Rolling {
-
 		// make sure number of chunks matches the one that's on file for that dataset
 		if result.TotalChunks != numchunks {
 			return fmt.Errorf("The total chunk size for existing rolling dataset [ "+db+" ] is set to [ %d ] and cannot be changed unless the dataset is deleted and recreated.", result.TotalChunks)
@@ -97,10 +131,9 @@ func (m *MetaDB) VerifyIfAlreadyRollingDB(db string, numchunks int, chunk int) e
 		}
 		// otherwise, if dataset record exists and is analyzed, but its not a rolling dataset, return error
 	} else if result.Analyzed == true {
-
 		return fmt.Errorf("Cannot append to an already analyzed, non-rolling dataset as a rolling dataset. Please choose another target dataset")
 
-		// otherwise, if unanlyzed, freshly created dataset, create fields necessary for rolling analysis.
+		// otherwise, if unanalyzed, freshly created dataset, create fields necessary for rolling analysis.
 	} else {
 
 		for i := 0; i < numchunks; i++ {
@@ -122,9 +155,7 @@ func (m *MetaDB) VerifyIfAlreadyRollingDB(db string, numchunks int, chunk int) e
 				return err
 			}
 		}
-
 	}
-
 	return nil
 }
 
@@ -154,7 +185,7 @@ func (m *MetaDB) AddNewDB(name string) error {
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	_, err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Upsert(
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Insert(
 		bson.M{"name": name},
 		DBMetaInfo{
 			Name:           name,
@@ -171,6 +202,18 @@ func (m *MetaDB) AddNewDB(name string) error {
 	}
 
 	return nil
+}
+
+//DBExists returns whether or not a metadatabase record has been created for a database
+func (m *MetaDB) DBExists(name string) (bool, error) {
+	_, err := m.GetDBMetaInfo(name)
+	if err != nil && err != mgo.ErrNotFound {
+		return false, err
+	}
+	if err == mgo.ErrNotFound {
+		return false, nil
+	}
+	return true, nil
 }
 
 // DeleteDB removes a database managed by RITA
