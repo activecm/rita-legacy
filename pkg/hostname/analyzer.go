@@ -86,7 +86,7 @@ func (a *analyzer) start() {
 					"$push": bson.M{
 						"dat": bson.M{
 							"ips":        data.ips,
-							"client_ips": data.clientIPs,
+							"src_ips": data.clientIPs,
 							"cid":        a.chunk,
 						},
 					},
@@ -100,7 +100,7 @@ func (a *analyzer) start() {
 					"$push": bson.M{
 						"dat": bson.M{
 							"ips":        data.ips,
-							"client_ips": data.clientIPs,
+							"src_ips": data.clientIPs,
 							"cid":        a.chunk,
 						},
 					},
