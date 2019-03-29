@@ -59,6 +59,7 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 	writerWorker := newWriter(
 		r.res.DB,
 		r.res.Config,
+		r.res.Log,
 	)
 
 	analyzerWorker := newAnalyzer(

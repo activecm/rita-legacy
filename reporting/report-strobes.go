@@ -72,6 +72,7 @@ func getStrobeResultsView(res *resources.Resources, sort string, limit int) []be
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).All(&strobes)
 
 	if err != nil {
+		//TODO: properly log this error
 		fmt.Println(err)
 	}
 

@@ -49,7 +49,7 @@ func (r *repo) CreateIndexes() error {
 func (r *repo) Upsert(hostMap map[string]*IP) {
 
 	//Create the workers
-	writerWorker := newWriter(r.res.Config.T.Structure.HostTable, r.res.DB, r.res.Config)
+	writerWorker := newWriter(r.res.Config.T.Structure.HostTable, r.res.DB, r.res.Config, r.res.Log)
 
 	analyzerWorker := newAnalyzer(
 		r.res.Config.S.Bro.CurrentChunk,

@@ -89,6 +89,7 @@ func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(longConnQuery).All(&longConnResults)
 
 	if err != nil {
+		//TODO: properly log this error
 		fmt.Println(err)
 	}
 

@@ -74,6 +74,7 @@ func getUseragentResultsView(res *resources.Resources, sort string, sortDirectio
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.UserAgent.UserAgentTable).Pipe(useragentQuery).All(&useragentResults)
 
 	if err != nil {
+		//TODO: properly log this error
 		fmt.Println(err)
 	}
 

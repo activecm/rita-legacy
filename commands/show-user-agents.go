@@ -2,7 +2,6 @@ package commands
 
 import (
 	"encoding/csv"
-	"fmt"
 	"os"
 
 	"github.com/activecm/rita/pkg/useragent"
@@ -41,7 +40,12 @@ func init() {
 				sortDirection = -1
 			}
 
-			data := getUseragentResultsView(res, sort, sortDirection, 1000)
+			data, err := getUseragentResultsView(res, sort, sortDirection, 1000)
+
+			if err != nil {
+				res.Log.Error(err)
+				return cli.NewExitError(err, -1)
+			}
 
 			if len(data) == 0 {
 				return cli.NewExitError("No results were found for "+db, -1)
@@ -54,7 +58,7 @@ func init() {
 				}
 				return nil
 			}
-			err := showAgents(data)
+			err = showAgents(data)
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -86,7 +90,7 @@ func showAgentsHuman(agents []useragent.AnalysisView) error {
 }
 
 //getUseragentResultsView gets the useragent results
-func getUseragentResultsView(res *resources.Resources, sort string, sortDirection int, limit int) []useragent.AnalysisView {
+func getUseragentResultsView(res *resources.Resources, sort string, sortDirection int, limit int) ([]useragent.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -110,10 +114,6 @@ func getUseragentResultsView(res *resources.Resources, sort string, sortDirectio
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.UserAgent.UserAgentTable).Pipe(useragentQuery).All(&useragentResults)
 
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return useragentResults
+	return useragentResults, err
 
 }

@@ -2,7 +2,6 @@ package commands
 
 import (
 	"encoding/csv"
-	"fmt"
 	"os"
 
 	"github.com/activecm/rita/pkg/explodeddns"
@@ -31,7 +30,12 @@ func init() {
 			res := resources.InitResources(c.String("config"))
 			res.DB.SelectDB(db)
 
-			data := getExplodedDNSResultsView(res, 1000)
+			data, err := getExplodedDNSResultsView(res, 1000)
+
+			if err != nil {
+				res.Log.Error(err)
+				return cli.NewExitError(err, -1)
+			}
 
 			if len(data) == 0 {
 				return cli.NewExitError("No results were found for "+db, -1)
@@ -44,7 +48,7 @@ func init() {
 				}
 				return nil
 			}
-			err := showDNSResults(data)
+			err = showDNSResults(data)
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -79,7 +83,7 @@ func showDNSResultsHuman(dnsResults []explodeddns.AnalysisView) error {
 }
 
 //getExplodedDNSResultsView gets the exploded dns results
-func getExplodedDNSResultsView(res *resources.Resources, limit int) []explodeddns.AnalysisView {
+func getExplodedDNSResultsView(res *resources.Resources, limit int) ([]explodeddns.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -106,10 +110,6 @@ func getExplodedDNSResultsView(res *resources.Resources, limit int) []explodeddn
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.ExplodedDNSTable).Pipe(explodedDNSQuery).All(&explodedDNSResults)
 
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return explodedDNSResults
+	return explodedDNSResults, err
 
 }

@@ -68,7 +68,6 @@ func PrintHTML(dbsIn []string, res *resources.Resources) error {
 	// Write the homepage
 	err = writeHomePage(dbs)
 	if err != nil {
-		fmt.Print(err)
 		return err
 	}
 

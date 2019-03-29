@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"compress/gzip"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -83,14 +82,12 @@ func readDirRolling(currentChunk int, totalChunks int, cpath string, logger *log
 
 			if ts1 == ts2 {
 				if (ts1 >= startChunk) && (ts2 <= endChunk) {
-					// fmt.Println(file.Name())
 					toReturn = append(toReturn, path.Join(cpath, file.Name()))
 				}
 			} else {
 
 				if (ts1 >= startChunk) && (ts1 < endChunk) &&
 					(ts2 > startChunk) && (ts2 <= endChunk) {
-					// fmt.Println(file.Name())
 					toReturn = append(toReturn, path.Join(cpath, file.Name()))
 				}
 			}
@@ -110,14 +107,12 @@ func readDirRolling(currentChunk int, totalChunks int, cpath string, logger *log
 
 			if ts1 == ts2 {
 				if (ts1 >= startChunk) && (ts2 <= endChunk) {
-					// fmt.Println(file.Name())
 					toReturn = append(toReturn, path.Join(cpath, file.Name()))
 				}
 			} else {
 
 				if (ts1 >= startChunk) && (ts1 < endChunk) &&
 					(ts2 > startChunk) && (ts2 <= endChunk) {
-					// fmt.Println(file.Name())
 					toReturn = append(toReturn, path.Join(cpath, file.Name()))
 				}
 			}
@@ -250,8 +245,13 @@ func mapBroHeaderToParserType(header *fpt.BroHeader, broDataFactory func() pt.Br
 		}
 
 		if header.Types[index] != lu.broType {
-			fmt.Println(header.Types[index], lu.broType)
-			return nil, errors.New("Type mismatch found in log")
+			err := errors.New("Type mismatch found in log")
+			logger.WithFields(log.Fields{
+				"error":               err,
+				"header.Types[index]": header.Types[index],
+				"lu.broType":          lu.broType,
+			})
+			return nil, err
 		}
 	}
 

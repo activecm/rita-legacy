@@ -1,11 +1,11 @@
 package certificate
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -13,16 +13,18 @@ type (
 	writer struct { //structure for writing blacklist results to mongo
 		db           *database.DB   // provides access to MongoDB
 		conf         *config.Config // contains details needed to access MongoDB
+		log          *log.Logger    // main logger for RITA
 		writeChannel chan update    // holds analyzed data
 		writeWg      sync.WaitGroup // wait for writing to finish
 	}
 )
 
 //newWriter creates a new writer object to write output data to blacklisted collections
-func newWriter(db *database.DB, conf *config.Config) *writer {
+func newWriter(db *database.DB, conf *config.Config, log *log.Logger) *writer {
 	return &writer{
 		db:           db,
 		conf:         conf,
+		log:          log,
 		writeChannel: make(chan update),
 	}
 }
@@ -50,7 +52,11 @@ func (w *writer) start() {
 			info, err := ssn.DB(w.db.GetSelectedDB()).C(data.collection).Upsert(data.selector, data.query)
 			if err != nil ||
 				((info.Updated == 0) && (info.UpsertedId == nil)) {
-				fmt.Println("cert module: ", err, info, data)
+				log.WithFields(log.Fields{
+					"Module": "cert",
+					"Info":   info,
+					"Data":   data,
+				}).Error(err)
 			}
 
 		}
