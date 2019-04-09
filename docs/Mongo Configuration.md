@@ -1,6 +1,6 @@
 # Mongo Configuration for RITA
 
-This is the default MongoDB configuration section in RITA's configuration file `~/.rita/config.yaml`.
+This is the default MongoDB configuration section in RITA's configuration file `/etc/rita/config.yaml`.
 
 ```yaml
 MongoDB:
@@ -121,7 +121,7 @@ References:
 
 ### RITA Config
 
-To enable authentication and provide a username and password in RITA, modify the connection string in RITA's config file (`~/.rita/config.yaml`). 
+To enable authentication and provide a username and password in RITA, modify the connection string in RITA's config file (`/etc/rita/config.yaml`). 
 
 Of the possible values for `AuthenticationMechanism`, the only officially supported values are `null` or `SCRAM-SHA-1`.
 
@@ -192,7 +192,7 @@ References:
 
 ### RITA Config
 
-The following RITA configuration (`~/.rita/config.yaml`) snippet is sufficient to enable encrypted communication. Please note that while encryption and authentication are often used together, they are independent settings. The authentication settings aren't shown here but can be added.
+The following RITA configuration (`/etc/rita/config.yaml`) snippet is sufficient to enable encrypted communication. Please note that while encryption and authentication are often used together, they are independent settings. The authentication settings aren't shown here but can be added.
 
 Note: RITA does not support the common `?ssl=true` option on Mongo's connection string to enable encryption. You must use the `TLS` section of RITA's config file.
 
