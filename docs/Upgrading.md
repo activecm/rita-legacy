@@ -7,7 +7,7 @@
 
 If you are upgrading across major versions (e.g. v1.x.x to v2.x.x, or v2.x.x to v3.x.x), you will need to delete your existing datasets and re-import them. Major version bumps typically bring massive performance gains as well as new features at the cost of removing compatibility for older datasets.
 
-You will likely need to update your config file as well. See the [Updating RITA's Config File](#Updating%20RITA's%20Config%20File) section below.
+You will likely need to update your config file as well. See the [Updating RITA's Config File](#updating-ritas-config-file) section below.
 
 ## Upgrading Between Minor or Patch Versions
 
