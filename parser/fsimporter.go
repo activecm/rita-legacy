@@ -217,13 +217,13 @@ func (fs *FSImporter) Run() {
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, logger *log.Logger) (
-	map[string]*uconn.Pair, map[string]*host.IP, map[string]int, map[string][]string, map[string]*useragent.Input, map[string]*certificate.Input) {
+	map[string]*uconn.Pair, map[string]*host.IP, map[string]int, map[string]*hostname.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 	// create log parsing maps
 	explodeddnsMap := make(map[string]int)
 
-	hostnameMap := make(map[string][]string)
+	hostnameMap := make(map[string]*hostname.Input)
 
 	useragentMap := make(map[string]*useragent.Input)
 
@@ -461,30 +461,34 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// increment domain map count for exploded dns
 							explodeddnsMap[domain]++
 
-							// Increment the connection count for the src-dst pair
+							// initialize the hostname input objects for new hostnames
 							if _, ok := hostnameMap[domain]; !ok {
-								hostnameMap[domain] = []string{}
+								hostnameMap[domain] = &hostname.Input{}
 							}
 
 							// geo.vortex.data.microsoft.com.akadns.net
 
+							// extract and store the dns client ip address
+							src := parseDNS.FieldByName("Source").Interface().(string)
+							if stringInSlice(src, hostnameMap[domain].ClientIPs) == false {
+								hostnameMap[domain].ClientIPs = append(hostnameMap[domain].ClientIPs, src)
+							}
+
 							if queryTypeName == "A" {
 								answers := parseDNS.FieldByName("Answers").Interface().([]string)
 								for _, answer := range answers {
-									// Check if answer is an IP address
+									// Check if answer is an IP address and store it if it is
 									if net.ParseIP(answer) != nil {
-										if stringInSlice(answer, hostnameMap[domain]) == false {
-											hostnameMap[domain] = append(hostnameMap[domain], answer)
+										if stringInSlice(answer, hostnameMap[domain].ResolvedIPs) == false {
+											hostnameMap[domain].ResolvedIPs = append(hostnameMap[domain].ResolvedIPs, answer)
 										}
-
 									}
 								}
 							}
 
 							// increment txt query count for host in uconn
 							if queryTypeName == "TXT" {
-								// get source destination pair for dns record
-								src := parseDNS.FieldByName("Source").Interface().(string)
+								// get destination for dns record
 								dst := parseDNS.FieldByName("Destination").Interface().(string)
 
 								// Run conn pair through filter to filter out certain connections
@@ -701,7 +705,7 @@ func (fs *FSImporter) removeAnalysisChunk(cid int) error {
 }
 
 //buildHostnames .....
-func (fs *FSImporter) buildHostnames(hostnameMap map[string][]string) {
+func (fs *FSImporter) buildHostnames(hostnameMap map[string]*hostname.Input) {
 	// non-optional module
 	if len(hostnameMap) > 0 {
 		// Set up the database

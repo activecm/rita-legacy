@@ -55,7 +55,7 @@ func (r *repo) CreateIndexes() error {
 }
 
 //Upsert loops through every domain ....
-func (r *repo) Upsert(hostnameMap map[string][]string) {
+func (r *repo) Upsert(hostnameMap map[string]*Input) {
 
 	//Create the workers
 	writerWorker := newWriter(r.res.Config.T.DNS.HostnamesTable, r.res.DB, r.res.Config)
@@ -85,9 +85,13 @@ func (r *repo) Upsert(hostnameMap map[string][]string) {
 	)
 
 	// loop over map entries
-	for entry, answers := range hostnameMap {
+	for entry, ipLists := range hostnameMap {
 		start := time.Now()
-		analyzerWorker.collect(hostname{entry, answers})
+		analyzerWorker.collect(hostname{
+			host:      entry,
+			ips:       ipLists.ResolvedIPs,
+			clientIPs: ipLists.ClientIPs,
+		})
 		bar.IncrBy(1, time.Since(start))
 	}
 
