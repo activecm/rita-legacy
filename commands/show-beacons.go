@@ -4,9 +4,9 @@ import (
 	"encoding/csv"
 	"os"
 
-	"github.com/activecm/rita/analysis/beacon"
-	beaconData "github.com/activecm/rita/datatypes/beacon"
+	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/resources"
+	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -34,15 +34,11 @@ func showBeacons(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
-	var data []beaconData.AnalysisView
+	data := getBeaconResultsView(res, 0)
 
-	ssn := res.DB.Session.Copy()
-	resultsView := beacon.GetBeaconResultsView(res, ssn, 0)
-	if resultsView == nil {
+	if !(len(data) > 0) {
 		return cli.NewExitError("No results were found for "+db, -1)
 	}
-	resultsView.All(&data)
-	ssn.Close()
 
 	if c.Bool("human-readable") {
 		err := showBeaconReport(data)
@@ -59,20 +55,20 @@ func showBeacons(c *cli.Context) error {
 	return nil
 }
 
-func showBeaconReport(data []beaconData.AnalysisView) error {
+func showBeaconReport(data []beacon.AnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
 		"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
 		"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
-		"Size Skew", "Intvl Dispersion", "Size Dispersion", "Intvl Duration"})
+		"Size Skew", "Intvl Dispersion", "Size Dispersion"})
 
 	for _, d := range data {
 		table.Append(
 			[]string{
 				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
-				i(d.TSIRange), i(d.DSRange), i(d.TSIMode), i(d.DSMode),
-				i(d.TSIModeCount), i(d.DSModeCount), f(d.TSISkew), f(d.DSSkew),
-				i(d.TSIDispersion), i(d.DSDispersion), f(d.TSDuration),
+				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
+				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
 			},
 		)
 	}
@@ -80,26 +76,40 @@ func showBeaconReport(data []beaconData.AnalysisView) error {
 	return nil
 }
 
-func showBeaconCsv(data []beaconData.AnalysisView) error {
+func showBeaconCsv(data []beacon.AnalysisView) error {
 	csvWriter := csv.NewWriter(os.Stdout)
-	headers := []string{
-		"Score", "Source", "Destination", "Connections",
-		"Avg Bytes", "TS Range", "DS Range", "TS Mode", "DS Mode", "TS Mode Count",
-		"DS Mode Count", "TS Skew", "DS Skew", "TS Dispersion", "DS Dispersion",
-		"TS Duration",
-	}
+	headers := []string{"Score", "Source IP", "Destination IP",
+		"Connections", "Avg Bytes", "Intvl Range", "Size Range", "Top Intvl",
+		"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
+		"Size Skew", "Intvl Dispersion", "Size Dispersion"}
 	csvWriter.Write(headers)
 
 	for _, d := range data {
 		csvWriter.Write(
 			[]string{
 				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
-				i(d.TSIRange), i(d.DSRange), i(d.TSIMode), i(d.DSMode),
-				i(d.TSIModeCount), i(d.DSModeCount), f(d.TSISkew), f(d.DSSkew),
-				i(d.TSIDispersion), i(d.DSDispersion), f(d.TSDuration),
+				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
+				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
 			},
 		)
 	}
 	csvWriter.Flush()
 	return nil
+}
+
+//getBeaconResultsView finds beacons greater than a given cutoffScore
+//and links the data from the unique connections table back in to the results
+func getBeaconResultsView(res *resources.Resources, cutoffScore float64) []beacon.AnalysisView {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	var beacons []beacon.AnalysisView
+
+	beaconQuery := bson.M{"score": bson.M{"$gt": cutoffScore}}
+
+	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(beaconQuery).Sort("-score").All(&beacons)
+
+	return beacons
+
 }

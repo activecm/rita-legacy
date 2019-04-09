@@ -2,10 +2,12 @@ package commands
 
 import (
 	"encoding/csv"
+	"fmt"
 	"os"
 
-	"github.com/activecm/rita/datatypes/strobe"
+	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/resources"
+	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -31,31 +33,28 @@ func init() {
 			}
 
 			res := resources.InitResources(c.String("config"))
+			res.DB.SelectDB(db)
 
-			var strobes []strobe.Strobe
-			coll := res.DB.Session.DB(db).C(res.Config.T.Strobe.StrobeTable)
-
-			var sortStr string
-			if c.Bool("connection-count") {
-				sortStr = "connection_count"
-			} else {
-				sortStr = "-connection_count"
+			sortStr := "conn_count"
+			sortDirection := -1
+			if c.Bool("connection-count") == false {
+				sortDirection = 1
 			}
 
-			coll.Find(nil).Sort(sortStr).All(&strobes)
+			data := getStrobeResultsView(res, sortStr, sortDirection, 1000)
 
-			if len(strobes) == 0 {
+			if len(data) == 0 {
 				return cli.NewExitError("No results were found for "+db, -1)
 			}
 
 			if c.Bool("human-readable") {
-				err := showStrobesHuman(strobes)
+				err := showStrobesHuman(data)
 				if err != nil {
 					return cli.NewExitError(err.Error(), -1)
 				}
 				return nil
 			}
-			err := showStrobes(strobes)
+			err := showStrobes(data)
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -65,23 +64,54 @@ func init() {
 	bootstrapCommands(command)
 }
 
-func showStrobes(strobes []strobe.Strobe) error {
+func showStrobes(strobes []beacon.StrobeAnalysisView) error {
 	csvWriter := csv.NewWriter(os.Stdout)
 	csvWriter.Write([]string{"Source", "Destination", "Connection Count"})
 	for _, strobe := range strobes {
-		csvWriter.Write([]string{strobe.Source, strobe.Destination, i(strobe.ConnectionCount)})
+		csvWriter.Write([]string{strobe.Src, strobe.Dst, i(strobe.ConnectionCount)})
 	}
 	csvWriter.Flush()
 	return nil
 }
 
-func showStrobesHuman(strobes []strobe.Strobe) error {
+func showStrobesHuman(strobes []beacon.StrobeAnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetColWidth(100)
 	table.SetHeader([]string{"Source", "Destination", "Connection Count"})
 	for _, strobe := range strobes {
-		table.Append([]string{strobe.Source, strobe.Destination, i(strobe.ConnectionCount)})
+		table.Append([]string{strobe.Src, strobe.Dst, i(strobe.ConnectionCount)})
 	}
 	table.Render()
 	return nil
+}
+
+//getStrobeResultsView ...
+func getStrobeResultsView(res *resources.Resources, sort string, sortDir int, limit int) []beacon.StrobeAnalysisView {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	var strobes []beacon.StrobeAnalysisView
+
+	strobeQuery := []bson.M{
+		bson.M{"$match": bson.M{"strobe": true}},
+		bson.M{"$unwind": "$dat"},
+		bson.M{"$project": bson.M{"src": 1, "dst": 1, "conns": "$dat.count"}},
+		bson.M{"$group": bson.M{
+			"_id":        "$_id",
+			"src":        bson.M{"$first": "$src"},
+			"dst":        bson.M{"$first": "$dst"},
+			"conn_count": bson.M{"$sum": "$conns"},
+		}},
+		bson.M{"$sort": bson.M{sort: sortDir}},
+		bson.M{"$limit": limit},
+	}
+
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).All(&strobes)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return strobes
+
 }

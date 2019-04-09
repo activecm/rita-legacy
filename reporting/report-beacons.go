@@ -5,10 +5,11 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/analysis/beacon"
-	beaconData "github.com/activecm/rita/datatypes/beacon"
+	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
+	"github.com/globalsign/mgo/bson"
+	"github.com/urfave/cli"
 )
 
 func printBeacons(db string, res *resources.Resources) error {
@@ -23,11 +24,11 @@ func printBeacons(db string, res *resources.Resources) error {
 		return err
 	}
 
-	res.DB.SelectDB(db)
-	var data []beaconData.AnalysisView
-	ssn := res.DB.Session.Copy()
-	beacon.GetBeaconResultsView(res, ssn, 0).All(&data)
-	ssn.Close()
+	data := getBeaconResultsView(res, 0)
+
+	if !(len(data) > 0) {
+		return cli.NewExitError("No results were found for "+db, -1)
+	}
 
 	w, err := getBeaconWriter(data)
 	if err != nil {
@@ -37,11 +38,11 @@ func printBeacons(db string, res *resources.Resources) error {
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getBeaconWriter(beacons []beaconData.AnalysisView) (string, error) {
+func getBeaconWriter(beacons []beacon.AnalysisView) (string, error) {
 	tmpl := "<tr><td>{{printf \"%.3f\" .Score}}</td><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.Connections}}</td><td>{{printf \"%.3f\" .AvgBytes}}</td><td>"
-	tmpl += "{{.TSIRange}}</td><td>{{.DSRange}}</td><td>{{.TSIMode}}</td><td>{{.DSMode}}</td><td>{{.TSIModeCount}}</td><td>{{.DSModeCount}}<td>"
-	tmpl += "{{printf \"%.3f\" .TSISkew}}</td><td>{{printf \"%.3f\" .DSSkew}}</td><td>{{.TSIDispersion}}</td><td>{{.DSDispersion}}</td><td>"
-	tmpl += "{{printf \"%.3f\" .TSDuration}}</tr>\n"
+	tmpl += "{{.Ts.Range}}</td><td>{{.Ds.Range}}</td><td>{{.Ts.Mode}}</td><td>{{.Ds.Mode}}</td><td>{{.Ts.ModeCount}}</td><td>{{.Ds.ModeCount}}<td>"
+	tmpl += "{{printf \"%.3f\" .Ts.Skew}}</td><td>{{printf \"%.3f\" .Ds.Skew}}</td><td>{{.Ts.Dispersion}}</td><td>{{.Ds.Dispersion}}</td>"
+	tmpl += "</tr>\n"
 
 	out, err := template.New("beacon").Parse(tmpl)
 	if err != nil {
@@ -58,4 +59,20 @@ func getBeaconWriter(beacons []beaconData.AnalysisView) (string, error) {
 	}
 
 	return w.String(), nil
+}
+
+//getBeaconResultsView finds beacons greater than a given cutoffScore
+//and links the data from the unique connections table back in to the results
+func getBeaconResultsView(res *resources.Resources, cutoffScore float64) []beacon.AnalysisView {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	var beacons []beacon.AnalysisView
+
+	beaconQuery := bson.M{"score": bson.M{"$gt": cutoffScore}}
+
+	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(beaconQuery).Sort("-score").All(&beacons)
+
+	return beacons
+
 }

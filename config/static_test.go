@@ -23,7 +23,7 @@ LogConfig:
     LogToDB: true
 Bro:
     ImportDirectory: /opt/bro/logs/
-    DBRoot: "RITA"
+    DBName: "RITA"
     MetaDB: MetaDatabase
     ImportBuffer: 100000
 UserConfig:
@@ -35,6 +35,8 @@ BlackListed:
     BlacklistDatabase: "rita-bl"
     CustomIPBlacklists: [test1]
     CustomHostnameBlacklists: [test2]
+DNS:
+    Enabled: true
 Beacon:
     DefaultConnectionThresh: 24
 Strobe:
@@ -64,7 +66,7 @@ var testConfigFullExp = StaticCfg{
 	},
 	Bro: BroStaticCfg{
 		ImportDirectory: "/opt/bro/logs",
-		DBRoot:          "RITA",
+		DBName:          "RITA",
 		MetaDB:          "MetaDatabase",
 		ImportBuffer:    100000,
 	},
@@ -78,6 +80,9 @@ var testConfigFullExp = StaticCfg{
 		BlacklistDatabase:  "rita-bl",
 		IPBlacklists:       []string{"test1"},
 		HostnameBlacklists: []string{"test2"},
+	},
+	DNS: DNSStaticCfg{
+		Enabled: true,
 	},
 	Beacon: BeaconStaticCfg{
 		DefaultConnectionThresh: 24,

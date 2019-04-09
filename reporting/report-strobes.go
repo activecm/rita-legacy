@@ -2,12 +2,14 @@ package reporting
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/datatypes/strobe"
+	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
+	"github.com/globalsign/mgo/bson"
 )
 
 func printStrobes(db string, res *resources.Resources) error {
@@ -21,19 +23,17 @@ func printStrobes(db string, res *resources.Resources) error {
 		return err
 	}
 
-	var strobes []strobe.Strobe
-	coll := res.DB.Session.DB(db).C(res.Config.T.Strobe.StrobeTable)
-	coll.Find(nil).Sort("-connection_count").Limit(1000).All(&strobes)
+	data := getStrobeResultsView(res, "conn_count", 1000)
 
-	w, err := getStrobesWriter(strobes)
+	w, err := getStrobesWriter(data)
 	if err != nil {
 		return err
 	}
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getStrobesWriter(strobes []strobe.Strobe) (string, error) {
-	tmpl := "<tr><td>{{.Source}}</td><td>{{.Destination}}</td><td>{{.ConnectionCount}}</td></tr>\n"
+func getStrobesWriter(strobes []beacon.StrobeAnalysisView) (string, error) {
+	tmpl := "<tr><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.ConnectionCount}}</td></tr>\n"
 	out, err := template.New("Strobes").Parse(tmpl)
 	if err != nil {
 		return "", err
@@ -46,4 +46,34 @@ func getStrobesWriter(strobes []strobe.Strobe) (string, error) {
 		}
 	}
 	return w.String(), nil
+}
+
+//getStrobeResultsView ...
+func getStrobeResultsView(res *resources.Resources, sort string, limit int) []beacon.StrobeAnalysisView {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	var strobes []beacon.StrobeAnalysisView
+
+	strobeQuery := []bson.M{
+		bson.M{"$match": bson.M{"strobe": true}},
+		bson.M{"$unwind": "$dat"},
+		bson.M{"$project": bson.M{"src": 1, "dst": 1, "conns": "$dat.count"}},
+		bson.M{"$group": bson.M{
+			"_id":        "$_id",
+			"src":        bson.M{"$first": "$src"},
+			"dst":        bson.M{"$first": "$dst"},
+			"conn_count": bson.M{"$sum": "$conns"},
+		}},
+		bson.M{"$sort": bson.M{sort: -1}},
+		bson.M{"$limit": limit},
+	}
+
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).All(&strobes)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return strobes
 }

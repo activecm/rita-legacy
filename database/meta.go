@@ -1,6 +1,8 @@
 package database
 
 import (
+	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -30,14 +32,22 @@ type (
 		Version string        `bson:"NewestVersion"`   // Top level name of the database
 	}
 
+	// Range defines a min and max value
+	Range struct {
+		Min int64 `bson:"min"`
+		Max int64 `bson:"max"`
+	}
+
 	// DBMetaInfo defines some information about the database
 	DBMetaInfo struct {
 		ID             bson.ObjectId `bson:"_id,omitempty"`   // Ident
 		Name           string        `bson:"name"`            // Top level name of the database
-		ImportFinished bool          `bson:"import_finished"` // Has this database been entirely imported
 		Analyzed       bool          `bson:"analyzed"`        // Has this database been analyzed
-		ImportVersion  string        `bson:"import_version"`  // Rita version at import
 		AnalyzeVersion string        `bson:"analyze_version"` // Rita version at analyze
+		Rolling        bool          `bson:"rolling"`
+		TotalChunks    int           `bson:"total_chunks"`
+		CurrentChunk   int           `bson:"current_chunk"`
+		TsRange        Range         `bson:"ts_range"`
 	}
 )
 
@@ -52,6 +62,70 @@ func NewMetaDB(config *config.Config, dbHandle *mgo.Session,
 	}
 
 	return metaDB
+}
+
+//VerifyIfAlreadyRollingDB ....
+func (m *MetaDB) VerifyIfAlreadyRollingDB(db string, numchunks int, chunk int) error {
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	// pull down dataset record from metadatabase
+	var result DBMetaInfo
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"name": db}).One(&result)
+
+	if err != nil {
+		return err
+	}
+
+	// if dataset is an already existing dataset marked as rolling = true
+	if result.Rolling {
+
+		// make sure number of chunks matches the one that's on file for that dataset
+		if result.TotalChunks != numchunks {
+			return fmt.Errorf("The total chunk size for existing rolling dataset [ "+db+" ] is set to [ %d ] and cannot be changed unless the dataset is deleted and recreated.", result.TotalChunks)
+		}
+
+		// set current chunk number
+		_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+			Upsert(
+				bson.M{"name": db},                             // selector
+				bson.M{"$set": bson.M{"current_chunk": chunk}}, // data
+			)
+
+		if err != nil {
+			return err
+		}
+		// otherwise, if dataset record exists and is analyzed, but its not a rolling dataset, return error
+	} else if result.Analyzed == true {
+
+		return fmt.Errorf("Cannot append to an already analyzed, non-rolling dataset as a rolling dataset. Please choose another target dataset")
+
+		// otherwise, if unanlyzed, freshly created dataset, create fields necessary for rolling analysis.
+	} else {
+
+		for i := 0; i < numchunks; i++ {
+
+			q := bson.M{
+				"$set": bson.M{
+					"rolling":                              true,
+					"total_chunks":                         numchunks,
+					"current_chunk":                        chunk,
+					"cid_list." + strconv.Itoa(i) + ".set": false,
+				}}
+
+			_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+				Upsert(
+					bson.M{"name": db}, // selector
+					q,                  // data
+				)
+			if err != nil {
+				return err
+			}
+		}
+
+	}
+
+	return nil
 }
 
 //LastCheck returns most recent version check
@@ -80,12 +154,12 @@ func (m *MetaDB) AddNewDB(name string) error {
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Insert(
+	_, err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Upsert(
+		bson.M{"name": name},
 		DBMetaInfo{
 			Name:           name,
-			ImportFinished: false,
 			Analyzed:       false,
-			ImportVersion:  m.config.S.Version,
+			AnalyzeVersion: m.config.S.Version,
 		},
 	)
 	if err != nil {
@@ -116,7 +190,7 @@ func (m *MetaDB) DeleteDB(name string) error {
 	defer ssn.Close()
 
 	//delete the record
-	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Remove(bson.M{"name": name})
+	_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).RemoveAll(bson.M{"name": name})
 	if err != nil {
 		return err
 	}
@@ -130,15 +204,63 @@ func (m *MetaDB) DeleteDB(name string) error {
 	return nil
 }
 
-// MarkDBImported marks a database as having been completely imported
-func (m *MetaDB) MarkDBImported(name string, complete bool) error {
+// GetTSRange adds the min and max timestamps for current dataset
+func (m *MetaDB) GetTSRange(name string) (int64, int64, error) {
+	dbr, err := m.GetDBMetaInfo(name)
+
+	var min, max int64
+
+	if err != nil {
+		m.log.WithFields(log.Fields{
+			"database_requested": name,
+			"error":              err.Error(),
+		}).Error("Could not add timestamp range: database not found in metadata directory")
+		return min, max, err
+	}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	type tsInfo struct {
+		Min int64 `bson:"min" json:"min"`
+		Max int64 `bson:"max" json:"max"`
+	}
+
+	var tsRes struct {
+		TSRange tsInfo `bson:"ts_range"`
+	}
+
+	// get min and max timestamps
+	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"name": name}).One(&tsRes)
+
+	if err != nil {
+		m.log.WithFields(log.Fields{
+			"metadb_attempted":   m.config.S.Bro.MetaDB,
+			"database_requested": name,
+			"_id":                dbr.ID.Hex,
+			"error":              err.Error(),
+		}).Error("Could not retrieve timestamp range from metadatabase: ", err)
+		return min, max, err
+	}
+
+	min = tsRes.TSRange.Min
+	max = tsRes.TSRange.Max
+
+	return min, max, nil
+}
+
+// AddTSRange adds the min and max timestamps found in current dataset
+func (m *MetaDB) AddTSRange(name string, min int64, max int64) error {
 	dbr, err := m.GetDBMetaInfo(name)
 
 	if err != nil {
 		m.log.WithFields(log.Fields{
 			"database_requested": name,
 			"error":              err.Error(),
-		}).Error("database not found in metadata directory")
+		}).Error("Could not add timestamp range: database not found in metadata directory")
 		return err
 	}
 
@@ -148,12 +270,15 @@ func (m *MetaDB) MarkDBImported(name string, complete bool) error {
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
-		Update(bson.M{"_id": dbr.ID}, bson.M{
-			"$set": bson.D{
-				{"import_finished", complete},
-			},
-		})
+	_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+		Upsert(
+			bson.M{"_id": dbr.ID},
+			bson.M{
+				"$set": bson.M{
+					"ts_range.min": min,
+					"ts_range.max": max,
+				}},
+		)
 
 	if err != nil {
 		m.log.WithFields(log.Fields{
@@ -161,7 +286,7 @@ func (m *MetaDB) MarkDBImported(name string, complete bool) error {
 			"database_requested": name,
 			"_id":                dbr.ID.Hex,
 			"error":              err.Error(),
-		}).Error("could not update database entry in meta")
+		}).Error("Could not update timestamp range for database entry in metadatabase")
 		return err
 	}
 	return nil
@@ -192,8 +317,8 @@ func (m *MetaDB) MarkDBAnalyzed(name string, complete bool) error {
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
-		Update(bson.M{"_id": dbr.ID}, bson.M{
+	_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+		Upsert(bson.M{"_id": dbr.ID}, bson.M{
 			"$set": bson.D{
 				{"analyzed", complete},
 				{"analyze_version", versionTag},
@@ -212,36 +337,6 @@ func (m *MetaDB) MarkDBAnalyzed(name string, complete bool) error {
 	return nil
 }
 
-//migrateDBMetaInfo is used to ensure compatibility with previous database schemas.
-//migrateDBMetaInfo does not migrate any data in the database. Rather,
-//it converts old DBMetaInfo representations into new ones in memory.
-//We follow the reasoning that RITA should be able to read documents from
-//older versions.
-func migrateDBMetaInfo(inInfo DBMetaInfo) (DBMetaInfo, error) {
-	var inVersion semver.Version
-	var err error
-	if inInfo.ImportVersion != "" {
-		inVersion, err = semver.ParseTolerant(inInfo.ImportVersion)
-		if err != nil {
-			return inInfo, err
-		}
-	} else {
-		//The only published version of RITA without the ImportVersion field
-		//is RITA v0.9.1
-		inVersion = semver.Version{Major: 0, Minor: 9, Patch: 1}
-	}
-	if inVersion.LT(semver.Version{Major: 1, Minor: 1, Patch: 0}) {
-		/*
-		*	Before version 1.1.0, database records in the MetaDB lacked
-		* the ImportFinished flag. The flag was introduced to prevent
-		* the simultaneous import and analysis of a database.
-		* See: https://github.com/activecm/rita/blob/9fd7ed84a1bad3aba879e890fad83152266c8156/database/meta.go#L26
-		 */
-		inInfo.ImportFinished = true
-	}
-	return inInfo, nil
-}
-
 // runDBMetaInfoQuery runs a MongoDB query against the MetaDB Databases Table
 // and performs any necessary data migration
 func (m *MetaDB) runDBMetaInfoQuery(queryDoc bson.M) ([]DBMetaInfo, error) {
@@ -257,14 +352,64 @@ func (m *MetaDB) runDBMetaInfoQuery(queryDoc bson.M) ([]DBMetaInfo, error) {
 		return results, err
 	}
 
-	for i := range results {
-		results[i], err = migrateDBMetaInfo(results[i])
-		if err != nil {
-			return results, err
-		}
+	return results, nil
+}
+
+// SetChunk ....
+func (m *MetaDB) SetChunk(cid int, db string, analyzed bool) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	_, err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
+		Upsert(
+			bson.M{"name": db},
+			bson.M{
+				"$set": bson.M{
+					"cid_list." + strconv.Itoa(cid) + ".set": analyzed,
+				}},
+		)
+
+	if err != nil {
+		m.log.WithFields(log.Fields{
+			"metadb_attempted":   m.config.S.Bro.MetaDB,
+			"database_requested": db,
+			"error":              err.Error(),
+		}).Error("Could not update CID analyzed value for database entry in metadatabase")
+		return err
+	}
+	return nil
+}
+
+// IsChunkSet ....
+func (m *MetaDB) IsChunkSet(cid int, db string) (bool, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	query := bson.M{
+		"$and": []interface{}{
+			bson.M{"name": db},
+			bson.M{"cid_list." + strconv.Itoa(cid) + ".set": true},
+		},
 	}
 
-	return results, nil
+	var results []interface{}
+	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(query).All(&results)
+
+	if err != nil {
+		return false, err
+	}
+
+	if len(results) > 0 {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // GetDBMetaInfo returns a meta db entry. This is the only function which
@@ -298,20 +443,6 @@ func (m *MetaDB) GetDatabases() []string {
 
 }
 
-//CheckCompatibleImport checks if a database was imported with a version of
-//RITA which is compatible with the running version
-func (m *MetaDB) CheckCompatibleImport(targetDatabase string) (bool, error) {
-	dbData, err := m.GetDBMetaInfo(targetDatabase)
-	if err != nil {
-		return false, err
-	}
-	existingVer, err := semver.ParseTolerant(dbData.ImportVersion)
-	if err != nil {
-		return false, err
-	}
-	return m.config.R.Version.Major == existingVer.Major, nil
-}
-
 //CheckCompatibleAnalyze checks if a database was analyzed with a version of
 //RITA which is compatible with the running version
 func (m *MetaDB) CheckCompatibleAnalyze(targetDatabase string) (bool, error) {
@@ -329,26 +460,6 @@ func (m *MetaDB) CheckCompatibleAnalyze(targetDatabase string) (bool, error) {
 // GetUnAnalyzedDatabases builds a list of database names which have yet to be analyzed
 func (m *MetaDB) GetUnAnalyzedDatabases() []string {
 	dbs, err := m.runDBMetaInfoQuery(bson.M{"analyzed": false})
-	if err != nil {
-		return nil
-	}
-	var results []string
-	for _, db := range dbs {
-		results = append(results, db.Name)
-	}
-	return results
-}
-
-// GetAnalyzeReadyDatabases builds a list of database names which are ready to be analyzed
-func (m *MetaDB) GetAnalyzeReadyDatabases() []string {
-	//note import_finished is queried as {"$ne": false} rather than just true
-	//since prior to version 1.1.0, the field did not exist.
-	dbs, err := m.runDBMetaInfoQuery(
-		bson.M{
-			"analyzed":        false,
-			"import_finished": bson.M{"$ne": false},
-		},
-	)
 	if err != nil {
 		return nil
 	}

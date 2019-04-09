@@ -40,9 +40,8 @@ Bro:
     ImportDirectory: /opt/bro/logs/
 
     # Files directly in the ImportDirectory will be imported into a database
-    # given by DBRoot. Files in a subfolder of ImportDirectory will be imported
-    # into DBRoot-$SUBFOLDER_NAME.
-    DBRoot: "RITA"
+    # with the name DBName.
+    DBName: "RITA"
 
     # This database holds information about the procesed files and databases.
     MetaDB: MetaDatabase
@@ -59,7 +58,7 @@ UserConfig:
 
 Filtering:
     # These are filters that affect the import of connection logs. They
-    # currently do not apply to dns or http logs. 
+    # currently do not apply to dns or http logs.
     # A good reference for networks you may wish to consider is RFC 5735.
     # https://tools.ietf.org/html/rfc5735#section-4
 
@@ -141,7 +140,7 @@ Strobe:
     # This sets the maximum number of connections between any two given hosts that are stored.
     # Connections above this limit will be deleted and not used in other analysis modules. This will
     # also trigger an entry in the strobe module. A lower value will reduce import & analysis time and
-    # hide more potential false positives from other modules. A higher value will increase import & 
+    # hide more potential false positives from other modules. A higher value will increase import &
     # analysis time, increase false positives, but reduce the risk of false negatives.
     # Recommended values for this setting are:
     #    86400 - One connection every second for 24 hours

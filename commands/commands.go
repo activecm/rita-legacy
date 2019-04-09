@@ -14,13 +14,6 @@ var (
 
 	// below are some prebuilt flags that get used often in various commands
 
-	// threadFlag allows users to specify how many threads should be used
-	threadFlag = cli.IntFlag{
-		Name:  "threads, t",
-		Usage: "Use `N` threads when executing this command",
-		Value: runtime.NumCPU(),
-	}
-
 	// configFlag allows users to specify an alternate config file to use
 	configFlag = cli.StringFlag{
 		Name:  "config, c",
@@ -40,6 +33,34 @@ var (
 		Usage: "Reset database analysis",
 	}
 
+	rollingFlag = cli.BoolFlag{
+		Name:  "rolling, R",
+		Usage: "Indicates rolling import, which builds on and removes data to maintain a rolling 24-hour analysis",
+	}
+
+	// for rolling analysis: says how many chunks are in a given day
+	totalChunksFlag = cli.IntFlag{
+		Name:  "numchunks, NC",
+		Usage: "For rolling analysis: How many chunks are in a given day, with import frequency being every (24/numchunks) hours. Number must be a multiple of 24. (Example: 12 = import every 2 hrs, 24 = every hour, 6 = every 4 hrs)",
+		Value: -1,
+	}
+
+	// for rolling analysis: says this is the n-th chunk of the day (the first
+	//  being midnight-1:59:59AM, the second being 2am-3:59:59am, etc, depending
+	// on 24/number of total chunks (in the flag above)
+	currentChunkFlag = cli.IntFlag{
+		Name:  "chunk, CC",
+		Usage: "For rolling analysis: This is the `N`th chunk of the day",
+		Value: -1,
+	}
+
+	// threadFlag allows users to specify how many threads should be used
+	threadFlag = cli.IntFlag{
+		Name:  "threads, t",
+		Usage: "Use `N` threads when executing this command",
+		Value: runtime.NumCPU(),
+	}
+
 	// for output we often want a human readable option which produces a nice
 	// report instead of the simple csv style output
 	humanFlag = cli.BoolFlag{
@@ -49,8 +70,8 @@ var (
 
 	blSortFlag = cli.StringFlag{
 		Name:  "sort, s",
-		Usage: "Sort by conn (# of connections), uconn (# of unique connections), total_bytes (# of bytes)",
-		Value: "conn",
+		Usage: "Sort by conn_count (# of connections), uconn_count (# of unique connections), total_bytes (# of bytes)",
+		Value: "conn_count",
 	}
 
 	blConnFlag = cli.BoolFlag{

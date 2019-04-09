@@ -74,7 +74,7 @@ var Hometempl = homeHeader + `
 var DNStempl = dbHeader + `
 <div class="container">
   <table>
-    <tr><th>Subdomain</th><th>Visited</th><th>Domain</th><tr>
+    <tr><th>Subdomain Count</th><th>Visited</th><th>Domain</th><tr>
     {{.Writer}}
   </table>
 </div>
@@ -94,7 +94,7 @@ var BeaconsTempl = dbHeader + `
   <tr><th>Score</th><th>Source</th><th>Destination</th><th>Connections</th><th>Avg. Bytes</th><th>
 	Intvl. Range</th><th>Size Range</th><th>Intvl. Mode</th><th>Size Mode</th><th>Intvl. Mode Count</th>
 	<th>Size Mode Count</th><th>Intvl. Skew</th><th>Size Skew</th><th>Intvl. Dispersion</th><th>Size Dispersion
-	</th><th>TS Duration</tr>
+	</th></tr>
       {{.Writer}}
   </table>
 </div>
@@ -114,7 +114,7 @@ var StrobesTempl = dbHeader + `
 var BLSourceIPTempl = dbHeader + `
 <div class="container">
   <table>
-  <tr><th>IP</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Lists</th><th>Destinations</th><tr>
+  <tr><th>IP</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Destinations</th><tr>
     {{.Writer}}
   </table>
 </div>
@@ -124,7 +124,7 @@ var BLSourceIPTempl = dbHeader + `
 var BLDestIPTempl = dbHeader + `
 <div class="container">
   <table>
-  <tr><th>IP</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Lists</th><th>Sources</th><tr>
+  <tr><th>IP</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Sources</th><tr>
     {{.Writer}}
   </table>
 </div>
@@ -134,7 +134,7 @@ var BLDestIPTempl = dbHeader + `
 var BLHostnameTempl = dbHeader + `
 <div class="container">
   <table>
-  <tr><th>Hostname</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Lists</th><th>Sources</th><tr>
+  <tr><th>Hostname</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Sources</th><tr>
     {{.Writer}}
   </table>
 </div>
@@ -144,7 +144,7 @@ var BLHostnameTempl = dbHeader + `
 var LongConnsTempl = dbHeader + `
 <div class="container">
   <table>
-	<tr><th>Source</th><th>Source Port</th><th>Destination</th><th>Destination Port</th><th>Duration</th><th>Protocol</th></tr>
+	<tr><th>Source</th><th>Destination</th><th>DstPort:Protocol:Service</th><th>Duration</th></tr>
 	  {{.Writer}}
 	</table>
 </div>
