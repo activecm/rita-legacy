@@ -4,7 +4,7 @@
 # activecountermeasures.com
 
 # CONSTANTS
-_RITA_VERSION="v3.0.0-beta1"
+_RITA_VERSION="v3.0.0"
 _MONGO_VERSION="3.6"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
@@ -96,7 +96,7 @@ __entry() {
 
 	_BIN_PATH="$_INSTALL_PREFIX/bin"
 
-	if __installation_exist && [ "$_REINSTALL_RITA" != "true" ]; then
+	if [ "$_INSTALL_RITA" = "true" ] && __installation_exist && [ "$_REINSTALL_RITA" != "true" ]; then
 		printf "$_IMPORTANT RITA is already installed.\n"
 		printf "$_QUESTION Would you like to re-install? [y/N] "
 		read
