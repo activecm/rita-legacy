@@ -76,4 +76,4 @@ docker cp rita:/rita ./rita
 docker rm rita
 ```
 
-Note that you will have to manually install the `config.yaml` and `tables.yaml` files into `/etc/rita/` as well as create any directories referenced inside the `config.yaml` file.
+Note that you will have to manually install the `config.yaml` files into `/etc/rita/` as well as create any directories referenced inside the `config.yaml` file.
