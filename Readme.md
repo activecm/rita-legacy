@@ -65,7 +65,7 @@ Note that any value listed in the `Filtering` section should be in CIDR format. 
 
   Filtering and whitelisting happens at import time. These optional settings can be found alongside `InternalSubnets` in the configuration file.
 
-  RITA will process Bro/Zeek TSV logs in both plaintext and gzip compressed formats.
+  RITA will process Bro/Zeek TSV logs in both plaintext and gzip compressed formats. Note, if you are using Security Onion or Bro's JSON log output you will need to [switch back to traditional TSV output](https://securityonion.readthedocs.io/en/latest/bro.html#tsv).
 
   * **Option 1**: Create a One-Off Dataset
       * `rita import path/to/your/bro_logs dataset_name` creates a dataset from a collection of Bro/Zeek logs in a directory 
@@ -84,10 +84,10 @@ Note that any value listed in the `Filtering` section should be in CIDR format. 
           * The value supplied for `chunk` must be between 1 and `numchunks` (inclusive)
           * If `numchunks` is set to 4, and `chunk` is set to 2, RITA will import logs from 6 am to noon 
       * Rolling databases should be routinely updated with new data
-          * `numchunks` should remain constant each time `import` is ran
+          * `numchunks` should remain constant each time `import` is ran on the same rolling dataset
           * `chunk` should loop through 1 to `numchunks` (inclusive) as new data becomes available
-          * `chunk` should be reset to 1 once the last chunk has been imported
-      * RITA depends on the default naming scheme Bro/Zeek uses for hourly rotated logs. If your logs have been renamed, rolling imports will not work.
+          * `chunk` should be reset to 1 once the last chunk has been imported. This causes the previous chunk 1 to be removed from the dataset before the new data is imported and ensures that the rolling dataset always contains at most 24 hours worth of data.
+      * RITA depends on the default naming scheme Bro/Zeek uses for hourly rotated logs. If your logs have been renamed, rolling imports will not work. In this case you should use Option 1 for creating a one-off dataset instead.
 
 
 #### Examining Data With RITA
