@@ -89,7 +89,6 @@ Note that any value listed in the `Filtering` section should be in CIDR format. 
           * `chunk` should be reset to 1 once the last chunk has been imported. This causes the previous chunk 1 to be removed from the dataset before the new data is imported and ensures that the rolling dataset always contains at most 24 hours worth of data.
       * RITA depends on the default naming scheme Bro/Zeek uses for hourly rotated logs. If your logs have been renamed, rolling imports will not work. In this case you should use Option 1 for creating a one-off dataset instead.
 
-
 #### Examining Data With RITA
   * Use the **show-X** commands
       * `show-databases`: Print the datasets currently stored
