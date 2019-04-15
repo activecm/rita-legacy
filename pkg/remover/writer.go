@@ -7,6 +7,7 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -14,6 +15,7 @@ type (
 		cid               int            // chuck id for deletion
 		db                *database.DB   // provides access to MongoDB
 		conf              *config.Config // contains details needed to access MongoDB
+		log               *log.Logger    // main logger for RITA
 		cidRemoverChannel chan string    // holds target collection names
 		updaterChannel    chan update    // holds update queries
 		writeWg           sync.WaitGroup // wait for writing to finish
@@ -21,21 +23,23 @@ type (
 )
 
 //newCIDRemover creates a new writer object to write output data
-func newCIDRemover(cid int, db *database.DB, conf *config.Config) *writer {
+func newCIDRemover(cid int, db *database.DB, conf *config.Config, log *log.Logger) *writer {
 	return &writer{
 		cid:               cid,
 		db:                db,
 		conf:              conf,
+		log:               log,
 		cidRemoverChannel: make(chan string),
 	}
 }
 
 //newUpdater creates a new writer object to write output data
-func newUpdater(cid int, db *database.DB, conf *config.Config) *writer {
+func newUpdater(cid int, db *database.DB, conf *config.Config, log *log.Logger) *writer {
 	return &writer{
 		cid:            cid,
 		db:             db,
 		conf:           conf,
+		log:            log,
 		updaterChannel: make(chan update),
 	}
 }
@@ -75,7 +79,12 @@ func (w *writer) startCIDRemover() {
 			info, err := ssn.DB(w.db.GetSelectedDB()).C(data).RemoveAll(bson.M{"cid": w.cid})
 			if err != nil ||
 				((info.Updated == 0) && (info.Removed == 0) && (info.Matched != 0)) {
-				fmt.Println("failed to delete whole document: ", err, info, data)
+				log.WithFields(log.Fields{
+					"Module":  "remover",
+					"Info":    info,
+					"Data":    data,
+					"Message": "failed to delete whole document",
+				}).Error(err)
 			}
 
 			// this ONLY deletes a specific chunk's DATA from a record that HAS been updated recently and doesn't need to be completely
@@ -83,7 +92,12 @@ func (w *writer) startCIDRemover() {
 			info, err = ssn.DB(w.db.GetSelectedDB()).C(data).UpdateAll(bson.M{"dat.cid": w.cid}, bson.M{"$pull": bson.M{"dat": bson.M{"cid": w.cid}}})
 			if err != nil ||
 				((info.Updated == 0) && (info.Removed == 0) && (info.Matched != 0)) {
-				fmt.Println("failed to delete chunk: ", err, info, data)
+				log.WithFields(log.Fields{
+					"Module":  "remover",
+					"Info":    info,
+					"Data":    data,
+					"Message": "failed to delete chunk",
+				}).Error(err)
 			}
 
 		}

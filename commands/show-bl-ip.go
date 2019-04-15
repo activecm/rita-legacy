@@ -2,7 +2,6 @@ package commands
 
 import (
 	"encoding/csv"
-	"fmt"
 	"os"
 	"sort"
 	"strconv"
@@ -75,7 +74,12 @@ func printBLSourceIPs(c *cli.Context) error {
 			bson.M{"dat.count_src": bson.M{"$gt": 0}},
 		}}
 	limit := 1000
-	data := getBlacklistedIPsResultsView(res, sort, limit, match, "src", "dst")
+	data, err := getBlacklistedIPsResultsView(res, sort, limit, match, "src", "dst")
+
+	if err != nil {
+		res.Log.Error(err)
+		return cli.NewExitError(err, -1)
+	}
 
 	if len(data) == 0 {
 		return cli.NewExitError("No results were found for "+db, -1)
@@ -111,7 +115,12 @@ func printBLDestIPs(c *cli.Context) error {
 		}}
 
 	limit := 1000
-	data := getBlacklistedIPsResultsView(res, sort, limit, match, "dst", "src")
+	data, err := getBlacklistedIPsResultsView(res, sort, limit, match, "dst", "src")
+
+	if err != nil {
+		res.Log.Error(err)
+		return cli.NewExitError(err, -1)
+	}
 
 	if len(data) == 0 {
 		return cli.NewExitError("No results were found for "+db, -1)
@@ -190,7 +199,7 @@ func showBLIPsHuman(ips []host.AnalysisView, connectedHosts, source bool) error 
 }
 
 //getBlaclistedIPsResultsView
-func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit int, match bson.M, field1 string, field2 string) []host.AnalysisView {
+func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit int, match bson.M, field1 string, field2 string) ([]host.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -229,10 +238,6 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit i
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).All(&blIPs)
 
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return blIPs
+	return blIPs, err
 
 }

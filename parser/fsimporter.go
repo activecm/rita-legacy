@@ -142,7 +142,11 @@ func (fs *FSImporter) Run() {
 
 		if chunkSet {
 			fmt.Println("\t[-] Removing outdated data from rolling dataset ... ")
-			fs.removeAnalysisChunk(fs.currentChunk)
+			err := fs.removeAnalysisChunk(fs.currentChunk)
+			if err != nil {
+				fmt.Println("\t[!] Failed to remove outdata data from rolling dataset")
+				return
+			}
 		}
 	}
 
@@ -558,7 +562,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							host := parseSSL.FieldByName("ServerName").Interface().(string)
 							certStatus := parseSSL.FieldByName("ValidationStatus").Interface().(string)
 
-							// fmt.Println(ja3Hash)
 							// Safely store ja3 information
 							mutex.Lock()
 
@@ -590,7 +593,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Run conn pair through filter to filter out certain connections
 								ignore := fs.filterConnPair(src, dst)
 								if !ignore {
-									// fmt.Println(certStatus)
 									// Check if uconn map value is set, because this record could
 									// come before a relevant uconns record
 									if _, ok := uconnMap[src+dst]; !ok {
@@ -694,7 +696,6 @@ func (fs *FSImporter) removeAnalysisChunk(cid int) error {
 	err := removerRepo.Remove(cid)
 	if err != nil {
 		fs.res.Log.Error(err)
-		fmt.Println(err)
 		return err
 	}
 

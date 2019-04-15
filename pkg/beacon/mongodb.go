@@ -71,6 +71,7 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Pair) {
 		r.res.Config.T.Beacon.BeaconTable,
 		r.res.DB,
 		r.res.Config,
+		r.res.Log,
 	)
 
 	analyzerWorker := newAnalyzer(

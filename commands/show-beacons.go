@@ -34,7 +34,12 @@ func showBeacons(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
-	data := getBeaconResultsView(res, 0)
+	data, err := getBeaconResultsView(res, 0)
+
+	if err != nil {
+		res.Log.Error(err)
+		return cli.NewExitError(err, -1)
+	}
 
 	if !(len(data) > 0) {
 		return cli.NewExitError("No results were found for "+db, -1)
@@ -48,7 +53,7 @@ func showBeacons(c *cli.Context) error {
 		return nil
 	}
 
-	err := showBeaconCsv(data)
+	err = showBeaconCsv(data)
 	if err != nil {
 		return cli.NewExitError(err.Error(), -1)
 	}
@@ -100,7 +105,7 @@ func showBeaconCsv(data []beacon.AnalysisView) error {
 
 //getBeaconResultsView finds beacons greater than a given cutoffScore
 //and links the data from the unique connections table back in to the results
-func getBeaconResultsView(res *resources.Resources, cutoffScore float64) []beacon.AnalysisView {
+func getBeaconResultsView(res *resources.Resources, cutoffScore float64) ([]beacon.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -108,8 +113,7 @@ func getBeaconResultsView(res *resources.Resources, cutoffScore float64) []beaco
 
 	beaconQuery := bson.M{"score": bson.M{"$gt": cutoffScore}}
 
-	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(beaconQuery).Sort("-score").All(&beacons)
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(beaconQuery).Sort("-score").All(&beacons)
 
-	return beacons
-
+	return beacons, err
 }
