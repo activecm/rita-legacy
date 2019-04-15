@@ -116,5 +116,4 @@ func getBeaconResultsView(res *resources.Resources, cutoffScore float64) ([]beac
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(beaconQuery).Sort("-score").All(&beacons)
 
 	return beacons, err
-
 }

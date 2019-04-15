@@ -3,8 +3,7 @@ package hostname
 // Repository for hostnames collection
 type Repository interface {
 	CreateIndexes() error
-	// Upsert(hostname *parsetypes.Hostname) error
-	Upsert(domainMap map[string][]string)
+	Upsert(domainMap map[string]*Input)
 }
 
 //update ....
@@ -13,9 +12,16 @@ type update struct {
 	query    interface{}
 }
 
+//Input ....
+type Input struct {
+	ResolvedIPs []string //Resolved IPs associated with a given hostname
+	ClientIPs   []string //DNS Client IPs which issued queries for a given hostname
+}
+
 type hostname struct {
-	host string   `bson:"host"`
-	ips  []string `bson:"ips"`
+	host      string   `bson:"host"`
+	ips       []string `bson:"ips"`
+	clientIPs []string `bson:"client_ips"`
 }
 
 //ritaBLResult contains the summary of a result from the "ip" collection of rita-bl

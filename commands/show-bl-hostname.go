@@ -160,5 +160,4 @@ func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, li
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.HostnamesTable).Pipe(blHostsQuery).All(&blHosts)
 
 	return blHosts, err
-
 }
