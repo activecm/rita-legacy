@@ -21,7 +21,7 @@ type Input struct {
 type hostname struct {
 	host      string   `bson:"host"`
 	ips       []string `bson:"ips"`
-	clientIPs []string `bson:"client_ips"`
+	clientIPs []string `bson:"src_ips"`
 }
 
 //ritaBLResult contains the summary of a result from the "ip" collection of rita-bl
