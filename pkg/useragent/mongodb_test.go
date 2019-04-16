@@ -19,7 +19,7 @@ var testRepo Repository
 
 var testUserAgent = map[string]*Input{
 	"Debian APT-HTTP/1.3 (1.2.24)": &Input{
-		Ips:  []string{"1.2.3.4", "1.1.1.1"},
+		OrigIps:  []string{"1.2.3.4", "1.1.1.1"},
 		Seen: 123,
 	},
 }
