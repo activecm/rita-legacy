@@ -1,11 +1,11 @@
 package beacon
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -13,17 +13,19 @@ type (
 		targetCollection string
 		db               *database.DB   // provides access to MongoDB
 		conf             *config.Config // contains details needed to access MongoDB
+		log              *log.Logger    // main logger for RITA
 		writeChannel     chan *update   // holds analyzed data
 		writeWg          sync.WaitGroup // wait for writing to finish
 	}
 )
 
 //newWriter creates a new writer object to write output data to blacklisted collections
-func newWriter(targetCollection string, db *database.DB, conf *config.Config) *writer {
+func newWriter(targetCollection string, db *database.DB, conf *config.Config, log *log.Logger) *writer {
 	return &writer{
 		targetCollection: targetCollection,
 		db:               db,
 		conf:             conf,
+		log:              log,
 		writeChannel:     make(chan *update),
 	}
 }
@@ -54,7 +56,11 @@ func (w *writer) start() {
 
 				if err != nil ||
 					((info.Updated == 0) && (info.UpsertedId == nil)) {
-					fmt.Println("beacons module: ", err, info, data)
+					log.WithFields(log.Fields{
+						"Module": "beacons",
+						"Info":   info,
+						"Data":   data,
+					}).Error(err)
 				}
 
 				// update hosts table
@@ -62,7 +68,11 @@ func (w *writer) start() {
 
 				if err != nil ||
 					((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
-					fmt.Println("beacons module: ", err, info, data)
+					log.WithFields(log.Fields{
+						"Module": "beacons",
+						"Info":   info,
+						"Data":   data,
+					}).Error(err)
 				}
 			}
 
@@ -72,14 +82,22 @@ func (w *writer) start() {
 
 				if err != nil ||
 					((info.Updated == 0) && (info.UpsertedId == nil)) {
-					fmt.Println("beacons module: ", err, info, data)
+					log.WithFields(log.Fields{
+						"Module": "beacons",
+						"Info":   info,
+						"Data":   data,
+					}).Error(err)
 				}
 
 				//delete the record (no longer a beacon - its a strobe)
 				info, err = ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).RemoveAll(data.uconn.selector)
 				if err != nil ||
 					((info.Updated == 0) && (info.Removed == 0) && (info.Matched == 0) && (info.UpsertedId == nil)) {
-					fmt.Println("beacons module: ", err, info, data)
+					log.WithFields(log.Fields{
+						"Module": "beacons",
+						"Info":   info,
+						"Data":   data,
+					}).Error(err)
 				}
 			}
 

@@ -87,7 +87,7 @@ func (i *Importer) parseArgs() error {
 
 		// verifies the chunk is a divisor of 24 (we currently support 24 hour's worth of data in a rolling dataset)
 		if !(i.totalChunks > 0) || ((24 % i.totalChunks) != 0) {
-			return cli.NewExitError("\n\t[!] Total number of chunks must be a divisor of 24 (Valid chunk sizes: 1, 2, 4, 6, 8, 12)", -1)
+			return cli.NewExitError("\n\t[!] Total number of chunks must be a divisor of 24 (Valid chunk sizes: 1, 2, 4, 6, 8, 12, 24)", -1)
 		}
 
 		// validate chunk size

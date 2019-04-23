@@ -29,7 +29,7 @@ func (r *repo) Upsert() {
 	iter := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.HostTable).Find(bson.M{"blacklisted": true}).Iter()
 
 	//Create the workers
-	writerWorker := newWriter(r.res.Config.T.Structure.HostTable, r.res.DB, r.res.Config)
+	writerWorker := newWriter(r.res.Config.T.Structure.HostTable, r.res.DB, r.res.Config, r.res.Log)
 
 	analyzerWorker := newAnalyzer(
 		r.res.Config.S.Bro.CurrentChunk,

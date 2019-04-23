@@ -2,7 +2,6 @@ package commands
 
 import (
 	"encoding/csv"
-	"fmt"
 	"os"
 
 	"github.com/activecm/rita/pkg/beacon"
@@ -41,7 +40,12 @@ func init() {
 				sortDirection = 1
 			}
 
-			data := getStrobeResultsView(res, sortStr, sortDirection, 1000)
+			data, err := getStrobeResultsView(res, sortStr, sortDirection, 1000)
+
+			if err != nil {
+				res.Log.Error(err)
+				return cli.NewExitError(err, -1)
+			}
 
 			if len(data) == 0 {
 				return cli.NewExitError("No results were found for "+db, -1)
@@ -54,7 +58,7 @@ func init() {
 				}
 				return nil
 			}
-			err := showStrobes(data)
+			err = showStrobes(data)
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -86,7 +90,7 @@ func showStrobesHuman(strobes []beacon.StrobeAnalysisView) error {
 }
 
 //getStrobeResultsView ...
-func getStrobeResultsView(res *resources.Resources, sort string, sortDir int, limit int) []beacon.StrobeAnalysisView {
+func getStrobeResultsView(res *resources.Resources, sort string, sortDir int, limit int) ([]beacon.StrobeAnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -108,10 +112,6 @@ func getStrobeResultsView(res *resources.Resources, sort string, sortDir int, li
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).All(&strobes)
 
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return strobes
+	return strobes, err
 
 }

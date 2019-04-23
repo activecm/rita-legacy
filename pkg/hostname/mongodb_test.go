@@ -17,11 +17,11 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testHostname = map[string][]string{
-	"a.b.activecountermeasures.com":   []string{"127.0.0.1", "127.0.0.2"},
-	"x.a.b.activecountermeasures.com": []string{"127.0.0.1", "127.0.0.2"},
-	"activecountermeasures.com":       []string{},
-	"google.com":                      []string{"127.0.0.1", "127.0.0.2", "0.0.0.0"},
+var testHostname = map[string]*Input{
+	"a.b.activecountermeasures.com":   &Input{ClientIPs: []string{"192.168.1.1"}, ResolvedIPs: []string{"127.0.0.1", "127.0.0.2"}},
+	"x.a.b.activecountermeasures.com": &Input{ClientIPs: []string{"192.168.1.1"}, ResolvedIPs: []string{"127.0.0.1", "127.0.0.2"}},
+	"activecountermeasures.com":       &Input{ClientIPs: []string{"192.168.1.1"}, ResolvedIPs: []string{}},
+	"google.com":                      &Input{ClientIPs: []string{"192.168.1.1", "192.168.1.2"}, ResolvedIPs: []string{"127.0.0.1", "127.0.0.2", "0.0.0.0"}},
 }
 
 func TestCreateIndexes(t *testing.T) {
@@ -33,7 +33,6 @@ func TestCreateIndexes(t *testing.T) {
 
 func TestUpsert(t *testing.T) {
 	testRepo.Upsert(testHostname)
-
 }
 
 // TestMain wraps all tests with the needed initialized mock DB and fixtures
