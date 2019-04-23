@@ -32,6 +32,7 @@ type (
 	//FSImporter provides the ability to import bro files from the file system
 	FSImporter struct {
 		res             *resources.Resources
+		importDirectory string
 		rolling         bool
 		totalChunks     int
 		currentChunk    int
@@ -52,9 +53,10 @@ type (
 
 //NewFSImporter creates a new file system importer
 func NewFSImporter(res *resources.Resources,
-	indexingThreads int, parseThreads int) *FSImporter {
+	indexingThreads int, parseThreads int, importDirectory string) *FSImporter {
 	return &FSImporter{
 		res:             res,
+		importDirectory: importDirectory,
 		rolling:         res.Config.S.Bro.Rolling,
 		totalChunks:     res.Config.S.Bro.TotalChunks,
 		currentChunk:    res.Config.S.Bro.CurrentChunk,
@@ -93,16 +95,16 @@ func (fs *FSImporter) Run() {
 	if fs.rolling {
 
 		fmt.Println("\t[-] Finding next chunk's files to parse ... ")
-		files = readDirRolling(fs.currentChunk, fs.totalChunks, fs.res.Config.S.Bro.ImportDirectory, fs.res.Log)
+		files = readDirRolling(fs.currentChunk, fs.totalChunks, fs.importDirectory, fs.res.Log)
 
 	} else { // if regular dataset
 		fmt.Println("\t[-] Finding files to parse ... ")
-		files = readDir(fs.res.Config.S.Bro.ImportDirectory, fs.res.Log)
+		files = readDir(fs.importDirectory, fs.res.Log)
 
 	}
 
 	//hash the files and get their stats
-	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res.Config, fs.res.Log)
+	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res)
 
 	// if no compatible files for import were found, handle error
 	if !(len(indexedFiles) > 0) {
