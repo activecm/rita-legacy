@@ -49,6 +49,7 @@ func (r *remover) reduceDNSSubCount(cid int) error {
 		cid,
 		r.res.DB,
 		r.res.Config,
+		r.res.Log,
 	)
 
 	analyzerWorker := newAnalyzer(
@@ -104,6 +105,7 @@ func (r *remover) removeOutdatedCIDs(cid int) error {
 		cid,
 		r.res.DB,
 		r.res.Config,
+		r.res.Log,
 	)
 
 	//kick off the threaded goroutines

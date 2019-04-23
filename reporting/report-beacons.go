@@ -71,6 +71,7 @@ func getBeaconResultsView(res *resources.Resources, cutoffScore float64) []beaco
 
 	beaconQuery := bson.M{"score": bson.M{"$gt": cutoffScore}}
 
+	//TODO: Don't swallow this error
 	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(beaconQuery).Sort("-score").All(&beacons)
 
 	return beacons

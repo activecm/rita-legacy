@@ -2,7 +2,6 @@ package commands
 
 import (
 	"encoding/csv"
-	"fmt"
 	"os"
 	"sort"
 	"strconv"
@@ -41,19 +40,24 @@ func printBLHostnames(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
-	data := getBlacklistedHostnameResultsView(res, "conn_count", 1000)
+	data, err := getBlacklistedHostnameResultsView(res, "conn_count", 1000)
+
+	if err != nil {
+		res.Log.Error(err)
+		return cli.NewExitError(err, -1)
+	}
 
 	if len(data) == 0 {
 		return cli.NewExitError("No results were found for "+db, -1)
 	}
 
 	if c.Bool("human-readable") {
-		err := showBLHostnamesHuman(data)
+		err = showBLHostnamesHuman(data)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
 	} else {
-		err := showBLHostnames(data)
+		err = showBLHostnames(data)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
@@ -110,7 +114,7 @@ func showBLHostnamesHuman(hostnames []hostname.AnalysisView) error {
 }
 
 //getBlacklistedHostnameResultsView ....
-func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, limit int) []hostname.AnalysisView {
+func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, limit int) ([]hostname.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -155,10 +159,5 @@ func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, li
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.HostnamesTable).Pipe(blHostsQuery).All(&blHosts)
 
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return blHosts
-
+	return blHosts, err
 }

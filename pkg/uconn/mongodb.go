@@ -61,7 +61,7 @@ func (r *repo) CreateIndexes() error {
 func (r *repo) Upsert(uconnMap map[string]*Pair) {
 
 	//Create the workers
-	writerWorker := newWriter(r.res.Config.T.Structure.UniqueConnTable, r.res.DB, r.res.Config)
+	writerWorker := newWriter(r.res.Config.T.Structure.UniqueConnTable, r.res.DB, r.res.Config, r.res.Log)
 
 	analyzerWorker := newAnalyzer(
 		r.res.Config.S.Bro.CurrentChunk,

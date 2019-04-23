@@ -2,7 +2,6 @@ package commands
 
 import (
 	"encoding/csv"
-	"fmt"
 	"os"
 	"strings"
 
@@ -36,7 +35,12 @@ func init() {
 			sortDirection := -1
 			thresh := 60 // 1 minute
 
-			data := getLongConnsResultsView(res, thresh, sortStr, sortDirection, 1000)
+			data, err := getLongConnsResultsView(res, thresh, sortStr, sortDirection, 1000)
+
+			if err != nil {
+				res.Log.Error(err)
+				return cli.NewExitError(err, -1)
+			}
 
 			if !(len(data) > 0) {
 				return cli.NewExitError("No results were found for "+db, -1)
@@ -49,7 +53,7 @@ func init() {
 				}
 				return nil
 			}
-			err := showConns(data)
+			err = showConns(data)
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -92,7 +96,7 @@ func showConnsHuman(connResults []uconn.LongConnAnalysisView) error {
 }
 
 //getLongConnsResultsView gets the long connection results
-func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, sortDirection int, limit int) []uconn.LongConnAnalysisView {
+func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, sortDirection int, limit int) ([]uconn.LongConnAnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -123,10 +127,6 @@ func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, 
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(longConnQuery).All(&longConnResults)
 
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return longConnResults
+	return longConnResults, err
 
 }
