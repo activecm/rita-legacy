@@ -186,7 +186,6 @@ func (m *MetaDB) AddNewDB(name string) error {
 	defer ssn.Close()
 
 	err := ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).Insert(
-		bson.M{"name": name},
 		DBMetaInfo{
 			Name:           name,
 			Analyzed:       false,
