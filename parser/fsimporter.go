@@ -135,7 +135,38 @@ func (fs *FSImporter) Run() {
 		return
 	}
 
+	// Add new metadatabase record for db if doesn't already exist
+	dbExists, err := fs.res.MetaDB.DBExists(fs.res.DB.GetSelectedDB())
+	if err != nil {
+		fs.res.Log.WithFields(log.Fields{
+			"err":      err,
+			"database": fs.res.DB.GetSelectedDB(),
+		}).Error("Could not check if metadatabase record exists for target database")
+		fmt.Printf("\t[!] %v", err.Error())
+	}
+
+	if !dbExists {
+		err := fs.res.MetaDB.AddNewDB(fs.res.DB.GetSelectedDB())
+		if err != nil {
+			fs.res.Log.WithFields(log.Fields{
+				"err":      err,
+				"database": fs.res.DB.GetSelectedDB(),
+			}).Error("Could not add metadatabase record for new database")
+			fmt.Printf("\t[!] %v", err.Error())
+		}
+	}
+
 	if fs.rolling {
+		//SetRollingSettings expects a one based chunk id, but fs uses a zero based chunk_id
+		err := fs.res.MetaDB.SetRollingSettings(fs.res.DB.GetSelectedDB(), fs.totalChunks, fs.currentChunk+1)
+		if err != nil {
+			fs.res.Log.WithFields(log.Fields{
+				"err":      err,
+				"database": fs.res.DB.GetSelectedDB(),
+			}).Error("Could not set rolling database settings for new database")
+			fmt.Printf("\t[!] %v", err.Error())
+		}
+
 		chunkSet, err := fs.res.MetaDB.IsChunkSet(fs.currentChunk, fs.res.DB.GetSelectedDB())
 		if err != nil {
 			fmt.Println("\t[!] Could not find CID List entry in metadatabase")
