@@ -4,22 +4,21 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
+	"github.com/activecm/rita/resources"
 	"io"
 	"os"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	pt "github.com/activecm/rita/parser/parsetypes"
 )
 
-//newIndexedFile takes in a file path and the bro config and opens up the
+//newIndexedFile takes in a file path and the current resource bundle and opens up the
 //file path and parses out some metadata
-func newIndexedFile(filePath string, config *config.Config,
-	logger *log.Logger) (*fpt.IndexedFile, error) {
+func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile, error) {
 	toReturn := new(fpt.IndexedFile)
 	toReturn.Path = filePath
 
@@ -63,7 +62,7 @@ func newIndexedFile(filePath string, config *config.Config,
 	}
 	toReturn.SetBroDataFactory(broDataFactory)
 
-	fieldMap, err := mapBroHeaderToParserType(header, broDataFactory, logger)
+	fieldMap, err := mapBroHeaderToParserType(header, broDataFactory, res.Log)
 	if err != nil {
 		fileHandle.Close()
 		return toReturn, err
@@ -71,19 +70,19 @@ func newIndexedFile(filePath string, config *config.Config,
 	toReturn.SetFieldMap(fieldMap)
 
 	//parse first line
-	line := parseLine(scanner.Text(), header, fieldMap, broDataFactory, logger)
+	line := parseLine(scanner.Text(), header, fieldMap, broDataFactory, res.Log)
 	if line == nil {
 		fileHandle.Close()
 		return toReturn, errors.New("Could not parse first line of file for time")
 	}
 
-	toReturn.TargetCollection = line.TargetCollection(&config.T.Structure)
+	toReturn.TargetCollection = line.TargetCollection(&res.Config.T.Structure)
 	if toReturn.TargetCollection == "" {
 		fileHandle.Close()
 		return toReturn, errors.New("Could not find a target collection for file")
 	}
 
-	toReturn.TargetDatabase = config.S.Bro.DBName
+	toReturn.TargetDatabase = res.DB.GetSelectedDB()
 
 	fileHandle.Close()
 	return toReturn, nil
@@ -110,8 +109,7 @@ func getFileHash(fileHandle *os.File, fInfo os.FileInfo) (string, error) {
 
 //indexFiles takes in a list of bro files, a number of threads, and parses
 //some metadata out of the files
-func indexFiles(files []string, indexingThreads int,
-	cfg *config.Config, logger *log.Logger) []*fpt.IndexedFile {
+func indexFiles(files []string, indexingThreads int, res *resources.Resources) []*fpt.IndexedFile {
 	n := len(files)
 	output := make([]*fpt.IndexedFile, n)
 	indexingWG := new(sync.WaitGroup)
@@ -120,13 +118,13 @@ func indexFiles(files []string, indexingThreads int,
 		indexingWG.Add(1)
 
 		go func(files []string, indexedFiles []*fpt.IndexedFile,
-			sysConf *config.Config, logger *log.Logger,
-			wg *sync.WaitGroup, start int, jump int, length int) {
+			res *resources.Resources, wg *sync.WaitGroup,
+			start int, jump int, length int) {
 
 			for j := start; j < length; j += jump {
-				indexedFile, err := newIndexedFile(files[j], cfg, logger)
+				indexedFile, err := newIndexedFile(files[j], res)
 				if err != nil {
-					logger.WithFields(log.Fields{
+					res.Log.WithFields(log.Fields{
 						"file":  files[j],
 						"error": err.Error(),
 					}).Warning("An error was encountered while indexing a file")
@@ -136,7 +134,7 @@ func indexFiles(files []string, indexingThreads int,
 				indexedFiles[j] = indexedFile
 			}
 			wg.Done()
-		}(files, output, cfg, logger, indexingWG, i, indexingThreads, n)
+		}(files, output, res, indexingWG, i, indexingThreads, n)
 	}
 
 	indexingWG.Wait()

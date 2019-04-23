@@ -72,7 +72,13 @@ func (i *Importer) parseArgs() error {
 		return cli.NewExitError("\n\t[!] Both <directory to import> and <database name> are required.", -1)
 	}
 
-	err := i.checkForInvalidDBChars(i.targetDatabase)
+	// check if import directory is okay to read from
+	err := i.checkImportDirExists()
+	if err != nil {
+		return err
+	}
+
+	err = i.checkForInvalidDBChars(i.targetDatabase)
 	if err != nil {
 		return cli.NewExitError(err.Error(), -1)
 	}
@@ -108,11 +114,10 @@ func (i *Importer) parseArgs() error {
 
 func (i *Importer) setTargetDatabase() error {
 	i.res.DB.SelectDB(i.targetDatabase)
-	i.res.Config.S.Bro.DBName = i.targetDatabase
 	return nil
 }
 
-func (i *Importer) setImportDirectory() error {
+func (i *Importer) checkImportDirExists() error {
 
 	// parse directory path
 	filePath, err := filepath.Abs(i.importDir)
@@ -124,9 +129,6 @@ func (i *Importer) setImportDirectory() error {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return cli.NewExitError(fmt.Errorf("\n\t[!] %v", err.Error()), -1)
 	}
-
-	// assign import directory
-	i.res.Config.S.Bro.ImportDirectory = i.importDir
 	return nil
 }
 
@@ -161,12 +163,6 @@ func (i *Importer) run() error {
 		return err
 	}
 
-	// set up import directory
-	err = i.setImportDirectory()
-	if err != nil {
-		return err
-	}
-
 	// set up target database
 	err = i.setTargetDatabase()
 	if err != nil {
@@ -179,17 +175,17 @@ func (i *Importer) run() error {
 		return err
 	}
 
-	importer := parser.NewFSImporter(i.res, i.threads, i.threads)
+	importer := parser.NewFSImporter(i.res, i.threads, i.threads, i.importDir)
 	if len(importer.GetInternalSubnets()) == 0 {
 		return cli.NewExitError("Internal subnets are not defined. Please set the InternalSubnets section of the config file.", -1)
 	}
 
-	i.res.Log.Infof("Importing %s\n", i.res.Config.S.Bro.ImportDirectory)
-	fmt.Println("\n\t[+] Importing " + i.res.Config.S.Bro.ImportDirectory + " :")
+	i.res.Log.Infof("Importing %s\n", i.importDir)
+	fmt.Println("\n\t[+] Importing " + i.importDir + " :")
 
 	importer.Run()
 
-	i.res.Log.Infof("Finished importing %s\n", i.res.Config.S.Bro.ImportDirectory)
+	i.res.Log.Infof("Finished importing %s\n", i.importDir)
 
 	return nil
 }
