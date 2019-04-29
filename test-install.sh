@@ -2,7 +2,6 @@
 #
 # This file tests *install.sh* on RITA's supported platforms
 # Currently, RITA supports:
-# - Ubuntu 14.04
 # - Ubuntu 16.04
 # - Security Onion (Not Tested Here)
 # - CentOS 7
@@ -18,7 +17,6 @@ __err() {
 trap '__err' ERR
 
 _DOCKER_IMAGES="
-quay.io/activecm/ubuntu-sudo:14.04
 quay.io/activecm/ubuntu-sudo:16.04
 quay.io/activecm/centos-sudo:7
 "

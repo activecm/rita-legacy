@@ -340,18 +340,10 @@ EOF
 __configure_mongodb() {
 	printf "$_IMPORTANT Starting MongoDB and enabling on startup. \n"
 	if [ $_OS = "Ubuntu" ]; then
-		if [ $_OS_CODENAME = "trusty" ]; then
-			# Ubuntu 14.04 uses Upstart for init
-			# https://www.digitalocean.com/community/tutorials/how-to-configure-a-linux-service-to-start-automatically-after-a-crash-or-reboot-part-1-practical-examples#auto-start-checklist-for-upstart
-			initctl stop mongod > /dev/null
-			initctl start mongod > /dev/null
-			_STOP_MONGO="sudo service mongod stop"
-		else
-			systemctl enable mongod.service > /dev/null
-			systemctl daemon-reload > /dev/null
-			systemctl start mongod > /dev/null
-			_STOP_MONGO="sudo systemctl stop mongod"
-		fi
+		systemctl enable mongod.service > /dev/null
+		systemctl daemon-reload > /dev/null
+		systemctl start mongod > /dev/null
+		_STOP_MONGO="sudo systemctl stop mongod"
 	elif [ $_OS = "CentOS" ]; then
 		systemctl enable mongod.service > /dev/null
 		systemctl daemon-reload > /dev/null
@@ -418,7 +410,7 @@ __gather_OS() {
 }
 
 __gather_pkg_mgr() {
-	# _PKG_MGR = 1: APT: Ubuntu 14.04, 16.04 and Security Onion (Debian)
+	# _PKG_MGR = 1: APT: Ubuntu 16.04 and Security Onion (Debian)
 	# _PKG_MGR = 2: YUM: CentOS (Old RHEL Derivatives)
 	# _PKG_MGR = 3: Unsupported
 	_PKG_MGR=3
