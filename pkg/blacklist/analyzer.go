@@ -201,7 +201,7 @@ func (a *analyzer) getBlacklistedIPConnections(ip string, field1 string, field2 
 		}},
 	}
 
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.UniqueConnTable).Pipe(blIPQuery).All(&blIPs)
+	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.UniqueConnTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
 
 	return blIPs
 

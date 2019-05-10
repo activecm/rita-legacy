@@ -103,7 +103,7 @@ func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, li
 	var blHosts []hostname.AnalysisView
 
 	//TODO: Don't swallow this error
-	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.HostnamesTable).Pipe(blHostsQuery).All(&blHosts)
+	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.HostnamesTable).Pipe(blHostsQuery).AllowDiskUse().All(&blHosts)
 
 	return blHosts
 

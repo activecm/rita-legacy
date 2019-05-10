@@ -86,7 +86,7 @@ func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, 
 		bson.M{"$limit": limit},
 	}
 
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(longConnQuery).All(&longConnResults)
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(longConnQuery).AllowDiskUse().All(&longConnResults)
 
 	if err != nil {
 		//TODO: properly log this error

@@ -110,7 +110,7 @@ func getStrobeResultsView(res *resources.Resources, sort string, sortDir int, li
 		bson.M{"$limit": limit},
 	}
 
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).All(&strobes)
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).AllowDiskUse().All(&strobes)
 
 	return strobes, err
 

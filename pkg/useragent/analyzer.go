@@ -116,7 +116,7 @@ func (a *analyzer) start() {
 					Count int      `bson:"count"`
 				}
 
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.UserAgent.UserAgentTable).Pipe(query).One(&resList)
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.UserAgent.UserAgentTable).Pipe(query).AllowDiskUse().One(&resList)
 
 				for _, entry := range resList.IPS {
 
