@@ -78,7 +78,7 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit i
 	}
 
 	//TODO: Don't swallow this error
-	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).All(&blIPs)
+	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
 
 	return blIPs
 

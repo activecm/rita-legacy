@@ -108,7 +108,7 @@ func getExplodedDNSResultsView(res *resources.Resources, limit int) ([]explodedd
 		bson.M{"$limit": limit},
 	}
 
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.ExplodedDNSTable).Pipe(explodedDNSQuery).All(&explodedDNSResults)
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.ExplodedDNSTable).Pipe(explodedDNSQuery).AllowDiskUse().All(&explodedDNSResults)
 
 	return explodedDNSResults, err
 

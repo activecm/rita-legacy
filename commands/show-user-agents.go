@@ -112,7 +112,7 @@ func getUseragentResultsView(res *resources.Resources, sort string, sortDirectio
 		bson.M{"$limit": limit},
 	}
 
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.UserAgent.UserAgentTable).Pipe(useragentQuery).All(&useragentResults)
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.UserAgent.UserAgentTable).Pipe(useragentQuery).AllowDiskUse().All(&useragentResults)
 
 	return useragentResults, err
 

@@ -69,7 +69,7 @@ func getStrobeResultsView(res *resources.Resources, sort string, limit int) []be
 		bson.M{"$limit": limit},
 	}
 
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).All(&strobes)
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).AllowDiskUse().All(&strobes)
 
 	if err != nil {
 		//TODO: properly log this error
