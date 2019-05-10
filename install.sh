@@ -265,7 +265,7 @@ __configure_bro() {
 	# Attempt to configure Bro interactively
 	if [ "$_BRO_CONFIGURED" = "false" ]; then
 		# Configure Bro
-		tmpdir=`mktemp -d -q "/tmp/rita.XXXXXXXX" < /dev/null`
+		tmpdir=`mktemp -d -q "$HOME/rita-install.XXXXXXXX" < /dev/null`
 		if [ ! -d "$tmpdir" ]; then
 			tmpdir=.
 		fi
