@@ -46,7 +46,7 @@ func InitResources(userConfig string) *Resources {
 	if conf.S.Log.LogToDB {
 		log.Hooks.Add(
 			mgorus.NewHookerFromSession(
-				db.Session, conf.S.Bro.MetaDB, conf.T.Log.RitaLogTable,
+				db.Session, conf.S.MongoDB.MetaDB, conf.T.Log.RitaLogTable,
 			),
 		)
 	}

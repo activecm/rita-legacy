@@ -16,14 +16,12 @@ MongoDB:
         Enable: false
         VerifyCertificate: false
         CAFile: aaaaa
+    MetaDB: MetaDatabase
 LogConfig:
     LogLevel: 2
     RitaLogPath: /var/lib/rita/logs
     LogToFile: true
     LogToDB: true
-Bro:
-    MetaDB: MetaDatabase
-    ImportBuffer: 100000
 UserConfig:
     UpdateCheckFrequency: 14
 BlackListed:
@@ -55,16 +53,13 @@ var testConfigFullExp = StaticCfg{
 			VerifyCertificate: false,
 			CAFile:            "aaaaa",
 		},
+		MetaDB:       "MetaDatabase",
 	},
 	Log: LogStaticCfg{
 		LogLevel:    2,
 		RitaLogPath: "/var/lib/rita/logs",
 		LogToFile:   true,
 		LogToDB:     true,
-	},
-	Bro: BroStaticCfg{
-		MetaDB:       "MetaDatabase",
-		ImportBuffer: 100000,
 	},
 	UserConfig: UserCfgStaticCfg{
 		UpdateCheckFrequency: 14,

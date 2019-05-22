@@ -13,14 +13,12 @@ MongoDB:
         Enable: false
         VerifyCertificate: false
         CAFile: null
+    MetaDB: RITA-TEST-MetaDatabase
 LogConfig:
     LogLevel: 3
     RitaLogPath: null
     LogToFile: false
     LogToDB: true
-Bro:
-    MetaDB: RITA-TEST-MetaDatabase
-    ImportBuffer: 100000
 BlackListed:
     myIP.ms: false
     MalwareDomains.com: false

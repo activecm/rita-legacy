@@ -33,6 +33,7 @@ type (
 		AuthMechanism    string        `yaml:"AuthenticationMechanism" default:""`
 		SocketTimeout    time.Duration `yaml:"SocketTimeout" default:"2"`
 		TLS              TLSStaticCfg  `yaml:"TLS"`
+		MetaDB           string        `yaml:"MetaDB" default:"MetaDatabase"`
 	}
 
 	//TLSStaticCfg contains the means for connecting to MongoDB over TLS
@@ -52,8 +53,6 @@ type (
 
 	//BroStaticCfg controls the file parser
 	BroStaticCfg struct {
-		MetaDB       string `yaml:"MetaDB" default:"MetaDatabase"`
-		ImportBuffer int    `yaml:"ImportBuffer" default:"30000"`
 		Rolling      bool
 		TotalChunks  int
 		CurrentChunk int
