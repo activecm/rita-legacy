@@ -39,17 +39,6 @@ type DSData struct {
 	ModeCount  int64   `bson:"mode_count"`
 }
 
-type analysisInput struct {
-	// intervals
-	// intervalCounts
-	// tsMode
-	// tsModeCount
-	// dsSizes
-	// dsCounts
-	// dsMode
-	// dsModeCount
-}
-
 //AnalysisView (for reporting)
 type AnalysisView struct {
 	Src         string  `bson:"src"`

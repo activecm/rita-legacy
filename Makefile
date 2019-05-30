@@ -82,6 +82,6 @@ docker-unit-test: docker-build
 docker-static-test: docker-build
 	docker run --rm quay.io/activecm/rita:test make static-test
 
-.PHONY: docker-integration-test
-docker-integration-test: docker-build
-	docker run --rm quay.io/activecm/rita:test make integration-test
+# .PHONY: docker-integration-test
+# docker-integration-test: docker-build
+# 	docker run --rm quay.io/activecm/rita:test make integration-test

@@ -41,7 +41,6 @@ type (
 		internal        []*net.IPNet
 		alwaysIncluded  []*net.IPNet
 		neverIncluded   []*net.IPNet
-		connLimit       int64
 	}
 
 	trustedAppTiplet struct {

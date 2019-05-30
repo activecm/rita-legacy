@@ -60,9 +60,8 @@ func (a *analyzer) start() {
 			blacklisted := false
 
 			// check if blacklisted destination
-			var resList2 []ritaBLResult
-			_ = ssn.DB(a.conf.S.Blacklisted.BlacklistDatabase).C("ip").Find(bson.M{"index": data.Host}).All(&resList2)
-			if len(resList2) > 0 {
+			blCount, _ := ssn.DB(a.conf.S.Blacklisted.BlacklistDatabase).C("ip").Find(bson.M{"index": data.Host}).Count()
+			if blCount > 0 {
 				blacklisted = true
 			}
 

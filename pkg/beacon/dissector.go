@@ -49,11 +49,10 @@ func (d *dissector) close() {
 func (d *dissector) start() {
 	d.dissectWg.Add(1)
 	go func() {
+		ssn := d.db.Session.Copy()
+		defer ssn.Close()
 
 		for data := range d.dissectChannel {
-			ssn := d.db.Session.Copy()
-			defer ssn.Close()
-
 			// This will work for both updating and inserting completely new Beacons
 			// for every new uconn record we have, we will check the uconns table. This
 			// will always return a result because even with a brand new database, we already

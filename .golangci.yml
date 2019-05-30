@@ -1,24 +1,24 @@
 linters:
   disable-all: true
   enable:
-    - govet
-    #- staticcheck # aka megacheck, replaces govet
     #- depguard # useful for Sirupsen and old mgo
     # Suggests code refactoring
+    #- govet
+    - staticcheck # aka megacheck, supercedes govet
     - goconst
     - ineffassign
     #- maligned
     #- prealloc
     #- gosimple
     # Finds unused and dead code
-    #- unused
-    #- structcheck
-    #- varcheck
-    #- deadcodde
-    #- unparam
+    - unused
+    # - structcheck
+    - varcheck
+    - deadcode
+    # - unparam
     # Style changes
     - golint
-    # - goimports # replaces gofmt
+    # - goimports # supercedes gofmt
     - misspell
     #- lll
 
