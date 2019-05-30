@@ -38,6 +38,30 @@ var (
 		Usage: "Indicates rolling import, which builds on and removes data to maintain a rolling 24-hour analysis",
 	}
 
+	// allFlag indicates all databases in option
+	allFlag = cli.BoolFlag{
+		Name:  "all, a",
+		Usage: "Indicates all databases should be removed",
+	}
+
+	// matchFlag indicates only matched databases
+	matchFlag = cli.BoolFlag{
+		Name:  "match, m",
+		Usage: "Indicates only databases with matching string should be removed",
+	}
+
+	// regexFlag indicates use of matching regex string
+	regexFlag = cli.BoolFlag{
+		Name:  "regex, r",
+		Usage: "Indicates use regex to define databases to be removed",
+	}
+
+	// dryRun indicates which databases would be deleted with current options
+	dryRunFlag = cli.BoolFlag{
+		Name:  "dry-run, n",
+		Usage: "Test which databases would be deleted, but does not actually delete, nor ask for prompts",
+	}
+
 	// for rolling analysis: says how many chunks are in a given day
 	totalChunksFlag = cli.IntFlag{
 		Name:  "numchunks, NC",

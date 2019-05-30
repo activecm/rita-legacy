@@ -20,6 +20,10 @@ func init() {
 		Flags: []cli.Flag{
 			forceFlag,
 			configFlag,
+			allFlag,
+			matchFlag,
+			regexFlag,
+			dryRunFlag,
 		},
 		Action: func(c *cli.Context) error {
 			res := resources.InitResources(c.String("config"))
