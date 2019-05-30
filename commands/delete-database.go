@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/activecm/rita/resources"
@@ -16,7 +17,7 @@ func init() {
 	reset := cli.Command{
 		Name:      "delete",
 		Aliases:   []string{"delete-database"},
-		Usage:     "Delete an imported database",
+		Usage:     "Delete imported database(s)",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			forceFlag,
@@ -36,8 +37,60 @@ func init() {
 func deleteDatabase(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 
-	// get all database names
-	names, err := res.DB.Session.DatabaseNames()
+	// Different command flags
+	match := c.String("match")
+	regex := c.String("regex")
+	bulk := c.Bool("all")
+	force := c.Bool("force")
+	dryRun := c.Bool("dry-run")
+	var names []string
+	var err error
+
+	if (match != "") && (!bulk) {
+		// Getting multiple dbs via string search
+		bulk = true
+
+		// Get DB list
+		dbs, err := res.DB.Session.DatabaseNames()
+		if err != nil {
+			return cli.NewExitError(err.Error, -1)
+		}
+
+		// Find dbs with matching names
+		for _, db := range dbs {
+			if strings.Contains(db, match) {
+				names = append(names, db)
+			}
+		}
+
+	} else if (regex != "") && (!bulk) {
+		// Getting multiple dbs via regex query
+		bulk = true
+
+		// Get DB list
+		dbs, err := res.DB.Session.DatabaseNames()
+		if err != nil {
+			return cli.NewExitError(err.Error, -1)
+		}
+
+		// Compile regex, check if it's valid
+		regq, err := regexp.Compile(regex)
+		if err != nil {
+			return cli.NewExitError(err.Error, -1)
+		}
+
+		// Find dbs with regex query
+		for _, db := range dbs {
+			matched := regq.MatchString(db)
+			if matched {
+				names = append(names, db)
+			}
+		}
+
+	} else {
+		// get all database names
+		names, err = res.DB.Session.DatabaseNames()
+	}
 
 	// check if we have databases
 	if err != nil || len(names) == 0 {
@@ -45,15 +98,15 @@ func deleteDatabase(c *cli.Context) error {
 	}
 
 	// For single database deletion
-	if !c.Bool("all") {
+	if !bulk {
 
 		database := c.Args().Get(0)
 		if database == "" {
 			return cli.NewExitError("Specify a database or specify --all or -a for all databases", -1)
 		}
 
-		// if no force flag, verify action with the user
-		if !c.Bool("force") {
+		// if no force or dry run flag, verify action with the user
+		if !force && !dryRun {
 			if confirmAction("Are you sure you want to delete database " + database + " [y/N] ") {
 				fmt.Println("Deleting database: ", database)
 			} else {
@@ -61,23 +114,25 @@ func deleteDatabase(c *cli.Context) error {
 			}
 		}
 
-		dberr := deleteSingleDatabase(res, names, database, c.Bool("dry-run"))
-		if dberr != nil {
-			return cli.NewExitError(dberr.Error, -1)
+		err := deleteSingleDatabase(res, names, database, dryRun)
+		if err != nil {
+			return cli.NewExitError(err.Error, -1)
 		}
 
 	} else {
-		// Otherwise, we're deleting everything
-		if !c.Bool("force") {
+		// Otherwise, we're deleting multiple items
+		// if no force or dry run flag, verify action
+		if !force && !dryRun {
 			if confirmAction("Confirm we'll be deleting the following databases:\n" + strings.Join(names, "\n")) {
-				fmt.Println("Deleting everything...")
+				fmt.Println("Deleting all databases...")
 			} else {
 				return cli.NewExitError("Nothing deleted, no changes have been made", 0)
 			}
 		}
 
+		// Iterate through databases to delete and delete them one by one
 		for _, database := range names {
-			dberr := deleteSingleDatabase(res, names, database, c.Bool("dry-run"))
+			dberr := deleteSingleDatabase(res, names, database, dryRun)
 			if dberr != nil {
 				return cli.NewExitError(dberr.Error, -1)
 			}
@@ -85,7 +140,8 @@ func deleteDatabase(c *cli.Context) error {
 
 	}
 
-	if c.Bool("dry-run") {
+	// Dry run warning
+	if dryRun {
 		cli.NewExitError("This was a dry run of the delete command, nothing has been changed!", 0)
 	}
 
