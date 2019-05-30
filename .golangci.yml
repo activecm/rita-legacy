@@ -1,0 +1,56 @@
+# {
+#   "Enable": ["vet", "vetshadow", "golint", "ineffassign", "goconst"],
+#   "Linters": {
+#     "vet": "go vet -all -composites=false:PATH:LINE:MESSAGE"
+#   },
+#   "JSON": true,
+#   "Vendor": true,
+#   "Exclude": [
+#     "^vendor/",
+#     "\\bexported \\w+ (\\S*['.]*)([a-zA-Z'.*]*) should have comment or be unexported\\b",
+#     "\\bcomment on exported (method|type|function) (\\S*['.]*)([a-zA-Z'.*]*) should be of the form\\b"
+#   ]
+# }
+
+# {
+#   "Enable": ["vet", "golint", "ineffassign"],
+#   "Test": true,
+#   "Vendor": true,
+#   "Linters": {
+#      "vet": "go tool vet -composites=false :PATH:LINE:MESSAGE"
+#   },
+#   "Exclude": [
+#     "^vendor/",
+#     "\\bexported \\w+ (\\S*['.]*)([a-zA-Z'.*]*) should have comment or be unexported\\b",
+#     "\\bcomment on exported (method|type|function) (\\S*['.]*)([a-zA-Z'.*]*) should be of the form\\b"
+#   ]
+# }
+
+linters:
+  disable-all: true
+  enable:
+    - govet
+    #- staticcheck # aka megacheck, replaces govet
+    #- depguard # useful for Sirupsen and old mgo
+    # Suggests code refactoring
+    - goconst
+    - ineffassign
+    #- maligned
+    #- prealloc
+    #- gosimple
+    # Finds unused and dead code
+    #- unused
+    #- structcheck
+    #- varcheck
+    #- deadcodde
+    #- unparam
+    # Style changes
+    - golint
+    # - goimports # replaces gofmt
+    # - misspell
+    #- lll
+
+issues:
+  exclude:
+    # https://github.com/golangci/golangci-lint/issues/446
+    - composites
