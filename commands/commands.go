@@ -45,15 +45,17 @@ var (
 	}
 
 	// matchFlag indicates only matched databases
-	matchFlag = cli.BoolFlag{
+	matchFlag = cli.StringFlag{
 		Name:  "match, m",
-		Usage: "Indicates only databases with matching string should be removed",
+		Usage: "Indicates only databases with matching string `SEARCH_STRING` should be removed",
+		Value: "",
 	}
 
 	// regexFlag indicates use of matching regex string
-	regexFlag = cli.BoolFlag{
+	regexFlag = cli.StringFlag{
 		Name:  "regex, r",
-		Usage: "Indicates use regex to define databases to be removed",
+		Usage: "Indicates use `REGEX_STRING` to define databases to be removed",
+		Value: "",
 	}
 
 	// dryRun indicates which databases would be deleted with current options
