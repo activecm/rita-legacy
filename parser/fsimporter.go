@@ -422,7 +422,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									}
 								}
 
-								// increment unique dst port: proto : sevice tuple list for host
+								// increment unique dst port: proto : service tuple list for host
 								if stringInSlice(tuple, uconnMap[srcDst].Tuples) == false {
 									uconnMap[srcDst].Tuples = append(uconnMap[srcDst].Tuples, tuple)
 								}
