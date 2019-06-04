@@ -20,7 +20,7 @@ RITA requires Mongo for storing and processing data. The current recommended ver
 
 1. Follow the MongoDB installation guide at https://docs.mongodb.com/manual/installation/
     * Alternatively, this is a direct link to the [download page](https://www.mongodb.com/download-center?jmp=nav#community)
-1. Ensure MongoDB is running before running RITA.  
+1. Ensure MongoDB is running before running RITA.
 
 #### RITA
 
@@ -47,11 +47,11 @@ In order to compile RITA manually you will need to install both [Golang](https:/
 
 At this point you can build RITA from source code.
 
-1. ```go get github.com/activecm/rita```
+1. ```go get github.com/activecm/rita``` or ```git clone git@github.com:activecm/rita.git $GOPATH/src/github.com/activecm/rita```
 1. ```cd $GOPATH/src/github.com/activecm/rita```
 1. ```make``` (Note that you will need to have `make` installed. You can use your system's package manager to install it.)
 
-This will yield a `rita` binary in the current directory. You can use `make install` to install the binary to `$GOPATH/bin/rita` or manually copy/link it to `/usr/local/bin/rita` or another location you desire.
+This will yield a `rita` binary in the current directory. You can use `make install` to install the binary to `/usr/local/bin/rita` or `PREFIX=/ make install` to install to a different location (`/bin/rita` in this case).
 
 ##### Configuring the system
 

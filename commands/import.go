@@ -30,7 +30,7 @@ func init() {
 		Action: func(c *cli.Context) error {
 			importer := NewImporter(c)
 			err := importer.run()
-			fmt.Printf(updateCheck(c.String("config")))
+			fmt.Println(updateCheck(c.String("config")))
 			return err
 		},
 	}

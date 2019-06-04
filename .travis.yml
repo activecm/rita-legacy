@@ -1,38 +1,24 @@
-# Set up Go
-language: go
-
-go:
-  - "1.10"
-
-go_import_path: github.com/activecm/rita
-
-# Set up Docker
-sudo: required
+# https://docs.travis-ci.com/user/languages/minimal-and-generic/
+language: minimal
 
 services:
   - docker
 
-# Only clone the most recent commit.
-git:
-  depth: 1
-
-# Don't email the test results
 notifications:
   email: false
+  # https://docs.travis-ci.com/user/notifications/#configuring-slack-notifications
+  slack:
+    # default
+    #secure: "t0d8NGUTYT9lAWQYwMJjFl21QmSozS/OZ50YINiP7GjVfb08NiPZLswQfgd1F5iRmOtatUjuNxrLxiT6wnT13ogOrgrMSuxZI9X8mDg3spEqVxtABrgXrZ1pJBQtr8zlUqRh79Nin9EX1OGEmJFyNm+WQvZHzvDE+dWGTfb9QLHzquU4LxIRa4hkcZ4R3DehQOTqn98fd+TiwZHblfRS5NGhfOwKE65LgbyjLQGbvPLiliKdk0YUY36cjigFMwPuwmvP6yX+3SdrqaA/NlEMACpbEN677cB+qZhlyOUMinwWuMQBCmmJC2GJ9snhHT++pVQ4iAI2q7THpyf41wb9oR/2StxBZxejUTCXH+oK5gVPXqKWukaGnw9qTd6IuYOpvhJxfqT0fVtKJtuOcoWWyHc3DZIexeGRuO+XGViKQU8PiFmm6s9Aft1N0IeXI8gbKlRXCMlUnVcvD17CV2p23oNND5v7idXsDdf3p0ZmgbCP5iQ1ulbpUezl35alxhKUik0oclZXqZagNkUENZOLSUsAR1IgFFiEf3ihtN7AJ1xk+kCBpGLnCOhhEr81sFmeoXpVg50XnjI38+BuElRGF8MPwnkDv5DrkpKzGicwLUUL/braN8b4K2kdpP7qyiXKZD0peWmc9byjaimd/zUSXP3YTD/Hg+O5ll78Sm/UdyE="
+    # --org
+    secure: "t+h/LAMMmymfBxA+fj5pwDkpzJ9Sjs8ZuLRzfzqtMaR9Iqyn0b/czbB3qSaz5rwC/97eNMBYWUgOX/lC698w/67Zpl13gHEASN/lifZmB+Awc46Q6qlEpsmD309qYqI5fJgZa4jJAk+Pr+7Lyz+A0/S5lIMA8he4S/zyv1a16kVmr8Whi0egbWiCH4fQ9cBxnlnuhTohAXmCE/hFXivF10vDm35QJI11SlxUaQPrdeam3pY5wrf0EwCZ5WfaWE1JTE5B59anfQCh0ehiFaxGDodZlbMbbMO1LKyZbBdkjkLM7WLeNXu3AvE+j8p5IPcH09LRI/OubC/6/QdTQ5ntPW6cYFFECO0Ff9C0Zbu8YLZ0/0AtmsHX9Wq2lTaZzgrXxCVYwahlUFJyEFoScBEt9RotSNU5M71prDjwVXMCiM21XA0+//2NMm1KTYLu4Y2WwldXrjJeyOPk7Ae+71y+FWLt1WOUMBv3Zx1Px1ILeO69zODLeRAAVwovJyzR5Naxbnjn4Q+aiSPfH05RIVG+IiMxAQ+DwaFpEXdprw+2LP/Dnzqvv//fdzt6Dmt/+gw4rget3Tc2OXchKXgbJsVKcbwflWOlv9sARSSiXDVQrMWRhnP96jiGkE0LffPvQGHFFOLnbi8y0F+5RfcIO9pz18xQT6z85QJ4+d5CxLJfGzY="
+
+    on_success: always
 
 before_install:
-  # Get RITA go dependencies
-  - wget -q -O ${GOPATH}/bin/dep https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 && chmod +x ${GOPATH}/bin/dep
-  - dep ensure --no-vendor
-  - go get -t ./...
-  # Get testing dependencies
-  - go get -v github.com/stretchr/testify
-  - go get -v golang.org/x/lint/golint
+  # Idea to test in the future to use caching to speed up build
+  # https://github.com/travis-ci/travis-ci/issues/5358#issuecomment-248915326
+  - docker build -t quay.io/activecm/rita:test -f test.Dockerfile .
 
 script:
-  # Run static tests
-  - bash static-tests.sh
-  # Run unit tests and integration tests
-  - go test -v -race ./...
-  # Test the installer. Disabled until unattended installs are possible 
-  #- bash ./test-install.sh
+  - docker run --rm quay.io/activecm/rita:test make test

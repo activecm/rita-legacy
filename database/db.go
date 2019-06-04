@@ -126,7 +126,7 @@ func (d *DB) CollectionExists(table string) bool {
 }
 
 //CreateCollection creates a new collection in the currently selected
-//database with the required indeces
+//database with the required indexes
 func (d *DB) CreateCollection(name string, indeces []mgo.Index) error {
 	// Make a copy of the current session
 	session := d.Session.Copy()

@@ -1,6 +1,10 @@
 # RITA (Real Intelligence Threat Analytics)
 
+[![RITA Logo](rita-logo.png)](https://www.activecountermeasures.com/free-tools/rita/)
+
 Brought to you by [Active Countermeasures](https://www.activecountermeasures.com/).
+
+[![Build Status](https://travis-ci.org/activecm/rita.svg?branch=master)](https://travis-ci.org/activecm/rita)
 
 ---
 ### What is Here
@@ -68,21 +72,21 @@ Note that any value listed in the `Filtering` section should be in CIDR format. 
   RITA will process Bro/Zeek TSV logs in both plaintext and gzip compressed formats. Note, if you are using Security Onion or Bro's JSON log output you will need to [switch back to traditional TSV output](https://securityonion.readthedocs.io/en/latest/bro.html#tsv).
 
   * **Option 1**: Create a One-Off Dataset
-      * `rita import path/to/your/bro_logs dataset_name` creates a dataset from a collection of Bro/Zeek logs in a directory 
+      * `rita import path/to/your/bro_logs dataset_name` creates a dataset from a collection of Bro/Zeek logs in a directory
       * Every log file directly in the supplied directory will be imported into a dataset with the given name
       * Once a dataset has been created in this fashion, no other data may be imported into the dataset
   * **Option 2**: Create a Rolling Dataset
-      * Rolling datasets allow you to progressively analyze the last 24 hours of log data 
-      * RITA cycles data into and out of rolling databases in "chunks". Chunks are even divisions of a day. 
+      * Rolling datasets allow you to progressively analyze the last 24 hours of log data
+      * RITA cycles data into and out of rolling databases in "chunks". Chunks are even divisions of a day.
           * For example, a rolling database configured to hold data in 4 chunks will import logs 6 hours at a time
       * `rita import --rolling --numchunks # --chunk # path/to/your/bro_logs dataset_name` imports the logs in a given directory which match the period of time derived from the `numchunks` and `chunk` arguments
-      * `numchunks` controls how much data will be processed each time a rolling import is ran 
-          * The value supplied for `numchunks` must evenly divide 24 
+      * `numchunks` controls how much data will be processed each time a rolling import is ran
+          * The value supplied for `numchunks` must evenly divide 24
           * Valid choices are 1, 2, 3, 4, 6, 8, 12, and 24
-          * Each choice will process new data in 24, 12, 8, 4, 3, 2, and 1 hour periods, respectively  
+          * Each choice will process new data in 24, 12, 8, 4, 3, 2, and 1 hour periods, respectively
       * `chunk` tells RITA which period of data to import
           * The value supplied for `chunk` must be between 1 and `numchunks` (inclusive)
-          * If `numchunks` is set to 4, and `chunk` is set to 2, RITA will import logs from 6 am to noon 
+          * If `numchunks` is set to 4, and `chunk` is set to 2, RITA will import logs from 6 am to noon
       * Rolling databases should be routinely updated with new data
           * `numchunks` should remain constant each time `import` is ran on the same rolling dataset
           * `chunk` should loop through 1 to `numchunks` (inclusive) as new data becomes available
@@ -98,14 +102,14 @@ Note that any value listed in the `Filtering` section should be in CIDR format. 
       * `show-bl-dest-ips`: Print blacklisted IPs which received connections
       * `show-exploded-dns`:  Print dns analysis. Exposes covert dns channels
       * `show-long-connections`: Print long connections and relevant information
-      * `show-strobes`: Print connections which occurred with excessive frequency 
+      * `show-strobes`: Print connections which occurred with excessive frequency
       * `show-useragents`: Print user agent information
   * By default RITA displays data in CSV format
       * `-H` displays the data in a human readable format
       * Piping the human readable results through `less -S` prevents word wrapping
           * Ex: `rita show-beacons dataset_name -H | less -S`
   * Create a html report with `html-report`
-  
+
 
 ### Getting help
 Please create an issue on GitHub if you have any questions or concerns.
