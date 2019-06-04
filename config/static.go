@@ -20,7 +20,7 @@ type (
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
 		DNS          DNSStaticCfg         `yaml:"DNS"`
 		UserAgent    UserAgentStaticCfg   `yaml:"UserAgent"`
-		Bro          BroStaticCfg         `yaml:"Bro"`
+		Bro          BroStaticCfg         `yaml:"Bro"`		// kept in for MetaDB backwards compatibility
 		Filtering    FilteringStaticCfg   `yaml:"Filtering"`
 		Strobe       StrobeStaticCfg      `yaml:"Strobe"`
 		Version      string
@@ -53,6 +53,7 @@ type (
 
 	//BroStaticCfg controls the file parser
 	BroStaticCfg struct {
+		MetaDB       string `yaml:"MetaDB"`  // kept in for backwards compatibility
 		Rolling      bool
 		TotalChunks  int
 		CurrentChunk int
@@ -127,6 +128,12 @@ func parseStaticConfig(cfgFile []byte, config *StaticCfg) error {
 
 	if err != nil {
 		return err
+	}
+
+	// migrate MetaDB entry from old location (Bro:MetaDB) if there is a value in the
+	// old location and the new location (MongoDB:MetaDB) is still the default (MetaDatabase)
+	if config.Bro.MetaDB != "" && config.MongoDB.MetaDB == "MetaDatabase" {
+		config.MongoDB.MetaDB = config.Bro.MetaDB
 	}
 
 	// expand env variables, config is a pointer
