@@ -26,13 +26,13 @@ type BroHeaderIndexMap map[string]int
 //IndexedFile ties a file to a target collection and database
 type IndexedFile struct {
 	ID               bson.ObjectId `bson:"_id,omitempty"`
-	Path             string        `bson:"filepath"`
-	Length           int64         `bson:"length"`
-	ModTime          time.Time     `bson:"modified"`
-	Hash             string        `bson:"hash"`
-	TargetCollection string        `bson:"collection"`
-	TargetDatabase   string        `bson:"database"`
-	ParseTime        time.Time     `bson:"time_complete"`
+	Path             string
+	Length           int64
+	ModTime          time.Time
+	Hash             string
+	TargetCollection string
+	TargetDatabase   string
+	ParseTime        time.Time
 	header           *BroHeader
 	broDataFactory   func() pt.BroData
 	fieldMap         BroHeaderIndexMap

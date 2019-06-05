@@ -237,6 +237,7 @@ func (m *MetaDB) DeleteDB(name string) error {
 		return err
 	}
 
+	// TODO: this is left in for backwards compatibility
 	//delete any parsed file records associated
 	_, err = ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.FilesTable).RemoveAll(bson.M{"database": name})
 	if err != nil {
@@ -529,26 +530,39 @@ func (m *MetaDB) GetAnalyzedDatabases() []string {
 //                            File Processing                                //
 ///////////////////////////////////////////////////////////////////////////////
 
-// GetFiles gets a list of all IndexedFile objects in the database if successful return a list of files
-// from the database, in the case of failure return a zero length list of files and generat a log
-// message.
-func (m *MetaDB) GetFiles() ([]fpt.IndexedFile, error) {
+// GetFiles gets a list of all file hashes for the database
+func (m *MetaDB) GetFiles(database string) ([]string, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	var toReturn []fpt.IndexedFile
 
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	err := ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.FilesTable).
-		Find(nil).Iter().All(&toReturn)
-	if err != nil {
-		m.log.WithFields(log.Fields{
-			"error": err.Error(),
-		}).Error("could not fetch files from meta database")
+	var hashes []string
+	err := ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).
+		Find(bson.M{"name": database}).
+		Distinct("file_hashes.hash", &hashes)
+
+	// check if files table exists and query for backwards compatibility
+	// TODO: remove me on majore version upgrade
+	var legacyHashes []string
+	err2 := ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.FilesTable).
+		Find(bson.M{"database": database}).
+		Distinct("hash", &legacyHashes)
+
+	if err == nil && err2 == nil {
+		// both were valid, include all hashes
+		hashes = append(hashes, legacyHashes...)
+	} else if err != nil && err2 == nil {
+		// hashes failed so fallback to legacy hashes
+		hashes = legacyHashes
+		err = nil
+	} else if err != nil && err2 != nil {
+		// both queries failed, just report first error
 		return nil, err
 	}
-	return toReturn, nil
+
+	return hashes, err
 }
 
 //AddParsedFiles adds indexed files to the files the metaDB using the bulk API
@@ -561,17 +575,26 @@ func (m *MetaDB) AddParsedFiles(files []*fpt.IndexedFile) error {
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	bulk := ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.FilesTable).Bulk()
-	bulk.Unordered()
+	db := ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).Bulk()
+	db.Unordered()
 
-	//construct the interface slice for bulk
-	interfaceSlice := make([]interface{}, len(files))
-	for i, d := range files {
-		interfaceSlice[i] = *d
+	for _, file := range files {
+		db.Update(
+			// selector for database entry
+			bson.M{"name": file.TargetDatabase},
+			// update that appends new file hash to file_hashes array
+			bson.M{
+				"$push": bson.M{
+					"file_hashes": bson.M{
+						"hash": file.Hash,
+			            "cid": m.config.S.Bro.CurrentChunk,
+					},
+				},
+			},
+		)
 	}
 
-	bulk.Insert(interfaceSlice...)
-	_, err := bulk.Run()
+	_, err := db.Run()
 	if err != nil {
 		m.log.WithFields(log.Fields{
 			"error": err.Error(),
