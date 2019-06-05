@@ -79,7 +79,7 @@ func (w *writer) startCIDRemover() {
 			info, err := ssn.DB(w.db.GetSelectedDB()).C(data).RemoveAll(bson.M{"cid": w.cid})
 			if err != nil ||
 				((info.Updated == 0) && (info.Removed == 0) && (info.Matched != 0)) {
-				log.WithFields(log.Fields{
+				w.log.WithFields(log.Fields{
 					"Module":  "remover",
 					"Info":    info,
 					"Data":    data,
@@ -92,7 +92,7 @@ func (w *writer) startCIDRemover() {
 			info, err = ssn.DB(w.db.GetSelectedDB()).C(data).UpdateAll(bson.M{"dat.cid": w.cid}, bson.M{"$pull": bson.M{"dat": bson.M{"cid": w.cid}}})
 			if err != nil ||
 				((info.Updated == 0) && (info.Removed == 0) && (info.Matched != 0)) {
-				log.WithFields(log.Fields{
+				w.log.WithFields(log.Fields{
 					"Module":  "remover",
 					"Info":    info,
 					"Data":    data,
