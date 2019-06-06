@@ -118,7 +118,7 @@ func deleteDatabase(c *cli.Context) error {
 		// if no force or dry run flag, verify action
 		if !force && !dryRun {
 			if confirmAction("Confirm we'll be deleting the following databases:\n" + strings.Join(names, "\n")) {
-				fmt.Println("Deleting all databases...")
+				fmt.Println("Deleting databases...")
 			} else {
 				return cli.NewExitError("Nothing deleted, no changes have been made", 0)
 			}
