@@ -122,7 +122,7 @@ func (m *MetaDB) SetRollingSettings(db string, numchunks int, chunk int) error {
 		// set current chunk number
 		_, err = ssn.DB(m.config.S.Bro.MetaDB).C(m.config.T.Meta.DatabasesTable).
 			Upsert(
-				bson.M{"name": db},                             // selector
+				bson.M{"name": db}, // selector
 				bson.M{"$set": bson.M{"current_chunk": chunk}}, // data
 			)
 
