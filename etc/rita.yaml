@@ -1,3 +1,4 @@
+# This section configures the connection to the MongoDB server and the database name to use
 MongoDB:
     # See https://docs.mongodb.com/manual/reference/connection-string/
     ConnectionString: mongodb://localhost:27017
@@ -19,6 +20,9 @@ MongoDB:
         #If set, RITA will use the provided CA file instead of the system's CA's
         CAFile: null
 
+    # This database holds information about the procesed files and databases.
+    MetaDB: MetaDatabase
+
 LogConfig:
     # LogLevel
     # 3 = debug
@@ -33,16 +37,6 @@ LogConfig:
 
     LogToFile: true
     LogToDB: true
-
-# The section Bro configures the bro ingestor
-Bro:
-    # This database holds information about the procesed files and databases.
-    MetaDB: MetaDatabase
-
-    # The number of records shipped off to MongoDB at a time. Increasing
-    # the size of the buffer will improve import timings at the expense
-    # of using more RAM.
-    ImportBuffer: 30000
 
 UserConfig:
     # Number of days before checking for a new version of RITA.
