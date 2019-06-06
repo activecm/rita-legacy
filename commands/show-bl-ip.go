@@ -23,6 +23,7 @@ func init() {
 			blConnFlag,
 			blSortFlag,
 			configFlag,
+			limitFlag,
 		},
 		Usage:  "Print blacklisted IPs which initiated connections",
 		Action: printBLSourceIPs,

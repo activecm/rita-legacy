@@ -22,6 +22,7 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			configFlag,
+			limitFlag,
 		},
 		Usage:  "Print blacklisted hostnames which received connections",
 		Action: printBLHostnames,

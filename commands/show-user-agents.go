@@ -24,6 +24,7 @@ func init() {
 				Usage: "Sort the user agents from least used to most used.",
 			},
 			configFlag,
+			limitFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
