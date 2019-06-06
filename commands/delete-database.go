@@ -65,10 +65,7 @@ func deleteDatabase(c *cli.Context) error {
 		bulk = true
 
 		// Get DB list
-		dbs, err := res.DB.Session.DatabaseNames()
-		if err != nil {
-			return cli.NewExitError(err.Error, -1)
-		}
+		dbs := res.MetaDB.GetDatabases()
 
 		// Compile regex, check if it's valid
 		regq, err := regexp.Compile(regex)
@@ -86,7 +83,7 @@ func deleteDatabase(c *cli.Context) error {
 
 	} else {
 		// get all database names
-		names, err = res.DB.Session.DatabaseNames()
+		names = res.MetaDB.GetDatabases()
 	}
 
 	// check if we have databases
