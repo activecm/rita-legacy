@@ -21,6 +21,7 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			configFlag,
+			limitFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
@@ -35,7 +36,7 @@ func init() {
 			sortDirection := -1
 			thresh := 60 // 1 minute
 
-			data, err := getLongConnsResultsView(res, thresh, sortStr, sortDirection, 1000)
+			data, err := getLongConnsResultsView(res, thresh, sortStr, sortDirection, c.Int("limit"))
 
 			if err != nil {
 				res.Log.Error(err)

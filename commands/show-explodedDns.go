@@ -20,6 +20,7 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			configFlag,
+			limitFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
@@ -30,7 +31,7 @@ func init() {
 			res := resources.InitResources(c.String("config"))
 			res.DB.SelectDB(db)
 
-			data, err := getExplodedDNSResultsView(res, 1000)
+			data, err := getExplodedDNSResultsView(res, c.Int("limit"))
 
 			if err != nil {
 				res.Log.Error(err)

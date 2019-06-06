@@ -23,6 +23,7 @@ func init() {
 			blConnFlag,
 			blSortFlag,
 			configFlag,
+			limitFlag,
 		},
 		Usage:  "Print blacklisted IPs which initiated connections",
 		Action: printBLSourceIPs,
@@ -71,7 +72,7 @@ func printBLSourceIPs(c *cli.Context) error {
 			bson.M{"blacklisted": true},
 			bson.M{"dat.count_src": bson.M{"$gt": 0}},
 		}}
-	limit := 1000
+	limit := c.Int("limit")
 	data, err := getBlacklistedIPsResultsView(res, sort, limit, match, "src", "dst")
 
 	if err != nil {
@@ -112,7 +113,7 @@ func printBLDestIPs(c *cli.Context) error {
 			bson.M{"dat.count_dst": bson.M{"$gt": 0}},
 		}}
 
-	limit := 1000
+	limit := c.Int("limit")
 	data, err := getBlacklistedIPsResultsView(res, sort, limit, match, "dst", "src")
 
 	if err != nil {
