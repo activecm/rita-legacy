@@ -30,7 +30,7 @@ func init() {
 			res := resources.InitResources(c.String("config"))
 			res.DB.SelectDB(db)
 
-			data, err := getExplodedDNSResultsView(res, 1000)
+			data, err := getExplodedDNSResultsView(res, c.Int("limit"))
 
 			if err != nil {
 				res.Log.Error(err)

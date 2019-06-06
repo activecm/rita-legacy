@@ -40,7 +40,7 @@ func init() {
 				sortDirection = 1
 			}
 
-			data, err := getStrobeResultsView(res, sortStr, sortDirection, 1000)
+			data, err := getStrobeResultsView(res, sortStr, sortDirection, c.Int("limit"))
 
 			if err != nil {
 				res.Log.Error(err)

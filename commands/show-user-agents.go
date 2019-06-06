@@ -40,7 +40,7 @@ func init() {
 				sortDirection = -1
 			}
 
-			data, err := getUseragentResultsView(res, sort, sortDirection, 1000)
+			data, err := getUseragentResultsView(res, sort, sortDirection, c.Int("limit"))
 
 			if err != nil {
 				res.Log.Error(err)

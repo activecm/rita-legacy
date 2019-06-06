@@ -62,6 +62,12 @@ var (
 		Usage: "Print a report instead of csv",
 	}
 
+	limitFlag = cli.IntFlag{
+		Name:  "limit, l",
+		Usage: "Limit the outputs of the result to `LIMIT` values",
+		Value: 1000,
+	}
+
 	blSortFlag = cli.StringFlag{
 		Name:  "sort, s",
 		Usage: "Sort by conn_count (# of connections), uconn_count (# of unique connections), total_bytes (# of bytes)",

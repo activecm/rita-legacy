@@ -40,7 +40,7 @@ func printBLHostnames(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
-	data, err := getBlacklistedHostnameResultsView(res, "conn_count", 1000)
+	data, err := getBlacklistedHostnameResultsView(res, "conn_count", c.Int("limit"))
 
 	if err != nil {
 		res.Log.Error(err)
