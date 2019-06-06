@@ -27,12 +27,6 @@ var (
 		Usage: "Bypass verification prompt",
 	}
 
-	// resetFlag allows automatic reset of analysis prior to the command
-	resetFlag = cli.BoolFlag{
-		Name:  "reset, r",
-		Usage: "Reset database analysis",
-	}
-
 	rollingFlag = cli.BoolFlag{
 		Name:  "rolling, R",
 		Usage: "Indicates rolling import, which builds on and removes data to maintain a rolling 24-hour analysis",

@@ -14,8 +14,6 @@ import (
 	"github.com/urfave/cli"
 )
 
-const endl = "\r\n"
-
 func init() {
 	blSourceIPs := cli.Command{
 		Name:      "show-bl-source-ips",

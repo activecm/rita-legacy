@@ -240,7 +240,7 @@ func (a *analyzer) start() {
 }
 
 // createCountMap returns a distinct data array, data count array, the mode,
-// and the number of times the mode occured
+// and the number of times the mode occurred
 func createCountMap(sortedIn []int64) ([]int64, []int64, int64, int64) {
 	//Since the data is already sorted, we can call this without fear
 	distinct, countsMap := countAndRemoveConsecutiveDuplicates(sortedIn)
