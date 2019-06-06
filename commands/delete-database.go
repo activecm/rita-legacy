@@ -139,7 +139,7 @@ func deleteDatabase(c *cli.Context) error {
 
 	// Dry run warning
 	if dryRun {
-		cli.NewExitError("This was a dry run of the delete command, nothing has been changed!", 0)
+		fmt.Println("This was a dry run of the delete command, nothing has been changed!")
 	}
 
 	return nil
