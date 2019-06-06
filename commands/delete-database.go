@@ -51,10 +51,7 @@ func deleteDatabase(c *cli.Context) error {
 		bulk = true
 
 		// Get DB list
-		dbs, err := res.DB.Session.DatabaseNames()
-		if err != nil {
-			return cli.NewExitError(err.Error, -1)
-		}
+		dbs := res.MetaDB.GetDatabases()
 
 		// Find dbs with matching names
 		for _, db := range dbs {
