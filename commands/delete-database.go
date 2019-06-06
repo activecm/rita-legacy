@@ -177,7 +177,7 @@ func deleteSingleDatabase(res *resources.Resources, dbnames []string, db string,
 }
 
 func confirmAction(confimationMessage string) bool {
-	fmt.Print(confimationMessage)
+	fmt.Print(confimationMessage, "\n(y/n, Yes/No): ")
 
 	read := bufio.NewReader(os.Stdin)
 
