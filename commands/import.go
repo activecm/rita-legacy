@@ -9,6 +9,7 @@ import (
 	"github.com/activecm/rita/parser"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
+
 	"github.com/urfave/cli"
 )
 
@@ -18,8 +19,7 @@ func init() {
 		Usage: "Import bro logs into a target database",
 		UsageText: "rita import [command options] [<import directory> <database name>]\n\n" +
 			"Logs directly in <import directory> will be imported into a database" +
-			" named <database name>.\n<import directory> and <database name> will be" +
-			" loaded from the configuration file unless BOTH arguments are supplied.",
+			" named <database name>.",
 		Flags: []cli.Flag{
 			threadFlag,
 			configFlag,
@@ -83,37 +83,8 @@ func (i *Importer) parseArgs() error {
 		return cli.NewExitError(err.Error(), -1)
 	}
 
-	// check if rolling flag was passed in
-	if i.rolling {
-
-		// verify that required flag values were provided
-		if (i.totalChunks == -1) || (i.currentChunk == -1) {
-			return cli.NewExitError("\n\t[!] Both `--numchunks <total number of chunks>` and `--chunk <current chunk number>` must be provided for rolling analysis import.", -1)
-		}
-
-		// verifies the chunk is a divisor of 24 (we currently support 24 hour's worth of data in a rolling dataset)
-		if !(i.totalChunks > 0) || ((24 % i.totalChunks) != 0) {
-			return cli.NewExitError("\n\t[!] Total number of chunks must be a divisor of 24 (Valid chunk sizes: 1, 2, 4, 6, 8, 12, 24)", -1)
-		}
-
-		// validate chunk size
-		if !(i.currentChunk > 0) {
-			return cli.NewExitError("\n\t[!] Current chunk number must be greater than 0", -1)
-		}
-
-		if i.currentChunk > i.totalChunks {
-			return cli.NewExitError("\n\t[!] Current chunk number cannot be greater than the total number of chunks", -1)
-		}
-
-	}
-
 	i.res = resources.InitResources(i.configFile)
 
-	return nil
-}
-
-func (i *Importer) setTargetDatabase() error {
-	i.res.DB.SelectDB(i.targetDatabase)
 	return nil
 }
 
@@ -133,23 +104,67 @@ func (i *Importer) checkImportDirExists() error {
 }
 
 func (i *Importer) setRolling() error {
-	if i.rolling {
-		// verify that numchunks matches originally set value if database was already
-		// set as a rolling database in previous imports
-		err := i.res.MetaDB.EnsureRollingSettingsMatch(i.targetDatabase, i.totalChunks)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("\n\t[!] %v", err.Error()), -1)
-		}
+	exists, isRolling, currChunk, totalChunks, err := i.res.MetaDB.GetRollingSettings(i.targetDatabase)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("\n\t[!] Error while reading existing database settings: %v", err.Error()), -1)
+	}
 
-		// set stuff if no errors
-		i.res.Config.S.Bro.Rolling = true
-		i.res.Config.S.Bro.TotalChunks = i.totalChunks
-		i.res.Config.S.Bro.CurrentChunk = i.currentChunk - 1
-	} else {
-		// set single import defaults (1 total chunks, and we're on the first and only chunk)
-		i.res.Config.S.Bro.Rolling = false
-		i.res.Config.S.Bro.TotalChunks = 1
-		i.res.Config.S.Bro.CurrentChunk = 0
+	// Can uncomment this check if we want to preserve old behavior with regards to non-rolling databases
+	// if exists && !isRolling {
+	// 	return cli.NewExitError("\n\t[!] New data cannot be imported into an existing non-rolling database", -1)
+	// }
+
+	// a user-provided value for either of the chunk options implies rolling
+	if i.totalChunks != -1 || i.currentChunk != -1 {
+		i.rolling = true
+	}
+
+	if i.totalChunks != -1 { // user gave the total number of chunks via command line
+		// use the user-provided value
+		i.res.Config.S.Rolling.TotalChunks = i.totalChunks
+	} else { // user didn't specify the total number of chunks
+		if !exists && !i.rolling {
+			// if the database doesn't exist and wasn't specified to be rolling
+			// then assume only one chunk
+			i.res.Config.S.Rolling.TotalChunks = 1
+		} else if exists && isRolling {
+			// if the database is already rolling use the existing value
+			i.res.Config.S.Rolling.TotalChunks = totalChunks
+		} else {
+			// otherwise we're converting a non-rolling database or creating a new rolling database
+			// and the user didn't specify so use the default value
+			i.res.Config.S.Rolling.TotalChunks = i.res.Config.S.Rolling.DefaultChunks
+		}
+	}
+
+	if i.currentChunk != -1 { // user gave the current chunk via command line
+		// use the user-provided value
+		i.res.Config.S.Rolling.CurrentChunk = i.currentChunk
+	} else { // user didn't specify the current chunk
+		if !exists {
+			// if the databse doesn't exist, then assume this is the first and only chunk
+			i.res.Config.S.Rolling.CurrentChunk = 0
+		} else {
+			// otherwise increment tne current value, wrapping back to 0 when needed
+			i.res.Config.S.Rolling.CurrentChunk = (currChunk + 1) % i.res.Config.S.Rolling.TotalChunks
+		}
+	}
+
+	// already existing db is converted to rolling if it wasn't already
+	// or if the user specified that a new database is rolling
+	i.res.Config.S.Rolling.Rolling = exists || i.rolling
+
+	// validate chunk size
+	if (i.res.Config.S.Rolling.CurrentChunk < 0 ||
+		i.res.Config.S.Rolling.CurrentChunk >= i.res.Config.S.Rolling.TotalChunks) {
+		return cli.NewExitError(
+			fmt.Sprintf(
+				"\n\t[!] Current chunk number [ %d ] must be 0 or greater and less than the total number of chunks [ %d ]",
+				i.res.Config.S.Rolling.CurrentChunk,
+				i.res.Config.S.Rolling.TotalChunks,
+			),
+			-1,
+		)
 	}
 
 	return nil
@@ -164,10 +179,7 @@ func (i *Importer) run() error {
 	}
 
 	// set up target database
-	err = i.setTargetDatabase()
-	if err != nil {
-		return err
-	}
+	i.res.DB.SelectDB(i.targetDatabase)
 
 	// set up rolling stats if they apply
 	err = i.setRolling()

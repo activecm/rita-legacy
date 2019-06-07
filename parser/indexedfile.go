@@ -127,7 +127,7 @@ func indexFiles(files []string, indexingThreads int, res *resources.Resources) [
 					res.Log.WithFields(log.Fields{
 						"file":  files[j],
 						"error": err.Error(),
-					}).Warning("An error was encountered while indexing a file")
+					}).Debug("An error was encountered while indexing a file")
 					//errored on files will be nil
 					continue
 				}

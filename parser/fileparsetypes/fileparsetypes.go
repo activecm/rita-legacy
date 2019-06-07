@@ -4,7 +4,6 @@ import (
 	"time"
 
 	pt "github.com/activecm/rita/parser/parsetypes"
-	"github.com/globalsign/mgo/bson"
 )
 
 //BroHeader contains the parse information contained within the comment lines
@@ -25,7 +24,6 @@ type BroHeaderIndexMap map[string]int
 
 //IndexedFile ties a file to a target collection and database
 type IndexedFile struct {
-	ID               bson.ObjectId `bson:"_id,omitempty"`
 	Path             string
 	Length           int64
 	ModTime          time.Time

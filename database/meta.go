@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"strconv"
 	"sync"
 	"time"
@@ -64,98 +63,61 @@ func NewMetaDB(config *config.Config, dbHandle *mgo.Session,
 	return metaDB
 }
 
-//EnsureRollingSettingsMatch ensures that the rolling database settings in the
-//metadb match the provided arguments if the database settings exist at all
-func (m *MetaDB) EnsureRollingSettingsMatch(db string, numchunks int) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	ssn := m.dbHandle.Copy()
-	defer ssn.Close()
-
+//GetRollingSettings gets the current rolling settings
+func (m *MetaDB) GetRollingSettings(db string) (exists bool, isRolling bool, currChunk int, totalChunks int, err error) {
 	// pull down dataset record from metadatabase
-	var result DBMetaInfo
-	err := ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"name": db}).One(&result)
-
+	result, err := m.GetDBMetaInfo(db)
 	if err != nil && err != mgo.ErrNotFound {
-		return err
+		return
 	}
 
-	// if dataset doesn't exist yet
-	if err == mgo.ErrNotFound {
-		return nil
+	if err != mgo.ErrNotFound {
+		exists = true
 	}
-
-	// if dataset is an already existing dataset marked as rolling = true
-	if result.Rolling {
-		// make sure number of chunks matches the one that's on file for that dataset
-		if result.TotalChunks != numchunks {
-			return fmt.Errorf("The total chunk size for existing rolling dataset [ "+db+" ] is set to [ %d ] and cannot be changed unless the dataset is deleted and recreated.", result.TotalChunks)
-		}
-	}
-
-	return nil
+	err = nil
+	isRolling = result.Rolling
+	currChunk = result.CurrentChunk
+	totalChunks = result.TotalChunks
+	return
 }
 
 //SetRollingSettings ensures that a given db is marked as rolling,
 //ensures that total_chunks matches numchunks, and sets the current_chunk to chunk.
-func (m *MetaDB) SetRollingSettings(db string, numchunks int, chunk int) error {
+func (m *MetaDB) SetRollingSettings(db string, chunk int, numchunks int) error {
+	// pull down dataset record from metadatabase
+	result, err := m.GetDBMetaInfo(db)
+	if err != nil {
+		return err
+	}
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
-	// pull down dataset record from metadatabase
-	var result DBMetaInfo
-	err := ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(bson.M{"name": db}).One(&result)
+	if !result.Rolling {
+		m.log.Infof("The dataset [ %s ] is being converted to a rolling dataset.", db)
+	} else if result.TotalChunks != numchunks {
+		m.log.Warnf("The total chunk size for existing rolling dataset [ %s ] was set to [ %d ] and is being changed to [ %d ].",
+			db, result.TotalChunks, numchunks)
+	}
 
+	// update rolling settings
+	_, err = ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).
+		Upsert(
+			// selector
+			bson.M{"name": db},
+			// data
+			bson.M{"$set": bson.M{
+				"rolling": true,
+				"current_chunk": chunk,
+				"total_chunks": numchunks},
+			},
+		)
 	if err != nil {
 		return err
 	}
 
-	// if dataset is an already existing dataset marked as rolling = true
-	if result.Rolling {
-		// make sure number of chunks matches the one that's on file for that dataset
-		if result.TotalChunks != numchunks {
-			return fmt.Errorf("The total chunk size for existing rolling dataset [ "+db+" ] is set to [ %d ] and cannot be changed unless the dataset is deleted and recreated.", result.TotalChunks)
-		}
-
-		// set current chunk number
-		_, err = ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).
-			Upsert(
-				bson.M{"name": db}, // selector
-				bson.M{"$set": bson.M{"current_chunk": chunk}}, // data
-			)
-
-		if err != nil {
-			return err
-		}
-		// otherwise, if dataset record exists and is analyzed, but its not a rolling dataset, return error
-	} else if result.Analyzed == true {
-		return fmt.Errorf("Cannot append to an already analyzed, non-rolling dataset as a rolling dataset. Please choose another target dataset")
-
-		// otherwise, if unanalyzed, freshly created dataset, create fields necessary for rolling analysis.
-	} else {
-
-		for i := 0; i < numchunks; i++ {
-
-			q := bson.M{
-				"$set": bson.M{
-					"rolling":                              true,
-					"total_chunks":                         numchunks,
-					"current_chunk":                        chunk,
-					"cid_list." + strconv.Itoa(i) + ".set": false,
-				}}
-
-			_, err = ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).
-				Upsert(
-					bson.M{"name": db}, // selector
-					q,                  // data
-				)
-			if err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
 
@@ -178,8 +140,9 @@ func (m *MetaDB) LastCheck() (time.Time, semver.Version) {
 	return time.Time{}, semver.Version{}
 }
 
-// AddNewDB adds a new database to the DBMetaInfo table
-func (m *MetaDB) AddNewDB(name string) error {
+// AddNewDB adds a new database to the DBMetaInfo table. All new databases are
+// ready to be rolling databases.
+func (m *MetaDB) AddNewDB(name string, currentChunk, totalChunks int) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	ssn := m.dbHandle.Copy()
@@ -190,6 +153,9 @@ func (m *MetaDB) AddNewDB(name string) error {
 			Name:           name,
 			Analyzed:       false,
 			AnalyzeVersion: m.config.S.Version,
+			Rolling:        false,
+			CurrentChunk:   currentChunk,
+			TotalChunks:    totalChunks,
 		},
 	)
 	if err != nil {
@@ -197,6 +163,23 @@ func (m *MetaDB) AddNewDB(name string) error {
 			"error": err.Error(),
 			"name":  name,
 		}).Error("failed to create new db document")
+		return err
+	}
+
+	// Used to initialize Mongo array
+	// e.g. [{"set": false}, {"set": false}]
+    cidList := make([]struct {Set bool `bson:"set"`}, totalChunks)
+
+	_, err = ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).
+    	Upsert(
+    		// selector
+			bson.M{"name": name},
+			// data
+			bson.M{"$set": bson.M{
+				"cid_list": cidList,
+			}},
+		)
+	if err != nil {
 		return err
 	}
 
@@ -587,7 +570,7 @@ func (m *MetaDB) AddParsedFiles(files []*fpt.IndexedFile) error {
 				"$push": bson.M{
 					"file_hashes": bson.M{
 						"hash": file.Hash,
-			            "cid": m.config.S.Bro.CurrentChunk,
+			            "cid": m.config.S.Rolling.CurrentChunk,
 					},
 				},
 			},

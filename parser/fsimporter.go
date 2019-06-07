@@ -56,9 +56,9 @@ func NewFSImporter(res *resources.Resources,
 	return &FSImporter{
 		res:             res,
 		importDirectory: importDirectory,
-		rolling:         res.Config.S.Bro.Rolling,
-		totalChunks:     res.Config.S.Bro.TotalChunks,
-		currentChunk:    res.Config.S.Bro.CurrentChunk,
+		rolling:         res.Config.S.Rolling.Rolling,
+		totalChunks:     res.Config.S.Rolling.TotalChunks,
+		currentChunk:    res.Config.S.Rolling.CurrentChunk,
 		indexingThreads: indexingThreads,
 		parseThreads:    parseThreads,
 		internal:        getParsedSubnets(res.Config.S.Filtering.InternalSubnets),
@@ -145,7 +145,7 @@ func (fs *FSImporter) Run() {
 	}
 
 	if !dbExists {
-		err := fs.res.MetaDB.AddNewDB(fs.res.DB.GetSelectedDB())
+		err := fs.res.MetaDB.AddNewDB(fs.res.DB.GetSelectedDB(), fs.currentChunk, fs.totalChunks)
 		if err != nil {
 			fs.res.Log.WithFields(log.Fields{
 				"err":      err,
@@ -156,13 +156,12 @@ func (fs *FSImporter) Run() {
 	}
 
 	if fs.rolling {
-		//SetRollingSettings expects a one based chunk id, but fs uses a zero based chunk_id
-		err := fs.res.MetaDB.SetRollingSettings(fs.res.DB.GetSelectedDB(), fs.totalChunks, fs.currentChunk+1)
+		err := fs.res.MetaDB.SetRollingSettings(fs.res.DB.GetSelectedDB(), fs.currentChunk, fs.totalChunks)
 		if err != nil {
 			fs.res.Log.WithFields(log.Fields{
 				"err":      err,
 				"database": fs.res.DB.GetSelectedDB(),
-			}).Error("Could not set rolling database settings for new database")
+			}).Error("Could not update rolling database settings for database")
 			fmt.Printf("\t[!] %v", err.Error())
 		}
 

@@ -23,6 +23,11 @@ MongoDB:
     # This database holds information about the procesed files and databases.
     MetaDB: MetaDatabase
 
+Rolling:
+    # This is the default number of chunks to keep in rolling databases.
+    # This only is used if the --numchunks command argument isn't supplied.
+    DefaultChunks: 12
+
 LogConfig:
     # LogLevel
     # 3 = debug

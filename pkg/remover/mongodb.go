@@ -24,7 +24,7 @@ func NewMongoRemover(res *resources.Resources) Repository {
 //Upsert loops through every new uconn ....
 func (r *remover) Remove(cid int) error {
 
-	fmt.Println("\t[-] Removing matching chunk: ", cid+1)
+	fmt.Println("\t[-] Removing matching chunk: ", cid)
 
 	// first we need to use the entries being removed from hostnames to reduce the
 	// subdomain count in exploded dns. This is done so we don't have to keep Unique
@@ -125,7 +125,7 @@ func (r *remover) removeOutdatedCIDs(cid int) error {
 	// remove files with the cid from MetaDatabase
 	ssn := r.res.DB.Session.Copy()
 	defer ssn.Close()
-	info, err := ssn.DB(r.res.Config.S.Bro.MetaDB).C(r.res.Config.T.Meta.DatabasesTable).UpdateAll(
+	info, err := ssn.DB(r.res.Config.S.MongoDB.MetaDB).C(r.res.Config.T.Meta.DatabasesTable).UpdateAll(
 		bson.M{"name": r.res.DB.GetSelectedDB()},
 		bson.M{"$pull": bson.M{"file_hashes": bson.M{"cid": cid}}},
 	)
