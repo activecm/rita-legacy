@@ -44,11 +44,15 @@ func deleteDatabase(c *cli.Context) error {
 	force := c.Bool("force")
 	dryRun := c.Bool("dry-run")
 	var names []string
-	var err error
 
-	if (match != "") && (!bulk) {
-		// Getting multiple dbs via string search
-		bulk = true
+	if checkFlags((match != ""), (regex != ""), bulk) {
+		return cli.NewExitError("Please select a single bulk option", -1)
+	}
+
+	if bulk {
+		dbs := res.MetaDB.GetDatabases()
+		copy(names, dbs)
+	} else if match != "" {
 
 		// Get DB list
 		dbs := res.MetaDB.GetDatabases()
@@ -60,9 +64,7 @@ func deleteDatabase(c *cli.Context) error {
 			}
 		}
 
-	} else if (regex != "") && (!bulk) {
-		// Getting multiple dbs via regex query
-		bulk = true
+	} else if regex != "" {
 
 		// Get DB list
 		dbs := res.MetaDB.GetDatabases()
@@ -82,56 +84,36 @@ func deleteDatabase(c *cli.Context) error {
 		}
 
 	} else {
+		// Single database deletion
+		tgtDB := c.Args().Get(0)
 		// get all database names
-		names = res.MetaDB.GetDatabases()
+		dbs := res.MetaDB.GetDatabases()
+		if find(dbs, tgtDB) != len(dbs) {
+			names = append(names, tgtDB)
+		}
+
 	}
 
 	// check if we have databases
-	if err != nil || len(names) == 0 {
+	if len(names) == 0 {
 		return cli.NewExitError("Failed to find any databases", -1)
 	}
 
-	// For single database deletion
-	if !bulk {
-
-		database := c.Args().Get(0)
-		if database == "" {
-			return cli.NewExitError("Specify a database or specify --all or -a for all databases", -1)
+	// if no force or dry run flag, verify action
+	if !force && !dryRun {
+		if confirmAction("Confirm we'll be deleting the following databases:\n" + strings.Join(names, "\n")) {
+			fmt.Println("Deleting databases...")
+		} else {
+			return cli.NewExitError("Nothing deleted, no changes have been made", 0)
 		}
+	}
 
-		// if no force or dry run flag, verify action with the user
-		if !force && !dryRun {
-			if confirmAction("Are you sure you want to delete database " + database + " [y/N] ") {
-				fmt.Println("Deleting database: ", database)
-			} else {
-				return cli.NewExitError("Database "+database+" was not deleted.", 0)
-			}
+	// Iterate through databases to delete and delete them one by one
+	for _, database := range names {
+		dberr := deleteSingleDatabase(res, names, database, dryRun)
+		if dberr != nil {
+			return cli.NewExitError(dberr.Error, -1)
 		}
-
-		err := deleteSingleDatabase(res, names, database, dryRun)
-		if err != nil {
-			return cli.NewExitError(err.Error, -1)
-		}
-
-	} else {
-		// Otherwise, we're deleting multiple items
-		// if no force or dry run flag, verify action
-		if !force && !dryRun {
-			if confirmAction("Confirm we'll be deleting the following databases:\n" + strings.Join(names, "\n")) {
-				fmt.Println("Deleting databases...")
-			} else {
-				return cli.NewExitError("Nothing deleted, no changes have been made", 0)
-			}
-		}
-
-		// Iterate through databases to delete and delete them one by one
-		for _, database := range names {
-			dberr := deleteSingleDatabase(res, names, database, dryRun)
-			if dberr != nil {
-				return cli.NewExitError(dberr.Error, -1)
-			}
-		}
-
 	}
 
 	// Dry run warning
@@ -189,4 +171,23 @@ func confirmAction(confimationMessage string) bool {
 	}
 
 	return false
+}
+
+func checkFlags(a bool, b bool, c bool) bool {
+	return xor3(a, b, c) && !(a && b && c)
+}
+
+// Go for some reason doesn't have a boolean xor operator
+// which I insanely love, thank you google
+func xor3(a bool, b bool, c bool) bool {
+	return (!a && b && !c) || (a && !b && !c) || (!a && !b && c) || (a && b && c)
+}
+
+func find(array []string, search string) int {
+	for i, n := range array {
+		if search == n {
+			return i
+		}
+	}
+	return len(search)
 }

@@ -55,7 +55,7 @@ var (
 	// dryRun indicates which databases would be deleted with current options
 	dryRunFlag = cli.BoolFlag{
 		Name:  "dry-run, n",
-		Usage: "Test which databases would be deleted, but does not actually delete, nor ask for prompts",
+		Usage: "Tests which databases would be deleted. Does not actually delete any data, nor prompt for confirmation",
 	}
 
 	// for rolling analysis: says how many chunks are in a given day
