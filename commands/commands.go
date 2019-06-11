@@ -63,7 +63,7 @@ var (
 	}
 
 	limitFlag = cli.IntFlag{
-		Name:  "limit, l",
+		Name:  "limit, li",
 		Usage: "Limit the outputs of the result to `LIMIT` values",
 		Value: 1000,
 	}
