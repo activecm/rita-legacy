@@ -45,7 +45,7 @@ func deleteDatabase(c *cli.Context) error {
 	dryRun := c.Bool("dry-run")
 	var names []string
 
-	if checkFlagsExclusive((match != ""), (regex != ""), bulk) {
+	if !checkFlagsExclusive((match != ""), (regex != ""), bulk) {
 		return cli.NewExitError("Please select a single bulk option", -1)
 	}
 
