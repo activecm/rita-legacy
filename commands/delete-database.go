@@ -45,7 +45,7 @@ func deleteDatabase(c *cli.Context) error {
 	dryRun := c.Bool("dry-run")
 	var names []string
 
-	if checkFlags((match != ""), (regex != ""), bulk) {
+	if checkFlagsExclusive((match != ""), (regex != ""), bulk) {
 		return cli.NewExitError("Please select a single bulk option", -1)
 	}
 
@@ -88,7 +88,7 @@ func deleteDatabase(c *cli.Context) error {
 		tgtDB := c.Args().Get(0)
 		// get all database names
 		dbs := res.MetaDB.GetDatabases()
-		if find(dbs, tgtDB) != len(dbs) {
+		if util.StringInSlice(tgtDB, dbs) {
 			names = append(names, tgtDB)
 		}
 
@@ -118,7 +118,7 @@ func deleteDatabase(c *cli.Context) error {
 
 	// Dry run warning
 	if dryRun {
-		fmt.Fprintf(os.Stdout, "\t[-] This was a dry run of the delete command, nothing has been changed!\n")
+		fmt.Printf("\t[-] This was a dry run of the delete command, nothing has been changed!\n")
 	}
 
 	return nil
@@ -153,11 +153,14 @@ func deleteSingleDatabase(res *resources.Resources, dbnames []string, db string,
 	}
 
 	// if it got here, deleting was a success!
-	fmt.Fprintf(os.Stdout, "\t[-] Successfully deleted database %s.\n", db)
+	fmt.Printf("\t[-] Successfully deleted database %s.\n", db)
 
 	return nil
 }
 
+// Confirms action, takes a string that is the confirmation message,
+// returns true if the user has selected true, and false
+// if the user answers otherwise (assumed no)
 func confirmAction(confimationMessage string) bool {
 	fmt.Print(confimationMessage, "\n [y/N] : ")
 
@@ -173,21 +176,14 @@ func confirmAction(confimationMessage string) bool {
 	return false
 }
 
-func checkFlags(a bool, b bool, c bool) bool {
+// Checks if 3 bool flags are exclusively set,
+// If only a single flag is set, returns true, otherweise
+// returns false if more than a single flag is set
+func checkFlagsExclusive(a, b, c bool) bool {
 	return xor3(a, b, c) && !(a && b && c)
 }
 
-// Go for some reason doesn't have a boolean xor operator
-// which I insanely love, thank you google
-func xor3(a bool, b bool, c bool) bool {
+// 3 way xor bool gate utility
+func xor3(a, b, c bool) bool {
 	return (!a && b && !c) || (a && !b && !c) || (!a && !b && c) || (a && b && c)
-}
-
-func find(array []string, search string) int {
-	for i, n := range array {
-		if search == n {
-			return i
-		}
-	}
-	return len(search)
 }
