@@ -2,8 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/activecm/rita/parser"
@@ -17,7 +15,7 @@ func init() {
 	importCommand := cli.Command{
 		Name:  "import",
 		Usage: "Import bro logs into a target database",
-		UsageText: "rita import [command options] [<import directory> <database name>]\n\n" +
+		UsageText: "rita import [command options] <import directory|file> [<import directory|file>...] <database name>\n\n" +
 			"Logs directly in <import directory> will be imported into a database" +
 			" named <database name>.",
 		Flags: []cli.Flag{
@@ -44,6 +42,8 @@ type (
 		res            *resources.Resources
 		configFile     string
 		importDir      string
+		args           cli.Args
+		importFiles    []string
 		targetDatabase string
 		rolling        bool
 		totalChunks    int
@@ -56,8 +56,7 @@ type (
 func NewImporter(c *cli.Context) *Importer {
 	return &Importer{
 		configFile:     c.String("config"),
-		importDir:      c.Args().Get(0),
-		targetDatabase: c.Args().Get(1),
+		args:           c.Args(),
 		rolling:        c.Bool("rolling"),
 		totalChunks:    c.Int("numchunks"),
 		currentChunk:   c.Int("chunk"),
@@ -66,14 +65,20 @@ func NewImporter(c *cli.Context) *Importer {
 }
 
 func (i *Importer) parseArgs() error {
+	if len(i.args) < 2 {
+		return cli.NewExitError("\n\t[!] Both <files/directory to import> and <database name> are required.", -1)
+	}
+
+	i.targetDatabase = i.args[len(i.args)-1]  // the last argument
+	i.importFiles = i.args[:len(i.args)-1]    // all except the last argument
 
 	//check if one argument is set but not the other
-	if i.importDir == "" || i.targetDatabase == "" {
-		return cli.NewExitError("\n\t[!] Both <directory to import> and <database name> are required.", -1)
+	if i.importFiles[0] == "" || i.targetDatabase == "" {
+		return cli.NewExitError("\n\t[!] Both <files/directory to import> and <database name> are required.", -1)
 	}
 
 	// check if import directory is okay to read from
-	err := i.checkImportDirExists()
+	err := checkFilesExist(i.importFiles)
 	if err != nil {
 		return err
 	}
@@ -88,17 +93,11 @@ func (i *Importer) parseArgs() error {
 	return nil
 }
 
-func (i *Importer) checkImportDirExists() error {
-
-	// parse directory path
-	filePath, err := filepath.Abs(i.importDir)
-	if err != nil {
-		return cli.NewExitError(err.Error(), -1)
-	}
-
-	// check if directory exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return cli.NewExitError(fmt.Errorf("\n\t[!] %v", err.Error()), -1)
+func checkFilesExist(files []string) error {
+	for _, file := range files {
+		if !util.Exists(file) {
+			return cli.NewExitError(fmt.Errorf("\n\t[!] %v cannot be found", file), -1)
+		}
 	}
 	return nil
 }
@@ -163,7 +162,7 @@ func (i *Importer) setRolling() error {
 				i.res.Config.S.Rolling.CurrentChunk,
 				i.res.Config.S.Rolling.TotalChunks,
 			),
-			-1,
+			-1,		// return code
 		)
 	}
 
@@ -187,17 +186,17 @@ func (i *Importer) run() error {
 		return err
 	}
 
-	importer := parser.NewFSImporter(i.res, i.threads, i.threads, i.importDir)
+	importer := parser.NewFSImporter(i.res, i.threads, i.threads, i.importFiles)
 	if len(importer.GetInternalSubnets()) == 0 {
 		return cli.NewExitError("Internal subnets are not defined. Please set the InternalSubnets section of the config file.", -1)
 	}
 
-	i.res.Log.Infof("Importing %s\n", i.importDir)
-	fmt.Println("\n\t[+] Importing " + i.importDir + " :")
+	i.res.Log.Infof("Importing %v\n", i.importFiles)
+	fmt.Printf("\n\t[+] Importing %v:\n", i.importFiles)
 
 	importer.Run()
 
-	i.res.Log.Infof("Finished importing %s\n", i.importDir)
+	i.res.Log.Infof("Finished importing %v\n", i.importFiles)
 
 	return nil
 }

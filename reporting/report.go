@@ -127,13 +127,10 @@ func writeDBHomePage(db string) error {
 
 func writeDB(db string, wd string, res *resources.Resources) error {
 	writeDir := wd + "/" + db
+	var err error
 
 	fmt.Print("[-] Writing: " + writeDir + "\n")
-	fExists, err := util.Exists(writeDir)
-	if err != nil {
-		return err
-	}
-	if !fExists {
+	if !util.Exists(writeDir) {
 		err = os.Mkdir(db, 0755)
 		if err != nil {
 			return err

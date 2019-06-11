@@ -21,15 +21,27 @@ func IsIP(ip string) bool {
 }
 
 // Exists returns true if file or directory exists
-func Exists(path string) (bool, error) {
+func Exists(path string) bool {
 	_, err := os.Stat(path)
 	if err == nil {
-		return true, nil
+		return true
 	}
 	if os.IsNotExist(err) {
-		return false, nil
+		return false
 	}
-	return true, err
+	return true
+}
+
+// IsDir returns true if argument is a directory
+func IsDir(path string) bool {
+	file, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	if file.IsDir() {
+		return true
+	}
+	return false
 }
 
 // ByStringLength Functions that, in combination with golang sort,
