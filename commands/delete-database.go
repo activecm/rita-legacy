@@ -177,7 +177,7 @@ func confirmAction(confimationMessage string) bool {
 }
 
 // Checks if 3 bool flags are exclusively set,
-// If only a single flag is set, returns true, otherweise
+// If only a single flag is set, returns true, otherwise
 // returns false if more than a single flag is set
 func checkFlagsExclusive(a, b, c bool) bool {
 	return xor3(a, b, c) && !(a && b && c)
