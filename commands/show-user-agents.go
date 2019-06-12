@@ -25,6 +25,7 @@ func init() {
 			},
 			configFlag,
 			limitFlag,
+			noLimitFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
@@ -41,7 +42,7 @@ func init() {
 				sortDirection = -1
 			}
 
-			data, err := getUseragentResultsView(res, sort, sortDirection, c.Int("limit"))
+			data, err := getUseragentResultsView(res, sort, sortDirection, c.Int("limit"), c.Bool("no-limit"))
 
 			if err != nil {
 				res.Log.Error(err)
@@ -91,7 +92,7 @@ func showAgentsHuman(agents []useragent.AnalysisView) error {
 }
 
 //getUseragentResultsView gets the useragent results
-func getUseragentResultsView(res *resources.Resources, sort string, sortDirection int, limit int) ([]useragent.AnalysisView, error) {
+func getUseragentResultsView(res *resources.Resources, sort string, sortDirection, limit int, noLimit bool) ([]useragent.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -110,7 +111,10 @@ func getUseragentResultsView(res *resources.Resources, sort string, sortDirectio
 			"seen":       1,
 		}},
 		bson.M{"$sort": bson.M{sort: sortDirection}},
-		bson.M{"$limit": limit},
+	}
+
+	if !noLimit {
+		useragentQuery = append(useragentQuery, bson.M{"$limit": limit})
 	}
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.UserAgent.UserAgentTable).Pipe(useragentQuery).AllowDiskUse().All(&useragentResults)

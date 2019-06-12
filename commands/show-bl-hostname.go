@@ -23,6 +23,7 @@ func init() {
 			humanFlag,
 			configFlag,
 			limitFlag,
+			noLimitFlag,
 		},
 		Usage:  "Print blacklisted hostnames which received connections",
 		Action: printBLHostnames,
@@ -41,7 +42,7 @@ func printBLHostnames(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
-	data, err := getBlacklistedHostnameResultsView(res, "conn_count", c.Int("limit"))
+	data, err := getBlacklistedHostnameResultsView(res, "conn_count", c.Int("limit"), c.Bool("no-limit"))
 
 	if err != nil {
 		res.Log.Error(err)
@@ -115,7 +116,7 @@ func showBLHostnamesHuman(hostnames []hostname.AnalysisView) error {
 }
 
 //getBlacklistedHostnameResultsView ....
-func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, limit int) ([]hostname.AnalysisView, error) {
+func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, limit int, noLimit bool) ([]hostname.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -145,7 +146,6 @@ func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, li
 			"total_bytes": bson.M{"$sum": "$bytes"},
 		}},
 		bson.M{"$sort": bson.M{sort: -1}},
-		bson.M{"$limit": limit},
 		bson.M{"$project": bson.M{
 			"_id":         0,
 			"host":        "$_id",
@@ -154,6 +154,10 @@ func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, li
 			"conn_count":  1,
 			"total_bytes": 1,
 		}},
+	}
+
+	if !noLimit {
+		blHostsQuery = append(blHostsQuery, bson.M{"$limit": limit})
 	}
 
 	var blHosts []hostname.AnalysisView

@@ -24,6 +24,7 @@ func init() {
 			blSortFlag,
 			configFlag,
 			limitFlag,
+			noLimitFlag,
 		},
 		Usage:  "Print blacklisted IPs which initiated connections",
 		Action: printBLSourceIPs,
@@ -73,7 +74,7 @@ func printBLSourceIPs(c *cli.Context) error {
 			bson.M{"dat.count_src": bson.M{"$gt": 0}},
 		}}
 	limit := c.Int("limit")
-	data, err := getBlacklistedIPsResultsView(res, sort, limit, match, "src", "dst")
+	data, err := getBlacklistedIPsResultsView(res, sort, c.Bool("no-limit"), limit, match, "src", "dst")
 
 	if err != nil {
 		res.Log.Error(err)
@@ -114,7 +115,7 @@ func printBLDestIPs(c *cli.Context) error {
 		}}
 
 	limit := c.Int("limit")
-	data, err := getBlacklistedIPsResultsView(res, sort, limit, match, "dst", "src")
+	data, err := getBlacklistedIPsResultsView(res, sort, c.Bool("no-limit"), limit, match, "dst", "src")
 
 	if err != nil {
 		res.Log.Error(err)
@@ -198,7 +199,7 @@ func showBLIPsHuman(ips []host.AnalysisView, connectedHosts, source bool) error 
 }
 
 //getBlaclistedIPsResultsView
-func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit int, match bson.M, field1 string, field2 string) ([]host.AnalysisView, error) {
+func getBlacklistedIPsResultsView(res *resources.Resources, sort string, noLimit bool, limit int, match bson.M, field1 string, field2 string) ([]host.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -224,7 +225,6 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit i
 			"total_bytes": bson.M{"$sum": "$bytes"},
 		}},
 		bson.M{"$sort": bson.M{sort: -1}},
-		bson.M{"$limit": limit},
 		bson.M{"$project": bson.M{
 			"_id":         0,
 			"uconn_count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
@@ -233,6 +233,10 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit i
 			"host":        1,
 			"total_bytes": 1,
 		}},
+	}
+
+	if !noLimit {
+		blIPQuery = append(blIPQuery, bson.M{"$limit": limit})
 	}
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
