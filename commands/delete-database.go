@@ -38,39 +38,38 @@ func deleteDatabase(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 
 	// Different command flags
-	match := c.String("match")
-	regex := c.String("regex")
+	tgt := c.Args().Get(0)
+	match := c.Bool("match")
+	regex := c.Bool("regex")
 	bulk := c.Bool("all")
 	force := c.Bool("force")
 	dryRun := c.Bool("dry-run")
 	var names []string
 
-	if !checkFlagsExclusive((match != ""), (regex != ""), bulk) {
-		return cli.NewExitError("Please select a single bulk option", -1)
+	err := checkCommandFlags(match, regex, bulk, tgt)
+	if err != nil {
+		return err
 	}
 
-	if bulk {
-		dbs := res.MetaDB.GetDatabases()
-		copy(names, dbs)
-	} else if match != "" {
+	if match {
 
 		// Get DB list
 		dbs := res.MetaDB.GetDatabases()
 
 		// Find dbs with matching names
 		for _, db := range dbs {
-			if strings.Contains(db, match) {
+			if strings.Contains(db, tgt) {
 				names = append(names, db)
 			}
 		}
 
-	} else if regex != "" {
+	} else if regex {
 
 		// Get DB list
 		dbs := res.MetaDB.GetDatabases()
 
 		// Compile regex, check if it's valid
-		regq, err := regexp.Compile(regex)
+		regq, err := regexp.Compile(tgt)
 		if err != nil {
 			return cli.NewExitError(err.Error, -1)
 		}
@@ -84,14 +83,11 @@ func deleteDatabase(c *cli.Context) error {
 		}
 
 	} else {
-		// Single database deletion
-		tgtDB := c.Args().Get(0)
 		// get all database names
 		dbs := res.MetaDB.GetDatabases()
-		if util.StringInSlice(tgtDB, dbs) {
-			names = append(names, tgtDB)
+		if util.StringInSlice(tgt, dbs) {
+			names = append(names, tgt)
 		}
-
 	}
 
 	// check if we have databases
@@ -176,14 +172,23 @@ func confirmAction(confimationMessage string) bool {
 	return false
 }
 
+func checkCommandFlags(bulk, match, regex bool, tgt string) error {
+	// All fields empty
+	if tgt == "" {
+		return errors.New("Please provide a database or string parameter or invoke with `--help` or `-h` for usage")
+	}
+
+	// Flags
+	if !checkFlagsExclusive(bulk, match, regex) {
+		return errors.New("Invalid operation, define a use or invoke with `--help` or `-h` for usage")
+	}
+
+	return nil
+}
+
 // Checks if 3 bool flags are exclusively set,
 // If only a single flag is set, returns true, otherwise
 // returns false if more than a single flag is set
 func checkFlagsExclusive(a, b, c bool) bool {
-	return xor3(a, b, c) && !(a && b && c)
-}
-
-// 3 way xor bool gate utility
-func xor3(a, b, c bool) bool {
-	return (!a && b && !c) || (a && !b && !c) || (!a && !b && c) || (a && b && c)
+	return (!a && b && !c) || (a && !b && !c) || (!a && !b && c)
 }
