@@ -48,11 +48,10 @@ func deleteDatabase(c *cli.Context) error {
 
 	err := checkCommandFlags(match, regex, bulk, tgt)
 	if err != nil {
-		return err
+		return cli.NewExitError(err.Error(), -1)
 	}
 
 	if match {
-
 		// Get DB list
 		dbs := res.MetaDB.GetDatabases()
 
@@ -64,7 +63,6 @@ func deleteDatabase(c *cli.Context) error {
 		}
 
 	} else if regex {
-
 		// Get DB list
 		dbs := res.MetaDB.GetDatabases()
 
@@ -85,8 +83,14 @@ func deleteDatabase(c *cli.Context) error {
 	} else {
 		// get all database names
 		dbs := res.MetaDB.GetDatabases()
-		if util.StringInSlice(tgt, dbs) {
-			names = append(names, tgt)
+		//if all database is selected we append all dbs to be deleted, otherwise
+		//  check if we are getting other dbs
+		if bulk {
+			names = append(names, dbs...)
+		} else {
+			if util.StringInSlice(tgt, dbs) {
+				names = append(names, tgt)
+			}
 		}
 	}
 
@@ -172,9 +176,9 @@ func confirmAction(confimationMessage string) bool {
 	return false
 }
 
-func checkCommandFlags(bulk, match, regex bool, tgt string) error {
-	// All fields empty
-	if tgt == "" {
+func checkCommandFlags(match, regex, bulk bool, tgt string) error {
+	// All fields empty, if we have the all flag set, don't need a database name
+	if tgt == "" && !bulk {
 		return errors.New("Please provide a database or string parameter or invoke with `--help` or `-h` for usage")
 	}
 
@@ -189,6 +193,7 @@ func checkCommandFlags(bulk, match, regex bool, tgt string) error {
 // Checks if 3 bool flags are exclusively set,
 // If only a single flag is set, returns true, otherwise
 // returns false if more than a single flag is set
+// also allows a single database to be deleted if no flag is set
 func checkFlagsExclusive(a, b, c bool) bool {
-	return (!a && b && !c) || (a && !b && !c) || (!a && !b && c)
+	return (!a && b && !c) || (a && !b && !c) || (!a && !b && c || (!a && !b && !c))
 }
