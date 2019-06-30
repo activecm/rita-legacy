@@ -647,8 +647,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										}
 									}
 
-									// increment times seen count
-									certMap[dst].Seen++
+									if _, ok := certMap[dst]; ok {
+										// increment times seen count
+										certMap[dst].Seen++
+									}
 
 									for _, tuple := range uconnMap[src+dst].Tuples {
 										// mark as having invalid cert
