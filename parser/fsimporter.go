@@ -644,11 +644,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										// create new uconn record if it does not exist
 										certMap[dst] = &certificate.Input{
 											Host: dst,
+											Seen: 1,
 										}
+									} else {
+										certMap[dst].Seen++
 									}
-
-									// increment times seen count
-									certMap[dst].Seen++
 
 									for _, tuple := range uconnMap[src+dst].Tuples {
 										// mark as having invalid cert
