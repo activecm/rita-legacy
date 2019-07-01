@@ -184,7 +184,7 @@ func checkCommandFlags(match, regex, bulk bool, tgt string) error {
 
 	// Flags
 	if !checkFlagsExclusive(bulk, match, regex) {
-		return errors.New("Invalid operation, define a use or invoke with `--help` or `-h` for usage")
+		return errors.New("Invalid combination of flags, invoke with `--help` or `-h` for usage")
 	}
 
 	return nil
