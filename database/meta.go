@@ -512,10 +512,10 @@ func (m *MetaDB) GetAnalyzedDatabases() []string {
 //                            File Processing                                //
 ///////////////////////////////////////////////////////////////////////////////
 
-// GetFiles gets a list of all IndexedFile objects in the database if successful return a list of files
-// from the database, in the case of failure return a zero length list of files and generat a log
-// message.
-func (m *MetaDB) GetFiles() ([]fpt.IndexedFile, error) {
+// GetFiles gets a list of all IndexedFile objects associated with the given database.
+// If successful return a list of files from the database. On failure return an empty
+// list of files and generate a log message.
+func (m *MetaDB) GetFiles(database string) ([]fpt.IndexedFile, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	var toReturn []fpt.IndexedFile
@@ -524,7 +524,7 @@ func (m *MetaDB) GetFiles() ([]fpt.IndexedFile, error) {
 	defer ssn.Close()
 
 	err := ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.FilesTable).
-		Find(nil).Iter().All(&toReturn)
+		Find(bson.M{"database": database}).Iter().All(&toReturn)
 	if err != nil {
 		m.log.WithFields(log.Fields{
 			"error": err.Error(),

@@ -41,7 +41,6 @@ type (
 	Importer struct {
 		res            *resources.Resources
 		configFile     string
-		importDir      string
 		args           cli.Args
 		importFiles    []string
 		targetDatabase string

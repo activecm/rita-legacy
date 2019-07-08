@@ -4,6 +4,7 @@ import (
 	"time"
 
 	pt "github.com/activecm/rita/parser/parsetypes"
+	"github.com/globalsign/mgo/bson"
 )
 
 //BroHeader contains the parse information contained within the comment lines

@@ -110,7 +110,7 @@ func (fs *FSImporter) Run() {
 	fmt.Println("\t[-] Verifying log files have not been previously parsed into the target dataset ... ")
 	// check list of files against metadatabase records to ensure that the a file
 	// won't be imported into the same database twice.
-	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
+	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log, fs.res.DB.GetSelectedDB())
 
 	// if all files were removed because they've already been imported, handle error
 	if !(len(indexedFiles) > 0) {
