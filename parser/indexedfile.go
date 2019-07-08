@@ -146,9 +146,9 @@ func indexFiles(files []string, indexingThreads int, res *resources.Resources) [
 //The files are compared based on their hashes (md5 of first 15000 bytes)
 //and the database they are slated to be imported into.
 func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
-	metaDatabase *database.MetaDB, logger *log.Logger, targetDatabase string) []*fpt.IndexedFile {
+	metaDatabase *database.MetaDB, logger *log.Logger) []*fpt.IndexedFile {
 	var toReturn []*fpt.IndexedFile
-	oldFiles, err := metaDatabase.GetFiles(targetDatabase)
+	oldFiles, err := metaDatabase.GetFiles()
 	if err != nil {
 		logger.WithFields(log.Fields{
 			"error": err.Error(),
@@ -163,7 +163,7 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 
 		have := false
 		for _, oldFile := range oldFiles {
-			if oldFile == newFile.Hash {
+			if oldFile.Hash == newFile.Hash && oldFile.TargetDatabase == newFile.TargetDatabase {
 				logger.WithFields(log.Fields{
 					"path":            newFile.Path,
 					"target_database": newFile.TargetDatabase,

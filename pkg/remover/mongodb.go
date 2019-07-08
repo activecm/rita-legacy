@@ -7,7 +7,6 @@ import (
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo/bson"
-	log "github.com/sirupsen/logrus"
 )
 
 type remover struct {
@@ -121,22 +120,6 @@ func (r *remover) removeOutdatedCIDs(cid int) error {
 
 	// close writer channel
 	writerWorker.closeCIDRemover()
-
-	// remove files with the cid from MetaDatabase
-	ssn := r.res.DB.Session.Copy()
-	defer ssn.Close()
-	info, err := ssn.DB(r.res.Config.S.MongoDB.MetaDB).C(r.res.Config.T.Meta.DatabasesTable).UpdateAll(
-		bson.M{"name": r.res.DB.GetSelectedDB()},
-		bson.M{"$pull": bson.M{"file_hashes": bson.M{"cid": cid}}},
-	)
-	if err != nil ||
-		((info.Updated == 0) && (info.Removed == 0) && (info.Matched != 0)) {
-		r.res.Log.WithFields(log.Fields{
-			"Module":  "remover",
-			"Info":    info,
-			"Message": "failed to delete chunk files",
-		}).Error(err)
-	}
 
 	return nil
 }

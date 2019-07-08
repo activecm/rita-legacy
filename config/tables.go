@@ -50,7 +50,7 @@ type (
 
 	//MetaTableCfg contains the meta db collection names
 	MetaTableCfg struct {
-		FilesTable     string `default:"files"`  // TODO: this is left in for backwards compatibility
+		FilesTable     string `default:"files"`
 		DatabasesTable string `default:"databases"`
 	}
 )
