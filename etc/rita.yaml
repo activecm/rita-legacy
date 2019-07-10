@@ -26,7 +26,7 @@ MongoDB:
 Rolling:
     # This is the default number of chunks to keep in rolling databases.
     # This only is used if the --numchunks command argument isn't supplied.
-    DefaultChunks: 12
+    DefaultChunks: 24
 
 LogConfig:
     # LogLevel
