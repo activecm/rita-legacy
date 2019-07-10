@@ -61,8 +61,8 @@ type (
 	RollingStaticCfg struct {
 		DefaultChunks int `yaml:"DefaultChunks" default:"12"`
 		Rolling       bool
-		TotalChunks   int
 		CurrentChunk  int
+		TotalChunks   int
 	}
 
 	//UserCfgStaticCfg contains
