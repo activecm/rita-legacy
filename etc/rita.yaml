@@ -78,10 +78,10 @@ Filtering:
     # in any internal to internal and external to external connections being
     # filtered out at import time. Reasonable defaults are provided below
     # but need to be manually verified against each installation before enabling.
-    #InternalSubnets:
-    #  - 10.0.0.0/8          # Private-Use Networks  RFC 1918
-    #  - 172.16.0.0/12       # Private-Use Networks  RFC 1918
-    #  - 192.168.0.0/16      # Private-Use Networks  RFC 1918
+    InternalSubnets:
+     - 10.0.0.0/8          # Private-Use Networks  RFC 1918
+     - 172.16.0.0/12       # Private-Use Networks  RFC 1918
+     - 192.168.0.0/16      # Private-Use Networks  RFC 1918
 
 BlackListed:
     Enabled: true
