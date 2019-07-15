@@ -114,10 +114,10 @@ func TestSetRolling(t *testing.T) {
 			exists, rolling, 1, 12, rolling, blank, blank, default12, cfg{0, rolling, 2, 12}, !returnsError},
 
 		tc{"rita import --rolling --chunk 0 --numchunks 24",
-			exists, rolling, 1, 12, rolling, 0, 24, default12, cfg{0, rolling, 0, 24}, !returnsError},
+			exists, rolling, 1, 12, rolling, 0, 24, default12, cfg{0, rolling, 0, 24}, returnsError},
 
 		tc{"rita import --numchunks 24",
-			exists, rolling, 1, 12, !rolling, blank, 24, default12, cfg{0, rolling, 2, 24}, !returnsError},
+			exists, rolling, 1, 12, !rolling, blank, 24, default12, cfg{0, rolling, 2, 24}, returnsError},
 
 		tc{"rita import --chunk 5 (default 12)",
 			exists, rolling, 1, 12, !rolling, 5, blank, default12, cfg{0, rolling, 5, 12}, !returnsError},
@@ -129,7 +129,7 @@ func TestSetRolling(t *testing.T) {
 			exists, rolling, 1, 12, !rolling, 12, blank, default24, cfg{0, rolling, 12, 12}, returnsError},
 
 		tc{"rita import --chunk 12 --numchunks 24",
-			exists, rolling, 1, 12, !rolling, 12, 24, default12, cfg{0, rolling, 12, 24}, !returnsError},
+			exists, rolling, 1, 12, !rolling, 12, 24, default12, cfg{0, rolling, 12, 24}, returnsError},
 
 		tc{"rita import --chunk -2",
 			exists, rolling, 1, 12, !rolling, -2, blank, default12, cfg{0, rolling, -2, 12}, returnsError},
@@ -145,10 +145,10 @@ func TestSetRolling(t *testing.T) {
 			exists, rolling, 11, 12, rolling, blank, blank, default12, cfg{0, rolling, 0, 12}, !returnsError},
 
 		tc{"rita import --rolling --chunk 0 --numchunks 24",
-			exists, rolling, 11, 12, rolling, 0, 24, default12, cfg{0, rolling, 0, 24}, !returnsError},
+			exists, rolling, 11, 12, rolling, 0, 24, default12, cfg{0, rolling, 0, 24}, returnsError},
 
 		tc{"rita import --numchunks 24",
-			exists, rolling, 11, 12, !rolling, blank, 24, default12, cfg{0, rolling, 12, 24}, !returnsError},
+			exists, rolling, 11, 12, !rolling, blank, 24, default12, cfg{0, rolling, 12, 24}, returnsError},
 
 		tc{"rita import --chunk 5 (default 12)",
 			exists, rolling, 11, 12, !rolling, 5, blank, default12, cfg{0, rolling, 5, 12}, !returnsError},
@@ -160,7 +160,7 @@ func TestSetRolling(t *testing.T) {
 			exists, rolling, 11, 12, !rolling, 12, blank, default24, cfg{0, rolling, 12, 12}, returnsError},
 
 		tc{"rita import --chunk 12 --numchunks 24",
-			exists, rolling, 11, 12, !rolling, 12, 24, default12, cfg{0, rolling, 12, 24}, !returnsError},
+			exists, rolling, 11, 12, !rolling, 12, 24, default12, cfg{0, rolling, 12, 24}, returnsError},
 
 		// rolling, current chunk 11, total chunks 24
 		tc{"rita import",
@@ -173,7 +173,7 @@ func TestSetRolling(t *testing.T) {
 			exists, rolling, 11, 24, rolling, 0, 24, default12, cfg{0, rolling, 0, 24}, !returnsError},
 
 		tc{"rita import --numchunks 12",
-			exists, rolling, 11, 24, !rolling, blank, 12, default12, cfg{0, rolling, 0, 12}, !returnsError},
+			exists, rolling, 11, 24, !rolling, blank, 12, default12, cfg{0, rolling, 0, 12}, returnsError},
 
 		tc{"rita import --chunk 12 --numchunks 12",
 			exists, rolling, 11, 24, !rolling, 12, 12, default12, cfg{0, rolling, 12, 12}, returnsError},

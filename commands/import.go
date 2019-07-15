@@ -121,6 +121,14 @@ func setRolling(dbExists bool, dbIsRolling bool, dbCurrChunk int, dbTotalChunks 
 	}
 
 	if userTotalChunks != -1 { // user gave the total number of chunks via command line
+		// it's currently an error to try to change the total number of chunks in an existing rolling database
+		if dbExists && dbIsRolling && dbTotalChunks != userTotalChunks {
+			return cfg, fmt.Errorf(
+				"\n\t[!] Cannot modify the total number of chunks [ %d ] in an existing database",
+				dbTotalChunks,
+			)
+		}
+
 		// use the user-provided value
 		cfg.TotalChunks = userTotalChunks
 	} else { // user didn't specify the total number of chunks
@@ -143,7 +151,7 @@ func setRolling(dbExists bool, dbIsRolling bool, dbCurrChunk int, dbTotalChunks 
 		cfg.CurrentChunk = userCurrChunk
 	} else { // user didn't specify the current chunk
 		if !dbExists {
-			// if the databse doesn't exist, then assume this is the first and only chunk
+			// if the databse doesn't exist, then assume this is the first chunk
 			cfg.CurrentChunk = 0
 		} else {
 			// otherwise increment tne current value, wrapping back to 0 when needed
@@ -188,7 +196,7 @@ func (i *Importer) run() error {
 	rollingCfg, err := setRolling(exists, isRolling, currChunk, totalChunks,
 		i.rolling, i.currentChunk, i.totalChunks, i.res.Config.S.Rolling.DefaultChunks)
 	if err != nil {
-		return err
+		return cli.NewExitError(err.Error(), -1)
 	}
 	// preserve the default chunks setting (even though we don't use it after this currently)
 	rollingCfg.DefaultChunks = i.res.Config.S.Rolling.DefaultChunks

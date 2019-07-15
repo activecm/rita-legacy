@@ -100,6 +100,8 @@ func (m *MetaDB) SetRollingSettings(db string, chunk int, numchunks int) error {
 	} else if result.TotalChunks != numchunks {
 		m.log.Warnf("The total chunk size for existing rolling dataset [ %s ] was set to [ %d ] and is being changed to [ %d ].",
 			db, result.TotalChunks, numchunks)
+		// TODO: if the total chunks increaase need to grow cid_list while preserving original entries
+		// TODO: if total chunks decrease need to shrink cid_list and delete chunk data
 	}
 
 	// update rolling settings
