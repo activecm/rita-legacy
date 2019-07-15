@@ -127,7 +127,7 @@ func (d *DB) CollectionExists(table string) bool {
 
 //CreateCollection creates a new collection in the currently selected
 //database with the required indexes
-func (d *DB) CreateCollection(name string, indeces []mgo.Index) error {
+func (d *DB) CreateCollection(name string, indexes []mgo.Index) error {
 	// Make a copy of the current session
 	session := d.Session.Copy()
 	defer session.Close()
@@ -145,7 +145,7 @@ func (d *DB) CreateCollection(name string, indeces []mgo.Index) error {
 	}
 
 	collection := session.DB(d.selected).C(name)
-	for _, index := range indeces {
+	for _, index := range indexes {
 		err := collection.EnsureIndex(index)
 		if err != nil {
 			return err

@@ -32,7 +32,7 @@ type (
 	//FSImporter provides the ability to import bro files from the file system
 	FSImporter struct {
 		res             *resources.Resources
-		importDirectory string
+		importFiles     []string
 		rolling         bool
 		totalChunks     int
 		currentChunk    int
@@ -52,13 +52,13 @@ type (
 
 //NewFSImporter creates a new file system importer
 func NewFSImporter(res *resources.Resources,
-	indexingThreads int, parseThreads int, importDirectory string) *FSImporter {
+	indexingThreads int, parseThreads int, importFiles []string) *FSImporter {
 	return &FSImporter{
 		res:             res,
-		importDirectory: importDirectory,
-		rolling:         res.Config.S.Bro.Rolling,
-		totalChunks:     res.Config.S.Bro.TotalChunks,
-		currentChunk:    res.Config.S.Bro.CurrentChunk,
+		importFiles:     importFiles,
+		rolling:         res.Config.S.Rolling.Rolling,
+		totalChunks:     res.Config.S.Rolling.TotalChunks,
+		currentChunk:    res.Config.S.Rolling.CurrentChunk,
 		indexingThreads: indexingThreads,
 		parseThreads:    parseThreads,
 		internal:        getParsedSubnets(res.Config.S.Filtering.InternalSubnets),
@@ -87,27 +87,15 @@ func (fs *FSImporter) Run() {
 		},
 	).Info("Starting filesystem import. Collecting file details.")
 
-	var files []string
-	//find all of the potential bro log paths
+	// find all of the potential bro log paths
+	files := readFiles(fs.importFiles, fs.res.Log)
 
-	// if rolling dataset
-	if fs.rolling {
-
-		fmt.Println("\t[-] Finding next chunk's files to parse ... ")
-		files = readDirRolling(fs.currentChunk, fs.totalChunks, fs.importDirectory, fs.res.Log)
-
-	} else { // if regular dataset
-		fmt.Println("\t[-] Finding files to parse ... ")
-		files = readDir(fs.importDirectory, fs.res.Log)
-
-	}
-
-	//hash the files and get their stats
+	// hash the files and get their stats
 	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res)
 
 	// if no compatible files for import were found, handle error
 	if !(len(indexedFiles) > 0) {
-		fmt.Println("\n\t[!] No compatible log files found in directory")
+		fmt.Println("\n\t[!] No compatible log files found")
 		return
 	}
 
@@ -122,7 +110,7 @@ func (fs *FSImporter) Run() {
 	fmt.Println("\t[-] Verifying log files have not been previously parsed into the target dataset ... ")
 	// check list of files against metadatabase records to ensure that the a file
 	// won't be imported into the same database twice.
-	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
+	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log, fs.res.DB.GetSelectedDB())
 
 	// if all files were removed because they've already been imported, handle error
 	if !(len(indexedFiles) > 0) {
@@ -145,7 +133,7 @@ func (fs *FSImporter) Run() {
 	}
 
 	if !dbExists {
-		err := fs.res.MetaDB.AddNewDB(fs.res.DB.GetSelectedDB())
+		err := fs.res.MetaDB.AddNewDB(fs.res.DB.GetSelectedDB(), fs.currentChunk, fs.totalChunks)
 		if err != nil {
 			fs.res.Log.WithFields(log.Fields{
 				"err":      err,
@@ -156,13 +144,12 @@ func (fs *FSImporter) Run() {
 	}
 
 	if fs.rolling {
-		//SetRollingSettings expects a one based chunk id, but fs uses a zero based chunk_id
-		err := fs.res.MetaDB.SetRollingSettings(fs.res.DB.GetSelectedDB(), fs.totalChunks, fs.currentChunk+1)
+		err := fs.res.MetaDB.SetRollingSettings(fs.res.DB.GetSelectedDB(), fs.currentChunk, fs.totalChunks)
 		if err != nil {
 			fs.res.Log.WithFields(log.Fields{
 				"err":      err,
 				"database": fs.res.DB.GetSelectedDB(),
-			}).Error("Could not set rolling database settings for new database")
+			}).Error("Could not update rolling database settings for database")
 			fmt.Printf("\t[!] %v", err.Error())
 		}
 

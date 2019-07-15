@@ -15,6 +15,7 @@ type (
 	StaticCfg struct {
 		UserConfig   UserCfgStaticCfg     `yaml:"UserConfig"`
 		MongoDB      MongoDBStaticCfg     `yaml:"MongoDB"`
+		Rolling      RollingStaticCfg     `yaml:"Rolling"`
 		Log          LogStaticCfg         `yaml:"LogConfig"`
 		Blacklisted  BlacklistedStaticCfg `yaml:"BlackListed"`
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
@@ -54,9 +55,14 @@ type (
 	//BroStaticCfg controls the file parser
 	BroStaticCfg struct {
 		MetaDB       string `yaml:"MetaDB"`  // kept in for backwards compatibility
-		Rolling      bool
-		TotalChunks  int
-		CurrentChunk int
+	}
+
+	//RollingStaticCfg controls the rolling database settings
+	RollingStaticCfg struct {
+		DefaultChunks int `yaml:"DefaultChunks" default:"12"`
+		Rolling       bool
+		CurrentChunk  int
+		TotalChunks   int
 	}
 
 	//UserCfgStaticCfg contains

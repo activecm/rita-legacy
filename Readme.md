@@ -65,33 +65,41 @@ Note that any value listed in the `Filtering` section should be in CIDR format. 
         * Provide the `--disable-bro` flag when running the installer if you intend to compile Bro/Zeek from source
 
 #### Importing and Analyzing Data With RITA
-  After installing RITA, setting up the `InternalSubnets` section of the config file, and collecting some Bro/Zeek logs, you are ready to begin hunting.
+After installing RITA, setting up the `InternalSubnets` section of the config file, and collecting some Bro/Zeek logs, you are ready to begin hunting.
 
-  Filtering and whitelisting happens at import time. These optional settings can be found alongside `InternalSubnets` in the configuration file.
+Filtering and whitelisting happens at import time. These optional settings can be found alongside `InternalSubnets` in the configuration file.
 
-  RITA will process Bro/Zeek TSV logs in both plaintext and gzip compressed formats. Note, if you are using Security Onion or Bro's JSON log output you will need to [switch back to traditional TSV output](https://securityonion.readthedocs.io/en/latest/bro.html#tsv).
+RITA will process Bro/Zeek TSV logs in both plaintext and gzip compressed formats. Note, if you are using Security Onion or Bro's JSON log output you will need to [switch back to traditional TSV output](https://securityonion.readthedocs.io/en/latest/bro.html#tsv).
 
   * **Option 1**: Create a One-Off Dataset
       * `rita import path/to/your/bro_logs dataset_name` creates a dataset from a collection of Bro/Zeek logs in a directory
       * Every log file directly in the supplied directory will be imported into a dataset with the given name
-      * Once a dataset has been created in this fashion, no other data may be imported into the dataset
+      * If you import more data into the same dataset, RITA will automatically convert it into a rolling dataset.
   * **Option 2**: Create a Rolling Dataset
-      * Rolling datasets allow you to progressively analyze the last 24 hours of log data
-      * RITA cycles data into and out of rolling databases in "chunks". Chunks are even divisions of a day.
-          * For example, a rolling database configured to hold data in 4 chunks will import logs 6 hours at a time
-      * `rita import --rolling --numchunks # --chunk # path/to/your/bro_logs dataset_name` imports the logs in a given directory which match the period of time derived from the `numchunks` and `chunk` arguments
-      * `numchunks` controls how much data will be processed each time a rolling import is ran
-          * The value supplied for `numchunks` must evenly divide 24
-          * Valid choices are 1, 2, 3, 4, 6, 8, 12, and 24
-          * Each choice will process new data in 24, 12, 8, 4, 3, 2, and 1 hour periods, respectively
-      * `chunk` tells RITA which period of data to import
-          * The value supplied for `chunk` must be between 1 and `numchunks` (inclusive)
-          * If `numchunks` is set to 4, and `chunk` is set to 2, RITA will import logs from 6 am to noon
-      * Rolling databases should be routinely updated with new data
-          * `numchunks` should remain constant each time `import` is ran on the same rolling dataset
-          * `chunk` should loop through 1 to `numchunks` (inclusive) as new data becomes available
-          * `chunk` should be reset to 1 once the last chunk has been imported. This causes the previous chunk 1 to be removed from the dataset before the new data is imported and ensures that the rolling dataset always contains at most 24 hours worth of data.
-      * RITA depends on the default naming scheme Bro/Zeek uses for hourly rotated logs. If your logs have been renamed, rolling imports will not work. In this case you should use Option 1 for creating a one-off dataset instead.
+      * Rolling datasets allow you to progressively analyze log data over a period of time as it comes in.
+      * You can call rita like this: `rita import --rolling /path/to/your/bro_logs` and make this call repeatedly as new logs are generated (e.g. every hour)
+      * RITA cycles data into and out of rolling databases in "chunks". You can think of each chunk as one hour, and the default being 24 chunks in a dataset. This gives the ability to always have the most recent 24 hours' worth of data available. But chunks are generic enough to accommodate non-default Bro logging configurations or data retention times as well.
+
+#### Rolling Datsets
+
+Please see the above section for the simplest use case of rolling datasets. This section covers the various options you can customize and more complicated use cases.
+
+Each rolling dataset has a total number of chunks it can hold before it rotates data out. For instance, if the dataset currently contains 24 chunks of data and is set to hold a max of 24 chunks then the next chunk to be imported will automatically remove the first chunk before brining the new data in. This will result in a database that still contains 24 chunks. If each chunk contains an hour of data your dataset will have 24 hours of data in it. You can specify the number of chunks manually with `--numchunks` when creating a rolling database but if this is omitted RITA will use the `Rolling: DefaultChunks` value from the config file.
+
+Likewise, when importing a new chunk you can specify a chunk number that you wish to replace in a dataset with `--chunk`. If you leave this off RITA will auto-increment the chunk for you. The chunk must be 0 (inclusive) through the total number of chunks (exclusive). This must be between 0 (inclusive) and the total number of chunks (exclusive). You will get an error if you try to use a chunk number greater or equal to the total number of chunks.
+
+All files and folders that you give RITA to import will be imported into a single chunk. This could be 1 hour, 2 hours, 10 hours, 24 hours, or more. RITA doesn't care how much data is in each chunk so even though it's normal for each chunk to represent the same amount of time, each chunk could have a different number of hours of logs. This means that you can run RITA on a regular interval without worrying if systems were offline for a little while or the data was delayed. You might get a little more or less data than you intended but as time passes and new data is added it will slowly correct itself.
+
+**Example:** If you wanted to have a dataset with a week's worth of data you could run the following rita command once per day.
+```
+rita import --rolling --numchunks 7 /opt/bro/logs/current week-dataset
+```
+This would import a day's worth of data into each chunk and you'd get a week's in total. After the first 7 days were imported, the dataset would rotate out old data to keep the most recent 7 days' worth of data. Note that you'd have to make sure new logs were being added to in `/opt/bro/logs/current` in this example.
+
+**Example:** If you wanted to have a dataset with 48 hours of data you could run the following rita command every hour.
+```
+rita import --rolling --numchunks 48 /opt/bro/logs/current 48-hour-dataset
+```
 
 #### Examining Data With RITA
   * Use the **show-X** commands

@@ -52,7 +52,7 @@ func (w *writer) start() {
 			info, err := ssn.DB(w.db.GetSelectedDB()).C(data.collection).Upsert(data.selector, data.query)
 			if err != nil ||
 				((info.Updated == 0) && (info.UpsertedId == nil)) {
-				log.WithFields(log.Fields{
+				w.log.WithFields(log.Fields{
 					"Module": "useragent",
 					"Info":   info,
 					"Data":   data,

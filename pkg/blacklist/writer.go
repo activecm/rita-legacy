@@ -55,7 +55,7 @@ func (w *writer) start() {
 
 			if err != nil ||
 				((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
-				log.WithFields(log.Fields{
+				w.log.WithFields(log.Fields{
 					"Module": "bl updater",
 					"Info":   info,
 					"Data":   data,
