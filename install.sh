@@ -203,10 +203,6 @@ __install_bro() {
 			;;
 		CentOS|RedHatEnterpriseServer)
 			__add_rpm_repo http://download.opensuse.org/repositories/network:bro/CentOS_7/network:bro.repo
-			# Workaround for https://github.com/activecm/rita/issues/189
-			# Replace the download.opensuse.org link with downloadcontent.opensuse.org link
-			# https://www.linuxquestions.org/questions/linux-general-1/yum-update-failed-because-of-timeout-4175625075/#post5828487
-			cat '/etc/yum.repos.d/network:bro.repo' | sed -e 's/download\.opensuse\.org/downloadcontent.opensuse.org/g' | tee '/etc/yum.repos.d/network:bro.repo.tmp' >/dev/null && mv -f '/etc/yum.repos.d/network:bro.repo.tmp' '/etc/yum.repos.d/network:bro.repo'
 			;;
 	esac
 	__install_packages bro broctl
