@@ -10,6 +10,7 @@ import (
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/bson"
+	"github.com/urfave/cli"
 )
 
 func printStrobes(db string, res *resources.Resources) error {
@@ -28,6 +29,9 @@ func printStrobes(db string, res *resources.Resources) error {
 	w, err := getStrobesWriter(data)
 	if err != nil {
 		return err
+	}
+	if len(w) == 0 {
+		return cli.NewExitError("No results were found for " + db, -1)
 	}
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }

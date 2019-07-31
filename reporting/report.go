@@ -12,6 +12,7 @@ import (
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/skratchdot/open-golang/open"
+	"github.com/urfave/cli"
 )
 
 // PrintHTML is the primary html Print function, this command takes in a
@@ -75,7 +76,14 @@ func PrintHTML(dbsIn []string, res *resources.Resources) error {
 	for k := range dbs {
 		err = writeDB(dbs[k], wd, res)
 		if err != nil {
-			return err
+			if err.Error() == ("No results were found for " + dbs[k]) {
+				fmt.Println("[!] " + err.Error())
+				fmt.Println("    This might indicate that this database has been dropped, but the metadatabase hasn't been updated.")
+				fmt.Println("    To update the metadatabase and fix this problem, run:")
+				fmt.Println("    rita delete-database " + dbs[k])
+			} else {
+				return err
+			}
 		}
 	}
 
@@ -110,14 +118,19 @@ func writeHomePage(Dbs []string) error {
 	return out.Execute(f, Dbs)
 }
 
-func writeDBHomePage(db string) error {
+func writeDBHomePage(db string, empty bool) error {
 	f, err := os.Create("index.html")
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	out, err := template.New("index.html").Parse(htmlTempl.DBhometempl)
+	templ := htmlTempl.DBhometempl
+	if empty {
+		templ = htmlTempl.DBemptyhometempl
+	}
+
+	out, err := template.New("index.html").Parse(templ)
 	if err != nil {
 		return err
 	}
@@ -142,45 +155,89 @@ func writeDB(db string, wd string, res *resources.Resources) error {
 	}
 	res.DB.SelectDB(db)
 
-	err = writeDBHomePage(db)
+	hasResults := false
+
+	err = writeDBHomePage(db, false)
 	if err != nil {
 		return err
 	}
 
 	err = printDNS(db, res)
-	if err != nil {
+	if err == nil {
+		hasResults = true
+	} else if err.Error() != ("No results were found for " + db) {
+		// if we have an error other than no results return it
 		return err
 	}
+
 	err = printBLSourceIPs(db, res)
-	if err != nil {
+	if err == nil {
+		hasResults = true
+	} else if err.Error() != ("No results were found for " + db) {
+		// if we have an error other than no results return it
 		return err
 	}
+
 	err = printBLDestIPs(db, res)
-	if err != nil {
+	if err == nil {
+		hasResults = true
+	} else if err.Error() != ("No results were found for " + db) {
+		// if we have an error other than no results return it
 		return err
 	}
+
 	err = printBLHostnames(db, res)
-	if err != nil {
+	if err == nil {
+		hasResults = true
+	} else if err.Error() != ("No results were found for " + db) {
+		// if we have an error other than no results return it
 		return err
 	}
 
 	err = printBeacons(db, res)
-	if err != nil {
+	if err == nil {
+		hasResults = true
+	} else if err.Error() != ("No results were found for " + db) {
+		// if we have an error other than no results return it
 		return err
 	}
 
 	err = printStrobes(db, res)
-	if err != nil {
+	if err == nil {
+		hasResults = true
+	} else if err.Error() != ("No results were found for " + db) {
+		// if we have an error other than no results return it
 		return err
 	}
 
 	err = printLongConns(db, res)
-	if err != nil {
+	if err == nil {
+		hasResults = true
+	} else if err.Error() != ("No results were found for " + db) {
+		// if we have an error other than no results return it
 		return err
 	}
+
 	err = printUserAgents(db, res)
-	if err != nil {
+	if err == nil {
+		hasResults = true
+	} else if err.Error() != ("No results were found for " + db) {
+		// if we have an error other than no results return it
 		return err
+	}
+
+
+	// only return "no results" error if none of the modules had results
+	var resultsErr error
+	if !hasResults {
+		os.Remove("index.html")
+
+		err = writeDBHomePage(db, true)
+		if err != nil {
+			return err
+		}
+
+		resultsErr = cli.NewExitError("No results were found for " + db, -1)
 	}
 
 	err = os.Chdir("..")
@@ -188,5 +245,5 @@ func writeDB(db string, wd string, res *resources.Resources) error {
 		return err
 	}
 
-	return nil
+	return resultsErr
 }
