@@ -103,7 +103,8 @@ var DBhometempl = dbHeader + `
 </p>
 `
 
-// DBhometempl is our database home template for each directory
+// DBemptyhometempl is our database home template for any empty database, or
+// directory associated with a database in the MetaDatabase but doesn't exist
 var DBemptyhometempl = dbHeaderEmpty + `
 <p>
   <div class="info">{{.DB}} has no results. This might indicate that this database has been dropped, but the metadatabase hasn't been updated.
