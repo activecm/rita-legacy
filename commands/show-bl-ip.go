@@ -224,7 +224,13 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, noLimit
 			"conn_count":  bson.M{"$sum": "$conns"},
 			"total_bytes": bson.M{"$sum": "$bytes"},
 		}},
-		bson.M{"$sort": bson.M{sort: -1}},
+	}
+
+	if !noLimit {
+		blIPQuery = append(blIPQuery, bson.M{"$limit": limit})
+	}
+
+	blIPQuery = append(blIPQuery, bson.M{"$sort": bson.M{sort: -1}},
 		bson.M{"$project": bson.M{
 			"_id":         0,
 			"uconn_count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
@@ -233,11 +239,7 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, noLimit
 			"host":        1,
 			"total_bytes": 1,
 		}},
-	}
-
-	if !noLimit {
-		blIPQuery = append(blIPQuery, bson.M{"$limit": limit})
-	}
+	)
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
 
