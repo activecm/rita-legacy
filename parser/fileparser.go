@@ -14,10 +14,11 @@ import (
 
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	pt "github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
 )
 
-// readDir recursively reads the directory looking for log and .gz files
+// readDir reads the directory looking for log and .gz files
 func readDir(cpath string, logger *log.Logger) []string {
 	var toReturn []string
 	files, err := ioutil.ReadDir(cpath)
@@ -35,89 +36,31 @@ func readDir(cpath string, logger *log.Logger) []string {
 		// if file.IsDir() && file.Mode() != os.ModeSymlink {
 		// 	toReturn = append(toReturn, readDir(path.Join(cpath, file.Name()), logger)...)
 		// }
-		if !file.IsDir() && strings.HasSuffix(file.Name(), "gz") ||
-			strings.HasSuffix(file.Name(), "log") {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".gz") ||
+			strings.HasSuffix(file.Name(), ".log") {
 			toReturn = append(toReturn, path.Join(cpath, file.Name()))
 		}
 	}
 	return toReturn
 }
 
-// readDirRolling recursively reads the directory looking for log and .gz files
-// that match the timestamps of the associated chunk
-func readDirRolling(currentChunk int, totalChunks int, cpath string, logger *log.Logger) []string {
+// readFiles reads the files and directories looking for log and gz files
+func readFiles(paths []string, logger *log.Logger) []string {
 	var toReturn []string
-	files, err := ioutil.ReadDir(cpath)
-	if err != nil {
-		logger.WithFields(log.Fields{
-			"error": err.Error(),
-			"path":  cpath,
-		}).Error("Error when reading directory")
-	}
 
-	frequency := 24 / totalChunks
-
-	startChunk := int64(currentChunk * frequency)
-	endChunk := startChunk + int64(frequency)
-
-	for _, file := range files {
-		// Stop RITA from following symlinks
-		// In the case that RITA is pointed directly at Bro, it should not
-		// parse the "current" symlink which points to the spool.
-		// if file.IsDir() && file.Mode() != os.ModeSymlink {
-		// 	toReturn = append(toReturn, readDir(path.Join(cpath, file.Name()), logger)...)
-		// }
-		if strings.HasSuffix(file.Name(), "log.gz") {
-			fileName := strings.TrimSuffix(file.Name(), ".log.gz")
-			split := strings.Split(fileName, ".")
-			ts := split[len(split)-1]
-			ts = strings.Replace(ts, "-", ":", 1)
-			split2 := strings.Split(ts, ":")
-			ts1, _ := strconv.ParseInt(split2[0], 10, 32)
-			ts2, _ := strconv.ParseInt(split2[3], 10, 32)
-
-			if endChunk == 24 && ts1 == 23 && ts2 == 0 {
-				ts2 = 24
-			}
-
-			if ts1 == ts2 {
-				if (ts1 >= startChunk) && (ts2 <= endChunk) {
-					toReturn = append(toReturn, path.Join(cpath, file.Name()))
-				}
-			} else {
-
-				if (ts1 >= startChunk) && (ts1 < endChunk) &&
-					(ts2 > startChunk) && (ts2 <= endChunk) {
-					toReturn = append(toReturn, path.Join(cpath, file.Name()))
-				}
-			}
-
-		} else if strings.HasSuffix(file.Name(), "log") {
-			fileName := strings.TrimSuffix(file.Name(), ".log")
-			split := strings.Split(fileName, ".")
-			ts := split[len(split)-1]
-			ts = strings.Replace(ts, "-", ":", 1)
-			split2 := strings.Split(ts, ":")
-			ts1, _ := strconv.ParseInt(split2[0], 10, 32)
-			ts2, _ := strconv.ParseInt(split2[3], 10, 32)
-
-			if endChunk == 24 && ts1 == 23 && ts2 == 0 {
-				ts2 = 24
-			}
-
-			if ts1 == ts2 {
-				if (ts1 >= startChunk) && (ts2 <= endChunk) {
-					toReturn = append(toReturn, path.Join(cpath, file.Name()))
-				}
-			} else {
-
-				if (ts1 >= startChunk) && (ts1 < endChunk) &&
-					(ts2 > startChunk) && (ts2 <= endChunk) {
-					toReturn = append(toReturn, path.Join(cpath, file.Name()))
-				}
-			}
+	for _, path := range paths {
+		if util.IsDir(path) {
+			toReturn = append(toReturn, readDir(path, logger)...)
+		} else if strings.HasSuffix(path, ".gz") ||
+			strings.HasSuffix(path, ".log") {
+			toReturn = append(toReturn, path)
+		} else {
+			logger.WithFields(log.Fields{
+				"path":  path,
+			}).Warn("Ignoring non .log or .gz file")
 		}
 	}
+
 	return toReturn
 }
 

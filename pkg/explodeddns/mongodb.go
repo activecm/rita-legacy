@@ -63,7 +63,7 @@ func (r *repo) Upsert(domainMap map[string]int) {
 	writerWorker := newWriter(r.res.Config.T.DNS.ExplodedDNSTable, r.res.DB, r.res.Config, r.res.Log)
 
 	analyzerWorker := newAnalyzer(
-		r.res.Config.S.Bro.CurrentChunk,
+		r.res.Config.S.Rolling.CurrentChunk,
 		r.res.DB,
 		r.res.Config,
 		writerWorker.collect,
@@ -89,6 +89,12 @@ func (r *repo) Upsert(domainMap map[string]int) {
 	// loop over map entries
 	for entry, count := range domainMap {
 		start := time.Now()
+		//Mongo Index key is limited to a size of 1024 https://docs.mongodb.com/v3.4/reference/limits/#index-limitations
+		//  so if the key is too large, we should cut it back, this is rough but
+		//  works. Figured 800 allows some wiggle room, while also not being too large
+		if len(entry) > 1024 {
+			entry = entry[:800]
+		}
 		analyzerWorker.collect(domain{entry, count})
 		bar.IncrBy(1, time.Since(start))
 	}

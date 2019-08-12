@@ -27,24 +27,45 @@ var (
 		Usage: "Bypass verification prompt",
 	}
 
+	// allFlag indicates all databases in option
+	allFlag = cli.BoolFlag{
+		Name:  "all, a",
+		Usage: "Indicates all databases should be removed",
+	}
+
+	// matchFlag indicates only matched databases to string SEARCH_STRING
+	matchFlag = cli.BoolFlag{
+		Name:  "match, m",
+		Usage: "Indicate only databases matching <database> string should be removed",
+	}
+
+	// regexFlag indicates use of matching regex pattern REGEX_PATTERN
+	regexFlag = cli.BoolFlag{
+		Name:  "regex, r",
+		Usage: "Indicate use regular expression as <database> string to be removed",
+	}
+
+	// dryRun indicates which databases would be deleted with current options
+	dryRunFlag = cli.BoolFlag{
+		Name:  "dry-run, n",
+		Usage: "Tests which databases would be deleted. Does not actually delete any data, nor prompt for confirmation",
+	}
+
 	rollingFlag = cli.BoolFlag{
 		Name:  "rolling, R",
-		Usage: "Indicates rolling import, which builds on and removes data to maintain a rolling 24-hour analysis",
+		Usage: "Indicates rolling import, which builds on and removes data to maintain a fixed length of time",
 	}
 
 	// for rolling analysis: says how many chunks are in a given day
 	totalChunksFlag = cli.IntFlag{
 		Name:  "numchunks, NC",
-		Usage: "For rolling analysis: How many chunks are in a given day, with import frequency being every (24/numchunks) hours. Number must be a divisor of 24. (Example: 12 = import every 2 hrs, 24 = every hour, 6 = every 4 hrs)",
+		Usage: "Implies --rolling: How many chunks are in a given dataset. This, along with the duration of each chunk will determine the duration of your dataset. E.g. 1hr chunks * 24 chunks is 1 day of data",
 		Value: -1,
 	}
 
-	// for rolling analysis: says this is the n-th chunk of the day (the first
-	//  being midnight-1:59:59AM, the second being 2am-3:59:59am, etc, depending
-	// on 24/number of total chunks (in the flag above)
 	currentChunkFlag = cli.IntFlag{
 		Name:  "chunk, CC",
-		Usage: "For rolling analysis: This is the `N`th chunk of the day",
+		Usage: "Implies --rolling: This is the `N`th chunk of the dataset. `chunk` must be 0 <= `chunk` < `numchunks`",
 		Value: -1,
 	}
 

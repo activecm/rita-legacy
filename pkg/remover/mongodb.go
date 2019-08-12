@@ -23,7 +23,7 @@ func NewMongoRemover(res *resources.Resources) Repository {
 //Upsert loops through every new uconn ....
 func (r *remover) Remove(cid int) error {
 
-	fmt.Println("\t[-] Removing matching chunk: ", cid+1)
+	fmt.Println("\t[-] Removing matching chunk: ", cid)
 
 	// first we need to use the entries being removed from hostnames to reduce the
 	// subdomain count in exploded dns. This is done so we don't have to keep Unique

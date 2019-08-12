@@ -66,22 +66,26 @@ unit-test:
 
 .PHONY: docker-build
 docker-build:
+	docker build -t quay.io/activecm/rita:latest -f Dockerfile .
+
+.PHONY: docker-build-test
+docker-build-test:
 	docker build -t quay.io/activecm/rita:test -f test.Dockerfile .
 	docker run --rm quay.io/activecm/rita:test make
 
 # Runs all tests inside docker container
 .PHONY: docker-test
-docker-test: docker-build
+docker-test: docker-build-test
 	docker run --rm quay.io/activecm/rita:test make test
 
 .PHONY: docker-unit-test
-docker-unit-test: docker-build
+docker-unit-test: docker-build-test
 	docker run --rm quay.io/activecm/rita:test make unit-test
 
 .PHONY: docker-static-test
-docker-static-test: docker-build
+docker-static-test: docker-build-test
 	docker run --rm quay.io/activecm/rita:test make static-test
 
 # .PHONY: docker-integration-test
-# docker-integration-test: docker-build
+# docker-integration-test: docker-build-test
 # 	docker run --rm quay.io/activecm/rita:test make integration-test
