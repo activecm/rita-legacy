@@ -73,8 +73,8 @@ func printBLSourceIPs(c *cli.Context) error {
 			bson.M{"blacklisted": true},
 			bson.M{"dat.count_src": bson.M{"$gt": 0}},
 		}}
-	limit := c.Int("limit")
-	data, err := getBlacklistedIPsResultsView(res, sort, c.Bool("no-limit"), limit, match, "src", "dst")
+
+	data, err := getBlacklistedIPsResultsView(res, sort, c.Bool("no-limit"), c.Int("limit"), match, "src", "dst")
 
 	if err != nil {
 		res.Log.Error(err)
