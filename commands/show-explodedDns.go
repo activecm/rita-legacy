@@ -20,6 +20,8 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			configFlag,
+			limitFlag,
+			noLimitFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
@@ -30,7 +32,7 @@ func init() {
 			res := resources.InitResources(c.String("config"))
 			res.DB.SelectDB(db)
 
-			data, err := getExplodedDNSResultsView(res, 1000)
+			data, err := getExplodedDNSResultsView(res, c.Int("limit"), c.Bool("no-limit"))
 
 			if err != nil {
 				res.Log.Error(err)
@@ -83,7 +85,7 @@ func showDNSResultsHuman(dnsResults []explodeddns.AnalysisView) error {
 }
 
 //getExplodedDNSResultsView gets the exploded dns results
-func getExplodedDNSResultsView(res *resources.Resources, limit int) ([]explodeddns.AnalysisView, error) {
+func getExplodedDNSResultsView(res *resources.Resources, limit int, noLimit bool) ([]explodeddns.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -105,7 +107,10 @@ func getExplodedDNSResultsView(res *resources.Resources, limit int) ([]explodedd
 		}},
 		bson.M{"$sort": bson.M{"visited": -1}},
 		bson.M{"$sort": bson.M{"subdomain_count": -1}},
-		bson.M{"$limit": limit},
+	}
+
+	if !noLimit {
+		explodedDNSQuery = append(explodedDNSQuery, bson.M{"$limit": limit})
 	}
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.ExplodedDNSTable).Pipe(explodedDNSQuery).AllowDiskUse().All(&explodedDNSResults)

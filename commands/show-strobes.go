@@ -24,6 +24,8 @@ func init() {
 				Usage: "Sort the strobes by largest connection count.",
 			},
 			configFlag,
+			limitFlag,
+			noLimitFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
@@ -40,7 +42,7 @@ func init() {
 				sortDirection = 1
 			}
 
-			data, err := getStrobeResultsView(res, sortStr, sortDirection, 1000)
+			data, err := getStrobeResultsView(res, sortStr, sortDirection, c.Int("limit"), c.Bool("no-limit"))
 
 			if err != nil {
 				res.Log.Error(err)
@@ -90,7 +92,7 @@ func showStrobesHuman(strobes []beacon.StrobeAnalysisView) error {
 }
 
 //getStrobeResultsView ...
-func getStrobeResultsView(res *resources.Resources, sort string, sortDir int, limit int) ([]beacon.StrobeAnalysisView, error) {
+func getStrobeResultsView(res *resources.Resources, sort string, sortDir, limit int, noLimit bool) ([]beacon.StrobeAnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -107,7 +109,10 @@ func getStrobeResultsView(res *resources.Resources, sort string, sortDir int, li
 			"conn_count": bson.M{"$sum": "$conns"},
 		}},
 		bson.M{"$sort": bson.M{sort: sortDir}},
-		bson.M{"$limit": limit},
+	}
+
+	if !noLimit {
+		strobeQuery = append(strobeQuery, bson.M{"$limit": limit})
 	}
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).AllowDiskUse().All(&strobes)

@@ -23,6 +23,8 @@ func init() {
 			blConnFlag,
 			blSortFlag,
 			configFlag,
+			limitFlag,
+			noLimitFlag,
 		},
 		Usage:  "Print blacklisted IPs which initiated connections",
 		Action: printBLSourceIPs,
@@ -71,8 +73,8 @@ func printBLSourceIPs(c *cli.Context) error {
 			bson.M{"blacklisted": true},
 			bson.M{"dat.count_src": bson.M{"$gt": 0}},
 		}}
-	limit := 1000
-	data, err := getBlacklistedIPsResultsView(res, sort, limit, match, "src", "dst")
+
+	data, err := getBlacklistedIPsResultsView(res, sort, c.Bool("no-limit"), c.Int("limit"), match, "src", "dst")
 
 	if err != nil {
 		res.Log.Error(err)
@@ -112,8 +114,8 @@ func printBLDestIPs(c *cli.Context) error {
 			bson.M{"dat.count_dst": bson.M{"$gt": 0}},
 		}}
 
-	limit := 1000
-	data, err := getBlacklistedIPsResultsView(res, sort, limit, match, "dst", "src")
+	limit := c.Int("limit")
+	data, err := getBlacklistedIPsResultsView(res, sort, c.Bool("no-limit"), limit, match, "dst", "src")
 
 	if err != nil {
 		res.Log.Error(err)
@@ -197,7 +199,7 @@ func showBLIPsHuman(ips []host.AnalysisView, connectedHosts, source bool) error 
 }
 
 //getBlaclistedIPsResultsView
-func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit int, match bson.M, field1 string, field2 string) ([]host.AnalysisView, error) {
+func getBlacklistedIPsResultsView(res *resources.Resources, sort string, noLimit bool, limit int, match bson.M, field1 string, field2 string) ([]host.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -222,8 +224,13 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit i
 			"conn_count":  bson.M{"$sum": "$conns"},
 			"total_bytes": bson.M{"$sum": "$bytes"},
 		}},
-		bson.M{"$sort": bson.M{sort: -1}},
-		bson.M{"$limit": limit},
+	}
+
+	if !noLimit {
+		blIPQuery = append(blIPQuery, bson.M{"$limit": limit})
+	}
+
+	blIPQuery = append(blIPQuery, bson.M{"$sort": bson.M{sort: -1}},
 		bson.M{"$project": bson.M{
 			"_id":         0,
 			"uconn_count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
@@ -232,7 +239,7 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit i
 			"host":        1,
 			"total_bytes": 1,
 		}},
-	}
+	)
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
 

@@ -21,6 +21,8 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			configFlag,
+			limitFlag,
+			noLimitFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
@@ -35,7 +37,7 @@ func init() {
 			sortDirection := -1
 			thresh := 60 // 1 minute
 
-			data, err := getLongConnsResultsView(res, thresh, sortStr, sortDirection, 1000)
+			data, err := getLongConnsResultsView(res, thresh, sortStr, sortDirection, c.Int("limit"), c.Bool("no-limit"))
 
 			if err != nil {
 				res.Log.Error(err)
@@ -96,7 +98,7 @@ func showConnsHuman(connResults []uconn.LongConnAnalysisView) error {
 }
 
 //getLongConnsResultsView gets the long connection results
-func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, sortDirection int, limit int) ([]uconn.LongConnAnalysisView, error) {
+func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, sortDirection, limit int, noLimit bool) ([]uconn.LongConnAnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -122,7 +124,10 @@ func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, 
 			"tuples": bson.M{"$slice": []interface{}{"$tuples", 5}},
 		}},
 		bson.M{"$sort": bson.M{sort: sortDirection}},
-		bson.M{"$limit": limit},
+	}
+
+	if !noLimit {
+		longConnQuery = append(longConnQuery, bson.M{"$limit": limit})
 	}
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(longConnQuery).AllowDiskUse().All(&longConnResults)
