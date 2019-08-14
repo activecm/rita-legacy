@@ -121,10 +121,10 @@ func setRolling(dbExists bool, dbIsRolling bool, dbCurrChunk int, dbTotalChunks 
 	}
 
 	if userTotalChunks != -1 { // user gave the total number of chunks via command line
-		// it's currently an error to try to change the total number of chunks in an existing rolling database
-		if dbExists && dbIsRolling && dbTotalChunks != userTotalChunks {
+		// it's currently an error to try to reduce the total number of chunks in an existing rolling database
+		if dbExists && dbIsRolling && userTotalChunks < dbTotalChunks  {
 			return cfg, fmt.Errorf(
-				"\n\t[!] Cannot modify the total number of chunks [ %d ] in an existing database",
+				"\n\t[!] Cannot modify the total number of chunks in an existing database [ %d ]",
 				dbTotalChunks,
 			)
 		}

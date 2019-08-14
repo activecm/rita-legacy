@@ -95,27 +95,33 @@ func (m *MetaDB) SetRollingSettings(db string, chunk int, numchunks int) error {
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
 
+	selector := bson.M{"name": db}
+	update := bson.M{
+		"rolling": true,
+		"current_chunk": chunk,
+		"total_chunks": numchunks,
+	}
+
 	if !result.Rolling {
 		m.log.Infof("The dataset [ %s ] is being converted to a rolling dataset.", db)
-	} else if result.TotalChunks != numchunks {
-		m.log.Warnf("The total chunk size for existing rolling dataset [ %s ] was set to [ %d ] and is being changed to [ %d ].",
+	} else if result.TotalChunks < numchunks {
+		m.log.Warnf("The total chunk size for existing rolling dataset [ %s ] was set to [ %d ] and is being increased to [ %d ].",
 			db, result.TotalChunks, numchunks)
-		// TODO: if the total chunks increaase need to grow cid_list while preserving original entries
+
+		// if the total chunks increaase grow cid_list while preserving original entries
+		for i := result.TotalChunks; i < numchunks; i++ {
+			update["cid_list." + strconv.Itoa(i) + ".set"] = false
+		}
+	} else if result.TotalChunks > numchunks {
+		// Note: this shouldn't ever get hit because the commands/import.go:setRolling function should fail on this check
+		// and prevent it.
+		m.log.Warnf("The total chunk size for existing rolling dataset [ %s ] was set to [ %d ] and is being decreased to [ %d ].",
+			db, result.TotalChunks, numchunks)
 		// TODO: if total chunks decrease need to shrink cid_list and delete chunk data
 	}
 
 	// update rolling settings
-	_, err = ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).
-		Upsert(
-			// selector
-			bson.M{"name": db},
-			// data
-			bson.M{"$set": bson.M{
-				"rolling": true,
-				"current_chunk": chunk,
-				"total_chunks": numchunks},
-			},
-		)
+	_, err = ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).Upsert(selector, bson.M{"$set": update})
 	if err != nil {
 		return err
 	}
