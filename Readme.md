@@ -23,7 +23,7 @@ The framework ingests [Bro/Zeek Logs](https://www.zeek.org/) in TSV format, and 
 * Make the installer executable: `chmod +x ./install.sh`
 * Run the installer: `sudo ./install.sh`
 
-\* Please see the [Security Onion RITA wiki page](https://github.com/Security-Onion-Solutions/security-onion/wiki/RITA) for further information pertaining to using RITA on Security Onion.
+\* Please see the [Security Onion RITA wiki page](https://securityonion.net/docs/RITA) for further information pertaining to using RITA on Security Onion.
 
 ### Manual Installation
 To install each component of RITA by hand, [check out the instructions in the docs](docs/Manual%20Installation.md).
