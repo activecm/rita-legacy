@@ -55,7 +55,7 @@ func (a *analyzer) start() {
 
 			// create query
 			query := bson.M{
-				"$setOnInsert": bson.M{
+				"$set": bson.M{
 					"local_src": data.IsLocalSrc,
 					"local_dst": data.IsLocalDst,
 				},
