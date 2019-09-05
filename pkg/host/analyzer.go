@@ -106,15 +106,12 @@ func standardQuery(chunk int, chunkStr string, ip string, local bool, ip4 bool, 
 
 	// create query
 	query := bson.M{
-		"$setOnInsert": bson.M{
-			"ipv4_binary": ip4bin,
-			"ipv4":        ip4,
-		},
-
 		"$set": bson.M{
 			"blacklisted": blacklisted,
 			"cid":         chunk,
 			"local":       local,
+			"ipv4":        ip4,
+			"ipv4_binary": ip4bin,
 		},
 	}
 
