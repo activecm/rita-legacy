@@ -1,0 +1,32 @@
+name: Run rita tests
+
+on:
+  pull_request:
+    # Run tests except if only markdown files are changed
+    paths:
+      - '*'
+      - '!*.md'
+
+jobs:
+  test:
+    name: static and unit tests
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v1
+      - run: make docker-test
+
+  # integration:
+  #   name: integration tests
+  #   runs-on: ubuntu-16.04
+  #   steps:
+  #     - uses: actions/checkout@v1
+  #     - run: |
+  #         make docker-build-test
+  #         docker container create --name rita --entrypoint /bin/sleep quay.io/activecm/rita:test 5m
+  #         docker container start rita
+  #         docker container exec rita tar cf vendor.tar vendor
+  #         docker container cp rita:/go/src/github.com/activecm/rita/rita ./rita
+  #         docker container cp rita:/go/src/github.com/activecm/rita/vendor.tar ./vendor.tar
+  #         docker container stop rita
+  #         tar xf vendor.tar
+  #     - run: make integration-test
