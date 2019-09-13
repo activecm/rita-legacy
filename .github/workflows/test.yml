@@ -1,4 +1,4 @@
-name: Run rita tests
+name: Rita tests
 
 on:
   pull_request:
