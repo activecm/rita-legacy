@@ -71,7 +71,6 @@ docker-build:
 .PHONY: docker-build-test
 docker-build-test:
 	docker build -t quay.io/activecm/rita:test -f test.Dockerfile .
-	docker run --rm quay.io/activecm/rita:test make
 
 # Runs all tests inside docker container
 .PHONY: docker-test

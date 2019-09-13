@@ -1,0 +1,15 @@
+name: Upload files to new release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  upload:
+    name: Upload Artifacts
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v1
+      - run: .github/release.sh rita install.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
