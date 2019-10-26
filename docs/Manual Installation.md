@@ -27,7 +27,6 @@ RITA requires Mongo for storing and processing data. The current recommended ver
 You have a few options for installing RITA.
 1. The main install script. You can disable Bro and Mongo from being installed with the `--disable-bro` and `--disable-mongo` flags.
 1. A prebuilt binary is available for download on [RITA's release page](https://github.com/activecm/rita/releases). In this case you will need to download the config file from the same release and create some directories manually, as described below in the "Configuring the system" section.
-1. [Use RITA with docker](Docker%20Usage.md)
 1. Compile RITA manually from source. See below.
 
 ##### Installing Golang
@@ -63,4 +62,4 @@ RITA requires a few directories to be created for it to function correctly.
 Copy the config file from your local RITA source code.
 * ```sudo cp $GOPATH/src/github.com/activecm/rita/etc/rita.yaml /etc/rita/config.yaml && sudo chmod 666 /etc/rita/config.yaml```
 
-At this point, you can modify the config file as needed and test using the ```rita test-config``` command. There will be empty quotes or 0's assigned to empty fields. [RITA's readme](../Readme.md) has more information on changing the configuration.
+At this point, you can modify the config file as needed and test using the ```rita test-config``` command. There will be empty quotes or 0's assigned to empty fields. [RITA's readme](../Readme.md#configuration-file) has more information on changing the configuration.
