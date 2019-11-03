@@ -184,7 +184,7 @@ func hostQuery(chunk int, useragentStr string, ip string, newFlag bool) update {
 
 		// create selector for output
 		output.query = query
-		output.selector = bson.M{"ip": ip, "dat.cid": chunk}
+		output.selector = bson.M{"ip": ip, "dat.rsig": useragentStr}
 	}
 
 	return output
