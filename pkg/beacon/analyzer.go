@@ -287,10 +287,6 @@ func (a *analyzer) hostIcertQuery(icert bool, src string, dst string) updateInfo
 			newFlag = true
 		}
 
-		// if src == "10.55.100.111" {
-		// 	fmt.Println(newFlag, resList, src, dst)
-		// }
-
 		if newFlag {
 
 			query["$push"] = bson.M{
