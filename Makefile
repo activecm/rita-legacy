@@ -14,7 +14,8 @@ SRC := $(shell find . -path ./vendor -prune -o -type f -name '*.go' -print)
 # https://www.cmcrossroads.com/article/makefile-optimization-eval-and-macro-caching
 cache = $(if $(cached-$1),,$(eval cached-$1 := 1)$(eval cache-$1 := $($1)))$(cache-$1)
 
-# The first recipe defined will be called when `make` is run without a target
+# force rita to be rebuilt even if it's up to date
+.PHONY: rita
 rita: vendor $(SRC)
 	go build ${LDFLAGS}
 
