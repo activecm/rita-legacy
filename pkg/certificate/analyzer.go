@@ -59,16 +59,16 @@ func (a *analyzer) start() {
 			// set up writer output
 			var output update
 
-			if len(data.OrigIps) > 10 {
-				data.OrigIps = data.OrigIps[:10]
+			// if len(data.OrigIps) > 500 {
+			// 	data.OrigIps = data.OrigIps[:500]
+			// }
+
+			if len(data.Tuples) > 20 {
+				data.Tuples = data.Tuples[:20]
 			}
 
-			if len(data.Tuples) > 10 {
-				data.Tuples = data.Tuples[:10]
-			}
-
-			if len(data.InvalidCerts) > 5 {
-				data.InvalidCerts = data.InvalidCerts[:5]
+			if len(data.InvalidCerts) > 10 {
+				data.InvalidCerts = data.InvalidCerts[:10]
 			}
 
 			// create query
