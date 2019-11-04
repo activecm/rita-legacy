@@ -326,6 +326,38 @@ func (a *analyzer) hostBeaconQuery(score float64, src string, dst string) update
 	// create query
 	query := bson.M{}
 
+	// check if we need to update
+	// we do this before the other queries because otherwise if a beacon
+	// starts out with a high score which reduces over time, it will keep
+	// the incorrect high max for that specific destination.
+	var resListExactMatch []interface{}
+
+	maxBeaconMatchExactQuery := bson.M{
+		"ip":        src,
+		"dat.mbdst": dst,
+	}
+	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
+
+	// if we have exact matches, update to new score and return
+	if len(resListExactMatch) > 0 {
+		query["$set"] = bson.M{
+			"dat.$.max_beacon_score": score,
+			"dat.$.mbdst":            dst,
+			"dat.$.cid":              a.chunk,
+		}
+
+		// create selector for output
+		output.query = query
+
+		// using the same find query we created above will allow us to match and
+		// update the exact chunk we need to update
+		output.selector = maxBeaconMatchExactQuery
+
+		return output
+	}
+
+	// The below is only for cases where the ip is not currently listed as a max beacon
+	// for a source
 	// update max beacon score
 	newFlag := false
 	updateFlag := false
