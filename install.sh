@@ -314,7 +314,7 @@ __add_bro_to_path() {
 __install_mongodb() {
 	case "$_OS" in
 		Ubuntu)
-			__add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/${_MONGO_VERSION} multiverse" \
+			__add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu ${_MONGO_OS_CODENAME}/mongodb-org/${_MONGO_VERSION} multiverse" \
 				"mongodb-org-${_MONGO_VERSION}" \
 				"https://www.mongodb.org/static/pgp/server-${_MONGO_VERSION}.asc"
 			;;
@@ -402,10 +402,16 @@ __install_rita() {
 __gather_OS() {
 	_OS="$(lsb_release -is)"
 	_OS_CODENAME="$(lsb_release -cs)"
+	_MONGO_OS_CODENAME="$(lsb_release -cs)"
+
 	if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterpriseServer" ]; then
 		printf "$_ITEM This installer supports Ubuntu, CentOS, and RHEL. \n"
 		printf "$_IMPORTANT Your operating system is unsupported."
 		exit 1
+	fi
+
+	if [ "$_MONGO_OS_CODENAME" == "bionic" ]; then
+		_MONGO_OS_CODENAME="xenial"
 	fi
 }
 
