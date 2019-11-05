@@ -110,7 +110,7 @@ func deleteDatabase(c *cli.Context) error {
 
 	// Iterate through databases to delete and delete them one by one
 	for _, database := range names {
-		dberr := deleteSingleDatabase(res, names, database, dryRun)
+		dberr := deleteSingleDatabase(res, database, dryRun)
 		if dberr != nil {
 			return cli.NewExitError(dberr.Error, -1)
 		}
@@ -124,10 +124,13 @@ func deleteDatabase(c *cli.Context) error {
 	return nil
 }
 
-func deleteSingleDatabase(res *resources.Resources, dbnames []string, db string, dryRun bool) error {
+func deleteSingleDatabase(res *resources.Resources, db string, dryRun bool) error {
 	// check if database exists
-	dbExists := util.StringInSlice(db, dbnames)
-
+	collNames, err := res.DB.Session.DB(db).CollectionNames()
+	if err != nil {
+		return err
+	}
+	dbExists := len(collNames) != 0
 	// check if metadatabase record for database exists
 	mDBExists := util.StringInSlice(db, res.MetaDB.GetDatabases())
 
