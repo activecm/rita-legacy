@@ -83,6 +83,7 @@ func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile
 	}
 
 	toReturn.TargetDatabase = res.DB.GetSelectedDB()
+	toReturn.CID = res.Config.S.Rolling.CurrentChunk
 
 	fileHandle.Close()
 	return toReturn, nil

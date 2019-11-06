@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/parser"
+	"github.com/activecm/rita/pkg/remover"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
-	"github.com/activecm/rita/config"
-
 	"github.com/urfave/cli"
 )
 
@@ -22,6 +22,7 @@ func init() {
 		Flags: []cli.Flag{
 			threadFlag,
 			configFlag,
+			deleteFlag,
 			rollingFlag,
 			totalChunksFlag,
 			currentChunkFlag,
@@ -40,27 +41,29 @@ func init() {
 type (
 	//Importer ...
 	Importer struct {
-		res            *resources.Resources
-		configFile     string
-		args           cli.Args
-		importFiles    []string
-		targetDatabase string
-		rolling        bool
-		totalChunks    int
-		currentChunk   int
-		threads        int
+		res             *resources.Resources
+		configFile      string
+		args            cli.Args
+		importFiles     []string
+		targetDatabase  string
+		deleteOldData   bool
+		userRolling     bool
+		userTotalChunks int
+		userCurrChunk   int
+		threads         int
 	}
 )
 
 //NewImporter ....
 func NewImporter(c *cli.Context) *Importer {
 	return &Importer{
-		configFile:     c.String("config"),
-		args:           c.Args(),
-		rolling:        c.Bool("rolling"),
-		totalChunks:    c.Int("numchunks"),
-		currentChunk:   c.Int("chunk"),
-		threads:        util.Max(c.Int("threads")/2, 1),
+		configFile:      c.String("config"),
+		args:            c.Args(),
+		deleteOldData:   c.Bool("delete"),
+		userRolling:     c.Bool("rolling"),
+		userTotalChunks: c.Int("numchunks"),
+		userCurrChunk:   c.Int("chunk"),
+		threads:         util.Max(c.Int("threads")/2, 1),
 	}
 }
 
@@ -69,8 +72,8 @@ func (i *Importer) parseArgs() error {
 		return cli.NewExitError("\n\t[!] Both <files/directory to import> and <database name> are required.", -1)
 	}
 
-	i.targetDatabase = i.args[len(i.args)-1]  // the last argument
-	i.importFiles = i.args[:len(i.args)-1]    // all except the last argument
+	i.targetDatabase = i.args[len(i.args)-1] // the last argument
+	i.importFiles = i.args[:len(i.args)-1]   // all except the last argument
 
 	//check if one argument is set but not the other
 	if i.importFiles[0] == "" || i.targetDatabase == "" {
@@ -110,11 +113,6 @@ func setRolling(dbExists bool, dbIsRolling bool, dbCurrChunk int, dbTotalChunks 
 
 	cfg := config.RollingStaticCfg{}
 
-	// Can uncomment this check if we want to preserve old behavior with regards to non-rolling databases
-	// if dbExists && !dbIsRolling {
-	// 	return cfg, errors.New("\n\t[!] New data cannot be imported into an existing non-rolling database")
-	// }
-
 	// a user-provided value for either of the chunk options implies rolling
 	if userTotalChunks != -1 || userCurrChunk != -1 {
 		userIsRolling = true
@@ -122,7 +120,7 @@ func setRolling(dbExists bool, dbIsRolling bool, dbCurrChunk int, dbTotalChunks 
 
 	if userTotalChunks != -1 { // user gave the total number of chunks via command line
 		// it's currently an error to try to reduce the total number of chunks in an existing rolling database
-		if dbExists && dbIsRolling && userTotalChunks < dbTotalChunks  {
+		if dbExists && dbIsRolling && userTotalChunks < dbTotalChunks {
 			return cfg, fmt.Errorf(
 				"\n\t[!] Cannot modify the total number of chunks in an existing database [ %d ]",
 				dbTotalChunks,
@@ -159,19 +157,20 @@ func setRolling(dbExists bool, dbIsRolling bool, dbCurrChunk int, dbTotalChunks 
 		}
 	}
 
-	// already existing db is converted to rolling if it wasn't already
-	// or if the user specified that a new database is rolling
-	cfg.Rolling = dbExists || userIsRolling
+	cfg.Rolling = dbIsRolling || userIsRolling
 
 	// validate chunk size
-	if (cfg.CurrentChunk < 0 ||
-		cfg.CurrentChunk >= cfg.TotalChunks) {
+	if cfg.CurrentChunk < 0 ||
+		cfg.CurrentChunk >= cfg.TotalChunks {
 		return cfg, fmt.Errorf(
 			"\n\t[!] Current chunk number [ %d ] must be 0 or greater and less than the total number of chunks [ %d ]",
 			cfg.CurrentChunk,
 			cfg.TotalChunks,
 		)
 	}
+
+	// preserve the default chunks setting (even though we don't use it after this currently)
+	cfg.DefaultChunks = cfgDefaultChunks
 
 	return cfg, nil
 }
@@ -187,20 +186,30 @@ func (i *Importer) run() error {
 	// set up target database
 	i.res.DB.SelectDB(i.targetDatabase)
 
+	// set up the rolling configuration
 	// get settings from an existing database
 	exists, isRolling, currChunk, totalChunks, err := i.res.MetaDB.GetRollingSettings(i.targetDatabase)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("\n\t[!] Error while reading existing database settings: %v", err.Error()), -1)
 	}
+	// if the user wants to re-import a chunk, make them specify which chunk
+	if i.deleteOldData && isRolling && i.userCurrChunk == -1 {
+		return cli.NewExitError("--chunk is required when 'import --delete' is ran against a rolling database", -1)
+	}
 	// determine the new rolling settings based on current and supplied arguments
 	rollingCfg, err := setRolling(exists, isRolling, currChunk, totalChunks,
-		i.rolling, i.currentChunk, i.totalChunks, i.res.Config.S.Rolling.DefaultChunks)
+		i.userRolling, i.userCurrChunk, i.userTotalChunks, i.res.Config.S.Rolling.DefaultChunks)
 	if err != nil {
 		return cli.NewExitError(err.Error(), -1)
 	}
-	// preserve the default chunks setting (even though we don't use it after this currently)
-	rollingCfg.DefaultChunks = i.res.Config.S.Rolling.DefaultChunks
 	i.res.Config.S.Rolling = rollingCfg
+
+	if i.deleteOldData {
+		err := i.handleDeleteOldData()
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("Error deleting old data: %v", err.Error()), -1)
+		}
+	}
 
 	importer := parser.NewFSImporter(i.res, i.threads, i.threads, i.importFiles)
 	if len(importer.GetInternalSubnets()) == 0 {
@@ -212,7 +221,7 @@ func (i *Importer) run() error {
 
 	// print out a message if we're automatically converting this to a rolling database
 	// i.e. it wasn't rolling before and the user didn't specify the --rolling flag
-	if !isRolling && !i.rolling && rollingCfg.Rolling {
+	if exists && !isRolling && rollingCfg.Rolling {
 		i.res.Log.Infof("Non-rolling database %v will be converted to rolling\n", i.targetDatabase)
 		fmt.Printf("\t[+] Non-rolling database %v will be converted to rolling\n", i.targetDatabase)
 	}
@@ -221,6 +230,31 @@ func (i *Importer) run() error {
 
 	i.res.Log.Infof("Finished importing %v\n", i.importFiles)
 
+	return nil
+}
+
+func (i *Importer) handleDeleteOldData() error {
+	if !i.res.Config.S.Rolling.Rolling {
+		return deleteSingleDatabase(i.res, i.targetDatabase, false)
+	}
+
+	// Remove the analysis results for the chunk
+	targetChunk := i.res.Config.S.Rolling.CurrentChunk
+	removerRepo := remover.NewMongoRemover(i.res)
+	err := removerRepo.Remove(targetChunk)
+	if err != nil {
+		return err
+	}
+	err = i.res.MetaDB.SetChunk(targetChunk, i.targetDatabase, false)
+	if err != nil {
+		return err
+	}
+
+	// Remove the file records so they get imported again
+	err = i.res.MetaDB.RemoveFilesByChunk(i.targetDatabase, targetChunk)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
