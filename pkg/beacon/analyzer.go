@@ -371,7 +371,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src string, dst string) update
 		"ip": src,
 		"dat": bson.M{"$elemMatch": bson.M{
 			"cid":              a.chunk,
-			"max_beacon_score": bson.M{"$lt": score},
+			"max_beacon_score": bson.M{"$lte": score},
 		}},
 	}
 
