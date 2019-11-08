@@ -55,7 +55,7 @@ var (
 	// before importing the target data
 	deleteFlag = cli.BoolFlag{
 		Name:  "delete, D",
-		Usage: "Indicates that the existing dataset should be deleted before re-importing. If the dataset is a rolling dataset, --chunk is required.",
+		Usage: "Indicates that the existing dataset should be deleted before re-importing. If the dataset is a rolling dataset and --chunk is not specified, the latest chunk will be replaced.",
 	}
 
 	rollingFlag = cli.BoolFlag{
