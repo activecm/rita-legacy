@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -13,6 +15,8 @@ type (
 		chunk            int            //current chunk (0 if not on rolling analysis)
 		chunkStr         string         //current chunk (0 if not on rolling analysis)
 		connLimit        int64          // limit for strobe classification
+		db               *database.DB   // provides access to MongoDB
+		conf             *config.Config // contains details needed to access MongoDB
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan *Pair     // holds unanalyzed data
@@ -21,11 +25,13 @@ type (
 )
 
 //newAnalyzer creates a new collector for parsing hostnames
-func newAnalyzer(chunk int, connLimit int64, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
 		chunkStr:         strconv.Itoa(chunk),
 		connLimit:        connLimit,
+		db:               db,
+		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
 		analysisChannel:  make(chan *Pair),
@@ -102,10 +108,15 @@ func (a *analyzer) start() {
 			}
 
 			// assign formatted query to output
-			output.query = query
+			output.uconn.query = query
 
 			// create selector for output
-			output.selector = bson.M{"src": data.Src, "dst": data.Dst}
+			output.uconn.selector = bson.M{"src": data.Src, "dst": data.Dst}
+
+			// get maxdur host table update
+			if data.IsLocalSrc == true {
+				output.hostMaxDur = a.hostMaxDurQuery(data.MaxDuration, data.Src, data.Dst)
+			}
 
 			// set to writer channel
 			a.analyzedCallback(output)
@@ -113,4 +124,122 @@ func (a *analyzer) start() {
 		}
 		a.analysisWg.Done()
 	}()
+}
+
+func (a *analyzer) hostMaxDurQuery(maxDur float64, src string, dst string) updateInfo {
+	ssn := a.db.Session.Copy()
+	defer ssn.Close()
+
+	var output updateInfo
+
+	// create query
+	query := bson.M{}
+
+	// check if we need to update
+	// we do this before the other queries because otherwise if a max dur
+	// starts out with a high number which reduces over time, it will keep
+	// the incorrect high max for that specific destination.
+	var resListExactMatch []interface{}
+
+	maxDurMatchExactQuery := bson.M{
+		"ip":        src,
+		"dat.mddst": dst,
+	}
+	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchExactQuery).All(&resListExactMatch)
+
+	// if we have exact matches, update to new score and return
+	if len(resListExactMatch) > 0 {
+		query["$set"] = bson.M{
+			"dat.$.max_duration": maxDur,
+			"dat.$.mddst":        dst,
+			"dat.$.cid":          a.chunk,
+		}
+
+		// create selector for output
+		output.query = query
+
+		// using the same find query we created above will allow us to match and
+		// update the exact chunk we need to update
+		output.selector = maxDurMatchExactQuery
+
+		return output
+	}
+
+	// The below is only for cases where the ip is not currently listed as a max dur
+	// for a source
+	// update max dur
+	newFlag := false
+	updateFlag := false
+
+	var resListLower []interface{}
+	var resListUpper []interface{}
+
+	// this query will find any matching chunk that is reporting a lower
+	// max beacon score than the current one we are working with
+	maxDurMatchLowerQuery := bson.M{
+		"ip": src,
+		"dat": bson.M{"$elemMatch": bson.M{
+			"cid":          a.chunk,
+			"max_duration": bson.M{"$lte": maxDur},
+		}},
+	}
+
+	maxDurMatchUpperQuery := bson.M{
+		"ip": src,
+		"dat": bson.M{"$elemMatch": bson.M{
+			"cid":          a.chunk,
+			"max_duration": bson.M{"$gte": maxDur},
+		}},
+	}
+
+	// find matching lower chunks
+	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchLowerQuery).All(&resListLower)
+
+	// if no matching chunks are found, we will set the new flag
+	if !(len(resListLower) > 0) {
+
+		// find matching upper chunks
+		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchUpperQuery).All(&resListUpper)
+		// update if no upper chunks are found
+		if !(len(resListUpper) > 0) {
+			newFlag = true
+		}
+	} else {
+		updateFlag = true
+	}
+
+	// since we didn't find any changeable lower max beacon scores, we will
+	// set the condition to push a new entry with the current score listed as the
+	// max beacon ONLY if no matching chunks reporting higher max beacon scores
+	// are found.
+
+	if newFlag {
+
+		query["$push"] = bson.M{
+			"dat": bson.M{
+				"max_duration": maxDur,
+				"mddst":        dst,
+				"cid":          a.chunk,
+			}}
+
+		// create selector for output
+		output.query = query
+		output.selector = bson.M{"ip": src}
+
+	} else if updateFlag {
+		query["$set"] = bson.M{
+			"dat.$.max_duration": maxDur,
+			"dat.$.mddst":        dst,
+			"dat.$.cid":          a.chunk,
+		}
+
+		// create selector for output
+		output.query = query
+
+		// using the same find query we created above will allow us to match and
+		// update the exact chunk we need to update
+		output.selector = maxDurMatchLowerQuery
+	}
+
+	return output
 }

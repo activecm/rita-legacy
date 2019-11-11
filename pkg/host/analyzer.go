@@ -123,7 +123,6 @@ func standardQuery(chunk int, chunkStr string, ip string, local bool, ip4 bool, 
 				"count_dst":       countDst,
 				"txt_query_count": txtQCount,
 				"upps_count":      untrustedACC,
-				"max_duration":    maxdur,
 				"cid":             chunk,
 			}}
 
@@ -139,8 +138,6 @@ func standardQuery(chunk int, chunkStr string, ip string, local bool, ip4 bool, 
 			"dat.$.txt_query_count": txtQCount,
 			"dat.$.upps_count":      untrustedACC,
 		}
-
-		query["$max"] = bson.M{"dat.$.max_duration": maxdur}
 
 		// create selector for output
 		output.query = query
