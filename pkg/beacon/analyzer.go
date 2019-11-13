@@ -279,8 +279,6 @@ func (a *analyzer) hostIcertQuery(icert bool, src string, dst string) updateInfo
 
 		var resList []hostRes
 
-		// var res3 []interface{}
-
 		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(bson.M{"ip": src, "dat.icdst": dst}).All(&resList)
 
 		if !(len(resList) > 0) {
@@ -306,7 +304,6 @@ func (a *analyzer) hostIcertQuery(icert bool, src string, dst string) updateInfo
 				"dat.$.icert": 1,
 				"dat.$.cid":   a.chunk,
 			}
-			// query["$max"] = bson.M{"dat.$.max_beacon_score": score}
 
 			// create selector for output
 			output.query = query

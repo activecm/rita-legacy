@@ -6,10 +6,16 @@ type Repository interface {
 	Upsert(uconnMap map[string]*Pair)
 }
 
-//update ....
-type update struct {
+//updateInfo ....
+type updateInfo struct {
 	selector interface{}
 	query    interface{}
+}
+
+//update ....
+type update struct {
+	uconn      updateInfo
+	hostMaxDur updateInfo
 }
 
 //Pair ....
