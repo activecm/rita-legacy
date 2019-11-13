@@ -305,6 +305,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						indexedFiles[j].GetHeader(),
 						indexedFiles[j].GetFieldMap(),
 						indexedFiles[j].GetBroDataFactory(),
+						indexedFiles[j].IsJSON(),
 						logger,
 					)
 

@@ -36,11 +36,22 @@ type IndexedFile struct {
 	header           *BroHeader
 	broDataFactory   func() pt.BroData
 	fieldMap         BroHeaderIndexMap
+	json             bool
 }
 
 //The following functions are for interacting with the private data in
 //IndexedFile as if it were public. The fields are private so they don't get
 //marshalled into MongoDB
+
+//IsJson returns whether the file is a json file
+func (i *IndexedFile) IsJSON() bool {
+	return i.json
+}
+
+//SetJson sets the json flag
+func (i *IndexedFile) SetJSON() {
+	i.json = true
+}
 
 //SetHeader sets the bro header on the indexed file
 func (i *IndexedFile) SetHeader(header *BroHeader) {
