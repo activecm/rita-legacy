@@ -59,9 +59,12 @@ func (a *analyzer) start() {
 			// set up writer output
 			var output update
 
-			// if len(data.OrigIps) > 500 {
-			// 	data.OrigIps = data.OrigIps[:500]
-			// }
+			// cap the list to an arbitrary amount (hopefully smaller than the 16 MB document size cap)
+			// anything approaching this limit will cause performance issues in software that depends on rita
+			// anything tuncated over this limit won't be visible as an IP connecting to an invalid cert
+			if len(data.OrigIps) > 200003 {
+				data.OrigIps = data.OrigIps[:200003]
+			}
 
 			if len(data.Tuples) > 20 {
 				data.Tuples = data.Tuples[:20]
