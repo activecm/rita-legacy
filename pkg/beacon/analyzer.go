@@ -227,7 +227,8 @@ func (a *analyzer) start() {
 					selector: bson.M{"src": res.Src, "dst": res.Dst},
 				}
 
-				output.host = a.hostQuery(score, res.InvalidCertFlag, res.Src, res.Dst)
+				output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Src, res.Dst)
+				output.hostBeacon = a.hostBeaconQuery(score, res.Src, res.Dst)
 
 				// set to writer channel
 				a.analyzedCallback(output)
@@ -258,23 +259,31 @@ func createCountMap(sortedIn []int64) ([]int64, []int64, int64, int64) {
 	return distinct, countsArr, mode, max
 }
 
-func (a *analyzer) hostQuery(score float64, icert bool, src string, dst string) updateInfo {
+func (a *analyzer) hostIcertQuery(icert bool, src string, dst string) updateInfo {
+	ssn := a.db.Session.Copy()
+	defer ssn.Close()
 
 	var output updateInfo
 
 	// create query
 	query := bson.M{}
 
+	// update host table if there is an invalid cert record between pair
 	if icert == true {
-		ssn := a.db.Session.Copy()
-		defer ssn.Close()
+
 		newFlag := false
 
-		var res3 []interface{}
+		type hostRes struct {
+			IP string `bson:"ip"`
+		}
 
-		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(bson.M{"ip": src, "dat.icdst": dst}).All(&res3)
+		var resList []hostRes
 
-		if !(len(res3) > 0) {
+		// var res3 []interface{}
+
+		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(bson.M{"ip": src, "dat.icdst": dst}).All(&resList)
+
+		if !(len(resList) > 0) {
 			newFlag = true
 		}
 
@@ -282,10 +291,9 @@ func (a *analyzer) hostQuery(score float64, icert bool, src string, dst string) 
 
 			query["$push"] = bson.M{
 				"dat": bson.M{
-					"icdst":            dst,
-					"icert":            1,
-					"max_beacon_score": score,
-					"cid":              a.chunk,
+					"icdst": dst,
+					"icert": 1,
+					"cid":   a.chunk,
 				}}
 
 			// create selector for output
@@ -298,21 +306,131 @@ func (a *analyzer) hostQuery(score float64, icert bool, src string, dst string) 
 				"dat.$.icert": 1,
 				"dat.$.cid":   a.chunk,
 			}
-			query["$max"] = bson.M{"dat.$.max_beacon_score": score}
+			// query["$max"] = bson.M{"dat.$.max_beacon_score": score}
 
 			// create selector for output
 			output.query = query
 			output.selector = bson.M{"ip": src, "dat.icdst": dst}
-
 		}
-	} else {
+	}
 
-		query["$max"] = bson.M{"dat.$.max_beacon_score": score}
+	return output
+}
+
+func (a *analyzer) hostBeaconQuery(score float64, src string, dst string) updateInfo {
+	ssn := a.db.Session.Copy()
+	defer ssn.Close()
+
+	var output updateInfo
+
+	// create query
+	query := bson.M{}
+
+	// check if we need to update
+	// we do this before the other queries because otherwise if a beacon
+	// starts out with a high score which reduces over time, it will keep
+	// the incorrect high max for that specific destination.
+	var resListExactMatch []interface{}
+
+	maxBeaconMatchExactQuery := bson.M{
+		"ip":        src,
+		"dat.mbdst": dst,
+	}
+	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
+
+	// if we have exact matches, update to new score and return
+	if len(resListExactMatch) > 0 {
+		query["$set"] = bson.M{
+			"dat.$.max_beacon_score": score,
+			"dat.$.mbdst":            dst,
+			"dat.$.cid":              a.chunk,
+		}
 
 		// create selector for output
 		output.query = query
-		output.selector = bson.M{"ip": src, "dat.cid": a.chunk}
 
+		// using the same find query we created above will allow us to match and
+		// update the exact chunk we need to update
+		output.selector = maxBeaconMatchExactQuery
+
+		return output
+	}
+
+	// The below is only for cases where the ip is not currently listed as a max beacon
+	// for a source
+	// update max beacon score
+	newFlag := false
+	updateFlag := false
+
+	var resListLower []interface{}
+	var resListUpper []interface{}
+
+	// this query will find any matching chunk that is reporting a lower
+	// max beacon score than the current one we are working with
+	maxBeaconMatchLowerQuery := bson.M{
+		"ip": src,
+		"dat": bson.M{"$elemMatch": bson.M{
+			"cid":              a.chunk,
+			"max_beacon_score": bson.M{"$lte": score},
+		}},
+	}
+
+	maxBeaconMatchUpperQuery := bson.M{
+		"ip": src,
+		"dat": bson.M{"$elemMatch": bson.M{
+			"cid":              a.chunk,
+			"max_beacon_score": bson.M{"$gte": score},
+		}},
+	}
+
+	// find matching lower chunks
+	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchLowerQuery).All(&resListLower)
+
+	// if no matching chunks are found, we will set the new flag
+	if !(len(resListLower) > 0) {
+
+		// find matching upper chunks
+		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchUpperQuery).All(&resListUpper)
+		// update if no upper chunks are found
+		if !(len(resListUpper) > 0) {
+			newFlag = true
+		}
+	} else {
+		updateFlag = true
+	}
+
+	// since we didn't find any changeable lower max beacon scores, we will
+	// set the condition to push a new entry with the current score listed as the
+	// max beacon ONLY if no matching chunks reporting higher max beacon scores
+	// are found.
+
+	if newFlag {
+
+		query["$push"] = bson.M{
+			"dat": bson.M{
+				"max_beacon_score": score,
+				"mbdst":            dst,
+				"cid":              a.chunk,
+			}}
+
+		// create selector for output
+		output.query = query
+		output.selector = bson.M{"ip": src}
+
+	} else if updateFlag {
+
+		query["$set"] = bson.M{
+			"dat.$.max_beacon_score": score,
+			"dat.$.mbdst":            dst,
+			"dat.$.cid":              a.chunk,
+		}
+
+		// create selector for output
+		output.query = query
+
+		// using the same find query we created above will allow us to match and
+		// update the exact chunk we need to update
+		output.selector = maxBeaconMatchLowerQuery
 	}
 
 	return output
