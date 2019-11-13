@@ -77,18 +77,12 @@ func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
 	return fs.internal
 }
 
-func (fs *FSImporter) CollectFileDetails() ([]*fpt.IndexedFile, error) {
+func (fs *FSImporter) CollectFileDetails() []*fpt.IndexedFile {
 	// find all of the potential bro log paths
 	files := readFiles(fs.importFiles, fs.res.Log)
 
 	// hash the files and get their stats
-	indexedFiles := indexFiles(files, fs.indexingThreads, fs.res)
-
-	// if no compatible files for import were found, handle error
-	if !(len(indexedFiles) > 0) {
-		return indexedFiles, fmt.Errorf("No compatible log files found")
-	}
-	return indexedFiles, nil
+	return indexFiles(files, fs.indexingThreads, fs.res)
 }
 
 //Run starts the importing
