@@ -69,10 +69,10 @@ func TestParseFlags(t *testing.T) {
 		tc{"rita import --chunk 12 --numchunks 24 (default 12)",
 			!exists, !rolling, 0, 0, !rolling, 12, 24, default12, !delete, cfg{12, rolling, 12, 24}, !returnsError},
 
-		tc{"rita import --chunk -2 (default 12)",
+		tc{"rita import --chunk -2 (default 12)", // error reason: chunk number must be positive
 			!exists, !rolling, 0, 0, !rolling, -2, blank, default12, !delete, cfg{}, returnsError},
 
-		tc{"rita import --numchunks -2 (default 12)",
+		tc{"rita import --numchunks -2 (default 12)", // error reason: numchunks must be positive
 			!exists, !rolling, 0, 0, !rolling, blank, -2, default12, !delete, cfg{}, returnsError},
 
 		tc{"rita import --delete (default 12)",
@@ -90,7 +90,7 @@ func TestParseFlags(t *testing.T) {
 		// existing database scenarios
 
 		// non-rolling, current chunk 0, total chunks 1
-		tc{"rita import",
+		tc{"rita import", // error reason: cannot import into existing non-rolling db
 			exists, !rolling, 0, 1, !rolling, blank, blank, default12, !delete, cfg{}, returnsError},
 
 		tc{"rita import --rolling",
@@ -114,10 +114,10 @@ func TestParseFlags(t *testing.T) {
 		tc{"rita import --chunk 12 --numchunks 24",
 			exists, !rolling, 0, 1, !rolling, 12, 24, default12, !delete, cfg{12, rolling, 12, 24}, !returnsError},
 
-		tc{"rita import --chunk -2",
+		tc{"rita import --chunk -2", // error reason: chunk number must be positive
 			exists, !rolling, 0, 1, !rolling, -2, blank, default12, !delete, cfg{}, returnsError},
 
-		tc{"rita import --numchunks -2",
+		tc{"rita import --numchunks -2", // error reason: numchunks must be positive
 			exists, !rolling, 0, 1, !rolling, blank, -2, default12, !delete, cfg{}, returnsError},
 
 		tc{"rita import --delete (default 12)",
@@ -148,19 +148,19 @@ func TestParseFlags(t *testing.T) {
 		tc{"rita import --chunk 5 (default 12)",
 			exists, rolling, 1, 12, !rolling, 5, blank, default12, !delete, cfg{12, rolling, 5, 12}, !returnsError},
 
-		tc{"rita import --chunk 12 (default 12)",
+		tc{"rita import --chunk 12 (default 12)", // error reason: chunk must be less than db numchunks
 			exists, rolling, 1, 12, !rolling, 12, blank, default12, !delete, cfg{}, returnsError},
 
-		tc{"rita import --chunk 12 (default 24)",
+		tc{"rita import --chunk 12 (default 24)", // error reason: chunk must be less than db numchunks
 			exists, rolling, 1, 12, !rolling, 12, blank, default24, !delete, cfg{}, returnsError},
 
 		tc{"rita import --chunk 12 --numchunks 24",
 			exists, rolling, 1, 12, !rolling, 12, 24, default12, !delete, cfg{12, rolling, 12, 24}, !returnsError},
 
-		tc{"rita import --chunk -2",
+		tc{"rita import --chunk -2", // error reason: chunk number must be positive
 			exists, rolling, 1, 12, !rolling, -2, blank, default12, !delete, cfg{}, returnsError},
 
-		tc{"rita import --numchunks -2",
+		tc{"rita import --numchunks -2", // error reason: numchunks must be positive
 			exists, rolling, 1, 12, !rolling, blank, -2, default12, !delete, cfg{}, returnsError},
 
 		tc{"rita import --delete (default 12)",
@@ -191,10 +191,10 @@ func TestParseFlags(t *testing.T) {
 		tc{"rita import --chunk 5 (default 12)",
 			exists, rolling, 11, 12, !rolling, 5, blank, default12, !delete, cfg{12, rolling, 5, 12}, !returnsError},
 
-		tc{"rita import --chunk 12 (default 12)",
+		tc{"rita import --chunk 12 (default 12)", // error reason: chunk must be less than db numchunks
 			exists, rolling, 11, 12, !rolling, 12, blank, default12, !delete, cfg{}, returnsError},
 
-		tc{"rita import --chunk 12 (default 24)",
+		tc{"rita import --chunk 12 (default 24)", // error reason: chunk must be less than db numchunks
 			exists, rolling, 11, 12, !rolling, 12, blank, default24, !delete, cfg{}, returnsError},
 
 		tc{"rita import --chunk 12 --numchunks 24",
@@ -222,10 +222,10 @@ func TestParseFlags(t *testing.T) {
 		tc{"rita import --rolling --chunk 0 --numchunks 24",
 			exists, rolling, 11, 24, rolling, 0, 24, default12, !delete, cfg{12, rolling, 0, 24}, !returnsError},
 
-		tc{"rita import --numchunks 12",
+		tc{"rita import --numchunks 12", // error reason: cannot reduce the number of chunks
 			exists, rolling, 11, 24, !rolling, blank, 12, default12, !delete, cfg{}, returnsError},
 
-		tc{"rita import --chunk 12 --numchunks 12",
+		tc{"rita import --chunk 12 --numchunks 12", // error reason: cannot reduce the number of chunks
 			exists, rolling, 11, 24, !rolling, 12, 12, default12, !delete, cfg{}, returnsError},
 
 		tc{"rita import --chunk 13 (default 12)",
@@ -265,6 +265,7 @@ func TestParseFlags(t *testing.T) {
 		if testCase.err {
 			assert.Errorf(t, err, "db: <%s> cmd: <%s>", dbMsg, testCase.msg)
 		} else {
+			assert.NoErrorf(t, err,"db: <%s> cmd: <%s>", dbMsg, testCase.msg)
 			assert.Equalf(t, testCase.expected, actual, "db: <%s> cmd: <%s>", dbMsg, testCase.msg)
 		}
 	}
