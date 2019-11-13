@@ -187,7 +187,7 @@ func parseFlags(dbExists bool, dbIsRolling bool, dbCurrChunk int, dbTotalChunks 
 	// preserve the default chunks setting (even though we don't use it after this currently)
 	cfg.DefaultChunks = cfgDefaultChunks
 
-	// validate chunk size
+	// validate current chunk number
 	if cfg.CurrentChunk < 0 ||
 		cfg.CurrentChunk >= cfg.TotalChunks {
 		return cfg, fmt.Errorf(
@@ -232,6 +232,11 @@ func (i *Importer) run() error {
 	}
 	i.res.Config.S.Rolling = rollingCfg
 
+	importer := parser.NewFSImporter(i.res, i.threads, i.threads, i.importFiles)
+	if len(importer.GetInternalSubnets()) == 0 {
+		return cli.NewExitError("Internal subnets are not defined. Please set the InternalSubnets section of the config file.", -1)
+	}
+
 	if i.deleteOldData {
 		err := i.handleDeleteOldData()
 		if err != nil {
@@ -239,15 +244,10 @@ func (i *Importer) run() error {
 		}
 	}
 
-	importer := parser.NewFSImporter(i.res, i.threads, i.threads, i.importFiles)
-	if len(importer.GetInternalSubnets()) == 0 {
-		return cli.NewExitError("Internal subnets are not defined. Please set the InternalSubnets section of the config file.", -1)
-	}
-
 	i.res.Log.Infof("Importing %v\n", i.importFiles)
 	fmt.Printf("\n\t[+] Importing %v:\n", i.importFiles)
 
-	// About to import into an existing, non-rolling database
+	// about to import into and convert an existing, non-rolling database
 	if exists && !isRolling && rollingCfg.Rolling {
 		i.res.Log.Infof("Non-rolling database %v will be converted to rolling\n", i.targetDatabase)
 		fmt.Printf("\t[+] Non-rolling database %v will be converted to rolling\n", i.targetDatabase)
