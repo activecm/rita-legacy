@@ -15,9 +15,10 @@ type updateInfo struct {
 
 //update ....
 type update struct {
-	beacon updateInfo
-	host   updateInfo
-	uconn  updateInfo
+	beacon     updateInfo
+	hostIcert  updateInfo
+	hostBeacon updateInfo
+	uconn      updateInfo
 }
 
 //TSData ...

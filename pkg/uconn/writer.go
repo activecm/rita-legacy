@@ -51,15 +51,34 @@ func (w *writer) start() {
 
 		for data := range w.writeChannel {
 
-			info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.selector, data.query)
+			if data.uconn.query != nil {
 
-			if err != nil ||
-				((info.Updated == 0) && (info.UpsertedId == nil)) {
-				w.log.WithFields(log.Fields{
-					"Module": "uconns",
-					"Info":   info,
-					"Data":   data,
-				}).Error(err)
+				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.uconn.selector, data.uconn.query)
+
+				if err != nil ||
+					((info.Updated == 0) && (info.UpsertedId == nil)) {
+					w.log.WithFields(log.Fields{
+						"Module": "uconns",
+						"Info":   info,
+						"Data":   data,
+					}).Error(err)
+				}
+
+			}
+
+			// update hosts table with icert updates
+			if data.hostMaxDur.query != nil {
+
+				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.hostMaxDur.selector, data.hostMaxDur.query)
+
+				if err != nil ||
+					((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
+					w.log.WithFields(log.Fields{
+						"Module": "beacons",
+						"Info":   info,
+						"Data":   data,
+					}).Error(err)
+				}
 			}
 		}
 		w.writeWg.Done()
