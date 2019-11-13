@@ -237,6 +237,11 @@ func (i *Importer) run() error {
 		return cli.NewExitError("Internal subnets are not defined. Please set the InternalSubnets section of the config file.", -1)
 	}
 
+	indexedFiles, err := importer.CollectFileDetails()
+	if err != nil {
+		return cli.NewExitError(err.Error(), -1)
+	}
+
 	if i.deleteOldData {
 		err := i.handleDeleteOldData()
 		if err != nil {
@@ -253,7 +258,8 @@ func (i *Importer) run() error {
 		fmt.Printf("\t[+] Non-rolling database %v will be converted to rolling\n", i.targetDatabase)
 	}
 
-	importer.Run()
+
+	importer.Run(indexedFiles)
 
 	i.res.Log.Infof("Finished importing %v\n", i.importFiles)
 

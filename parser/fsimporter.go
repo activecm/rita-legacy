@@ -77,16 +77,7 @@ func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
 	return fs.internal
 }
 
-//Run starts the importing
-func (fs *FSImporter) Run() {
-	// track the time spent parsing
-	start := time.Now()
-	fs.res.Log.WithFields(
-		log.Fields{
-			"start_time": start.Format(util.TimeFormat),
-		},
-	).Info("Starting filesystem import. Collecting file details.")
-
+func (fs *FSImporter) CollectFileDetails() ([]*fpt.IndexedFile, error) {
 	// find all of the potential bro log paths
 	files := readFiles(fs.importFiles, fs.res.Log)
 
@@ -95,17 +86,14 @@ func (fs *FSImporter) Run() {
 
 	// if no compatible files for import were found, handle error
 	if !(len(indexedFiles) > 0) {
-		fmt.Println("\n\t[!] No compatible log files found")
-		return
+		return indexedFiles, fmt.Errorf("No compatible log files found")
 	}
+	return indexedFiles, nil
+}
 
-	progTime := time.Now()
-	fs.res.Log.WithFields(
-		log.Fields{
-			"current_time": progTime.Format(util.TimeFormat),
-			"total_time":   progTime.Sub(start).String(),
-		},
-	).Info("Finished collecting file details. Starting upload.")
+//Run starts the importing
+func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
+	start := time.Now()
 
 	fmt.Println("\t[-] Verifying log files have not been previously parsed into the target dataset ... ")
 	// check list of files against metadatabase records to ensure that the a file
@@ -216,7 +204,7 @@ func (fs *FSImporter) Run() {
 	fmt.Println("\t[-] Updating metadatabase ... ")
 	fs.res.MetaDB.MarkDBAnalyzed(fs.res.DB.GetSelectedDB(), true)
 
-	progTime = time.Now()
+	progTime := time.Now()
 	fs.res.Log.WithFields(
 		log.Fields{
 			"current_time": progTime.Format(util.TimeFormat),
