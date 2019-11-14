@@ -97,9 +97,9 @@ func (m *MetaDB) SetRollingSettings(db string, chunk int, numchunks int) error {
 
 	selector := bson.M{"name": db}
 	update := bson.M{
-		"rolling": true,
+		"rolling":       true,
 		"current_chunk": chunk,
-		"total_chunks": numchunks,
+		"total_chunks":  numchunks,
 	}
 
 	if !result.Rolling {
@@ -110,7 +110,7 @@ func (m *MetaDB) SetRollingSettings(db string, chunk int, numchunks int) error {
 
 		// if the total chunks increaase grow cid_list while preserving original entries
 		for i := result.TotalChunks; i < numchunks; i++ {
-			update["cid_list." + strconv.Itoa(i) + ".set"] = false
+			update["cid_list."+strconv.Itoa(i)+".set"] = false
 		}
 	} else if result.TotalChunks > numchunks {
 		// Note: this shouldn't ever get hit because the commands/import.go:setRolling function should fail on this check
@@ -176,11 +176,13 @@ func (m *MetaDB) AddNewDB(name string, currentChunk, totalChunks int) error {
 
 	// Used to initialize Mongo array
 	// e.g. [{"set": false}, {"set": false}]
-    cidList := make([]struct {Set bool `bson:"set"`}, totalChunks)
+	cidList := make([]struct {
+		Set bool `bson:"set"`
+	}, totalChunks)
 
 	_, err = ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).
-    	Upsert(
-    		// selector
+		Upsert(
+			// selector
 			bson.M{"name": name},
 			// data
 			bson.M{"$set": bson.M{
@@ -568,6 +570,27 @@ func (m *MetaDB) AddParsedFiles(files []*fpt.IndexedFile) error {
 			"error": err.Error(),
 		}).Error("could not insert files into meta database")
 		return err
+	}
+	return nil
+}
+
+//RemoveFilesByChunk removes FilesTable entries for a given database chunk.
+//This helps provide the ability to re-import a given chunk.
+func (m *MetaDB) RemoveFilesByChunk(database string, cid int) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	ssn := m.dbHandle.Copy()
+	defer ssn.Close()
+
+	_, err := ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.FilesTable).
+		RemoveAll(bson.M{"database": database, "cid": cid})
+	if err != nil {
+		m.log.WithFields(log.Fields{
+			"database": database,
+			"cid":      cid,
+			"error":    err.Error(),
+		}).Error("could not remove files from the meta database")
+		return nil
 	}
 	return nil
 }

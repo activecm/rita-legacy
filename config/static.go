@@ -59,7 +59,7 @@ type (
 
 	//RollingStaticCfg controls the rolling database settings
 	RollingStaticCfg struct {
-		DefaultChunks int `yaml:"DefaultChunks" default:"12"`
+		DefaultChunks int `yaml:"DefaultChunks" default:"24"`
 		Rolling       bool
 		CurrentChunk  int
 		TotalChunks   int
