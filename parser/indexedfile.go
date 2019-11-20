@@ -98,6 +98,7 @@ func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile
 	}
 
 	toReturn.TargetDatabase = res.DB.GetSelectedDB()
+	toReturn.CID = res.Config.S.Rolling.CurrentChunk
 
 	fileHandle.Close()
 	return toReturn, nil
@@ -153,7 +154,16 @@ func indexFiles(files []string, indexingThreads int, res *resources.Resources) [
 	}
 
 	indexingWG.Wait()
-	return output
+
+	// remove all nil values from the slice
+	indexedFiles := make([]*fpt.IndexedFile, 0, len(output))
+	for _, file := range output {
+		if file != nil {
+			indexedFiles = append(indexedFiles, file)
+		}
+	}
+
+	return indexedFiles
 }
 
 //removeOldFilesFromIndex checks all indexedFiles passed in to ensure
@@ -171,11 +181,6 @@ func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
 	}
 
 	for _, newFile := range indexedFiles {
-		if newFile == nil {
-			//this file was errored on earlier, i.e. we didn't find a tgtDB etc.
-			continue
-		}
-
 		have := false
 		for _, oldFile := range oldFiles {
 			if oldFile.Hash == newFile.Hash {

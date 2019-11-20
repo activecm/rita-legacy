@@ -51,6 +51,13 @@ var (
 		Usage: "Tests which databases would be deleted. Does not actually delete any data, nor prompt for confirmation",
 	}
 
+	// deleteFlag indicates whether any matching, existing data should be deleted
+	// before importing the target data
+	deleteFlag = cli.BoolFlag{
+		Name:  "delete, D",
+		Usage: "Indicates that the existing dataset should be deleted before re-importing. If the dataset is a rolling dataset and --chunk is not specified, the latest chunk will be replaced.",
+	}
+
 	rollingFlag = cli.BoolFlag{
 		Name:  "rolling, R",
 		Usage: "Indicates rolling import, which builds on and removes data to maintain a fixed length of time",

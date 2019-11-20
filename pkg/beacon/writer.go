@@ -63,16 +63,35 @@ func (w *writer) start() {
 					}).Error(err)
 				}
 
-				// update hosts table
-				info, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.host.selector, data.host.query)
+				// update hosts table with icert updates
+				if data.hostIcert.query != nil {
 
-				if err != nil ||
-					((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
-					w.log.WithFields(log.Fields{
-						"Module": "beacons",
-						"Info":   info,
-						"Data":   data,
-					}).Error(err)
+					info, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.hostIcert.selector, data.hostIcert.query)
+
+					if err != nil ||
+						((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
+						w.log.WithFields(log.Fields{
+							"Module": "beacons",
+							"Info":   info,
+							"Data":   data,
+						}).Error(err)
+					}
+				}
+
+				// update hosts table with max beacon updates
+				if data.hostBeacon.query != nil {
+
+					// update hosts table
+					info, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.hostBeacon.selector, data.hostBeacon.query)
+
+					if err != nil ||
+						((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
+						w.log.WithFields(log.Fields{
+							"Module": "beacons",
+							"Info":   info,
+							"Data":   data,
+						}).Error(err)
+					}
 				}
 			}
 

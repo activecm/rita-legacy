@@ -179,12 +179,15 @@ func hostQuery(chunk int, useragentStr string, ip string, newFlag bool) update {
 
 		query["$set"] = bson.M{
 			"dat.$.rsigc": 1,
-			"dat.$.chunk": chunk,
+			"dat.$.cid":   chunk,
 		}
 
 		// create selector for output
+		// we don't add cid to the selector query because if the useragent string is
+		// already listed, we just want to update it to the most recent chunk instead
+		// of adding more
 		output.query = query
-		output.selector = bson.M{"ip": ip, "dat.cid": chunk}
+		output.selector = bson.M{"ip": ip, "dat.rsig": useragentStr}
 	}
 
 	return output
