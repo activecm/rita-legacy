@@ -147,17 +147,19 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP string, externalIP st
 	var resListExactMatch []interface{}
 
 	maxDurMatchExactQuery := bson.M{
-		"ip":       localIP,
-		"dat.mdip": externalIP,
+		"ip":  localIP,
+		"dat": bson.M{"$elemMatch": bson.M{"mdip": externalIP, "max_duration": bson.M{"$lte": maxDur}}},
 	}
+
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchExactQuery).All(&resListExactMatch)
 
 	// if we have exact matches, update to new score and return
 	if len(resListExactMatch) > 0 {
+
+		// update chunk number
 		query["$set"] = bson.M{
-			"dat.$.max_duration": maxDur,
-			"dat.$.mdip":         externalIP,
 			"dat.$.cid":          a.chunk,
+			"dat.$.max_duration": maxDur,
 		}
 
 		// create selector for output
@@ -205,6 +207,7 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP string, externalIP st
 
 		// find matching upper chunks
 		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchUpperQuery).All(&resListUpper)
+
 		// update if no upper chunks are found
 		if !(len(resListUpper) > 0) {
 			newFlag = true
