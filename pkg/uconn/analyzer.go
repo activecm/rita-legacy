@@ -114,8 +114,13 @@ func (a *analyzer) start() {
 			output.uconn.selector = bson.M{"src": data.Src, "dst": data.Dst}
 
 			// get maxdur host table update
+			// since we are only updating stats for internal ips (as defined by the
+			// user in the file), we need to customize the query to update based on
+			// which ip in the connection was local.
 			if data.IsLocalSrc == true {
 				output.hostMaxDur = a.hostMaxDurQuery(data.MaxDuration, data.Src, data.Dst)
+			} else if data.IsLocalDst {
+				output.hostMaxDur = a.hostMaxDurQuery(data.MaxDuration, data.Dst, data.Src)
 			}
 
 			// set to writer channel
@@ -126,7 +131,7 @@ func (a *analyzer) start() {
 	}()
 }
 
-func (a *analyzer) hostMaxDurQuery(maxDur float64, src string, dst string) updateInfo {
+func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP string, externalIP string) updateInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -142,17 +147,19 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, src string, dst string) updat
 	var resListExactMatch []interface{}
 
 	maxDurMatchExactQuery := bson.M{
-		"ip":        src,
-		"dat.mddst": dst,
+		"ip":  localIP,
+		"dat": bson.M{"$elemMatch": bson.M{"mdip": externalIP, "max_duration": bson.M{"$lte": maxDur}}},
 	}
+
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchExactQuery).All(&resListExactMatch)
 
 	// if we have exact matches, update to new score and return
 	if len(resListExactMatch) > 0 {
+
+		// update chunk number
 		query["$set"] = bson.M{
-			"dat.$.max_duration": maxDur,
-			"dat.$.mddst":        dst,
 			"dat.$.cid":          a.chunk,
+			"dat.$.max_duration": maxDur,
 		}
 
 		// create selector for output
@@ -177,7 +184,7 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, src string, dst string) updat
 	// this query will find any matching chunk that is reporting a lower
 	// max beacon score than the current one we are working with
 	maxDurMatchLowerQuery := bson.M{
-		"ip": src,
+		"ip": localIP,
 		"dat": bson.M{"$elemMatch": bson.M{
 			"cid":          a.chunk,
 			"max_duration": bson.M{"$lte": maxDur},
@@ -185,7 +192,7 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, src string, dst string) updat
 	}
 
 	maxDurMatchUpperQuery := bson.M{
-		"ip": src,
+		"ip": localIP,
 		"dat": bson.M{"$elemMatch": bson.M{
 			"cid":          a.chunk,
 			"max_duration": bson.M{"$gte": maxDur},
@@ -200,6 +207,7 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, src string, dst string) updat
 
 		// find matching upper chunks
 		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchUpperQuery).All(&resListUpper)
+
 		// update if no upper chunks are found
 		if !(len(resListUpper) > 0) {
 			newFlag = true
@@ -208,7 +216,7 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, src string, dst string) updat
 		updateFlag = true
 	}
 
-	// since we didn't find any changeable lower max beacon scores, we will
+	// since we didn't find any changeable lower max duration scores, we will
 	// set the condition to push a new entry with the current score listed as the
 	// max beacon ONLY if no matching chunks reporting higher max beacon scores
 	// are found.
@@ -218,18 +226,18 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, src string, dst string) updat
 		query["$push"] = bson.M{
 			"dat": bson.M{
 				"max_duration": maxDur,
-				"mddst":        dst,
+				"mdip":         externalIP,
 				"cid":          a.chunk,
 			}}
 
 		// create selector for output
 		output.query = query
-		output.selector = bson.M{"ip": src}
+		output.selector = bson.M{"ip": localIP}
 
 	} else if updateFlag {
 		query["$set"] = bson.M{
 			"dat.$.max_duration": maxDur,
-			"dat.$.mddst":        dst,
+			"dat.$.mdip":         externalIP,
 			"dat.$.cid":          a.chunk,
 		}
 
