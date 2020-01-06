@@ -89,8 +89,9 @@ func getFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
 
 // scanHeader scans the comment lines out of a bro file and returns a
 // BroHeader object containing the information. NOTE: This has the side
-// effect of advancing the fileScanner
-func scanHeader(fileScanner *bufio.Scanner) (*fpt.BroHeader, error) {
+// effect of advancing the fileScanner so that fileScanner.Text() will
+// return the first log entry in the file.
+func scanTSVHeader(fileScanner *bufio.Scanner) (*fpt.BroHeader, error) {
 	toReturn := new(fpt.BroHeader)
 	for fileScanner.Scan() {
 		if fileScanner.Err() != nil {

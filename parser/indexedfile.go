@@ -50,7 +50,7 @@ func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile
 		return toReturn, err
 	}
 
-	header, err := scanHeader(scanner)
+	header, err := scanTSVHeader(scanner)
 	if err != nil {
 		fileHandle.Close()
 		return toReturn, err
@@ -88,7 +88,7 @@ func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile
 	line := parseLine(scanner.Text(), header, fieldMap, broDataFactory, toReturn.IsJSON(), res.Log)
 	if line == nil {
 		fileHandle.Close()
-		return toReturn, errors.New("Could not parse first line of file for time")
+		return toReturn, errors.New("Could not parse first line of file")
 	}
 
 	toReturn.TargetCollection = line.TargetCollection(&res.Config.T.Structure)
