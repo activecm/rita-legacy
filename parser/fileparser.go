@@ -203,25 +203,38 @@ func mapBroHeaderToParserType(header *fpt.BroHeader, broDataFactory func() pt.Br
 	return toReturn, nil
 }
 
-//parseLine parses a line of a bro log with a given broHeader, fieldMap, into
+//parseLine parses a line of a bro log into
 //the BroData created by the broDataFactory
 func parseLine(lineString string, header *fpt.BroHeader,
 	fieldMap fpt.BroHeaderIndexMap, broDataFactory func() pt.BroData,
 	isJSON bool, logger *log.Logger) pt.BroData {
 
-	dat := broDataFactory()
-
 	if isJSON {
-		err := json.Unmarshal([]byte(lineString), dat)
-		if err != nil {
-			logger.WithFields(log.Fields{
-				"error": err.Error(),
-			}).Error("Encountered unparsable JSON in log")
-		}
-		dat.ConvertFromJSON()
-		return dat
+		return parseJSONLine(lineString, broDataFactory, logger)
 	}
+	return parseTSVLine(lineString, header, fieldMap, broDataFactory, logger)
+}
 
+
+func parseJSONLine(lineString string, broDataFactory func() pt.BroData,
+	logger *log.Logger) pt.BroData {
+
+	dat := broDataFactory()
+	err := json.Unmarshal([]byte(lineString), dat)
+	if err != nil {
+		logger.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Error("Encountered unparsable JSON in log")
+	}
+	dat.ConvertFromJSON()
+	return dat
+}
+
+func parseTSVLine(lineString string, header *fpt.BroHeader,
+	fieldMap fpt.BroHeaderIndexMap, broDataFactory func() pt.BroData,
+	logger *log.Logger) pt.BroData {
+
+	dat := broDataFactory()
 	line := strings.Split(lineString, header.Separator)
 	if len(line) < len(header.Names) {
 		return nil

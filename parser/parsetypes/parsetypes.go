@@ -11,6 +11,7 @@ import (
 type BroData interface {
 	TargetCollection(*config.StructureTableCfg) string
 	Indices() []string
+	// ConvertFromJSON should be called after importing from JSON logs
 	ConvertFromJSON()
 }
 

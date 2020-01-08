@@ -56,16 +56,16 @@ type Conn struct {
 }
 
 //TargetCollection returns the mongo collection this entry should be inserted
-func (in *Conn) TargetCollection(config *config.StructureTableCfg) string {
+func (line *Conn) TargetCollection(config *config.StructureTableCfg) string {
 	return config.ConnTable
 }
 
 //Indices gives MongoDB indices that should be used with the collection
-func (in *Conn) Indices() []string {
+func (line *Conn) Indices() []string {
 	return []string{"$hashed:id_orig_h", "$hashed:id_resp_h", "-duration", "ts", "uid"}
 }
 
 //ConvertFromJSON performs any extra conversions necessary when reading from JSON
-func (in *Conn) ConvertFromJSON() {
-	in.TimeStamp = convertTimestamp(in.TimeStampGeneric)
+func (line *Conn) ConvertFromJSON() {
+	line.TimeStamp = convertTimestamp(line.TimeStampGeneric)
 }

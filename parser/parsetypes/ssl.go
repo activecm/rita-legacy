@@ -91,16 +91,16 @@ type SSL struct {
 }
 
 //TargetCollection returns the mongo collection this entry should be inserted
-func (in *SSL) TargetCollection(config *config.StructureTableCfg) string {
+func (line *SSL) TargetCollection(config *config.StructureTableCfg) string {
 	return config.SSLTable
 }
 
 //Indices gives MongoDB indices that should be used with the collection
-func (in *SSL) Indices() []string {
+func (line *SSL) Indices() []string {
 	return []string{"$hashed:id_orig_h", "$hashed:id_resp_h"}
 }
 
 //ConvertFromJSON performs any extra conversions necessary when reading from JSON
-func (in *SSL) ConvertFromJSON() {
-	in.TimeStamp = convertTimestamp(in.TimeStampGeneric)
+func (line *SSL) ConvertFromJSON() {
+	line.TimeStamp = convertTimestamp(line.TimeStampGeneric)
 }

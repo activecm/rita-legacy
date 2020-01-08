@@ -73,16 +73,16 @@ type HTTP struct {
 }
 
 //TargetCollection returns the mongo collection this entry should be inserted
-func (in *HTTP) TargetCollection(config *config.StructureTableCfg) string {
+func (line *HTTP) TargetCollection(config *config.StructureTableCfg) string {
 	return config.HTTPTable
 }
 
 //Indices gives MongoDB indices that should be used with the collection
-func (in *HTTP) Indices() []string {
+func (line *HTTP) Indices() []string {
 	return []string{"$hashed:id_orig_h", "$hashed:id_resp_h", "$hashed:user_agent", "uid"}
 }
 
 //ConvertFromJSON performs any extra conversions necessary when reading from JSON
-func (in *HTTP) ConvertFromJSON() {
-	in.TimeStamp = convertTimestamp(in.TimeStampGeneric)
+func (line *HTTP) ConvertFromJSON() {
+	line.TimeStamp = convertTimestamp(line.TimeStampGeneric)
 }
