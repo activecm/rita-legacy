@@ -63,9 +63,17 @@ func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile
 		broDataFactory = pt.NewBroDataFactory(header.ObjType)
 	} else if scanner.Err() == nil && len(scanner.Text()) > 0 && // no error and there is text
 		json.Valid(scanner.Bytes()) {
-		// JSON log files only have the type in the filename
-		broDataFactory = pt.NewBroDataFactory(filepath.Base(toReturn.Path))
 		toReturn.SetJSON()
+		// check if "_path" is provided in the JSON data
+		// https://github.com/corelight/json-streaming-logs
+		t := struct { Path string `json:"_path"` }{}
+		json.Unmarshal(scanner.Bytes(), &t)
+		broDataFactory = pt.NewBroDataFactory(t.Path)
+
+		// otherwise JSON log files only have the type in the filename
+		if broDataFactory == nil {
+			broDataFactory = pt.NewBroDataFactory(filepath.Base(toReturn.Path))
+		}
 	}
 	if broDataFactory == nil {
 		fileHandle.Close()
