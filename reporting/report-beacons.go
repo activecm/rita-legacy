@@ -30,7 +30,6 @@ func printBeacons(db string, res *resources.Resources) error {
 	}
 
 	if !(len(data) > 0) {
-		// return cli.NewExitError("No results were found for "+db, -1)
 		w = ""
 	} else {
 		w, err = getBeaconWriter(data)
