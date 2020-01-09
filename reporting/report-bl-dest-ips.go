@@ -24,7 +24,10 @@ func printBLDestIPs(db string, res *resources.Resources) error {
 			bson.M{"dat.count_dst": bson.M{"$gt": 0}},
 		}}
 
-	data := getBlacklistedIPsResultsView(res, "conn_count", 1000, match, "dst", "src")
+	data, err := getBlacklistedIPsResultsView(res, "conn_count", 1000, match, "dst", "src")
+	if err != nil {
+		return err
+	}
 
 	out, err := template.New("bl-dest-ips.html").Parse(templates.BLDestIPTempl)
 	if err != nil {
@@ -40,7 +43,7 @@ func printBLDestIPs(db string, res *resources.Resources) error {
 }
 
 //getBlaclistedIPsResultsView
-func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit int, match bson.M, field1 string, field2 string) []host.AnalysisView {
+func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit int, match bson.M, field1 string, field2 string) ([]host.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -78,8 +81,11 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, limit i
 	}
 
 	//TODO: Don't swallow this error
-	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
 
-	return blIPs
+	if err != nil {
+		return nil, err
+	}
+	return blIPs, nil
 
 }

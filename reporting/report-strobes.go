@@ -2,7 +2,6 @@ package reporting
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"os"
 
@@ -23,7 +22,10 @@ func printStrobes(db string, res *resources.Resources) error {
 		return err
 	}
 
-	data := getStrobeResultsView(res, "conn_count", 1000)
+	data, err := getStrobeResultsView(res, "conn_count", 1000)
+	if err != nil {
+		return err
+	}
 
 	w, err := getStrobesWriter(data)
 	if err != nil {
@@ -49,7 +51,7 @@ func getStrobesWriter(strobes []beacon.StrobeAnalysisView) (string, error) {
 }
 
 //getStrobeResultsView ...
-func getStrobeResultsView(res *resources.Resources, sort string, limit int) []beacon.StrobeAnalysisView {
+func getStrobeResultsView(res *resources.Resources, sort string, limit int) ([]beacon.StrobeAnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -70,11 +72,9 @@ func getStrobeResultsView(res *resources.Resources, sort string, limit int) []be
 	}
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).AllowDiskUse().All(&strobes)
-
 	if err != nil {
-		//TODO: properly log this error
-		fmt.Println(err)
+		return nil, err
 	}
 
-	return strobes
+	return strobes, nil
 }

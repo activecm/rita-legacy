@@ -20,7 +20,10 @@ func printBLHostnames(db string, res *resources.Resources) error {
 	}
 	defer f.Close()
 
-	data := getBlacklistedHostnameResultsView(res, "conn_count", 1000)
+	data, err := getBlacklistedHostnameResultsView(res, "conn_count", 1000)
+	if err != nil {
+		return err
+	}
 
 	out, err := template.New("bl-hostnames.html").Parse(templates.BLHostnameTempl)
 	if err != nil {
@@ -59,7 +62,7 @@ func getBLHostnameWriter(results []hostname.AnalysisView) (string, error) {
 }
 
 //getBlacklistedHostnameResultsView ....
-func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, limit int) []hostname.AnalysisView {
+func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, limit int) ([]hostname.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -103,8 +106,10 @@ func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, li
 	var blHosts []hostname.AnalysisView
 
 	//TODO: Don't swallow this error
-	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.HostnamesTable).Pipe(blHostsQuery).AllowDiskUse().All(&blHosts)
-
-	return blHosts
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.HostnamesTable).Pipe(blHostsQuery).AllowDiskUse().All(&blHosts)
+	if err != nil {
+		return nil, err
+	}
+	return blHosts, nil
 
 }

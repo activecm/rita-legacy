@@ -2,7 +2,6 @@ package reporting
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"os"
 
@@ -23,7 +22,10 @@ func printUserAgents(db string, res *resources.Resources) error {
 		return err
 	}
 
-	data := getUseragentResultsView(res, "seen", 1, 1000)
+	data, err := getUseragentResultsView(res, "seen", 1, 1000)
+	if err != nil {
+		return err
+	}
 
 	w, err := getUserAgentsWriter(data)
 	if err != nil {
@@ -49,7 +51,7 @@ func getUserAgentsWriter(agents []useragent.AnalysisView) (string, error) {
 }
 
 //getUseragentResultsView gets the useragent results
-func getUseragentResultsView(res *resources.Resources, sort string, sortDirection int, limit int) []useragent.AnalysisView {
+func getUseragentResultsView(res *resources.Resources, sort string, sortDirection int, limit int) ([]useragent.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -72,12 +74,10 @@ func getUseragentResultsView(res *resources.Resources, sort string, sortDirectio
 	}
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.UserAgent.UserAgentTable).Pipe(useragentQuery).AllowDiskUse().All(&useragentResults)
-
 	if err != nil {
-		//TODO: properly log this error
-		fmt.Println(err)
+		return nil, err
 	}
 
-	return useragentResults
+	return useragentResults, nil
 
 }

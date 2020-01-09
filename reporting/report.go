@@ -144,48 +144,58 @@ func writeDB(db string, wd string, res *resources.Resources) error {
 
 	err = writeDBHomePage(db)
 	if err != nil {
-		return err
+		fmt.Println("[-] Error writing Home page: " + err.Error())
+		err = nil
 	}
 
 	err = printDNS(db, res)
 	if err != nil {
-		return err
+		fmt.Println("[-] Error writing DNS page: " + err.Error())
+		err = nil
 	}
 	err = printBLSourceIPs(db, res)
 	if err != nil {
-		return err
+		fmt.Println("[-] Error writing blacklist-source page: " + err.Error())
+		err = nil
 	}
 	err = printBLDestIPs(db, res)
 	if err != nil {
-		return err
+		fmt.Println("[-] Error writing blacklist-destination page: " + err.Error())
+		err = nil
 	}
 	err = printBLHostnames(db, res)
 	if err != nil {
-		return err
+		fmt.Println("[-] Error writing blacklist-hostnames page: " + err.Error())
+		err = nil
 	}
 
 	err = printBeacons(db, res)
 	if err != nil {
-		return err
+		fmt.Println("[-] Error writing beacons page: " + err.Error())
+		err = nil
 	}
 
 	err = printStrobes(db, res)
 	if err != nil {
-		return err
+		fmt.Println("[-] Error writing strobes page: " + err.Error())
+		err = nil
 	}
 
 	err = printLongConns(db, res)
 	if err != nil {
-		return err
+		fmt.Println("[-] Error writing long connections page: " + err.Error())
+		err = nil
 	}
 	err = printUserAgents(db, res)
 	if err != nil {
-		return err
+		fmt.Println("[-] Error writing user agents page: " + err.Error())
+		err = nil
 	}
 
 	err = os.Chdir("..")
 	if err != nil {
-		return err
+		fmt.Println("[-] Error changing to home directory, but if it got here all the pages are probably written: " + err.Error())
+		err = nil
 	}
 
 	return nil
