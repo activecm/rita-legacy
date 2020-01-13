@@ -201,7 +201,7 @@ __install_bro() {
 				"Bro" \
 				"http://download.opensuse.org/repositories/network:bro/xUbuntu_$(lsb_release -rs)/Release.key"
 			;;
-		CentOS|RedHatEnterpriseServer)
+		CentOS|RedHatEnterprise|RedHatEnterpriseServer)
 			__add_rpm_repo http://download.opensuse.org/repositories/network:bro/CentOS_7/network:bro.repo
 			# Workaround for https://github.com/activecm/rita/issues/189
 			# Replace the download.opensuse.org link with downloadcontent.opensuse.org link
@@ -318,7 +318,7 @@ __install_mongodb() {
 				"mongodb-org-${_MONGO_VERSION}" \
 				"https://www.mongodb.org/static/pgp/server-${_MONGO_VERSION}.asc"
 			;;
-		CentOS|RedHatEnterpriseServer)
+		CentOS|RedHatEnterprise|RedHatEnterpriseServer)
 			if [ ! -s /etc/yum.repos.d/mongodb-org-${_MONGO_VERSION}.repo ]; then
 				cat << EOF > /etc/yum.repos.d/mongodb-org-${_MONGO_VERSION}.repo
 [mongodb-org-${_MONGO_VERSION}]
@@ -344,7 +344,7 @@ __configure_mongodb() {
 		systemctl daemon-reload > /dev/null
 		systemctl start mongod > /dev/null
 		_STOP_MONGO="sudo systemctl stop mongod"
-	elif [ "$_OS" = "CentOS" -o "$_OS" = "RedHatEnterpriseServer" ]; then
+	elif [ "$_OS" = "CentOS" -o "$_OS" = "RedHatEnterprise" -o "$_OS" = "RedHatEnterpriseServer" ]; then
 		systemctl enable mongod.service > /dev/null
 		systemctl daemon-reload > /dev/null
 		systemctl start mongod > /dev/null
@@ -404,7 +404,7 @@ __gather_OS() {
 	_OS_CODENAME="$(lsb_release -cs)"
 	_MONGO_OS_CODENAME="$(lsb_release -cs)"
 
-	if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterpriseServer" ]; then
+	if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" ]; then
 		printf "$_ITEM This installer supports Ubuntu, CentOS, and RHEL. \n"
 		printf "$_IMPORTANT Your operating system is unsupported."
 		exit 1
