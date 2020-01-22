@@ -469,9 +469,8 @@ __gather_bro() {
 		printf "$_IMPORTANT RITA has not been tested with this version of Bro and may not function correctly.\n"
 		printf "$_IMPORTANT For the best results, please stop this script, uninstall Bro, and re-run the installer.\n"
 		printf "\n"
-		printf "$_IMPORTANT Press enter to continue installing RITA alongside the existing Bro installation.\n"
-		read -e
-		_INSTALL_BRO=false
+		printf "$_IMPORTANT Pausing for 20 seconds before continuing. \n"
+		sleep 20
 	fi
 
 	_BRO_PATH_SCRIPT="/etc/profile.d/bro-path.sh"
