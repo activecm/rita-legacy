@@ -1,14 +1,18 @@
 package parsetypes
 
 import (
-	"github.com/activecm/rita/config"
 	"strings"
+	"time"
+
+	"github.com/activecm/rita/config"
 )
 
 //BroData holds a line of a bro log
 type BroData interface {
 	TargetCollection(*config.StructureTableCfg) string
 	Indices() []string
+	// ConvertFromJSON should be called after importing from JSON logs
+	ConvertFromJSON()
 }
 
 //NewBroDataFactory creates a new BroData based on the string
@@ -36,6 +40,35 @@ func NewBroDataFactory(fileType string) func() BroData {
 		}
 	}
 	return nil
+}
+
+// convertTimestamp handles a timestamp in multiple formats and converts
+// it to a Unix timestamp
+func convertTimestamp(timestamp interface{}) int64 {
+	switch input := timestamp.(type) {
+	// all number types are assumed to be in unix format, possibly with fractional seconds
+	case int:
+		return int64(input)
+	case int32:
+		return int64(input)
+	case int64:
+		return input
+	case float32:
+		return int64(input)
+	case float64:
+		return int64(input)
+	case string:
+		// assumed to be in RFC8601 format, though other formats can be added as necessary
+		// ex: 2019-11-13T09:00:01.932360Z
+		// RFC3339 is similar to ISO8601
+		// If it breaks try this layout: "2006-01-02T15:04:05-0700"
+		t, err := time.Parse(time.RFC3339, input)
+		if err == nil {
+			// since the layout includes the timezone, first convert to UTC
+			return t.UTC().Unix()
+		}
+	}
+	return 0
 }
 
 // Further documentation on bros datatypes can be found on the bro website at:

@@ -3,6 +3,7 @@ package parser
 import (
 	"bufio"
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"os"
@@ -88,8 +89,9 @@ func getFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
 
 // scanHeader scans the comment lines out of a bro file and returns a
 // BroHeader object containing the information. NOTE: This has the side
-// effect of advancing the fileScanner
-func scanHeader(fileScanner *bufio.Scanner) (*fpt.BroHeader, error) {
+// effect of advancing the fileScanner so that fileScanner.Text() will
+// return the first log entry in the file.
+func scanTSVHeader(fileScanner *bufio.Scanner) (*fpt.BroHeader, error) {
 	toReturn := new(fpt.BroHeader)
 	for fileScanner.Scan() {
 		if fileScanner.Err() != nil {
@@ -201,11 +203,38 @@ func mapBroHeaderToParserType(header *fpt.BroHeader, broDataFactory func() pt.Br
 	return toReturn, nil
 }
 
-//parseLine parses a line of a bro log with a given broHeader, fieldMap, into
+//parseLine parses a line of a bro log into
 //the BroData created by the broDataFactory
 func parseLine(lineString string, header *fpt.BroHeader,
 	fieldMap fpt.BroHeaderIndexMap, broDataFactory func() pt.BroData,
+	isJSON bool, logger *log.Logger) pt.BroData {
+
+	if isJSON {
+		return parseJSONLine(lineString, broDataFactory, logger)
+	}
+	return parseTSVLine(lineString, header, fieldMap, broDataFactory, logger)
+}
+
+
+func parseJSONLine(lineString string, broDataFactory func() pt.BroData,
 	logger *log.Logger) pt.BroData {
+
+	dat := broDataFactory()
+	err := json.Unmarshal([]byte(lineString), dat)
+	if err != nil {
+		logger.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Error("Encountered unparsable JSON in log")
+	}
+	dat.ConvertFromJSON()
+	return dat
+}
+
+func parseTSVLine(lineString string, header *fpt.BroHeader,
+	fieldMap fpt.BroHeaderIndexMap, broDataFactory func() pt.BroData,
+	logger *log.Logger) pt.BroData {
+
+	dat := broDataFactory()
 	line := strings.Split(lineString, header.Separator)
 	if len(line) < len(header.Names) {
 		return nil
@@ -214,7 +243,6 @@ func parseLine(lineString string, header *fpt.BroHeader,
 		return nil
 	}
 
-	dat := broDataFactory()
 	data := reflect.ValueOf(dat).Elem()
 
 	for idx, val := range header.Names {

@@ -2,16 +2,18 @@ package parser
 
 import (
 	"crypto/md5"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/activecm/rita/resources"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/resources"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	pt "github.com/activecm/rita/parser/parsetypes"
 )
@@ -48,32 +50,53 @@ func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile
 		return toReturn, err
 	}
 
-	header, err := scanHeader(scanner)
+	header, err := scanTSVHeader(scanner)
 	if err != nil {
 		fileHandle.Close()
 		return toReturn, err
 	}
 	toReturn.SetHeader(header)
 
-	broDataFactory := pt.NewBroDataFactory(header.ObjType)
+	var broDataFactory func() pt.BroData
+	if header.ObjType != "" {
+		// TSV log files have the type in a header
+		broDataFactory = pt.NewBroDataFactory(header.ObjType)
+	} else if scanner.Err() == nil && len(scanner.Text()) > 0 && // no error and there is text
+		json.Valid(scanner.Bytes()) {
+		toReturn.SetJSON()
+		// check if "_path" is provided in the JSON data
+		// https://github.com/corelight/json-streaming-logs
+		t := struct { Path string `json:"_path"` }{}
+		json.Unmarshal(scanner.Bytes(), &t)
+		broDataFactory = pt.NewBroDataFactory(t.Path)
+
+		// otherwise JSON log files only have the type in the filename
+		if broDataFactory == nil {
+			broDataFactory = pt.NewBroDataFactory(filepath.Base(toReturn.Path))
+		}
+	}
 	if broDataFactory == nil {
 		fileHandle.Close()
 		return toReturn, errors.New("Could not map file header to parse type")
 	}
 	toReturn.SetBroDataFactory(broDataFactory)
 
-	fieldMap, err := mapBroHeaderToParserType(header, broDataFactory, res.Log)
-	if err != nil {
-		fileHandle.Close()
-		return toReturn, err
+	var fieldMap fpt.BroHeaderIndexMap
+	// there is no need for the fieldMap with JSON
+	if !toReturn.IsJSON() {
+		fieldMap, err = mapBroHeaderToParserType(header, broDataFactory, res.Log)
+		if err != nil {
+			fileHandle.Close()
+			return toReturn, err
+		}
+		toReturn.SetFieldMap(fieldMap)
 	}
-	toReturn.SetFieldMap(fieldMap)
 
 	//parse first line
-	line := parseLine(scanner.Text(), header, fieldMap, broDataFactory, res.Log)
+	line := parseLine(scanner.Text(), header, fieldMap, broDataFactory, toReturn.IsJSON(), res.Log)
 	if line == nil {
 		fileHandle.Close()
-		return toReturn, errors.New("Could not parse first line of file for time")
+		return toReturn, errors.New("Could not parse first line of file")
 	}
 
 	toReturn.TargetCollection = line.TargetCollection(&res.Config.T.Structure)
