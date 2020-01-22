@@ -470,6 +470,7 @@ __gather_bro() {
 		printf "$_IMPORTANT For the best results, please stop this script, uninstall Bro, and re-run the installer.\n"
 		printf "\n"
 		printf "$_IMPORTANT Pausing for 20 seconds before continuing. \n"
+		_INSTALL_BRO=false
 		sleep 20
 	fi
 
