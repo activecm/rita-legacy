@@ -348,7 +348,7 @@ EOF
 
 __configure_mongodb() {
 	printf "$_IMPORTANT Starting MongoDB and enabling on startup. \n"
-	if [ "$_OS" = "Ubuntu" -o "$_OS" = "Raspbian" ]; then
+	if [ "$_OS" = "Ubuntu" ]; then
 		systemctl enable mongod.service > /dev/null
 		systemctl daemon-reload > /dev/null
 		systemctl start mongod > /dev/null
@@ -413,7 +413,7 @@ __gather_OS() {
 	_OS_CODENAME="$(lsb_release -cs)"
 	_MONGO_OS_CODENAME="$(lsb_release -cs)"
 
-	if [ "$_OS" != "Ubuntu" -a "$_OS" != "Raspbian" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" ]; then
+	if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" ]; then
 		printf "$_ITEM This installer supports Ubuntu, CentOS, and RHEL. \n"
 		printf "$_IMPORTANT Your operating system is unsupported."
 		exit 1
