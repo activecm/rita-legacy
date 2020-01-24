@@ -210,7 +210,16 @@ __install_bro() {
 			;;
 	esac
 	__install_packages bro broctl
-	chmod 2755 /opt/bro/logs
+	if [ -d /opt/bro/logs/ ]; then
+		chmod 2755 /opt/bro/logs
+	elif [ -d /var/log/bro/ ]; then
+		mkdir -p /opt/bro/logs/
+		chmod 2755 /opt/bro/logs
+		mv -f /var/log/bro /var/log/bro.orig
+		cd /var/log
+		ln -s /opt/bro/logs bro
+		cd -
+	fi
 	_BRO_PKG_INSTALLED=true
 	_BRO_INSTALLED=true
 	_BRO_PATH="/opt/bro/bin"
@@ -339,7 +348,7 @@ EOF
 
 __configure_mongodb() {
 	printf "$_IMPORTANT Starting MongoDB and enabling on startup. \n"
-	if [ "$_OS" = "Ubuntu" ]; then
+	if [ "$_OS" = "Ubuntu" -o "$_OS" = "Raspbian" ]; then
 		systemctl enable mongod.service > /dev/null
 		systemctl daemon-reload > /dev/null
 		systemctl start mongod > /dev/null
@@ -404,7 +413,7 @@ __gather_OS() {
 	_OS_CODENAME="$(lsb_release -cs)"
 	_MONGO_OS_CODENAME="$(lsb_release -cs)"
 
-	if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" ]; then
+	if [ "$_OS" != "Ubuntu" -a "$_OS" != "Raspbian" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" ]; then
 		printf "$_ITEM This installer supports Ubuntu, CentOS, and RHEL. \n"
 		printf "$_IMPORTANT Your operating system is unsupported."
 		exit 1
