@@ -210,10 +210,10 @@ __install_bro() {
 			;;
 	esac
 	__install_packages bro broctl
-	if [ -d /opt/bro/logs/ ]; then
+	if [ -d /opt/bro/logs/ ]; then		#Standard directory for Bro logs when installed by Rita
 		chmod 2755 /opt/bro/logs
-	elif [ -d /var/log/bro/ ]; then
-		mkdir -p /opt/bro/logs/
+	elif [ -d /var/log/bro/ ]; then		#Standard directory for Bro logs when installed by apt...
+		mkdir -p /opt/bro/logs/		#...and we move the log storage over to /opt/bro/logs so we can have one place to mount external storage.
 		chmod 2755 /opt/bro/logs
 		mv -f /var/log/bro /var/log/bro.orig
 		cd /var/log
