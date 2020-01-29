@@ -99,7 +99,7 @@ __entry() {
 	if [ "$_INSTALL_RITA" = "true" ] && __installation_exist && [ "$_REINSTALL_RITA" != "true" ]; then
 		printf "$_IMPORTANT RITA is already installed.\n"
 		printf "$_QUESTION Would you like to re-install? [y/N] "
-		read
+		read -e
 		if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 			exit 0
 		fi
@@ -471,6 +471,16 @@ __gather_bro() {
 	_BRO_INSTALLED=false
 	if [ $_BRO_PKG_INSTALLED = "true" -o $_BRO_ONION_INSTALLED = "true" -o $_BRO_SOURCE_INSTALLED = "true" ]; then
 		_BRO_INSTALLED=true
+	fi
+
+	if [ "$_INSTALL_BRO" = "true" -a "$_BRO_INSTALLED" = "true" -a ! -d "$_BRO_PATH" ]; then
+		printf "$_IMPORTANT An unsupported version of Bro is installed on this system.\n"
+		printf "$_IMPORTANT RITA has not been tested with this version of Bro and may not function correctly.\n"
+		printf "$_IMPORTANT For the best results, please stop this script, uninstall Bro, and re-run the installer.\n"
+		printf "\n"
+		printf "$_IMPORTANT Pausing for 20 seconds before continuing. \n"
+		_INSTALL_BRO=false
+		sleep 20
 	fi
 
 	_BRO_PATH_SCRIPT="/etc/profile.d/bro-path.sh"
