@@ -3,6 +3,8 @@ package commands
 import (
 	"encoding/csv"
 	"os"
+	"bytes"
+	"strings"
 
 	"github.com/activecm/rita/pkg/explodeddns"
 	"github.com/activecm/rita/resources"
@@ -60,6 +62,25 @@ func init() {
 	bootstrapCommands(command)
 }
 
+func SplitSubN(s string, n int) []string {
+	sub := ""
+	subs := []string{}
+
+	runes := bytes.Runes([]byte(s))
+	l := len(runes)
+	for i, r := range runes {
+		sub = sub + string(r)
+		if (i + 1) % n == 0 {
+			subs = append(subs, sub)
+			sub = ""
+		} else if (i + 1) == l {
+			subs = append(subs, sub)
+		}
+	}
+
+	return subs
+}
+
 func showDNSResults(dnsResults []explodeddns.AnalysisView) error {
 	csvWriter := csv.NewWriter(os.Stdout)
 	csvWriter.Write([]string{"Domain", "Unique Subdomains", "Times Looked Up"})
@@ -73,11 +94,21 @@ func showDNSResults(dnsResults []explodeddns.AnalysisView) error {
 }
 
 func showDNSResultsHuman(dnsResults []explodeddns.AnalysisView) error {
+    const DOMAINRECLEN = 80
 	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(true)
+	table.SetRowSeparator("-")
+	table.SetRowLine(true)
 	table.SetHeader([]string{"Domain", "Unique Subdomains", "Times Looked Up"})
 	for _, result := range dnsResults {
+		domain := result.Domain
+		if (len(domain) > DOMAINRECLEN) {
+			// Reformat the result.Domain value adding a newline every DOMAINRECLEN chars for wrapping
+			subs := SplitSubN(result.Domain, DOMAINRECLEN)
+			domain = strings.Join(subs, "\n")
+		}
 		table.Append([]string{
-			result.Domain, i(result.SubdomainCount), i(result.Visited),
+			domain, i(result.SubdomainCount), i(result.Visited),
 		})
 	}
 	table.Render()
