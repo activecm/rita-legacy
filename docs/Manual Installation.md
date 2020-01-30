@@ -46,7 +46,7 @@ In order to compile RITA manually you will need to install both [Golang](https:/
 
 At this point you can build RITA from source code.
 
-1. ```go get github.com/activecm/rita``` or ```git clone git@github.com:activecm/rita.git $GOPATH/src/github.com/activecm/rita```
+1. ```go get github.com/activecm/rita``` or ```git clone https://github.com/activecm/rita.git $GOPATH/src/github.com/activecm/rita```
 1. ```cd $GOPATH/src/github.com/activecm/rita```
 1. ```make``` (Note that you will need to have `make` installed. You can use your system's package manager to install it.)
 
