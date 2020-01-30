@@ -61,7 +61,7 @@ Automated tests are run against each commit on Travis CI. Build results may be v
 ### Gittiquette Summary
 * In order to contribute to RITA, you must fork it
   * Do not `go get` or `git clone` your forked repo
-  * Instead, `git remote add` it to your existing RITA repository
+  * Instead, `git remote set-url origin https://github.com/YOURGITHUBACCOUNT/rita` it to your existing forked RITA repository
 * Split a branch off of master `git checkout -b [a-new-branch]`
 * Push your commits to your remote if you wish to develop in the public
 * When your work is finished, pull down the latest master branch, and rebase
