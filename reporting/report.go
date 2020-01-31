@@ -20,7 +20,7 @@ import (
 // a directory named after the selected dataset, or `rita-html-report` if
 // mupltiple were selected, within the current working directory,
 // mongodb must be running to call this command, will exit on any writing error
-func PrintHTML(dbsIn []string, res *resources.Resources) error {
+func PrintHTML(dbsIn []string, dir string, res *resources.Resources) error {
 	if len(dbsIn) == 0 {
 		return errors.New("no analyzed databases to report on")
 	}
@@ -40,6 +40,8 @@ func PrintHTML(dbsIn []string, res *resources.Resources) error {
 	} else {
 		outFolder = []byte("rita-html-report")
 	}
+	// Build directory string
+	outFolder = append([]byte(dir), outFolder...)
 	outFolderBaseLen := len(outFolder)
 	counter := 1
 

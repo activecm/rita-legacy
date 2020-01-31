@@ -58,6 +58,12 @@ var (
 		Usage: "Indicates that the existing dataset should be deleted before re-importing. If the dataset is a rolling dataset and --chunk is not specified, the latest chunk will be replaced.",
 	}
 
+	dirFlag = cli.StringFlag{
+		Name:  "directory, d",
+		Usage: "Set the directory to execute the command in, if not set defaults to current working directory",
+		Value: "./",
+	}
+
 	rollingFlag = cli.BoolFlag{
 		Name:  "rolling, R",
 		Usage: "Indicates rolling import, which builds on and removes data to maintain a fixed length of time",

@@ -15,9 +15,11 @@ func init() {
 			"If no database is specified, a report will be created for every database.",
 		Flags: []cli.Flag{
 			configFlag,
+			dirFlag,
 		},
 		Action: func(c *cli.Context) error {
 			res := resources.InitResources(c.String("config"))
+			dir := c.String("directory")
 			databaseName := c.Args().Get(0)
 			var databases []string
 			if databaseName != "" {
@@ -25,7 +27,7 @@ func init() {
 			} else {
 				databases = res.MetaDB.GetAnalyzedDatabases()
 			}
-			err := reporting.PrintHTML(databases, res)
+			err := reporting.PrintHTML(databases, dir, res)
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
