@@ -29,7 +29,7 @@ func printBeacons(db string, res *resources.Resources) error {
 		return err
 	}
 
-	if !(len(data) > 0) {
+	if len(data) == 0 {
 		w = ""
 	} else {
 		w, err = getBeaconWriter(data)
@@ -74,7 +74,6 @@ func getBeaconResultsView(res *resources.Resources, cutoffScore float64) ([]beac
 
 	beaconQuery := bson.M{"score": bson.M{"$gt": cutoffScore}}
 
-	//TODO: Don't swallow this error
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(beaconQuery).Sort("-score").All(&beacons)
 	if err != nil {
 		return nil, err
