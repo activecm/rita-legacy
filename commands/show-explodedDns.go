@@ -62,7 +62,8 @@ func init() {
 	bootstrapCommands(command)
 }
 
-func SplitSubN(s string, n int) []string {
+// splitSubN splits s every n characters
+func splitSubN(s string, n int) []string {
 	sub := ""
 	subs := []string{}
 
@@ -94,7 +95,7 @@ func showDNSResults(dnsResults []explodeddns.AnalysisView) error {
 }
 
 func showDNSResultsHuman(dnsResults []explodeddns.AnalysisView) error {
-    const DOMAINRECLEN = 80
+ 	const DOMAINRECLEN = 80
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(true)
 	table.SetRowSeparator("-")
@@ -104,7 +105,7 @@ func showDNSResultsHuman(dnsResults []explodeddns.AnalysisView) error {
 		domain := result.Domain
 		if (len(domain) > DOMAINRECLEN) {
 			// Reformat the result.Domain value adding a newline every DOMAINRECLEN chars for wrapping
-			subs := SplitSubN(result.Domain, DOMAINRECLEN)
+			subs := splitSubN(result.Domain, DOMAINRECLEN)
 			domain = strings.Join(subs, "\n")
 		}
 		table.Append([]string{
