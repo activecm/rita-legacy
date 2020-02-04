@@ -2,7 +2,6 @@ package reporting
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"os"
 	"strings"
@@ -30,7 +29,10 @@ func printLongConns(db string, res *resources.Resources) error {
 	sortDirection := -1
 	thresh := 60 // 1 minute
 
-	data := getLongConnsResultsView(res, thresh, sortStr, sortDirection, 1000)
+	data, err := getLongConnsResultsView(res, thresh, sortStr, sortDirection, 1000)
+	if err != nil {
+		return err
+	}
 
 	w, err := getLongConnWriter(data)
 	if err != nil {
@@ -57,7 +59,7 @@ func getLongConnWriter(conns []uconn.LongConnAnalysisView) (string, error) {
 }
 
 //getLongConnsResultsView gets the long connection results
-func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, sortDirection int, limit int) []uconn.LongConnAnalysisView {
+func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, sortDirection int, limit int) ([]uconn.LongConnAnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -87,12 +89,10 @@ func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, 
 	}
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(longConnQuery).AllowDiskUse().All(&longConnResults)
-
 	if err != nil {
-		//TODO: properly log this error
-		fmt.Println(err)
+		return nil, err
 	}
 
-	return longConnResults
+	return longConnResults, nil
 
 }

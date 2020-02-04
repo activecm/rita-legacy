@@ -26,7 +26,10 @@ func printBLSourceIPs(db string, res *resources.Resources) error {
 			bson.M{"dat.count_src": bson.M{"$gt": 0}},
 		}}
 
-	data := getBlacklistedIPsResultsView(res, "conn_count", 1000, match, "src", "dst")
+	data, err := getBlacklistedIPsResultsView(res, "conn_count", 1000, match, "src", "dst")
+	if err != nil {
+		return err
+	}
 
 	out, err := template.New("bl-source-ips.html").Parse(templates.BLSourceIPTempl)
 	if err != nil {

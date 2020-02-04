@@ -9,10 +9,10 @@ import (
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/bson"
-	"github.com/urfave/cli"
 )
 
 func printBeacons(db string, res *resources.Resources) error {
+	var w string
 	f, err := os.Create("beacons.html")
 	if err != nil {
 		return err
@@ -24,15 +24,18 @@ func printBeacons(db string, res *resources.Resources) error {
 		return err
 	}
 
-	data := getBeaconResultsView(res, 0)
-
-	if !(len(data) > 0) {
-		return cli.NewExitError("No results were found for "+db, -1)
-	}
-
-	w, err := getBeaconWriter(data)
+	data, err := getBeaconResultsView(res, 0)
 	if err != nil {
 		return err
+	}
+
+	if len(data) == 0 {
+		w = ""
+	} else {
+		w, err = getBeaconWriter(data)
+		if err != nil {
+			return err
+		}
 	}
 
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
@@ -63,7 +66,7 @@ func getBeaconWriter(beacons []beacon.AnalysisView) (string, error) {
 
 //getBeaconResultsView finds beacons greater than a given cutoffScore
 //and links the data from the unique connections table back in to the results
-func getBeaconResultsView(res *resources.Resources, cutoffScore float64) []beacon.AnalysisView {
+func getBeaconResultsView(res *resources.Resources, cutoffScore float64) ([]beacon.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -71,9 +74,11 @@ func getBeaconResultsView(res *resources.Resources, cutoffScore float64) []beaco
 
 	beaconQuery := bson.M{"score": bson.M{"$gt": cutoffScore}}
 
-	//TODO: Don't swallow this error
-	_ = ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(beaconQuery).Sort("-score").All(&beacons)
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(beaconQuery).Sort("-score").All(&beacons)
+	if err != nil {
+		return nil, err
+	}
 
-	return beacons
+	return beacons, nil
 
 }
