@@ -1,34 +1,40 @@
-# RITA Gittiquette:
-## Golden Rules:
+# RITA Gittiquette
+
+## Commit Guidelines
 - Do not split a single piece of work across multiple commits
   - Too many commits makes the git log unreadable
 - Do not merge several pieces of work into a single commit
   - Fighting bugs is easier when code changes are logically grouped
-- Do not edit the master branch directly
-  - The master branch is the sole point of truth for Rita
-
-## Silver Rules:
-- Do make sure your public commits leave the code in a working state
-  - Fighting bugs is easier when each set of changes is testable
-- Do rebase feature branches before submitting a merge request
-  - Rebasing solves merge conflicts at the feature branch level
-- Do merge branches with a merge commit (using --no-ff)
-  - Merge commits create a paper trail and ease the reverting of features
-
-## Bronze Rules:
 - Do give your commits meaningful descriptions
   - Knowing what a commit changed without looking at the diff saves time
 - Do not give your commits too verbose descriptions
   - Reading a description as long as a code diff takes time
+
+## Branch Guidelines
+- Do not edit the master branch directly
+  - The master branch is the sole point of truth for RITA
 - Do only branch features off of the master branch
   - Branching features off of others complicates the git log and prevents rebasing
+- Do rebase feature branches before submitting a pull request
+  - Rebasing solves merge conflicts at the feature branch level
 
-## An Overview:
-### Creating a feature<sup>[1][3]</sup>:
+## Github Guidelines
+- Do make sure your public commits leave the code in a working state
+  - Fighting bugs is easier when each set of changes is testable
+- Do merge branches to master with a "squash and merge"
+  - Squashing ensures the git history is tidy
+  - Merge commits create a paper trail and ease the reverting of features
+
+## Contributors
+### Setting up a forked repo
+- If you do not have direct write permissions to the RITA project, you will need to [fork it](https://github.com/activecm/rita/fork).
+- Once you have a forked repo you will need to clone it to a very specific path which corresponds to _the original repo location_. This is due to the way packages are imported in Go programs.
+  - `git clone [your forked repo git url] $GOPATH/src/github.com/activecm/rita` (note the destination path must include github.com/activecm/rita and not your own repo)
+- Add `https://github.com/activecm/rita` as a new remote so you can pull new changes.
+  - `git remote add upstream https://github.com/activecm/rita`
+
+### Creating a feature<sup>[1]</sup>
 - Create an issue on the activecm/rita tracker
-- Fork activecm/rita to your Github account
-- Add your fork of Rita as a remote as shown above.
-  - `git remote add development [your git url]`
 - Create a feature branch to work on
   - `git branch [your new feature]`
 - Checkout the new feature branch
@@ -36,46 +42,35 @@
 - Work, commit, test, repeat
   - `git add [files]`
   - `git commit [short descriptive message]`
-- Pull down the latest changes in master
+- Pull down the latest changes in upstream master
   - `git checkout master`
-  - `git pull origin master`
-- Checkout the feature branch 
+  - `git pull -r upstream master`
+- Rebase the feature branch on master<sup>[2]</sup>
   - `git checkout [your new feature]`
-- Rebase the feature branch on master<sup>[4]</sup>
   - `git rebase master`
-- Push your new commits to Github, remembering to specify your forked copy
-  - `git push development [your new feature]`
-- Open a merge request using Github’s interface
-- Link to the opened issue
-  - Example: This merge request addresses issue #34.
+- Push your new commits to Github
+  - `git push origin [your new feature]`
+- Open a pull request using Github’s interface
 
-### Handling a merge request<sup>[5]</sup>:
+## Maintainers
+### Handling a pull request<sup>[3]</sup>
 - Read through the changes proposed and the linked issue
 - Check for correctness
 - Check for style
-- Check if the feature branch is correctly based on the latest commit of dev
+- Check if the feature branch has only the intended commits and doesn't cause any merge conflicts
 - Checkout the feature branch
-  - `git remote add [other user’s name] https://github.com/[other user’s name]/rita.git`
-  - `git fetch [other user’s name]`
-  - `git checkout [other user’s name]/[feature branch name]`
+  - `git remote add [other username] https://github.com/[other username]/rita.git`
+  - `git fetch [other username]`
+  - `git checkout [other username]/[feature branch name]`
+  - `git checkout -b [feature branch name]`
+    - Note: this step is optional but lets you directly make changes to the contributor's repo using `git push [other username] [feature branch name]`
 - Run the code; test out the changes
-- Respond with comments, if any, on Github
-- Repeat until the changes are acceptable
-- Merge with merge commit (no-ff) 
-  - Use the merge request process on Github
+- Leave a code review with comments, requested changes, or an approval on Github
+- Optionally, make changes yourself and push to the contributor's branch
+- Merge with the "Squash and merge" option, leaving a descriptive comment in the commit message
+- Copy the descriptive comment to the latest [release draft](https://github.com/activecm/rita/releases)
 
-### Handling a hotfix<sup>[3]</sup>:
-- Ensure the hotfix branch fixes the issue
-- Merge the hotfix branch into master with a merge commit (no-ff)
-  - Use the merge request process on Github or
-    - `git checkout master`
-    - `git merge [hotfix branch name] --no-ff`
-    - `git push origin master`
-
-## Recommended Reading:
+## Recommended Reading
 1. [A great introduction to git.](http://rogerdudler.github.io/git-guide/)
-2. [The git book describes the multi-repository model we have selected for Rita to a tee as an “Integration Manager Workflow.”](https://book.git-scm.com/book/en/v2/Distributed-Git-Distributed-Workflows)
-3. [We use the branching model described here without the release branch.](http://nvie.com/posts/a-successful-git-branching-model/)
-4. [Rebasing can be conceptually tricky. Atlassian provides a nice write up on the topic.](https://www.atlassian.com/git/tutorials/merging-vs-rebasing)
-5. [When merging with Github, you are presented with several options. Github describes these options here.](https://help.github.com/articles/about-pull-request-merges/)
-6. [A simple blog post explaining why we use remotes when dealing with git and go code.](http://blog.campoy.cat/2014/03/github-and-go-forking-pull-requests-and.html)
+2. [Rebasing can be conceptually tricky. Atlassian provides a nice write up on the topic.](https://www.atlassian.com/git/tutorials/merging-vs-rebasing)
+3. [When merging with Github, you are presented with several options. Github describes these options here.](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-request-merges)
