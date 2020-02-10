@@ -102,7 +102,7 @@ func showConns(connResults []uconn.LongConnAnalysisView) error {
 			result.Src,
 			result.Dst,
 			strings.Join(result.Tuples, " "),
-			duration(time.Duration(int(result.MaxDuration*float64(time.Second)))),
+			f(result.MaxDuration),
 		})
 	}
 	csvWriter.Flush()
@@ -118,7 +118,6 @@ func showConnsHuman(connResults []uconn.LongConnAnalysisView) error {
 			result.Src,
 			result.Dst,
 			strings.Join(result.Tuples, ",\n"),
-			//duration(time.Duration(int(result.MaxDuration*float64(time.Second)))) + "/" + f(result.MaxDuration),
 			duration(time.Duration(int(result.MaxDuration*float64(time.Second)))),
 		})
 	}
