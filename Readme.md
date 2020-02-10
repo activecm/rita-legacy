@@ -21,7 +21,7 @@ Please see our recommended [System Requirements](docs/System%20Requirements.md) 
 
 ### Automated Install
 
-RITA provides an install script that works on Ubuntu 18.04 LTS, Ubuntu 16.04 LTS, Security Onion\*, and CentOS 7.
+RITA provides an install script that works on Ubuntu 18.04 LTS, Ubuntu 16.04 LTS, Security Onion, and CentOS 7.
 
 Download the latest `install.sh` file [here](https://github.com/activecm/rita/releases/latest) and make it executable: `chmod +x ./install.sh`
 
@@ -32,8 +32,6 @@ Then choose one of the following install methods:
 * `sudo ./install.sh --disable-bro --disable-mongo` will install RITA only, without Bro/Zeek or MongoDB. You may also use these flags individually.
   * If you choose not to install Bro/Zeek you will need to [provide your own logs](#obtaining-data-generating-brozeek-logs).
   * If you choose not to install MongoDB you will need to configure RITA to [use your existing MongoDB server](docs/Mongo%20Configuration.md).
-
-\* Please see the [Security Onion RITA wiki page](https://securityonion.net/docs/RITA) for further information pertaining to using RITA on Security Onion.
 
 ### Docker Install
 
@@ -81,7 +79,7 @@ After installing RITA, setting up the `InternalSubnets` section of the config fi
 
 Filtering and whitelisting happens at import time. These optional settings can be found alongside `InternalSubnets` in the configuration file.
 
-RITA will process Bro/Zeek TSV logs in both plaintext and gzip compressed formats. Note, if you are using Security Onion or Bro's JSON log output you will need to [switch back to traditional TSV output](https://securityonion.readthedocs.io/en/latest/bro.html#tsv).
+RITA can process TSV, JSON, and [JSON streaming](https://github.com/corelight/json-streaming-logs) Bro/Zeek log file formats. These logs can be either plaintext or gzip compressed.
 
   * **Option 1**: Create a One-Off Dataset
       * `rita import path/to/your/bro_logs dataset_name` creates a dataset from a collection of Bro/Zeek logs in a directory
