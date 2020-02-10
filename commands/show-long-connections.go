@@ -4,6 +4,8 @@ import (
 	"encoding/csv"
 	"os"
 	"strings"
+	"time"
+	"fmt"
 
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/resources"
@@ -65,6 +67,32 @@ func init() {
 	bootstrapCommands(command)
 }
 
+const (
+	day  = time.Minute * 60 * 24
+	year = 365 * day
+)
+
+// https://gist.github.com/harshavardhana/327e0577c4fed9211f65#gistcomment-2557682
+func duration(d time.Duration) string {
+	if d < day {
+		return d.String()
+	}
+
+	var b strings.Builder
+
+	if d >= year {
+		years := d / year
+		fmt.Fprintf(&b, "%dy", years)
+		d -= years * year
+	}
+
+	days := d / day
+	d -= days * day
+	fmt.Fprintf(&b, "%dd%s", days, d)
+
+	return b.String()
+}
+
 func showConns(connResults []uconn.LongConnAnalysisView) error {
 	csvWriter := csv.NewWriter(os.Stdout)
 	csvWriter.Write([]string{"Source IP", "Destination IP",
@@ -90,7 +118,7 @@ func showConnsHuman(connResults []uconn.LongConnAnalysisView) error {
 			result.Src,
 			result.Dst,
 			strings.Join(result.Tuples, ",\n"),
-			f(result.MaxDuration) + "s",
+			duration(time.Duration(int(result.MaxDuration*float64(time.Second)))),
 		})
 	}
 	table.Render()
