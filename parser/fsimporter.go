@@ -530,6 +530,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							src := parseHTTP.FieldByName("Source").Interface().(string)
 							host := parseHTTP.FieldByName("Host").Interface().(string)
 
+							if userAgentName == "" {
+								userAgentName = "Empty user agent string"
+							}
+
 							// Safely store useragent information
 							mutex.Lock()
 
@@ -563,6 +567,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							dst := parseSSL.FieldByName("Destination").Interface().(string)
 							host := parseSSL.FieldByName("ServerName").Interface().(string)
 							certStatus := parseSSL.FieldByName("ValidationStatus").Interface().(string)
+
+							if ja3Hash == "" {
+								ja3Hash = "No JA3 hash generated"
+							}
 
 							// Safely store ja3 information
 							mutex.Lock()
