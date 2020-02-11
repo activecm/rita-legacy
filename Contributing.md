@@ -23,51 +23,33 @@ There are several ways to contribute code to the RITA project.
 Before diving in, follow the [Manual Installation Instructions](docs/Manual%20Installation.md)
 
 * Work on bug fixes:
-  * Find an issue you would like to work on in the Github tracker
+  * Find an issue you would like to work on in the Github tracker, especially [unassigned issues marked "good first issue"](https://github.com/activecm/rita/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22+no%3Aassignee)
   * Leave a comment letting us know you would like to work on it
-* Add tests:
-  * All too often code developed to meet milestones only undergoes
-  empirical, human testing
-  * We would love to see unit tests throughout RITA
-  * There are a few sections of this project that currently have unit tests. [Here](https://github.com/activecm/rita/blob/master/analysis/beacon/analyzer_test.go) is a good example of an existing unit test.
-  * Also when writing tests it is advisable to work backwards, start with what
-  result you want to get and then work backwards through the code
-  * When you're ready to test code run `go test ./...` from the root directory
-  of the project
-  * Feel free to refactor code to increase our ability to test it
 * Add new features:
-  * If you would like to become involved in the development effort, please hop
-   on our [OFTC channel at #activecm](https://webchat.oftc.net/?channels=activecm)
-   and chat about what is currently being worked on
+  * If you would like to become involved in the development effort, open a new issue or continue a discussion on an existing issue
 
 ### Running Static Tests
-* Golint
-  * Install [golint](https://github.com/golang/lint)
-  * Run `golint ./... | grep -v '^vendor/'` from the root RITA directory
-  * Fix any errors and run golint again to verify
-* Gofmt
-  * Run `gofmt -l . | grep -v '^vendor/'` from the root RITA directory to identify files containing styling errors
-  * Run `gofmt -w .` to automatically resolve gofmt errors
-* Go vet
-  * Run `go tool vet $(find . -name '*.go' | grep -v '/vendor/')` from the root RITA directory
-  * Fix any errors and run golint again to verify
-* Go test
-  * Run `go test -v -race ./...` from the root RITA directory
-  * Ensure that all unit tests have passed
+* You must have a RITA [development environment](https://github.com/activecm/rita/blob/master/docs/Manual%20Installation.md#installing-golang) set up and [golangci-lint](https://github.com/golangci/golangci-lint#install) installed to run the tests.
+* Check the [Makefile](https://github.com/activecm/rita/blob/master/Makefile) for all options. Currently you can run `make test`, `make static-test`, and `make unit-test`. There is also `make integration-test` and docker variants that will require you install docker as well.
 
 ### Reviewing Automated Test Results
-Automated tests are run against each commit on Travis CI. Build results may be viewed [here](https://travis-ci.org/activecm/rita).
+Automated tests are run against each pull request. Build results may be viewed [here](https://github.com/activecm/rita/actions).
 
 ### Gittiquette Summary
-* In order to contribute to RITA, you must fork it
-  * Do not `go get` or `git clone` your forked repo
-  * Instead, `git remote set-url origin https://github.com/YOURGITHUBACCOUNT/rita` it to your existing forked RITA repository
-* Split a branch off of master `git checkout -b [a-new-branch]`
-* Push your commits to your remote if you wish to develop in the public
-* When your work is finished, pull down the latest master branch, and rebase
-your feature branch off of it
-* Submit a pull request on Github
+* In order to contribute to RITA, you must [fork it](https://github.com/activecm/rita/fork).
+* Once you have a forked repo you will need to clone it to a very specific path which corresponds to _the original repo location_. This is due to the way packages are imported in Go programs.
+  * `git clone [your forked repo git url] $GOPATH/src/github.com/activecm/rita` (note the destination path must include github.com/activecm/rita and not your own repo)
+* Add `https://github.com/activecm/rita` as a new remote so you can pull new changes.
+  * `git remote add upstream https://github.com/activecm/rita`
+* Split a branch off of master .
+  * `git checkout -b [your new feature]`
+* When your work is finished, pull the latest changes from the upstream master and rebase your changes on it.
+  * `git checkout master; git pull -r upstream master`
+  * `git checkout [your new feature]; git rebase master`
+* Push your commits to your repo and submit a pull request on Github.
+
+Further info can be found in the [Gittiquette doc](docs/RITA%20Gittiquette.md) under the guidelines and contributors sections.
 
 ### Common Issues
 * Building Rita using `go install` or `go build` yields a RITA version of `UNDEFINED`
-  * Use `make` or `make install`
+  * Use `make` or `make install` instead
