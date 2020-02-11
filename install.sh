@@ -271,7 +271,7 @@ __configure_bro() {
 	if [ "$_BRO_CONFIGURED" = "false" ]; then
 		# Configure Bro
 		tmpdir=`mktemp -d -q "$HOME/rita-install.XXXXXXXX" < /dev/null`
-		if [ ! -d "$tmpdir" ]; then
+		if [ ! -d "$tmpdir" ] || findmnt -n -o options -T "$tmpdir" | grep -qE '(^|,)noexec($|,)'; then
 			tmpdir=.
 		fi
 		curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/gen-node-cfg.sh" -o "$tmpdir/gen-node-cfg.sh"
