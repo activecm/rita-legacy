@@ -748,7 +748,7 @@ func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Pair) {
 	} else {
 		fmt.Println("\t[!] No Uconn data to analyze")
 		fmt.Printf("\t\t[!!] No local network traffic found, please check ")
-		fmt.Println("InternalSubnets in your RTIA config (/etc/rita/config.yaml)")
+		fmt.Println("InternalSubnets in your RITA config (/etc/rita/config.yaml)")
 	}
 
 }
@@ -768,7 +768,7 @@ func (fs *FSImporter) buildHosts(hostMap map[string]*host.IP) {
 	} else {
 		fmt.Println("\t[!] No Host data to analyze")
 		fmt.Printf("\t\t[!!] No local network traffic found, please check ")
-		fmt.Println("InternalSubnets in your RTIA config (/etc/rita/config.yaml)")
+		fmt.Println("InternalSubnets in your RITA config (/etc/rita/config.yaml)")
 	}
 }
 
