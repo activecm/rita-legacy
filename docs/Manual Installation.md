@@ -11,8 +11,8 @@ This guide walks through installing several components.
 
 Installing Bro is recommended. RITA needs Bro logs as input so if you already have Bro or its logs you can skip installing Bro.
 
-1. Follow the directions at [https://www.bro.org/sphinx/install/install.html](https://www.bro.org/sphinx/install/install.html).
-1. Use Bro's quick start guide to configure [https://www.bro.org/sphinx-git/quickstart/index.html](https://www.bro.org/sphinx-git/quickstart/index.html).
+1. Follow the directions at https://zeek.org/get-zeek/.
+1. Use the [quick start guide](https://docs.zeek.org/en/current/quickstart/index.html) to configure.
 
 #### MongoDB
 
