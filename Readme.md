@@ -4,8 +4,6 @@
 
 Brought to you by [Active Countermeasures](https://www.activecountermeasures.com/).
 
-[![Build Status](https://travis-ci.org/activecm/rita.svg?branch=master)](https://travis-ci.org/activecm/rita)
-
 ---
 
 RITA is an open source framework for network traffic analysis.
