@@ -195,17 +195,45 @@ __install_installer_deps() {
 }
 
 __install_bro() {
-	case "$_OS" in
-		Ubuntu)
-			__add_deb_repo "deb http://download.opensuse.org/repositories/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
-				"Bro" \
-				"http://download.opensuse.org/repositories/network:bro/xUbuntu_$(lsb_release -rs)/Release.key"
-			;;
-		CentOS|RedHatEnterprise|RedHatEnterpriseServer)
-			__add_rpm_repo http://download.opensuse.org/repositories/network:bro/CentOS_7/network:bro.repo
-			;;
-	esac
-	__install_packages bro broctl
+
+
+	if [ "$_OS" != "Ubuntu" -o "$_OS_CODENAME" != "xenial" ]; then
+		case "$_OS" in
+			Ubuntu)
+				__add_deb_repo "deb http://download.opensuse.org/repositories/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
+					"Bro" \
+					"http://download.opensuse.org/repositories/network:bro/xUbuntu_$(lsb_release -rs)/Release.key"
+				;;
+			CentOS|RedHatEnterprise|RedHatEnterpriseServer)
+				__add_rpm_repo http://download.opensuse.org/repositories/network:bro/CentOS_7/network:bro.repo
+				;;
+		esac
+		__install_packages bro broctl
+	else  # "$_OS" = "Ubuntu" -a "$_OS_CODENAME" = "xenial"
+		# Bro 2.6 will not compile under Ubuntu Xenial in the OpenSuse Build Service
+		# Manually download and install Bro 2.5.5 for Ubuntu Xenial
+		local tmpdir=`mktemp -d -q "$HOME/rita-install.XXXXXXXX" < /dev/null`
+		if [ ! -d "$tmpdir" ]; then
+			tmpdir=.
+		fi
+
+		local bro_xenial_debs=(
+			"https://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro/xUbuntu_16.04/$(dpkg --print-architecture)/bro-core_2.5.5-0_$(dpkg --print-architecture).deb"
+			"https://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro/xUbuntu_16.04/$(dpkg --print-architecture)/bro_2.5.5-0_$(dpkg --print-architecture).deb"
+			"https://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro/xUbuntu_16.04/$(dpkg --print-architecture)/broctl_2.5.5-0_$(dpkg --print-architecture).deb"
+		)
+
+		for url in ${bro_xenial_debs[@]}; do
+			(cd "$tmpdir" && curl -sSLO "$url")
+		done
+
+		__install_packages libpcap0.8 libssl1.0.0 python
+		dpkg -i "$tmpdir/bro-core_2.5.5-0_$(dpkg --print-architecture).deb"
+		dpkg -i "$tmpdir/broctl_2.5.5-0_$(dpkg --print-architecture).deb"
+		dpkg -i "$tmpdir/bro_2.5.5-0_$(dpkg --print-architecture).deb"
+	fi
+
+
 	if [ -d /opt/bro/logs/ ]; then		#Standard directory for Bro logs when installed by Rita
 		chmod 2755 /opt/bro/logs
 	elif [ -d /var/log/bro/ ]; then		#Standard directory for Bro logs when installed by apt...
@@ -224,11 +252,11 @@ __install_bro() {
 __install_ja3() {
 	local_path=$_BRO_PATH/../share/bro/site/
 
-	sudo mkdir -p $local_path/ja3/
+	mkdir -p $local_path/ja3/
 
 	for one_file in __load__.bro intel_ja3.bro ja3.bro ja3s.bro ; do
 		if [ ! -e $local_path/ja3/$one_file ]; then
-			sudo curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/cb29184df7949743c64fcb190c902dfe72523e38/bro//$one_file" -o "$local_path/ja3/$one_file"
+			curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/cb29184df7949743c64fcb190c902dfe72523e38/bro//$one_file" -o "$local_path/ja3/$one_file"
 		fi
 	done
 
@@ -242,7 +270,7 @@ __install_ja3() {
 __enable_ssl_certificate_logging() {
 	local_path=$_BRO_PATH/../share/bro/site/
 
-	sudo mkdir -p $local_path
+	mkdir -p $local_path
 
 	if ! grep -q '^[^#]*@load  *protocols/ssl/validate-certs' $local_path/local.bro ; then
 		echo '' >>$local_path/local.bro
