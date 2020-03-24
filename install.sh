@@ -197,42 +197,26 @@ __install_installer_deps() {
 __install_bro() {
 
 
-	if [ "$_OS" != "Ubuntu" -o "$_OS_CODENAME" != "xenial" ]; then
+	if  [ "$_OS" == "Ubuntu" ] && [ "$_OS_CODENAME" == "xenial" -o "$_OS_CODENAME" == "trusty" ] ; then
+		# Bro 2.6 will not compile under Debian 8/ Ubuntu Trusty/ Xenial in the OpenSuse Build Service
+		# Install Bro 2.5.5
+		__add_deb_repo "deb http://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
+			"Bro" \
+			"https://download.opensuse.org/repositories/home:logan_bhis:branches:network:bro/xUbuntu_$(lsb_release -rs)/Release.key"
+	else
 		case "$_OS" in
 			Ubuntu)
-				__add_deb_repo "deb http://download.opensuse.org/repositories/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
+				__add_deb_repo "deb http://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro-2-6/xUbuntu_$(lsb_release -rs)/ /" \
 					"Bro" \
-					"http://download.opensuse.org/repositories/network:bro/xUbuntu_$(lsb_release -rs)/Release.key"
+					"https://download.opensuse.org/repositories/home:logan_bhis:branches:network:bro-2-6/xUbuntu_$(lsb_release -rs)/Release.key"
 				;;
 			CentOS|RedHatEnterprise|RedHatEnterpriseServer)
-				__add_rpm_repo http://download.opensuse.org/repositories/network:bro/CentOS_7/network:bro.repo
+				__add_rpm_repo https://download.opensuse.org/repositories/home:logan_bhis:branches:network:bro-2-6/CentOS_7/home:logan_bhis:branches:network:bro-2-6.repo
 				;;
 		esac
-		__install_packages bro broctl
-	else  # "$_OS" = "Ubuntu" -a "$_OS_CODENAME" = "xenial"
-		# Bro 2.6 will not compile under Ubuntu Xenial in the OpenSuse Build Service
-		# Manually download and install Bro 2.5.5 for Ubuntu Xenial
-		local tmpdir=`mktemp -d -q "$HOME/rita-install.XXXXXXXX" < /dev/null`
-		if [ ! -d "$tmpdir" ]; then
-			tmpdir=.
-		fi
-
-		local bro_xenial_debs=(
-			"https://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro/xUbuntu_16.04/$(dpkg --print-architecture)/bro-core_2.5.5-0_$(dpkg --print-architecture).deb"
-			"https://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro/xUbuntu_16.04/$(dpkg --print-architecture)/bro_2.5.5-0_$(dpkg --print-architecture).deb"
-			"https://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro/xUbuntu_16.04/$(dpkg --print-architecture)/broctl_2.5.5-0_$(dpkg --print-architecture).deb"
-		)
-
-		for url in ${bro_xenial_debs[@]}; do
-			(cd "$tmpdir" && curl -sSLO "$url")
-		done
-
-		__install_packages libpcap0.8 libssl1.0.0 python
-		dpkg -i "$tmpdir/bro-core_2.5.5-0_$(dpkg --print-architecture).deb"
-		dpkg -i "$tmpdir/broctl_2.5.5-0_$(dpkg --print-architecture).deb"
-		dpkg -i "$tmpdir/bro_2.5.5-0_$(dpkg --print-architecture).deb"
 	fi
 
+	__install_packages bro broctl
 
 	if [ -d /opt/bro/logs/ ]; then		#Standard directory for Bro logs when installed by Rita
 		chmod 2755 /opt/bro/logs
