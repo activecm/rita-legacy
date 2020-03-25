@@ -443,7 +443,7 @@ __gather_pkg_mgr() {
 	_PKG_INSTALL=""
 	if [ -x /usr/bin/apt-get ];	then
 		_PKG_MGR=1
-		_PKG_INSTALL="apt-get -qq install -y"
+		_PKG_INSTALL="DEBIAN_FRONTEND=noninteractive apt-get -qq install -y"
 	elif [ -x /usr/bin/yum ];	then
 		_PKG_MGR=2
 		_PKG_INSTALL="yum -y -q install"
