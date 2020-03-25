@@ -195,17 +195,29 @@ __install_installer_deps() {
 }
 
 __install_bro() {
-	case "$_OS" in
-		Ubuntu)
-			__add_deb_repo "deb http://download.opensuse.org/repositories/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
-				"Bro" \
-				"http://download.opensuse.org/repositories/network:bro/xUbuntu_$(lsb_release -rs)/Release.key"
-			;;
-		CentOS|RedHatEnterprise|RedHatEnterpriseServer)
-			__add_rpm_repo http://download.opensuse.org/repositories/network:bro/CentOS_7/network:bro.repo
-			;;
-	esac
+
+
+	if  [ "$_OS" == "Ubuntu" ] && [ "$_OS_CODENAME" == "xenial" -o "$_OS_CODENAME" == "trusty" ] ; then
+		# Bro 2.6 will not compile under Debian 8/ Ubuntu Trusty/ Xenial in the OpenSuse Build Service
+		# Install Bro 2.5.5
+		__add_deb_repo "deb http://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
+			"Bro" \
+			"https://download.opensuse.org/repositories/home:logan_bhis:branches:network:bro/xUbuntu_$(lsb_release -rs)/Release.key"
+	else
+		case "$_OS" in
+			Ubuntu)
+				__add_deb_repo "deb http://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro-2-6/xUbuntu_$(lsb_release -rs)/ /" \
+					"Bro" \
+					"https://download.opensuse.org/repositories/home:logan_bhis:branches:network:bro-2-6/xUbuntu_$(lsb_release -rs)/Release.key"
+				;;
+			CentOS|RedHatEnterprise|RedHatEnterpriseServer)
+				__add_rpm_repo https://download.opensuse.org/repositories/home:logan_bhis:branches:network:bro-2-6/CentOS_7/home:logan_bhis:branches:network:bro-2-6.repo
+				;;
+		esac
+	fi
+
 	__install_packages bro broctl
+
 	if [ -d /opt/bro/logs/ ]; then		#Standard directory for Bro logs when installed by Rita
 		chmod 2755 /opt/bro/logs
 	elif [ -d /var/log/bro/ ]; then		#Standard directory for Bro logs when installed by apt...
@@ -224,11 +236,11 @@ __install_bro() {
 __install_ja3() {
 	local_path=$_BRO_PATH/../share/bro/site/
 
-	sudo mkdir -p $local_path/ja3/
+	mkdir -p $local_path/ja3/
 
 	for one_file in __load__.bro intel_ja3.bro ja3.bro ja3s.bro ; do
 		if [ ! -e $local_path/ja3/$one_file ]; then
-			sudo curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/cb29184df7949743c64fcb190c902dfe72523e38/bro//$one_file" -o "$local_path/ja3/$one_file"
+			curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/cb29184df7949743c64fcb190c902dfe72523e38/bro//$one_file" -o "$local_path/ja3/$one_file"
 		fi
 	done
 
@@ -242,7 +254,7 @@ __install_ja3() {
 __enable_ssl_certificate_logging() {
 	local_path=$_BRO_PATH/../share/bro/site/
 
-	sudo mkdir -p $local_path
+	mkdir -p $local_path
 
 	if ! grep -q '^[^#]*@load  *protocols/ssl/validate-certs' $local_path/local.bro ; then
 		echo '' >>$local_path/local.bro
@@ -431,7 +443,7 @@ __gather_pkg_mgr() {
 	_PKG_INSTALL=""
 	if [ -x /usr/bin/apt-get ];	then
 		_PKG_MGR=1
-		_PKG_INSTALL="apt-get -qq install -y"
+		_PKG_INSTALL="DEBIAN_FRONTEND=noninteractive apt-get -qq install -y"
 	elif [ -x /usr/bin/yum ];	then
 		_PKG_MGR=2
 		_PKG_INSTALL="yum -y -q install"
