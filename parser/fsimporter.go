@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,6 +39,7 @@ type (
 		currentChunk    int
 		indexingThreads int
 		parseThreads    int
+		batchSizeBytes  int64
 		internal        []*net.IPNet
 		alwaysIncluded  []*net.IPNet
 		neverIncluded   []*net.IPNet
@@ -61,6 +63,7 @@ func NewFSImporter(res *resources.Resources,
 		currentChunk:    res.Config.S.Rolling.CurrentChunk,
 		indexingThreads: indexingThreads,
 		parseThreads:    parseThreads,
+		batchSizeBytes:  2 * (2 << 30), // 2 gigabytes //3840711 <- Splits DNSCAT into 12 batches
 		internal:        getParsedSubnets(res.Config.S.Filtering.InternalSubnets),
 		alwaysIncluded:  getParsedSubnets(res.Config.S.Filtering.AlwaysInclude),
 		neverIncluded:   getParsedSubnets(res.Config.S.Filtering.NeverInclude),
@@ -156,43 +159,52 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		blacklist.BuildBlacklistedCollections(fs.res)
 	}
 
-	// parse in those files!
-	uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFiles, fs.parseThreads, fs.res.Log)
+	// batch up the indexed files so as not to read too much in at one time
+	batchedIndexedFiles := batchFilesBySize(indexedFiles, fs.batchSizeBytes)
 
-	// Set chunk before we continue so if process dies, we still verify with a delete if
-	// any data was written out.
-	fs.res.MetaDB.SetChunk(fs.currentChunk, fs.res.DB.GetSelectedDB(), true)
+	for i, indexedFileBatch := range batchedIndexedFiles {
+		fmt.Printf("\t[-] Processing batch %d of %d\n", i+1, len(batchedIndexedFiles))
 
-	// build Hosts table.
-	fs.buildHosts(hostMap)
+		// parse in those files!
+		uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
 
-	// build Uconns table. Must go before beacons.
-	fs.buildUconns(uconnMap)
+		// Set chunk before we continue so if process dies, we still verify with a delete if
+		// any data was written out.
+		fs.res.MetaDB.SetChunk(fs.currentChunk, fs.res.DB.GetSelectedDB(), true)
 
-	// update ts range for dataset (needs to be run before beacons)
-	fs.updateTimestampRange()
+		// build Hosts table.
+		fs.buildHosts(hostMap)
 
-	// build or update the exploded DNS table. Must go before hostnames
-	fs.buildExplodedDNS(explodeddnsMap)
+		// build Uconns table. Must go before beacons.
+		fs.buildUconns(uconnMap)
 
-	// build or update the exploded DNS table
-	fs.buildHostnames(hostnameMap)
+		// update ts range for dataset (needs to be run before beacons)
+		fs.updateTimestampRange()
 
-	// build or update Beacons table
-	fs.buildBeacons(uconnMap)
+		// build or update the exploded DNS table. Must go before hostnames
+		fs.buildExplodedDNS(explodeddnsMap)
 
-	// build or update UserAgent table
-	fs.buildUserAgent(useragentMap)
+		// build or update the exploded DNS table
+		fs.buildHostnames(hostnameMap)
 
-	// build or update Certificate table
-	fs.buildCertificates(certMap)
+		// build or update Beacons table
+		fs.buildBeacons(uconnMap)
 
-	// update blacklisted peers in hosts collection
-	fs.markBlacklistedPeers(hostMap)
+		// build or update UserAgent table
+		fs.buildUserAgent(useragentMap)
 
-	// record file+database name hash in metadabase to prevent duplicate content
-	fmt.Println("\t[-] Indexing log entries ... ")
-	updateFilesIndex(indexedFiles, fs.res.MetaDB, fs.res.Log)
+		// build or update Certificate table
+		fs.buildCertificates(certMap)
+
+		// update blacklisted peers in hosts collection
+		fs.markBlacklistedPeers(hostMap)
+
+		// record file+database name hash in metadabase to prevent duplicate content
+		fmt.Println("\t[-] Indexing log entries ... ")
+		updateFilesIndex(indexedFileBatch, fs.res.MetaDB, fs.res.Log)
+	}
+
+	//////////////////////////////////////////// end upsert maps
 
 	// add min/max timestamps to metaDatabase and mark results as imported and analyzed
 	fmt.Println("\t[-] Updating metadatabase ... ")
@@ -215,6 +227,66 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 	).Info("Finished importing log files")
 
 	fmt.Println("\t[-] Done!")
+}
+
+// batchFilesBySize takes in an slice of indexedFiles and splits the array into
+// subgroups of indexedFiles such that each group has a total size in bytes less than size
+func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.IndexedFile {
+	// sort the indexed files so we process them in order
+	sort.Slice(indexedFiles, func(i, j int) bool {
+		return indexedFiles[i].Path < indexedFiles[j].Path
+	})
+
+	//group by target collection
+	fileTypeMap := make(map[string][]*fpt.IndexedFile)
+	for _, file := range indexedFiles {
+		if _, ok := fileTypeMap[file.TargetCollection]; !ok {
+			fileTypeMap[file.TargetCollection] = make([]*fpt.IndexedFile, 0)
+		}
+		fileTypeMap[file.TargetCollection] = append(fileTypeMap[file.TargetCollection], file)
+	}
+
+	// Take n files in each target collection group until the size limit is exceeded, then start a new batch
+	batches := make([][]*fpt.IndexedFile, 0)
+	currBatch := make([]*fpt.IndexedFile, 0)
+	currAggBytes := int64(0)
+	iterators := make(map[string]int)
+	for fileType := range fileTypeMap {
+		iterators[fileType] = 0
+	}
+
+	for len(iterators) != 0 { // while there is data to iterate through
+
+		maybeBatch := make([]*fpt.IndexedFile, 0)
+		maybeAggBytes := int64(0)
+		for fileType := range fileTypeMap { // grab a file for each target collection.
+			if _, ok := iterators[fileType]; ok { // if we haven't ran through all the files for the target collection
+				// append the file and aggregate the bytes
+				maybeBatch = append(maybeBatch, fileTypeMap[fileType][iterators[fileType]])
+				maybeAggBytes += fileTypeMap[fileType][iterators[fileType]].Length
+				iterators[fileType]++
+
+				// if we've exhausted the files for the target collection, prevent accessing the map for that target collection
+				if iterators[fileType] == len(fileTypeMap[fileType]) {
+					delete(iterators, fileType)
+				}
+			}
+		}
+
+		// split off the current batch if adding the next set of files would exceed the target size
+		// Guarding against the len(currBatch) == 0 case prevents us from failing when we cannot make
+		// small enough batch sizes. We just try our best and process 1 file for each target collection at a time.
+		if len(currBatch) != 0 && currAggBytes+maybeAggBytes >= size {
+			batches = append(batches, currBatch)
+			currBatch = make([]*fpt.IndexedFile, 0)
+			currAggBytes = 0
+		}
+
+		currBatch = append(currBatch, maybeBatch...)
+		currAggBytes += maybeAggBytes
+	}
+	batches = append(batches, currBatch) // add the last batch
+	return batches
 }
 
 //parseFiles takes in a list of indexed bro files, the number of
