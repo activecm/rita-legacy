@@ -66,8 +66,8 @@ Note that any value listed in the `Filtering` section should be in CIDR format. 
     * Generate Bro/Zeek logs from the PCAP files
       * ```bro -r pcap_to_log.pcap local "Log::default_rotation_interval = 1 day"```
 
-  * **Option 2**: Install Bro/Zeek and let it monitor an interface directly [[instructions](https://www.zeek.org/sphinx/quickstart/)]
-      * You may wish to [compile Bro/Zeek from source](https://www.zeek.org/sphinx/install/install.html) for performance reasons. [This script](https://github.com/activecm/bro-install) can help automate the process.
+  * **Option 2**: Install Bro/Zeek and let it monitor an interface directly [[instructions](https://docs.zeek.org/en/master/quickstart/index.html)]
+      * You may wish to [compile Bro/Zeek from source](https://docs.zeek.org/en/master/install/install.html) for performance reasons. [This script](https://github.com/activecm/bro-install) can help automate the process.
       * The automated installer for RITA installs pre-compiled Bro/Zeek binaries by default
         * Provide the `--disable-bro` flag when running the installer if you intend to compile Bro/Zeek from source
 
