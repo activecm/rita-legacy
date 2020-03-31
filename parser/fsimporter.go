@@ -204,9 +204,7 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		updateFilesIndex(indexedFileBatch, fs.res.MetaDB, fs.res.Log)
 	}
 
-	//////////////////////////////////////////// end upsert maps
-
-	// add min/max timestamps to metaDatabase and mark results as imported and analyzed
+	// mark results as imported and analyzed
 	fmt.Println("\t[-] Updating metadatabase ... ")
 	fs.res.MetaDB.MarkDBAnalyzed(fs.res.DB.GetSelectedDB(), true)
 
