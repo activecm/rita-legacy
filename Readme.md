@@ -75,39 +75,35 @@ Note that any value listed in the `Filtering` section should be in CIDR format. 
 
 After installing RITA, setting up the `InternalSubnets` section of the config file, and collecting some Bro/Zeek logs, you are ready to begin hunting.
 
-Filtering and whitelisting happens at import time. These optional settings can be found alongside `InternalSubnets` in the configuration file.
-
 RITA can process TSV, JSON, and [JSON streaming](https://github.com/corelight/json-streaming-logs) Bro/Zeek log file formats. These logs can be either plaintext or gzip compressed.
 
-  * **Option 1**: Create a One-Off Dataset
-      * `rita import path/to/your/bro_logs dataset_name` creates a dataset from a collection of Bro/Zeek logs in a directory
-      * Every log file directly in the supplied directory will be imported into a dataset with the given name
-      * If you import more data into the same dataset, RITA will automatically convert it into a rolling dataset.
-  * **Option 2**: Create a Rolling Dataset
-      * Rolling datasets allow you to progressively analyze log data over a period of time as it comes in.
-      * You can call rita like this: `rita import --rolling /path/to/your/bro_logs` and make this call repeatedly as new logs are generated (e.g. every hour)
-      * RITA cycles data into and out of rolling databases in "chunks". You can think of each chunk as one hour, and the default being 24 chunks in a dataset. This gives the ability to always have the most recent 24 hours' worth of data available. But chunks are generic enough to accommodate non-default Bro logging configurations or data retention times as well.
+##### One-Off Datasets
 
-#### Rolling Datsets
+This is the simplest usage and is great for analyzing a collection of Bro/Zeek logs in a single directory. If you expect to have more logs to add to the same analysis later see the next section on Rolling Datasets.
 
-Please see the above section for the simplest use case of rolling datasets. This section covers the various options you can customize and more complicated use cases.
-
-Each rolling dataset has a total number of chunks it can hold before it rotates data out. For instance, if the dataset currently contains 24 chunks of data and is set to hold a max of 24 chunks then the next chunk to be imported will automatically remove the first chunk before brining the new data in. This will result in a database that still contains 24 chunks. If each chunk contains an hour of data your dataset will have 24 hours of data in it. You can specify the number of chunks manually with `--numchunks` when creating a rolling database but if this is omitted RITA will use the `Rolling: DefaultChunks` value from the config file.
-
-Likewise, when importing a new chunk you can specify a chunk number that you wish to replace in a dataset with `--chunk`. If you leave this off RITA will auto-increment the chunk for you. The chunk must be 0 (inclusive) through the total number of chunks (exclusive). This must be between 0 (inclusive) and the total number of chunks (exclusive). You will get an error if you try to use a chunk number greater or equal to the total number of chunks.
-
-All files and folders that you give RITA to import will be imported into a single chunk. This could be 1 hour, 2 hours, 10 hours, 24 hours, or more. RITA doesn't care how much data is in each chunk so even though it's normal for each chunk to represent the same amount of time, each chunk could have a different number of hours of logs. This means that you can run RITA on a regular interval without worrying if systems were offline for a little while or the data was delayed. You might get a little more or less data than you intended but as time passes and new data is added it will slowly correct itself.
-
-**Example:** If you wanted to have a dataset with a week's worth of data you could run the following rita command once per day.
 ```
-rita import --rolling --numchunks 7 /opt/bro/logs/current week-dataset
+rita import path/to/your/bro_logs dataset_name`
 ```
-This would import a day's worth of data into each chunk and you'd get a week's in total. After the first 7 days were imported, the dataset would rotate out old data to keep the most recent 7 days' worth of data. Note that you'd have to make sure new logs were being added to in `/opt/bro/logs/current` in this example.
 
-**Example:** If you wanted to have a dataset with 48 hours of data you could run the following rita command every hour.
+Every log file in the supplied directory will be imported into a dataset with the given name. However, files in nested directories will not be processed.
+
+##### Rolling Datasets
+
+Rolling datasets allow you to progressively analyze log data over a period of time as it comes in.
+
 ```
-rita import --rolling --numchunks 48 /opt/bro/logs/current 48-hour-dataset
+rita import --rolling /path/to/your/bro_logs dataset_name
 ```
+
+You can make this call repeatedly as new logs are added to the same directory (e.g. every hour).
+
+One common scenario is to have a rolling database that imports new logs every hour and always has the last 24 hours worth of logs in it. Typically, Bro/Zeek logs will be placed in `/opt/bro/logs/<date>` which means that the directory will change every day. To accommodate this, you can use the following command in a cron job or other task scheduler that runs once per hour.
+
+```
+rita import --rolling /opt/bro/logs/$(date --date='-1 hour' +%Y-%m-%d)/ dataset_name
+```
+
+RITA cycles data into and out of rolling databases in "chunks". You can think of each chunk as one hour, and the default being 24 chunks in a dataset. This gives the ability to always have the most recent 24 hours' worth of data available. But chunks are generic enough to accommodate non-default Bro logging configurations or data retention times as well. See the [Rolling Datasets](docs/Rolling%20Datasets.md) documentation for advanced options.
 
 #### Examining Data With RITA
 
@@ -126,7 +122,6 @@ rita import --rolling --numchunks 48 /opt/bro/logs/current 48-hour-dataset
       * Piping the human readable results through `less -S` prevents word wrapping
           * Ex: `rita show-beacons dataset_name -H | less -S`
   * Create a html report with `html-report`
-
 
 ### Getting help
 
