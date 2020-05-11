@@ -1,13 +1,12 @@
-FROM golang:1.10-alpine as rita-builder
+FROM golang:1.14-alpine as rita-builder
 
 RUN apk add --no-cache git make ca-certificates wget build-base
-RUN wget -q -O /go/bin/dep https://github.com/golang/dep/releases/download/v0.5.3/dep-linux-amd64 && chmod +x /go/bin/dep
 
 WORKDIR /go/src/github.com/activecm/rita
 
 # cache dependencies
-COPY Gopkg.lock Gopkg.toml Makefile ./
-RUN make vendor
+COPY go.mod go.sum ./
+RUN go mod download
 
 # copy the rest of the code
 COPY . ./

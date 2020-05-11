@@ -16,14 +16,8 @@ cache = $(if $(cached-$1),,$(eval cached-$1 := 1)$(eval cache-$1 := $($1)))$(cac
 
 # force rita to be rebuilt even if it's up to date
 .PHONY: rita
-rita: vendor $(SRC)
+rita: $(SRC)
 	go build ${LDFLAGS}
-
-vendor: Gopkg.lock
-	dep ensure --vendor-only
-
-Gopkg.lock: $(SRC) Gopkg.toml
-	dep ensure --no-vendor
 
 .PHONY: install
 install: rita

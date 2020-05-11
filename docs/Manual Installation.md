@@ -31,23 +31,14 @@ You have a few options for installing RITA.
 
 ##### Installing Golang
 
-In order to compile RITA manually you will need to install both [Golang](https://golang.org) and [Dep](https://github.com/golang/dep).
-
-1. Install Golang using the instructions at [https://golang.org/doc/install](https://golang.org/doc/install)
-1. After the install you need to create a local Go development environment for your user. This is typically done in `$HOME/go` which is what the directions here will use.
-    1. ```mkdir -p $HOME/go/{src,pkg,bin}```
-1. Now you must add the `GOPATH` to your .bashrc file. You will also want to add your bin folder to the path for this user.
-    1. ```echo 'export GOPATH="$HOME/go"' >> $HOME/.bashrc```
-    1. ```echo 'export PATH="$PATH:$GOPATH/bin"' >> $HOME/.bashrc```
-    1. ```source $HOME/.bashrc```
-1. Install the depenency manager dep using [these instructions](https://golang.github.io/dep/docs/installation.html)
+In order to compile RITA manually you will need to install [Golang](https://golang.org/doc/install) (v1.13 or greater).
 
 ##### Building RITA
 
 At this point you can build RITA from source code.
 
-1. ```go get github.com/activecm/rita``` or ```git clone https://github.com/activecm/rita.git $GOPATH/src/github.com/activecm/rita```
-1. ```cd $GOPATH/src/github.com/activecm/rita```
+1. ```git clone https://github.com/activecm/rita.git```
+1. ```cd rita```
 1. ```make``` (Note that you will need to have `make` installed. You can use your system's package manager to install it.)
 
 This will yield a `rita` binary in the current directory. You can use `make install` to install the binary to `/usr/local/bin/rita` or `PREFIX=/ make install` to install to a different location (`/bin/rita` in this case).
@@ -60,6 +51,6 @@ RITA requires a few directories to be created for it to function correctly.
 1. ```sudo mkdir -p /var/lib/rita/logs && sudo chmod -R 755 /var/lib/rita```
 
 Copy the config file from your local RITA source code.
-* ```sudo cp $GOPATH/src/github.com/activecm/rita/etc/rita.yaml /etc/rita/config.yaml && sudo chmod 666 /etc/rita/config.yaml```
+* ```sudo cp etc/rita.yaml /etc/rita/config.yaml && sudo chmod 666 /etc/rita/config.yaml```
 
 At this point, you can modify the config file as needed and test using the ```rita test-config``` command. There will be empty quotes or 0's assigned to empty fields. [RITA's readme](../Readme.md#configuration-file) has more information on changing the configuration.
