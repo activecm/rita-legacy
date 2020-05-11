@@ -150,12 +150,11 @@ func indexFiles(files []string, indexingThreads int, res *resources.Resources) [
 			for j := start; j < length; j += jump {
 				indexedFile, err := newIndexedFile(files[j], res)
 				if err != nil {
+					// log file is likely unsupported or empty
 					res.Log.WithFields(log.Fields{
 						"file":  files[j],
 						"error": err.Error(),
-					}).Debug("An error was encountered while indexing a file")
-					//errored on files will be nil
-					fmt.Printf("\t[!] An error occured while indexing %v. Perhaps this log is empty?", files[j])
+					}).Debug("An error was encountered while indexing a file.")
 					continue
 				}
 				indexedFiles[j] = indexedFile
