@@ -21,8 +21,9 @@ rita: $(SRC)
 .PHONY: install
 install: rita
 	mv rita $(PREFIX)/bin/
-	mkdir -p /etc/bash_completion.d/
-	sudo cp vendor/github.com/urfave/cli/autocomplete/bash_autocomplete /etc/bash_completion.d/rita
+	mkdir -p $(PREFIX)/etc/bash_completion.d/ $(PREFIX)/etc/rita/
+	sudo cp etc/bash_completion.d/rita $(PREFIX)/etc/bash_completion.d/rita
+	sudo cp etc/rita.yaml $(PREFIX)/etc/rita/config.yaml
 
 .PHONY: docker-check
 # Use this recipe if you want to fail if docker is missing
@@ -30,7 +31,6 @@ docker-check:
 	@if ! docker ps > /dev/null; then echo "Ensure docker is installed and accessible from the current user context"; return 1; fi
 
 .PHONY: integration-test
-integration-test: vendor
 integration-test: docker-check
 # docker run should only get executed once on initialization using the cache trick
 integration-test: MONGO_EXE = $(shell docker run --rm -d mongo:3.6)
