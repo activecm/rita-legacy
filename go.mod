@@ -2,6 +2,10 @@ module github.com/activecm/rita
 
 go 1.14
 
+// If urfave/cli is updated from v1.20.0 the corresponding autocomplete file
+// should be updated in etc/bash_completion.d/rita
+// https://github.com/urfave/cli/blob/master/autocomplete/bash_autocomplete
+
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/VividCortex/ewma v1.1.1
