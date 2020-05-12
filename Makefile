@@ -1,6 +1,5 @@
 VERSION := $(shell git describe --abbrev=0 --tags)
 EXACT_VERSION := $(shell git describe --always --long --dirty --tags)
-GOPATH := $(GOPATH)
 PREFIX ?= /usr/local
 
 LDFLAGS := -ldflags='-X github.com/activecm/rita/config.Version=${VERSION} -X github.com/activecm/rita/config.ExactVersion=${EXACT_VERSION}'
