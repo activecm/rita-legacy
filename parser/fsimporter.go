@@ -63,7 +63,7 @@ func NewFSImporter(res *resources.Resources,
 		currentChunk:    res.Config.S.Rolling.CurrentChunk,
 		indexingThreads: indexingThreads,
 		parseThreads:    parseThreads,
-		batchSizeBytes:  2 * (2 << 30), // 2 gigabytes //3840711 <- Splits DNSCAT into 12 batches
+		batchSizeBytes:  2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
 		internal:        getParsedSubnets(res.Config.S.Filtering.InternalSubnets),
 		alwaysIncluded:  getParsedSubnets(res.Config.S.Filtering.AlwaysInclude),
 		neverIncluded:   getParsedSubnets(res.Config.S.Filtering.NeverInclude),
