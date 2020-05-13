@@ -16,6 +16,8 @@ cache = $(if $(cached-$1),,$(eval cached-$1 := 1)$(eval cache-$1 := $($1)))$(cac
 # force rita to be rebuilt even if it's up to date
 .PHONY: rita
 rita: $(SRC)
+	@# remove any existing vendor directory from dep
+	@rm -rf vendor
 	go build ${LDFLAGS}
 
 .PHONY: install
