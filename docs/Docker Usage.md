@@ -1,7 +1,7 @@
 # Docker Usage
 
 You can run RITA using Docker! You have several options depending on your specific needs.
-* [Running RITA with Docker Compose](#running-rita-with-docker-compose) - This is the simplest option and requires the least setup. You will have to provide your own Bro logs.
+* [Running RITA with Docker Compose](#running-rita-with-docker-compose) - This is the simplest option and requires the least setup. You will have to provide your own Zeek logs.
 * [Running RITA with Docker Using External Mongo](#running-rita-with-docker-using-external-mongo) - This option is useful if you do not want to use Docker Compose or you have an external Mongo server you wish to use.
 * [Using Docker to Build RITA](#using-docker-to-build-rita) - You can use Docker to build a standalone RITA binary that runs on any Linux 64-bit CPU. This is useful if you want a portable binary but don't want to use Docker to actually run RITA.
 
@@ -22,7 +22,7 @@ docker build -t quay.io/activecm/rita .
 ## Running RITA with Docker Compose
 
 You will need a config file where you have [put in your `InternalSubnets`](../Readme.md#configuration-file).
-You will also need the path to your Bro/Zeek log files.
+You will also need the path to your Zeek log files.
 
 ```
 export CONIFG=/path/to/your/rita/config.yaml
@@ -43,7 +43,7 @@ If you don't need/want the convenience of Docker Compose running the Mongo serve
 
 ```
 docker run -it --rm \
-	-v /path/to/your/bro/logs:/logs:ro \
+	-v /path/to/your/zeek/logs:/logs:ro \
 	-v /path/to/your/rita/config.yaml:/etc/rita/config.yaml:ro \
 	quay.io/activecm/rita import /logs your-dataset
 ```

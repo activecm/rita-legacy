@@ -17,7 +17,7 @@ import (
 func init() {
 	importCommand := cli.Command{
 		Name:  "import",
-		Usage: "Import bro logs into a target database",
+		Usage: "Import zeek logs into a target database",
 		UsageText: "rita import [command options] <import directory|file> [<import directory|file>...] <database name>\n\n" +
 			"Logs directly in <import directory> will be imported into a database" +
 			" named <database name>.",
@@ -258,7 +258,6 @@ func (i *Importer) run() error {
 		i.res.Log.Infof("Non-rolling database %v will be converted to rolling\n", i.targetDatabase)
 		fmt.Printf("\t[+] Non-rolling database %v will be converted to rolling\n", i.targetDatabase)
 	}
-
 
 	importer.Run(indexedFiles)
 
