@@ -40,7 +40,7 @@ __entry() {
 	_REINSTALL_RITA=false
 
 	# Optional Dependencies
-	_INSTALL_BRO=true
+	_INSTALL_ZEEK=true
 	_INSTALL_MONGO=true
 	_INSTALL_RITA=true
 
@@ -66,11 +66,11 @@ __entry() {
 				;;
 			-r|--reinstall)
 				_REINSTALL_RITA=true
-				_INSTALL_BRO=false
+				_INSTALL_ZEEK=false
 				_INSTALL_MONGO=false
 				;;
-			--disable-bro)
-				_INSTALL_BRO=false
+			--disable-zeek)
+				_INSTALL_ZEEK=false
 				;;
 			--disable-mongo)
 				_INSTALL_MONGO=false
@@ -84,7 +84,7 @@ __entry() {
 		shift
 	done
 
-	if [ "$_INSTALL_BRO" = "false" -a "$_INSTALL_MONGO" = "false" -a "$_INSTALL_RITA" = "false" ]; then
+	if [ "$_INSTALL_ZEEK" = "false" -a "$_INSTALL_MONGO" = "false" -a "$_INSTALL_RITA" = "false" ]; then
 		echo "No packages were selected for installation, exiting."
 		exit 0
 	fi
@@ -123,30 +123,30 @@ __install() {
 
 	# Get system information
 	__gather_OS
-	__gather_bro
+	__gather_zeek
 	__gather_mongo
 
 	# Explain the installer's actions
 	__explain
 
-	if [ "$_INSTALL_BRO" = "true" ]; then
-		if [ "$_BRO_INSTALLED" = "false" ]; then
-			__load "$_ITEM Installing Bro IDS" __install_bro
+	if [ "$_INSTALL_ZEEK" = "true" ]; then
+		if [ "$_ZEEK_INSTALLED" = "false" ]; then
+			__load "$_ITEM Installing Zeek IDS" __install_zeek
 		else
-			printf "$_ITEM Bro IDS is already installed \n"
+			printf "$_ITEM Zeek IDS is already installed \n"
 		fi
 
 		#Unconditionally installed whether this is a new install or an upgrade
-		#Install this before calling __configure_bro so the modules are in place when "broctl deploy" restarts bro
+		#Install this before calling __configure_zeek so the modules are in place when "zeekctl deploy" restarts zeek
 		__install_ja3
 		__enable_ssl_certificate_logging
 
-		if [ "$_BRO_INSTALLED" = "true" ]; then
-			__configure_bro
+		if [ "$_ZEEK_INSTALLED" = "true" ]; then
+			__configure_zeek
 		fi
 
-		if [ "$_BRO_IN_PATH" = "false" ]; then
-			__add_bro_to_path
+		if [ "$_ZEEK_IN_PATH" = "false" ]; then
+			__add_zeek_to_path
 		fi
 	fi
 
@@ -194,94 +194,95 @@ __install_installer_deps() {
 	done
 }
 
-__install_bro() {
+__install_zeek() {
 
-
-	if  [ "$_OS" == "Ubuntu" ] && [ "$_OS_CODENAME" == "xenial" -o "$_OS_CODENAME" == "trusty" ] ; then
-		# Bro 2.6 will not compile under Debian 8/ Ubuntu Trusty/ Xenial in the OpenSuse Build Service
-		# Install Bro 2.5.5
-		__add_deb_repo "deb http://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
-			"Bro" \
-			"https://download.opensuse.org/repositories/home:logan_bhis:branches:network:bro/xUbuntu_$(lsb_release -rs)/Release.key"
+	if  [ "$_OS" == "Ubuntu" ] && [ "$_OS_CODENAME" == "xenial" ] ; then
+		# The Zeek Project does not host a package repo for Ubuntu 16.04.
+		# Use Security Onion's version of Zeek.
+		sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9373E47F9BF8216D23D32BBBE1E6759023F386C7
+		__add_deb_repo "deb http://ppa.launchpad.net/securityonion/stable/ubuntu xenial main" \
+		"securityonion-ubuntu-stable-xenial"
+		__install_packages securityonion-bro
+		ln -s /opt/bro /opt/zeek
 	else
 		case "$_OS" in
 			Ubuntu)
-				__add_deb_repo "deb http://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro-2-6/xUbuntu_$(lsb_release -rs)/ /" \
-					"Bro" \
-					"https://download.opensuse.org/repositories/home:logan_bhis:branches:network:bro-2-6/xUbuntu_$(lsb_release -rs)/Release.key"
+				__add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/ /" \
+				"security:zeek" \
+				"https://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/Release.key"
 				;;
 			CentOS|RedHatEnterprise|RedHatEnterpriseServer)
-				__add_rpm_repo https://download.opensuse.org/repositories/home:logan_bhis:branches:network:bro-2-6/CentOS_7/home:logan_bhis:branches:network:bro-2-6.repo
+				__add_rpm_repo "https://download.opensuse.org/repositories/security:zeek/CentOS_7/security:zeek.repo"
 				;;
 		esac
+		__install_packages zeek-lts
 	fi
 
-	__install_packages bro broctl
 
-	if [ -d /opt/bro/logs/ ]; then		#Standard directory for Bro logs when installed by Rita
-		chmod 2755 /opt/bro/logs
-	elif [ -d /var/log/bro/ ]; then		#Standard directory for Bro logs when installed by apt...
-		mkdir -p /opt/bro/logs/		#...and we move the log storage over to /opt/bro/logs so we can have one place to mount external storage.
-		chmod 2755 /opt/bro/logs
-		mv -f /var/log/bro /var/log/bro.orig
+	if [ -d /opt/zeek/logs/ ]; then		#Standard directory for Zeek logs when installed by Rita
+		chmod 2755 /opt/zeek/logs
+	elif [ -d /var/log/zeek/ ]; then		#Standard directory for Zeek logs when installed by apt...
+		mkdir -p /opt/zeek/logs/		#...and we move the log storage over to /opt/zeek/logs so we can have one place to mount external storage.
+		chmod 2755 /opt/zeek/logs
+		mv -f /var/log/zeek /var/log/zeek.orig
 		cd /var/log
-		ln -s /opt/bro/logs bro
+		ln -s /opt/zeek/logs zeek
 		cd -
 	fi
-	_BRO_PKG_INSTALLED=true
-	_BRO_INSTALLED=true
-	_BRO_PATH="/opt/bro/bin"
+	_ZEEK_PKG_INSTALLED=true
+	_ZEEK_INSTALLED=true
+	_ZEEK_PATH="/opt/zeek/bin"
 }
 
 __install_ja3() {
-	local_path=$_BRO_PATH/../share/bro/site/
+	local_path=$_ZEEK_PATH/../share/zeek/site/
 
 	mkdir -p $local_path/ja3/
 
-	for one_file in __load__.bro intel_ja3.bro ja3.bro ja3s.bro ; do
+	for one_file in __load__.zeek intel_ja3.zeek ja3.zeek ja3s.zeek ; do
 		if [ ! -e $local_path/ja3/$one_file ]; then
-			curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/cb29184df7949743c64fcb190c902dfe72523e38/bro//$one_file" -o "$local_path/ja3/$one_file"
+			curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/master/zeek/$one_file" -o "$local_path/ja3/$one_file"
 		fi
 	done
 
-	if ! grep -q '^[^#]*@load \./ja3' $local_path/local.bro ; then
-		echo '' >>$local_path/local.bro
-		echo '#Load ja3 support libraries' >>$local_path/local.bro
-		echo '@load ./ja3' >>$local_path/local.bro
+	if ! grep -q '^[^#]*@load \./ja3' $local_path/local.zeek ; then
+		echo '' >>$local_path/local.zeek
+		echo '#Load ja3 support libraries' >>$local_path/local.zeek
+		echo '@load ./ja3' >>$local_path/local.zeek
 	fi
 }
 
 __enable_ssl_certificate_logging() {
-	local_path=$_BRO_PATH/../share/bro/site/
+	local_path=$_ZEEK_PATH/../share/zeek/site/
 
 	mkdir -p $local_path
 
-	if ! grep -q '^[^#]*@load  *protocols/ssl/validate-certs' $local_path/local.bro ; then
-		echo '' >>$local_path/local.bro
-		echo '#Enable certificate validation' >>$local_path/local.bro
-		echo '@load protocols/ssl/validate-certs' >>$local_path/local.bro
+	if ! grep -q '^[^#]*@load  *protocols/ssl/validate-certs' $local_path/local.zeek ; then
+		echo '' >>$local_path/local.zeek
+		echo '#Enable certificate validation' >>$local_path/local.zeek
+		echo '@load protocols/ssl/validate-certs' >>$local_path/local.zeek
 	fi
 
-	if ! grep -q '^[^#]*@load  *policy/protocols/ssl/extract-certs-pem' $local_path/local.bro ; then
-		echo '' >>$local_path/local.bro
-		echo '#Log certificates' >>$local_path/local.bro
-		echo '@load policy/protocols/ssl/extract-certs-pem' >>$local_path/local.bro
-		echo 'redef SSL::extract_certs_pem = ALL_HOSTS;' >>$local_path/local.bro
-		echo '' >>$local_path/local.bro
+	if ! grep -q '^[^#]*@load  *policy/protocols/ssl/extract-certs-pem' $local_path/local.zeek ; then
+		echo '' >>$local_path/local.zeek
+		echo '#Log certificates' >>$local_path/local.zeek
+		echo '@load policy/protocols/ssl/extract-certs-pem' >>$local_path/local.zeek
+		echo 'redef SSL::extract_certs_pem = ALL_HOSTS;' >>$local_path/local.zeek
+		echo '' >>$local_path/local.zeek
 	fi
 }
 
-__configure_bro() {
-	_BRO_CONFIGURED=false
+__configure_zeek() {
+	_ZEEK_CONFIGURED=false
 
-	# Attempt to detect if Bro is already configured away from its defaults
-	if [ -s "$_BRO_PATH/../etc/node.cfg" ] && grep -q '^type=worker' "$_BRO_PATH/../etc/node.cfg" ; then
-		_BRO_CONFIGURED=true
+	# Attempt to detect if Zeek is already configured away from its defaults
+	if [ -s "$_ZEEK_PATH/../etc/node.cfg" ] && grep -q '^type=worker' "$_ZEEK_PATH/../etc/node.cfg" ; then
+		_ZEEK_CONFIGURED=true
 	fi
 
-	# Attempt to configure Bro interactively
-	if [ "$_BRO_CONFIGURED" = "false" ]; then
-		# Configure Bro
+	# Attempt to configure Zeek interactively
+	if [ "$_ZEEK_CONFIGURED" = "false" ]; then
+		# Configure Zeek
 		tmpdir=`mktemp -d -q "$HOME/rita-install.XXXXXXXX" < /dev/null`
 		if [ ! -d "$tmpdir" ] || findmnt -n -o options -T "$tmpdir" | grep -qE '(^|,)noexec($|,)'; then
 			tmpdir=.
@@ -290,42 +291,42 @@ __configure_bro() {
 		curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/node.cfg-template" -o "$tmpdir/node.cfg-template"
 		chmod 755 "$tmpdir/gen-node-cfg.sh"
 		if "$tmpdir/gen-node-cfg.sh" ; then
-			_BRO_CONFIGURED=true
+			_ZEEK_CONFIGURED=true
 		fi
 		# Clean up the files in case they ended up in the current directory
 		rm -f "$tmpdir/gen-node-cfg.sh"
 		rm -f "$tmpdir/node.cfg-template"
 	fi
 
-	if [ "$_BRO_CONFIGURED" = "true" ]; then
-		printf "\n$_IMPORTANT Enabling Bro on startup.\n"
-		# don't add a new line if broctl is already in cron
-		if [ $(crontab -l 2>/dev/null | grep 'broctl cron' | wc -l) -eq 0 ]; then
+	if [ "$_ZEEK_CONFIGURED" = "true" ]; then
+		printf "\n$_IMPORTANT Enabling Zeek on startup.\n"
+		# don't add a new line if zeekctl is already in cron
+		if [ $(crontab -l 2>/dev/null | grep 'zeekctl cron' | wc -l) -eq 0 ]; then
 			# Append an entry to an existing crontab
 			# crontab -l will print to stderr and exit with code 1 if no crontab exists
 			# Ignore stderr and force a successfull exit code to prevent an install error
-			(crontab -l 2>/dev/null || true; echo "*/5 * * * * $_BRO_PATH/broctl cron") | crontab
+			(crontab -l 2>/dev/null || true; echo "*/5 * * * * $_ZEEK_PATH/zeekctl cron") | crontab
 		fi
-		$_BRO_PATH/broctl cron enable > /dev/null
-		printf "$_IMPORTANT Enabling Bro on startup process completed.\n"
+		$_ZEEK_PATH/zeekctl cron enable > /dev/null
+		printf "$_IMPORTANT Enabling Zeek on startup process completed.\n"
 
-		printf "$_IMPORTANT Starting Bro. \n"
-		$_BRO_PATH/broctl deploy
+		printf "$_IMPORTANT Starting Zeek. \n"
+		$_ZEEK_PATH/zeekctl deploy
 	else
-		printf "$_IMPORTANT Automatic Bro configuration failed. \n"
-		printf "$_IMPORTANT Please edit /opt/bro/etc/node.cfg and run \n"
-		printf "$_IMPORTANT 'sudo broctl deploy' to start Bro. \n"
+		printf "$_IMPORTANT Automatic Zeek configuration failed. \n"
+		printf "$_IMPORTANT Please edit /opt/zeek/etc/node.cfg and run \n"
+		printf "$_IMPORTANT 'sudo zeekctl deploy' to start Zeek. \n"
 		printf "$_IMPORTANT Pausing for 20 seconds before continuing. \n"
 		sleep 20
 	fi
 }
 
-__add_bro_to_path() {
-	printf "$_SUBIMPORTANT Adding Bro IDS to the path in $_BRO_PATH_SCRIPT \n"
-	echo "export PATH=\"\$PATH:$_BRO_PATH\"" | tee $_BRO_PATH_SCRIPT > /dev/null
-	_BRO_PATH_SCRIPT_INSTALLED=true
-	export PATH="$PATH:$_BRO_PATH"
-	_BRO_IN_PATH=true
+__add_zeek_to_path() {
+	printf "$_SUBIMPORTANT Adding Zeek IDS to the path in $_ZEEK_PATH_SCRIPT \n"
+	echo "export PATH=\"\$PATH:$_ZEEK_PATH\"" | tee $_ZEEK_PATH_SCRIPT > /dev/null
+	_ZEEK_PATH_SCRIPT_INSTALLED=true
+	export PATH="$PATH:$_ZEEK_PATH"
+	_ZEEK_IN_PATH=true
 }
 
 __install_mongodb() {
@@ -456,52 +457,52 @@ __gather_pkg_mgr() {
 }
 
 
-__gather_bro() {
-	_BRO_PATH=""
-	_BRO_PKG_INSTALLED=false
-	if __package_installed bro; then
-		_BRO_PKG_INSTALLED=true
-		_BRO_PATH="/opt/bro/bin"
+__gather_zeek() {
+	_ZEEK_PATH=""
+	_ZEEK_PKG_INSTALLED=false
+	if __package_installed zeek; then
+		_ZEEK_PKG_INSTALLED=true
+		_ZEEK_PATH="/opt/zeek/bin"
 	fi
 
-	_BRO_ONION_INSTALLED=false
+	_ZEEK_ONION_INSTALLED=false
 	if __package_installed securityonion-bro; then
-		_BRO_ONION_INSTALLED=true
-		_BRO_PATH="/opt/bro/bin"
+		_ZEEK_ONION_INSTALLED=true
+		_ZEEK_PATH="/opt/zeek/bin"
 	fi
 
-	_BRO_SOURCE_INSTALLED=false
-	if [ -f "/usr/local/bro/bin/bro" ]; then
-		_BRO_SOURCE_INSTALLED=true
-		_BRO_PATH="/usr/local/bro/bin"
+	_ZEEK_SOURCE_INSTALLED=false
+	if [ -f "/usr/local/zeek/bin/zeek" ]; then
+		_ZEEK_SOURCE_INSTALLED=true
+		_ZEEK_PATH="/usr/local/zeek/bin"
 	fi
 
-	_BRO_INSTALLED=false
-	if [ $_BRO_PKG_INSTALLED = "true" -o $_BRO_ONION_INSTALLED = "true" -o $_BRO_SOURCE_INSTALLED = "true" ]; then
-		_BRO_INSTALLED=true
+	_ZEEK_INSTALLED=false
+	if [ $_ZEEK_PKG_INSTALLED = "true" -o $_ZEEK_ONION_INSTALLED = "true" -o $_ZEEK_SOURCE_INSTALLED = "true" ]; then
+		_ZEEK_INSTALLED=true
 	fi
 
-	if [ "$_INSTALL_BRO" = "true" -a "$_BRO_INSTALLED" = "true" -a ! -d "$_BRO_PATH" ]; then
-		printf "$_IMPORTANT An unsupported version of Bro is installed on this system.\n"
-		printf "$_IMPORTANT RITA has not been tested with this version of Bro and may not function correctly.\n"
-		printf "$_IMPORTANT For the best results, please stop this script, uninstall Bro, and re-run the installer.\n"
+	if [ "$_INSTALL_ZEEK" = "true" -a "$_ZEEK_INSTALLED" = "true" -a ! -d "$_ZEEK_PATH" ]; then
+		printf "$_IMPORTANT An unsupported version of Zeek is installed on this system.\n"
+		printf "$_IMPORTANT RITA has not been tested with this version of Zeek and may not function correctly.\n"
+		printf "$_IMPORTANT For the best results, please stop this script, uninstall Zeek, and re-run the installer.\n"
 		printf "\n"
 		printf "$_IMPORTANT Pausing for 20 seconds before continuing. \n"
-		_INSTALL_BRO=false
+		_INSTALL_ZEEK=false
 		sleep 20
 	fi
 
-	_BRO_PATH_SCRIPT="/etc/profile.d/bro-path.sh"
-	_BRO_PATH_SCRIPT_INSTALLED=false
+	_ZEEK_PATH_SCRIPT="/etc/profile.d/zeek-path.sh"
+	_ZEEK_PATH_SCRIPT_INSTALLED=false
 
-	if [ -f "$_BRO_PATH_SCRIPT" ]; then
-		source "$_BRO_PATH_SCRIPT"
-		_BRO_PATH_SCRIPT_INSTALLED=true
+	if [ -f "$_ZEEK_PATH_SCRIPT" ]; then
+		source "$_ZEEK_PATH_SCRIPT"
+		_ZEEK_PATH_SCRIPT_INSTALLED=true
 	fi
 
-	_BRO_IN_PATH=false
-	if [ -n "$(type -pf bro)" ]; then
-		_BRO_IN_PATH=true
+	_ZEEK_IN_PATH=false
+	if [ -n "$(type -pf zeek)" ]; then
+		_ZEEK_IN_PATH=true
 	fi
 }
 
@@ -517,8 +518,8 @@ __gather_mongo() {
 
 __explain() {
 	printf "$_ITEM This installer will: \n"
-	if [ $_BRO_INSTALLED = "false" -a $_INSTALL_BRO = "true" ]; then
-		printf "$_SUBITEM Install Bro IDS to /opt/bro \n"
+	if [ $_ZEEK_INSTALLED = "false" -a $_INSTALL_ZEEK = "true" ]; then
+		printf "$_SUBITEM Install Zeek IDS to /opt/zeek \n"
 	fi
 	if [ $_MONGO_INSTALLED = "false" -a $_INSTALL_MONGO = "true" ]; then
 		printf "$_SUBITEM Install MongoDB \n"
@@ -547,14 +548,14 @@ __help() {
 
 	cat <<HEREDOC
 This script automatically installs Real Intelligence Threat Analyitics (RITA)
-along with necessary dependencies, including Bro IDS and MongoDB.
+along with necessary dependencies, including Zeek IDS and MongoDB.
 Usage:
 	${_NAME} [<arguments>]
 Options:
 	-h|--help			Show this help message.
 	-r|--reinstall			Force reinstalling RITA.
 	-v|--version <version>		Specify the version tag of RITA to install instead of master.
-	--disable-bro			Disable automatic installation of Bro IDS.
+	--disable-zeek			Disable automatic installation of Zeek IDS.
 	--disable-mongo			Disable automatic installation of MongoDB.
 HEREDOC
 }
