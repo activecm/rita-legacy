@@ -123,6 +123,7 @@ __install() {
 
 	# Get system information
 	__gather_OS
+	__bro_installed
 	__gather_zeek
 	__gather_mongo
 
@@ -453,6 +454,24 @@ __gather_pkg_mgr() {
 		printf "$_ITEM This installer supports package management via apt and yum. \n"
 		printf "$_IMPORTANT A supported package manager was not found. \n"
 		exit 1
+	fi
+}
+
+__bro_installed() {
+	_BRO_INSTALLED=false
+	if __package_installed bro; then
+		_BRO_INSTALLED=true
+	elif [ -f "/usr/local/bro/bin/bro" ]; then
+		_BRO_INSTALLED=true
+	fi
+
+	if [ "$_BRO_INSTALLED" = "true" ]; then
+		printf "It looks like Bro is installed on this system. This version of RITA uses Zeek.\n"
+		printf "For the best results, please stop the script, uninstall Bro, and re-run the script.\n"
+		printf "\n"
+		printf "Pausing for 20 seconds before continuing.\n"
+		_INSTALL_ZEEK=false
+		sleep 20
 	fi
 }
 
