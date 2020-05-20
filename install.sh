@@ -69,7 +69,7 @@ __entry() {
 				_INSTALL_ZEEK=false
 				_INSTALL_MONGO=false
 				;;
-			--disable-zeek)
+			--disable-zeek|--disable-bro)
 				_INSTALL_ZEEK=false
 				;;
 			--disable-mongo)
@@ -555,7 +555,7 @@ Options:
 	-h|--help			Show this help message.
 	-r|--reinstall			Force reinstalling RITA.
 	-v|--version <version>		Specify the version tag of RITA to install instead of master.
-	--disable-zeek			Disable automatic installation of Zeek IDS.
+	--disable-zeek|--disable-bro	Disable automatic installation of Zeek IDS.
 	--disable-mongo			Disable automatic installation of MongoDB.
 HEREDOC
 }
