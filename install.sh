@@ -213,7 +213,7 @@ __install_zeek() {
 				"https://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/Release.key"
 				;;
 			CentOS|RedHatEnterprise|RedHatEnterpriseServer)
-				__add_rpm_repo "https://download.opensuse.org/repositories/security:zeek/CentOS_7/security:zeek.repo"
+				__add_rpm_repo "https://download.opensuse.org/repositories/security:/zeek/CentOS_7/security:zeek.repo"
 				;;
 		esac
 		__install_packages zeek-lts
