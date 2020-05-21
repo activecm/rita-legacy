@@ -38,7 +38,7 @@ Automated tests are run against each pull request. Build results may be viewed [
 ### Gittiquette Summary
 * In order to contribute to RITA, you must [fork it](https://github.com/activecm/rita/fork).
 * Once you have a forked repo you will need to clone it to a very specific path which corresponds to _the original repo location_. This is due to the way packages are imported in Go programs.
-  * `git clone [your forked repo git url] $GOPATH/src/github.com/activecm/rita` (note the destination path must include github.com/activecm/rita and not your own repo)
+  * `git clone [your forked repo git url]`
 * Add `https://github.com/activecm/rita` as a new remote so you can pull new changes.
   * `git remote add upstream https://github.com/activecm/rita`
 * Split a branch off of master .
@@ -51,5 +51,5 @@ Automated tests are run against each pull request. Build results may be viewed [
 Further info can be found in the [Gittiquette doc](docs/RITA%20Gittiquette.md) under the guidelines and contributors sections.
 
 ### Common Issues
-* Building Rita using `go install` or `go build` yields a RITA version of `UNDEFINED`
+* Building Rita using `go build` or `go install` yields a RITA version of `UNDEFINED`
   * Use `make` or `make install` instead

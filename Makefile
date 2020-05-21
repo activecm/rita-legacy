@@ -1,6 +1,5 @@
 VERSION := $(shell git describe --abbrev=0 --tags)
 EXACT_VERSION := $(shell git describe --always --long --dirty --tags)
-GOPATH := $(GOPATH)
 PREFIX ?= /usr/local
 
 LDFLAGS := -ldflags='-X github.com/activecm/rita/config.Version=${VERSION} -X github.com/activecm/rita/config.ExactVersion=${EXACT_VERSION}'
@@ -16,20 +15,17 @@ cache = $(if $(cached-$1),,$(eval cached-$1 := 1)$(eval cache-$1 := $($1)))$(cac
 
 # force rita to be rebuilt even if it's up to date
 .PHONY: rita
-rita: vendor $(SRC)
+rita: $(SRC)
+	@# remove any existing vendor directory from dep
+	@rm -rf vendor
 	go build ${LDFLAGS}
-
-vendor: Gopkg.lock
-	dep ensure --vendor-only
-
-Gopkg.lock: $(SRC) Gopkg.toml
-	dep ensure --no-vendor
 
 .PHONY: install
 install: rita
 	mv rita $(PREFIX)/bin/
-	mkdir -p /etc/bash_completion.d/
-	sudo cp vendor/github.com/urfave/cli/autocomplete/bash_autocomplete /etc/bash_completion.d/rita
+	mkdir -p $(PREFIX)/etc/bash_completion.d/ $(PREFIX)/etc/rita/
+	sudo cp etc/bash_completion.d/rita $(PREFIX)/etc/bash_completion.d/rita
+	sudo cp etc/rita.yaml $(PREFIX)/etc/rita/config.yaml
 
 .PHONY: docker-check
 # Use this recipe if you want to fail if docker is missing
@@ -37,7 +33,6 @@ docker-check:
 	@if ! docker ps > /dev/null; then echo "Ensure docker is installed and accessible from the current user context"; return 1; fi
 
 .PHONY: integration-test
-integration-test: vendor
 integration-test: docker-check
 # docker run should only get executed once on initialization using the cache trick
 integration-test: MONGO_EXE = $(shell docker run --rm -d mongo:3.6)
