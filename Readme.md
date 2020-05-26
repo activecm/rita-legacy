@@ -100,7 +100,7 @@ You can make this call repeatedly as new logs are added to the same directory (e
 One common scenario is to have a rolling database that imports new logs every hour and always has the last 24 hours worth of logs in it. Typically, Bro/Zeek logs will be placed in `/opt/bro/logs/<date>` which means that the directory will change every day. To accommodate this, you can use the following command in a cron job or other task scheduler that runs once per hour.
 
 ```
-rita import --rolling /opt/bro/logs/$(date --date='-1 hour' +%Y-%m-%d)/ dataset_name
+rita import --rolling /opt/bro/logs/$(date --date='-1 hour' +\%Y-\%m-\%d)/ dataset_name
 ```
 
 RITA cycles data into and out of rolling databases in "chunks". You can think of each chunk as one hour, and the default being 24 chunks in a dataset. This gives the ability to always have the most recent 24 hours' worth of data available. But chunks are generic enough to accommodate non-default Bro logging configurations or data retention times as well. See the [Rolling Datasets](docs/Rolling%20Datasets.md) documentation for advanced options.
