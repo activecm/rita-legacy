@@ -60,7 +60,7 @@ var (
 
 	dirFlag = cli.StringFlag{
 		Name:  "directory, d",
-		Usage: "Set the directory to execute the command in, if not set defaults to current working directory",
+		Usage: "Set the execution `DIR`, defaults to current working directory",
 		Value: "./",
 	}
 
