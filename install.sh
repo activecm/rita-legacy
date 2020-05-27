@@ -200,7 +200,7 @@ __install_zeek() {
 	if  [ "$_OS" == "Ubuntu" ] && [ "$_OS_CODENAME" == "xenial" ] ; then
 		# The Zeek Project does not host a package repo for Ubuntu 16.04.
 		# Use Security Onion's version of Zeek.
-		sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9373E47F9BF8216D23D32BBBE1E6759023F386C7
+		sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9373E47F9BF8216D23D32BBBE1E6759023F386C7 > /dev/null 2>&1
 		__add_deb_repo "deb http://ppa.launchpad.net/securityonion/stable/ubuntu xenial main" \
 		"securityonion-ubuntu-stable-xenial"
 		__install_packages securityonion-bro
