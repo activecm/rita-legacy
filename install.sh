@@ -242,7 +242,7 @@ __install_ja3() {
 
 	for one_file in __load__.zeek intel_ja3.zeek ja3.zeek ja3s.zeek ; do
 		if [ ! -e $local_path/ja3/$one_file ]; then
-			curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/master/zeek/$one_file" -o "$local_path/ja3/$one_file"
+			curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/133f2a128b873f9c40e4e65c2b9dc372a801cf24/zeek/$one_file" -o "$local_path/ja3/$one_file"
 		fi
 	done
 
