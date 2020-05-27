@@ -13,9 +13,9 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/resources"
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	pt "github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita/resources"
 )
 
 //newIndexedFile takes in a file path and the current resource bundle and opens up the
@@ -66,7 +66,9 @@ func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile
 		toReturn.SetJSON()
 		// check if "_path" is provided in the JSON data
 		// https://github.com/corelight/json-streaming-logs
-		t := struct { Path string `json:"_path"` }{}
+		t := struct {
+			Path string `json:"_path"`
+		}{}
 		json.Unmarshal(scanner.Bytes(), &t)
 		broDataFactory = pt.NewBroDataFactory(t.Path)
 
@@ -148,11 +150,11 @@ func indexFiles(files []string, indexingThreads int, res *resources.Resources) [
 			for j := start; j < length; j += jump {
 				indexedFile, err := newIndexedFile(files[j], res)
 				if err != nil {
+					// log file is likely unsupported or empty
 					res.Log.WithFields(log.Fields{
 						"file":  files[j],
 						"error": err.Error(),
-					}).Debug("An error was encountered while indexing a file")
-					//errored on files will be nil
+					}).Debug("An error was encountered while indexing a file.")
 					continue
 				}
 				indexedFiles[j] = indexedFile
@@ -164,13 +166,20 @@ func indexFiles(files []string, indexingThreads int, res *resources.Resources) [
 	indexingWG.Wait()
 
 	// remove all nil values from the slice
+	errCount := 0
 	indexedFiles := make([]*fpt.IndexedFile, 0, len(output))
 	for _, file := range output {
 		if file != nil {
 			indexedFiles = append(indexedFiles, file)
+		} else {
+			errCount++
 		}
 	}
-
+	if errCount == len(output) {
+		fmt.Println("\n\t[!] No compatible logs found or all log files provided were empty.")
+		fmt.Println("\t[-] Exiting...")
+		os.Exit(0)
+	}
 	return indexedFiles
 }
 

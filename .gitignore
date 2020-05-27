@@ -4,6 +4,5 @@
 *.swp
 *.swo
 *.exe
-rita
-debug
-vendor/
+/rita
+/vendor/

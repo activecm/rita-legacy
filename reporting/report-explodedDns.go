@@ -2,7 +2,6 @@ package reporting
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"os"
 
@@ -23,7 +22,10 @@ func printDNS(db string, res *resources.Resources) error {
 
 	limit := 1000
 
-	data := getExplodedDNSResultsView(res, limit)
+	data, err := getExplodedDNSResultsView(res, limit)
+	if err != nil {
+		return err
+	}
 
 	out, err := template.New("dns.html").Parse(templates.DNStempl)
 	if err != nil {
@@ -58,7 +60,7 @@ func getDNSWriter(results []explodeddns.AnalysisView) (string, error) {
 }
 
 //getExplodedDNSResultsView gets the exploded dns results
-func getExplodedDNSResultsView(res *resources.Resources, limit int) []explodeddns.AnalysisView {
+func getExplodedDNSResultsView(res *resources.Resources, limit int) ([]explodeddns.AnalysisView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
@@ -86,9 +88,8 @@ func getExplodedDNSResultsView(res *resources.Resources, limit int) []explodeddn
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.ExplodedDNSTable).Pipe(explodedDNSQuery).AllowDiskUse().All(&explodedDNSResults)
 
 	if err != nil {
-		//TODO: properly log this error
-		fmt.Println(err)
+		return nil, err
 	}
 
-	return explodedDNSResults
+	return explodedDNSResults, nil
 }

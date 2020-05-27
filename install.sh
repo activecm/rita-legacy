@@ -4,7 +4,7 @@
 # activecountermeasures.com
 
 # CONSTANTS
-_RITA_VERSION="v3.1.1"
+_RITA_VERSION="v3.2.1"
 _MONGO_VERSION="3.6"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
@@ -99,7 +99,7 @@ __entry() {
 	if [ "$_INSTALL_RITA" = "true" ] && __installation_exist && [ "$_REINSTALL_RITA" != "true" ]; then
 		printf "$_IMPORTANT RITA is already installed.\n"
 		printf "$_QUESTION Would you like to re-install? [y/N] "
-		read
+		read -e
 		if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 			exit 0
 		fi
@@ -195,22 +195,39 @@ __install_installer_deps() {
 }
 
 __install_bro() {
-	case "$_OS" in
-		Ubuntu)
-			__add_deb_repo "deb http://download.opensuse.org/repositories/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
-				"Bro" \
-				"http://download.opensuse.org/repositories/network:bro/xUbuntu_$(lsb_release -rs)/Release.key"
-			;;
-		CentOS|RedHatEnterprise|RedHatEnterpriseServer)
-			__add_rpm_repo http://download.opensuse.org/repositories/network:bro/CentOS_7/network:bro.repo
-			# Workaround for https://github.com/activecm/rita/issues/189
-			# Replace the download.opensuse.org link with downloadcontent.opensuse.org link
-			# https://www.linuxquestions.org/questions/linux-general-1/yum-update-failed-because-of-timeout-4175625075/#post5828487
-			cat '/etc/yum.repos.d/network:bro.repo' | sed -e 's/download\.opensuse\.org/downloadcontent.opensuse.org/g' | tee '/etc/yum.repos.d/network:bro.repo.tmp' >/dev/null && mv -f '/etc/yum.repos.d/network:bro.repo.tmp' '/etc/yum.repos.d/network:bro.repo'
-			;;
-	esac
+
+
+	if  [ "$_OS" == "Ubuntu" ] && [ "$_OS_CODENAME" == "xenial" -o "$_OS_CODENAME" == "trusty" ] ; then
+		# Bro 2.6 will not compile under Debian 8/ Ubuntu Trusty/ Xenial in the OpenSuse Build Service
+		# Install Bro 2.5.5
+		__add_deb_repo "deb http://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro/xUbuntu_$(lsb_release -rs)/ /" \
+			"Bro" \
+			"https://download.opensuse.org/repositories/home:logan_bhis:branches:network:bro/xUbuntu_$(lsb_release -rs)/Release.key"
+	else
+		case "$_OS" in
+			Ubuntu)
+				__add_deb_repo "deb http://download.opensuse.org/repositories/home:/logan_bhis:/branches:/network:/bro-2-6/xUbuntu_$(lsb_release -rs)/ /" \
+					"Bro" \
+					"https://download.opensuse.org/repositories/home:logan_bhis:branches:network:bro-2-6/xUbuntu_$(lsb_release -rs)/Release.key"
+				;;
+			CentOS|RedHatEnterprise|RedHatEnterpriseServer)
+				__add_rpm_repo https://download.opensuse.org/repositories/home:logan_bhis:branches:network:bro-2-6/CentOS_7/home:logan_bhis:branches:network:bro-2-6.repo
+				;;
+		esac
+	fi
+
 	__install_packages bro broctl
-	chmod 2755 /opt/bro/logs
+
+	if [ -d /opt/bro/logs/ ]; then		#Standard directory for Bro logs when installed by Rita
+		chmod 2755 /opt/bro/logs
+	elif [ -d /var/log/bro/ ]; then		#Standard directory for Bro logs when installed by apt...
+		mkdir -p /opt/bro/logs/		#...and we move the log storage over to /opt/bro/logs so we can have one place to mount external storage.
+		chmod 2755 /opt/bro/logs
+		mv -f /var/log/bro /var/log/bro.orig
+		cd /var/log
+		ln -s /opt/bro/logs bro
+		cd -
+	fi
 	_BRO_PKG_INSTALLED=true
 	_BRO_INSTALLED=true
 	_BRO_PATH="/opt/bro/bin"
@@ -219,11 +236,11 @@ __install_bro() {
 __install_ja3() {
 	local_path=$_BRO_PATH/../share/bro/site/
 
-	sudo mkdir -p $local_path/ja3/
+	mkdir -p $local_path/ja3/
 
 	for one_file in __load__.bro intel_ja3.bro ja3.bro ja3s.bro ; do
 		if [ ! -e $local_path/ja3/$one_file ]; then
-			sudo curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/cb29184df7949743c64fcb190c902dfe72523e38/bro//$one_file" -o "$local_path/ja3/$one_file"
+			curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/cb29184df7949743c64fcb190c902dfe72523e38/bro//$one_file" -o "$local_path/ja3/$one_file"
 		fi
 	done
 
@@ -237,7 +254,7 @@ __install_ja3() {
 __enable_ssl_certificate_logging() {
 	local_path=$_BRO_PATH/../share/bro/site/
 
-	sudo mkdir -p $local_path
+	mkdir -p $local_path
 
 	if ! grep -q '^[^#]*@load  *protocols/ssl/validate-certs' $local_path/local.bro ; then
 		echo '' >>$local_path/local.bro
@@ -266,7 +283,7 @@ __configure_bro() {
 	if [ "$_BRO_CONFIGURED" = "false" ]; then
 		# Configure Bro
 		tmpdir=`mktemp -d -q "$HOME/rita-install.XXXXXXXX" < /dev/null`
-		if [ ! -d "$tmpdir" ]; then
+		if [ ! -d "$tmpdir" ] || findmnt -n -o options -T "$tmpdir" | grep -qE '(^|,)noexec($|,)'; then
 			tmpdir=.
 		fi
 		curl -sSL "https://raw.githubusercontent.com/activecm/bro-install/master/gen-node-cfg.sh" -o "$tmpdir/gen-node-cfg.sh"
@@ -426,7 +443,7 @@ __gather_pkg_mgr() {
 	_PKG_INSTALL=""
 	if [ -x /usr/bin/apt-get ];	then
 		_PKG_MGR=1
-		_PKG_INSTALL="apt-get -qq install -y"
+		_PKG_INSTALL="DEBIAN_FRONTEND=noninteractive apt-get -qq install -y"
 	elif [ -x /usr/bin/yum ];	then
 		_PKG_MGR=2
 		_PKG_INSTALL="yum -y -q install"
@@ -462,6 +479,16 @@ __gather_bro() {
 	_BRO_INSTALLED=false
 	if [ $_BRO_PKG_INSTALLED = "true" -o $_BRO_ONION_INSTALLED = "true" -o $_BRO_SOURCE_INSTALLED = "true" ]; then
 		_BRO_INSTALLED=true
+	fi
+
+	if [ "$_INSTALL_BRO" = "true" -a "$_BRO_INSTALLED" = "true" -a ! -d "$_BRO_PATH" ]; then
+		printf "$_IMPORTANT An unsupported version of Bro is installed on this system.\n"
+		printf "$_IMPORTANT RITA has not been tested with this version of Bro and may not function correctly.\n"
+		printf "$_IMPORTANT For the best results, please stop this script, uninstall Bro, and re-run the installer.\n"
+		printf "\n"
+		printf "$_IMPORTANT Pausing for 20 seconds before continuing. \n"
+		_INSTALL_BRO=false
+		sleep 20
 	fi
 
 	_BRO_PATH_SCRIPT="/etc/profile.d/bro-path.sh"
