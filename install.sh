@@ -203,7 +203,7 @@ __install_zeek() {
 		sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9373E47F9BF8216D23D32BBBE1E6759023F386C7 > /dev/null 2>&1
 		__add_deb_repo "deb http://ppa.launchpad.net/securityonion/stable/ubuntu xenial main" \
 		"securityonion-ubuntu-stable-xenial"
-		__install_packages securityonion-bro
+		__install_packages python securityonion-bro
 		ln -s /opt/bro /opt/zeek
 	else
 		case "$_OS" in
