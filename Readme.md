@@ -8,7 +8,7 @@ Brought to you by [Active Countermeasures](https://www.activecountermeasures.com
 
 RITA is an open source framework for network traffic analysis.
 
-The framework ingests [Bro/Zeek Logs](https://www.zeek.org/) in TSV format, and currently supports the following major features:
+The framework ingests [Zeek Logs](https://www.zeek.org/) in TSV format, and currently supports the following major features:
  - **Beaconing Detection**: Search for signs of beaconing behavior in and out of your network
  - **DNS Tunneling Detection** Search for signs of DNS based covert channels
  - **Blacklist Checking**: Query blacklists to search for suspicious domains and hosts
@@ -25,10 +25,10 @@ Download the latest `install.sh` file [here](https://github.com/activecm/rita/re
 
 Then choose one of the following install methods:
 
-* `sudo ./install.sh` will install RITA as well as supported versions of Bro/Zeek and MongoDB. This is suitable if you want to get started as quickly as possible or you don't already have Bro/Zeek or MongoDB.
+* `sudo ./install.sh` will install RITA as well as supported versions of Zeek and MongoDB. This is suitable if you want to get started as quickly as possible or you don't already have Zeek or MongoDB.
 
-* `sudo ./install.sh --disable-bro --disable-mongo` will install RITA only, without Bro/Zeek or MongoDB. You may also use these flags individually.
-  * If you choose not to install Bro/Zeek you will need to [provide your own logs](#obtaining-data-generating-brozeek-logs).
+* `sudo ./install.sh --disable-zeek --disable-mongo` will install RITA only, without Zeek or MongoDB. You may also use these flags individually.
+  * If you choose not to install Zeek you will need to [provide your own logs](#obtaining-data-generating-zeek-logs).
   * If you choose not to install MongoDB you will need to configure RITA to [use your existing MongoDB server](docs/Mongo%20Configuration.md).
 
 ### Docker Install
@@ -57,32 +57,32 @@ You may also wish to change the defaults for the following option:
 
 Note that any value listed in the `Filtering` section should be in CIDR format. So a single IP of `192.168.1.1` would be written as `192.168.1.1/32`.
 
-#### Obtaining Data (Generating Bro/Zeek Logs)
+#### Obtaining Data (Generating Zeek Logs)
 
-  * **Option 1**: Generate PCAPs outside of Bro/Zeek
+  * **Option 1**: Generate PCAPs outside of Zeek
     * Generate PCAP files with a packet sniffer ([tcpdump](http://www.tcpdump.org/), [wireshark](https://www.wireshark.org/), etc.)
     * (Optional) Merge multiple PCAP files into one PCAP file
       * `mergecap -w outFile.pcap inFile1.pcap inFile2.pcap`
-    * Generate Bro/Zeek logs from the PCAP files
-      * ```bro -r pcap_to_log.pcap local "Log::default_rotation_interval = 1 day"```
+    * Generate Zeek logs from the PCAP files
+      * ```zeek -r pcap_to_log.pcap local "Log::default_rotation_interval = 1 day"```
 
-  * **Option 2**: Install Bro/Zeek and let it monitor an interface directly [[instructions](https://docs.zeek.org/en/master/quickstart/index.html)]
-      * You may wish to [compile Bro/Zeek from source](https://docs.zeek.org/en/master/install/install.html) for performance reasons. [This script](https://github.com/activecm/bro-install) can help automate the process.
-      * The automated installer for RITA installs pre-compiled Bro/Zeek binaries by default
-        * Provide the `--disable-bro` flag when running the installer if you intend to compile Bro/Zeek from source
+  * **Option 2**: Install Zeek and let it monitor an interface directly [[instructions](https://docs.zeek.org/en/master/quickstart/index.html)]
+      * You may wish to [compile Zeek from source](https://docs.zeek.org/en/master/install/install.html) for performance reasons. [This script](https://github.com/activecm/bro-install) can help automate the process.
+      * The automated installer for RITA installs pre-compiled Zeek binaries by default
+        * Provide the `--disable-zeek` flag when running the installer if you intend to compile Zeek from source
 
 #### Importing and Analyzing Data With RITA
 
-After installing RITA, setting up the `InternalSubnets` section of the config file, and collecting some Bro/Zeek logs, you are ready to begin hunting.
+After installing RITA, setting up the `InternalSubnets` section of the config file, and collecting some Zeek logs, you are ready to begin hunting.
 
-RITA can process TSV, JSON, and [JSON streaming](https://github.com/corelight/json-streaming-logs) Bro/Zeek log file formats. These logs can be either plaintext or gzip compressed.
+RITA can process TSV, JSON, and [JSON streaming](https://github.com/corelight/json-streaming-logs) Zeek log file formats. These logs can be either plaintext or gzip compressed.
 
 ##### One-Off Datasets
 
-This is the simplest usage and is great for analyzing a collection of Bro/Zeek logs in a single directory. If you expect to have more logs to add to the same analysis later see the next section on Rolling Datasets.
+This is the simplest usage and is great for analyzing a collection of Zeek logs in a single directory. If you expect to have more logs to add to the same analysis later see the next section on Rolling Datasets.
 
 ```
-rita import path/to/your/bro_logs dataset_name`
+rita import path/to/your/zeek_logs dataset_name`
 ```
 
 Every log file in the supplied directory will be imported into a dataset with the given name. However, files in nested directories will not be processed.
@@ -92,18 +92,18 @@ Every log file in the supplied directory will be imported into a dataset with th
 Rolling datasets allow you to progressively analyze log data over a period of time as it comes in.
 
 ```
-rita import --rolling /path/to/your/bro_logs dataset_name
+rita import --rolling /path/to/your/zeek_logs dataset_name
 ```
 
 You can make this call repeatedly as new logs are added to the same directory (e.g. every hour).
 
-One common scenario is to have a rolling database that imports new logs every hour and always has the last 24 hours worth of logs in it. Typically, Bro/Zeek logs will be placed in `/opt/bro/logs/<date>` which means that the directory will change every day. To accommodate this, you can use the following command in a cron job or other task scheduler that runs once per hour.
+One common scenario is to have a rolling database that imports new logs every hour and always has the last 24 hours worth of logs in it. Typically, Zeek logs will be placed in `/opt/zeek/logs/<date>` which means that the directory will change every day. To accommodate this, you can use the following command in a cron job or other task scheduler that runs once per hour.
 
 ```
-rita import --rolling /opt/bro/logs/$(date --date='-1 hour' +\%Y-\%m-\%d)/ dataset_name
+rita import --rolling /opt/zeek/logs/$(date --date='-1 hour' +\%Y-\%m-\%d)/ dataset_name
 ```
 
-RITA cycles data into and out of rolling databases in "chunks". You can think of each chunk as one hour, and the default being 24 chunks in a dataset. This gives the ability to always have the most recent 24 hours' worth of data available. But chunks are generic enough to accommodate non-default Bro logging configurations or data retention times as well. See the [Rolling Datasets](docs/Rolling%20Datasets.md) documentation for advanced options.
+RITA cycles data into and out of rolling databases in "chunks". You can think of each chunk as one hour, and the default being 24 chunks in a dataset. This gives the ability to always have the most recent 24 hours' worth of data available. But chunks are generic enough to accommodate non-default Zeek logging configurations or data retention times as well. See the [Rolling Datasets](docs/Rolling%20Datasets.md) documentation for advanced options.
 
 #### Examining Data With RITA
 
