@@ -547,6 +547,8 @@ __explain() {
 		printf "$_SUBITEM Install RITA to $_BIN_PATH/rita \n"
 		printf "$_SUBITEM Create a runtime directory for RITA in $_VAR_PATH \n"
 		printf "$_SUBITEM Create a configuration directory for RITA in $_CONFIG_PATH \n"
+	elif [ "$_REINSTALL_RITA" = "true" ]; then
+		printf "$_SUBITEM Update RITA at $_BIN_PATH/rita \n"
 	fi
 	sleep 5s
 }
