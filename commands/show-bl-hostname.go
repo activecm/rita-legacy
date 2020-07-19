@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"encoding/csv"
+	"fmt"
 	"os"
 	"sort"
 	"strconv"
@@ -24,6 +24,7 @@ func init() {
 			configFlag,
 			limitFlag,
 			noLimitFlag,
+			delimFlag,
 		},
 		Usage:  "Print blacklisted hostnames which received connections",
 		Action: printBLHostnames,
@@ -59,7 +60,7 @@ func printBLHostnames(c *cli.Context) error {
 			return cli.NewExitError(err.Error(), -1)
 		}
 	} else {
-		err = showBLHostnames(data)
+		err = showBLHostnames(data, c.String("delimiter"))
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
@@ -68,11 +69,11 @@ func printBLHostnames(c *cli.Context) error {
 	return nil
 }
 
-func showBLHostnames(hostnames []hostname.AnalysisView) error {
-	csvWriter := csv.NewWriter(os.Stdout)
+func showBLHostnames(hostnames []hostname.AnalysisView, delim string) error {
 	headers := []string{"Host", "Connections", "Unique Connections", "Total Bytes", "Sources"}
 
-	csvWriter.Write(headers)
+	// Print the headers and analytic values, separated by a delimiter
+	fmt.Println(strings.Join(headers, delim))
 	for _, entry := range hostnames {
 
 		serialized := []string{
@@ -85,9 +86,13 @@ func showBLHostnames(hostnames []hostname.AnalysisView) error {
 		sort.Strings(entry.ConnectedHosts)
 		serialized = append(serialized, strings.Join(entry.ConnectedHosts, " "))
 
-		csvWriter.Write(serialized)
+		fmt.Println(
+			strings.Join(
+				serialized,
+				delim,
+			),
+		)
 	}
-	csvWriter.Flush()
 
 	return nil
 }

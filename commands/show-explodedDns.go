@@ -1,9 +1,9 @@
 package commands
 
 import (
-	"encoding/csv"
-	"os"
 	"bytes"
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/activecm/rita/pkg/explodeddns"
@@ -24,6 +24,7 @@ func init() {
 			configFlag,
 			limitFlag,
 			noLimitFlag,
+			delimFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
@@ -52,7 +53,7 @@ func init() {
 				}
 				return nil
 			}
-			err = showDNSResults(data)
+			err = showDNSResults(data, c.String("delimiter"))
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -71,7 +72,7 @@ func splitSubN(s string, n int) []string {
 	l := len(runes)
 	for i, r := range runes {
 		sub = sub + string(r)
-		if (i + 1) % n == 0 {
+		if (i+1)%n == 0 {
 			subs = append(subs, sub)
 			sub = ""
 		} else if (i + 1) == l {
@@ -82,20 +83,24 @@ func splitSubN(s string, n int) []string {
 	return subs
 }
 
-func showDNSResults(dnsResults []explodeddns.AnalysisView) error {
-	csvWriter := csv.NewWriter(os.Stdout)
-	csvWriter.Write([]string{"Domain", "Unique Subdomains", "Times Looked Up"})
+func showDNSResults(dnsResults []explodeddns.AnalysisView, delim string) error {
+	headers := []string{"Domain", "Unique Subdomains", "Times Looked Up"}
+
+	// Print the headers and analytic values, separated by a delimiter
+	fmt.Println(strings.Join(headers, delim))
 	for _, result := range dnsResults {
-		csvWriter.Write([]string{
-			result.Domain, i(result.SubdomainCount), i(result.Visited),
-		})
+		fmt.Println(
+			strings.Join(
+				[]string{result.Domain, i(result.SubdomainCount), i(result.Visited)},
+				delim,
+			),
+		)
 	}
-	csvWriter.Flush()
 	return nil
 }
 
 func showDNSResultsHuman(dnsResults []explodeddns.AnalysisView) error {
- 	const DOMAINRECLEN = 80
+	const DOMAINRECLEN = 80
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(true)
 	table.SetRowSeparator("-")
@@ -103,7 +108,7 @@ func showDNSResultsHuman(dnsResults []explodeddns.AnalysisView) error {
 	table.SetHeader([]string{"Domain", "Unique Subdomains", "Times Looked Up"})
 	for _, result := range dnsResults {
 		domain := result.Domain
-		if (len(domain) > DOMAINRECLEN) {
+		if len(domain) > DOMAINRECLEN {
 			// Reformat the result.Domain value adding a newline every DOMAINRECLEN chars for wrapping
 			subs := splitSubN(result.Domain, DOMAINRECLEN)
 			domain = strings.Join(subs, "\n")

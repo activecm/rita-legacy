@@ -1,11 +1,10 @@
 package commands
 
 import (
-	"encoding/csv"
+	"fmt"
 	"os"
 	"strings"
 	"time"
-	"fmt"
 
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/resources"
@@ -25,6 +24,7 @@ func init() {
 			configFlag,
 			limitFlag,
 			noLimitFlag,
+			delimFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
@@ -57,7 +57,7 @@ func init() {
 				}
 				return nil
 			}
-			err = showConns(data)
+			err = showConns(data, c.String("delimiter"))
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -93,19 +93,24 @@ func duration(d time.Duration) string {
 	return b.String()
 }
 
-func showConns(connResults []uconn.LongConnAnalysisView) error {
-	csvWriter := csv.NewWriter(os.Stdout)
-	csvWriter.Write([]string{"Source IP", "Destination IP",
-		"Port:Protocol:Service", "Duration"})
+func showConns(connResults []uconn.LongConnAnalysisView, delim string) error {
+	headers := []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration"}
+
+	// Print the headers and analytic values, separated by a delimiter
+	fmt.Println(strings.Join(headers, delim))
 	for _, result := range connResults {
-		csvWriter.Write([]string{
-			result.Src,
-			result.Dst,
-			strings.Join(result.Tuples, " "),
-			f(result.MaxDuration),
-		})
+		fmt.Println(
+			strings.Join(
+				[]string{
+					result.Src,
+					result.Dst,
+					strings.Join(result.Tuples, " "),
+					f(result.MaxDuration),
+				},
+				delim,
+			),
+		)
 	}
-	csvWriter.Flush()
 	return nil
 }
 
@@ -118,7 +123,7 @@ func showConnsHuman(connResults []uconn.LongConnAnalysisView) error {
 			result.Src,
 			result.Dst,
 			strings.Join(result.Tuples, ",\n"),
-			duration(time.Duration(int(result.MaxDuration*float64(time.Second)))),
+			duration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
 		})
 	}
 	table.Render()

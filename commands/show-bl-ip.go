@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"encoding/csv"
+	"fmt"
 	"os"
 	"sort"
 	"strconv"
@@ -25,6 +25,7 @@ func init() {
 			configFlag,
 			limitFlag,
 			noLimitFlag,
+			delimFlag,
 		},
 		Usage:  "Print blacklisted IPs which initiated connections",
 		Action: printBLSourceIPs,
@@ -40,6 +41,7 @@ func init() {
 			configFlag,
 			limitFlag,
 			noLimitFlag,
+			delimFlag,
 		},
 		Usage:  "Print blacklisted IPs which received connections",
 		Action: printBLDestIPs,
@@ -93,7 +95,7 @@ func printBLSourceIPs(c *cli.Context) error {
 			return cli.NewExitError(err.Error(), -1)
 		}
 	} else {
-		err = showBLIPs(data, connected, true)
+		err = showBLIPs(data, connected, true, c.String("delimiter"))
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
@@ -133,7 +135,7 @@ func printBLDestIPs(c *cli.Context) error {
 			return cli.NewExitError(err.Error(), -1)
 		}
 	} else {
-		err = showBLIPs(data, connected, false)
+		err = showBLIPs(data, connected, false, c.String("delimiter"))
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
@@ -141,8 +143,7 @@ func printBLDestIPs(c *cli.Context) error {
 	return nil
 }
 
-func showBLIPs(ips []host.AnalysisView, connectedHosts, source bool) error {
-	csvWriter := csv.NewWriter(os.Stdout)
+func showBLIPs(ips []host.AnalysisView, connectedHosts, source bool, delim string) error {
 	headers := []string{"IP", "Connections", "Unique Connections", "Total Bytes"}
 	if connectedHosts {
 		if source {
@@ -151,7 +152,9 @@ func showBLIPs(ips []host.AnalysisView, connectedHosts, source bool) error {
 			headers = append(headers, "Sources")
 		}
 	}
-	csvWriter.Write(headers)
+
+	// Print the headers and analytic values, separated by a delimiter
+	fmt.Println(strings.Join(headers, delim))
 	for _, entry := range ips {
 
 		serialized := []string{
@@ -164,9 +167,13 @@ func showBLIPs(ips []host.AnalysisView, connectedHosts, source bool) error {
 			sort.Strings(entry.ConnectedHosts)
 			serialized = append(serialized, strings.Join(entry.ConnectedHosts, " "))
 		}
-		csvWriter.Write(serialized)
+		fmt.Println(
+			strings.Join(
+				serialized,
+				delim,
+			),
+		)
 	}
-	csvWriter.Flush()
 	return nil
 }
 

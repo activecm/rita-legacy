@@ -1,8 +1,9 @@
 package commands
 
 import (
-	"encoding/csv"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/resources"
@@ -19,6 +20,7 @@ func init() {
 		Flags: []cli.Flag{
 			humanFlag,
 			configFlag,
+			delimFlag,
 		},
 		Action: showBeacons,
 	}
@@ -46,21 +48,21 @@ func showBeacons(c *cli.Context) error {
 	}
 
 	if c.Bool("human-readable") {
-		err := showBeaconReport(data)
+		err := showBeaconsHuman(data)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
 		return nil
 	}
 
-	err = showBeaconCsv(data)
+	err = showBeaconsDelim(data, c.String("delimiter"))
 	if err != nil {
 		return cli.NewExitError(err.Error(), -1)
 	}
 	return nil
 }
 
-func showBeaconReport(data []beacon.AnalysisView) error {
+func showBeaconsHuman(data []beacon.AnalysisView) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
 		"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
@@ -81,25 +83,27 @@ func showBeaconReport(data []beacon.AnalysisView) error {
 	return nil
 }
 
-func showBeaconCsv(data []beacon.AnalysisView) error {
-	csvWriter := csv.NewWriter(os.Stdout)
+func showBeaconsDelim(data []beacon.AnalysisView, delim string) error {
 	headers := []string{"Score", "Source IP", "Destination IP",
 		"Connections", "Avg Bytes", "Intvl Range", "Size Range", "Top Intvl",
 		"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
 		"Size Skew", "Intvl Dispersion", "Size Dispersion"}
-	csvWriter.Write(headers)
 
+	// Print the headers and analytic values, separated by a delimiter
+	fmt.Println(strings.Join(headers, delim))
 	for _, d := range data {
-		csvWriter.Write(
-			[]string{
-				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
-				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
-				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
-				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
-			},
+		fmt.Println(
+			strings.Join(
+				[]string{
+					f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+					i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
+					i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
+					i(d.Ts.Dispersion), i(d.Ds.Dispersion),
+				},
+				delim,
+			),
 		)
 	}
-	csvWriter.Flush()
 	return nil
 }
 
