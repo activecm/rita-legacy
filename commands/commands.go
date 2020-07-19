@@ -111,6 +111,14 @@ var (
 		Name:  "connected, C",
 		Usage: "Show hosts which were connected to this blacklisted entry",
 	}
+
+	// Allows user to specify the delimiter for non-human-readable output; this
+	// is useful if user-agents (or somehow some other field) contains commas
+	delimFlag = cli.StringFlag{
+		Name:  "delimiter, d",
+		Usage: "Use a specific `DELIM` string for non-human-readable output",
+		Value: ",", //default to comma-separated
+	}
 )
 
 // bootstrapCommands simply adds a given command to the allCommands array
