@@ -117,8 +117,11 @@ RITA cycles data into and out of rolling databases in "chunks". You can think of
       * `show-long-connections`: Print long connections and relevant information
       * `show-strobes`: Print connections which occurred with excessive frequency
       * `show-useragents`: Print user agent information
-  * By default RITA displays data in CSV format
+  * By default, RITA displays data in CSV format
+      * `-d [DELIM]` delimits the data by `[DELIM]` instead of a comma
+          * Strings can be provided instead of single characters if desired, e.g. `rita show-beacons -d "---" dataset_name`
       * `-H` displays the data in a human readable format
+          * This takes precedence over the `-d` option
       * Piping the human readable results through `less -S` prevents word wrapping
           * Ex: `rita show-beacons dataset_name -H | less -S`
   * Create a html report with `html-report`
