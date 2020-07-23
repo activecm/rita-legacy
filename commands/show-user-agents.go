@@ -1,8 +1,9 @@
 package commands
 
 import (
-	"encoding/csv"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/resources"
@@ -26,6 +27,7 @@ func init() {
 			configFlag,
 			limitFlag,
 			noLimitFlag,
+			delimFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
@@ -60,7 +62,7 @@ func init() {
 				}
 				return nil
 			}
-			err = showAgents(data)
+			err = showAgents(data, c.String("delimiter"))
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -70,13 +72,19 @@ func init() {
 	bootstrapCommands(command)
 }
 
-func showAgents(agents []useragent.AnalysisView) error {
-	csvWriter := csv.NewWriter(os.Stdout)
-	csvWriter.Write([]string{"User Agent", "Times Used"})
+func showAgents(agents []useragent.AnalysisView, delim string) error {
+	headers := []string{"User Agent", "Times Used"}
+
+	// Print the headers and analytic values, separated by a delimiter
+	fmt.Println(strings.Join(headers, delim))
 	for _, agent := range agents {
-		csvWriter.Write([]string{agent.UserAgent, i(agent.TimesUsed)})
+		fmt.Println(
+			strings.Join(
+				[]string{agent.UserAgent, i(agent.TimesUsed)},
+				delim,
+			),
+		)
 	}
-	csvWriter.Flush()
 	return nil
 }
 

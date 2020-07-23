@@ -1,8 +1,9 @@
 package commands
 
 import (
-	"encoding/csv"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/resources"
@@ -26,6 +27,7 @@ func init() {
 			configFlag,
 			limitFlag,
 			noLimitFlag,
+			delimFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
@@ -60,7 +62,7 @@ func init() {
 				}
 				return nil
 			}
-			err = showStrobes(data)
+			err = showStrobes(data, c.String("delimiter"))
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -70,13 +72,19 @@ func init() {
 	bootstrapCommands(command)
 }
 
-func showStrobes(strobes []beacon.StrobeAnalysisView) error {
-	csvWriter := csv.NewWriter(os.Stdout)
-	csvWriter.Write([]string{"Source", "Destination", "Connection Count"})
+func showStrobes(strobes []beacon.StrobeAnalysisView, delim string) error {
+	headers := []string{"Source", "Destination", "Connection Count"}
+
+	// Print the headers and analytic values, separated by a delimiter
+	fmt.Println(strings.Join(headers, delim))
 	for _, strobe := range strobes {
-		csvWriter.Write([]string{strobe.Src, strobe.Dst, i(strobe.ConnectionCount)})
+		fmt.Println(
+			strings.Join(
+				[]string{strobe.Src, strobe.Dst, i(strobe.ConnectionCount)},
+				delim,
+			),
+		)
 	}
-	csvWriter.Flush()
 	return nil
 }
 
