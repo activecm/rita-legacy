@@ -131,7 +131,7 @@ func buildCustomBlacklists(entryType list.BlacklistedEntryType, paths []string) 
 		newList := lists.NewLineSeperatedList(
 			entryType,
 			path,
-			86400, // default cache time of 1 day
+			0, // Always reload the data
 			tryOpenFileThenURL(path),
 		)
 		blacklists = append(blacklists, newList)
