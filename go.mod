@@ -6,13 +6,11 @@ go 1.14
 // should be updated in etc/bash_completion.d/rita
 // https://github.com/urfave/cli/blob/master/autocomplete/bash_autocomplete
 
-replace github.com/activecm/rita-bl => /home/logan/Development/ACM/rita-bl
-
 require (
 	github.com/VividCortex/ewma v1.1.1 // indirect
 	github.com/activecm/mgorus v0.1.1
 	github.com/activecm/mgosec v0.1.1
-	github.com/activecm/rita-bl v0.0.0-20180713181704-c067dd0a1359
+	github.com/activecm/rita-bl v0.0.0-20200731150026-e1c09780a706
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/creasty/defaults v1.3.0
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8

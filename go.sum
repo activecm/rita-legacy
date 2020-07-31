@@ -4,6 +4,8 @@ github.com/activecm/mgorus v0.1.1 h1:v+DoSPWbbaNkwrJDwHI+nh0K7xEqktahimoWeo0jCOc
 github.com/activecm/mgorus v0.1.1/go.mod h1:oCz/dUji4JsFLsc1EKfgsotg20uITyvjblxo1ieo8Bg=
 github.com/activecm/mgosec v0.1.1 h1:6YMQY81cVa2p4dEQyMQbaoe6djhlMmEF7cRayrlerHw=
 github.com/activecm/mgosec v0.1.1/go.mod h1:XcwqX1en4L7Tfxd6r6NdstZt/cbArEg8OBZyUKf9HtU=
+github.com/activecm/rita-bl v0.0.0-20200731150026-e1c09780a706 h1:6lm05N+9VnkkKO+YrULW3m7UamOCS87j4TZBtsqjlp8=
+github.com/activecm/rita-bl v0.0.0-20200731150026-e1c09780a706/go.mod h1:5a489AThTs93aEzhBN2toFq+Hb0sbvXrdxn34ai259o=
 github.com/blang/semver v3.5.1+incompatible h1:cQNTCjp13qL8KC3Nbxr/y2Bqb63oX6wdnnjpJbkM4JQ=
 github.com/blang/semver v3.5.1+incompatible/go.mod h1:kRBLl5iJ+tD4TcOOxsy/0fnwebNt5EWlYSAyrTnjyyk=
 github.com/creasty/defaults v1.3.0 h1:uG+RAxYbJgOPCOdKEcec9ZJXeva7Y6mj/8egdzwmLtw=
