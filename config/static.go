@@ -21,7 +21,7 @@ type (
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
 		DNS          DNSStaticCfg         `yaml:"DNS"`
 		UserAgent    UserAgentStaticCfg   `yaml:"UserAgent"`
-		Bro          BroStaticCfg         `yaml:"Bro"`		// kept in for MetaDB backwards compatibility
+		Bro          BroStaticCfg         `yaml:"Bro"` // kept in for MetaDB backwards compatibility
 		Filtering    FilteringStaticCfg   `yaml:"Filtering"`
 		Strobe       StrobeStaticCfg      `yaml:"Strobe"`
 		Version      string
@@ -54,7 +54,7 @@ type (
 
 	//BroStaticCfg controls the file parser
 	BroStaticCfg struct {
-		MetaDB       string `yaml:"MetaDB"`  // kept in for backwards compatibility
+		MetaDB string `yaml:"MetaDB"` // kept in for backwards compatibility
 	}
 
 	//RollingStaticCfg controls the rolling database settings
@@ -73,9 +73,8 @@ type (
 	//BlacklistedStaticCfg is used to control the blacklisted analysis module
 	BlacklistedStaticCfg struct {
 		Enabled            bool     `yaml:"Enabled" default:"true"`
-		UseIPms            bool     `yaml:"myIP.ms" default:"true"`
 		UseDNSBH           bool     `yaml:"MalwareDomains.com" default:"true"`
-		UseMDL             bool     `yaml:"MalwareDomainList.com" default:"true"`
+		UseFeodo           bool     `yaml:"feodotracker.abuse.ch" default:"true"`
 		BlacklistDatabase  string   `yaml:"BlacklistDatabase" default:"rita-bl"`
 		IPBlacklists       []string `yaml:"CustomIPBlacklists" default:"[]"`
 		HostnameBlacklists []string `yaml:"CustomHostnameBlacklists" default:"[]"`

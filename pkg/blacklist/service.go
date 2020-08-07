@@ -98,14 +98,11 @@ func getSourceLists(conf *config.Config) []list.List {
 	//build up the lists
 	var blacklists []list.List
 	//use prebuilt lists
-	if conf.S.Blacklisted.UseIPms {
-		blacklists = append(blacklists, lists.NewMyIPmsList())
-	}
 	if conf.S.Blacklisted.UseDNSBH {
 		blacklists = append(blacklists, lists.NewDNSBHList())
 	}
-	if conf.S.Blacklisted.UseMDL {
-		blacklists = append(blacklists, lists.NewMdlList())
+	if conf.S.Blacklisted.UseFeodo {
+		blacklists = append(blacklists, lists.NewFeodoList())
 	}
 	//use custom lists
 	ipLists := buildCustomBlacklists(
@@ -128,7 +125,7 @@ func getSourceLists(conf *config.Config) []list.List {
 func buildCustomBlacklists(entryType list.BlacklistedEntryType, paths []string) []list.List {
 	var blacklists []list.List
 	for _, path := range paths {
-		newList := lists.NewLineSeperatedList(
+		newList := lists.NewLineSeparatedList(
 			entryType,
 			path,
 			0, // Always reload the data

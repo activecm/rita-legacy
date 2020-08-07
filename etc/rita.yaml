@@ -87,9 +87,8 @@ BlackListed:
     Enabled: true
     # These are blacklists built into rita-blacklist. Set these to false
     # to disable checks against them.
-    myIP.ms: true
     MalwareDomains.com: true
-    MalwareDomainList.com: true
+    feodotracker.abuse.ch: true
 
     # This is the name of the database which will be created as a master list of
     # blacklisted ips and hostnames by rita-blacklist
