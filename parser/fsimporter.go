@@ -295,6 +295,34 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	map[string]*uconn.Pair, map[string]*host.IP, map[string]int, map[string]*hostname.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
+
+	//TODO[AGENT]: Create struct type for map keys which contains network ids
+	/*
+		//perhaps place this in pkg/data and embed it in host.IP, certificate.Input, and uconn.Pair
+		// might need New(...) constructor to properly zero out NetworkID if we don't have network data
+		type UniqueIP struct {
+			IP string
+			NetworkID bson.Binary //used for efficient UUID
+			NetworkName string
+		}
+		// only use IP and NetworkID.Data to compare UniqueIPs
+		func (u UniqueIP) hash() uint64 {
+			hasher := fnv.New64a()
+			hasher.Write(*(*[]byte)(unsafe.Pointer(&u.IP)))
+			hasher.Write(u.NetworkID.Data) //Needs to work in case this is nil/zero [standard zeek install]
+			return hasher.Sum64()
+		}
+		func (u UniqueIP) hashWith(other UniqueIP) uint64 {
+			hasher := fnv.New64a()
+			hasher.Write(*(*[]byte)(unsafe.Pointer(&u.IP)))
+			hasher.Write(u.NetworkID.Data)
+			hasher.Write(*(*[]byte)(unsafe.Pointer(&other.IP)))
+			hasher.Write(other.NetworkID.Data)
+			return hasher.Sum64()
+		}
+
+	*/
+
 	// create log parsing maps
 	explodeddnsMap := make(map[string]int)
 
@@ -302,11 +330,14 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 	useragentMap := make(map[string]*useragent.Input)
 
+	//TODO[AGENT]: Convert hostMap into map[uint64]*certificate.Input and embed UniqueIP in certificate.Input
 	certMap := make(map[string]*certificate.Input)
 
+	//TODO[AGENT]: Convert uconnMap into map[uint64]*uconn.Pair and convert pair.src/ pair.dst to UniqueIP
 	// Counts the number of uconns per source-destination pair
 	uconnMap := make(map[string]*uconn.Pair)
 
+	//TODO[AGENT]: Convert hostMap into map[uint64]*host.IP and convert host.IP to UniqueIP
 	// Counts the number of uconns per source-destination pair
 	hostMap := make(map[string]*host.IP)
 
@@ -386,6 +417,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// If connection pair is not subject to filtering, process
 							if !ignore {
+								//TODO[AGENT]: grab network ids / names for source and destination
+								//TODO[AGENT]: build UniqueIP objects from IPs and network ids and names
 								ts := parseConn.TimeStamp
 								origIPBytes := parseConn.OrigIPBytes
 								respIPBytes := parseConn.RespIPBytes
@@ -402,12 +435,14 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									tuple = strconv.Itoa(dstPort) + ":" + protocol + ":" + service
 								}
 
+								//TODO[AGENT]: Instead of keying uconn map in on src + dst string, key on UniqueIP.hashWith()
 								// Concatenate the source and destination IPs to use as a map key
 								srcDst := src + dst
 
 								// Safely store the number of conns for this uconn
 								mutex.Lock()
 
+								//TODO[AGENT]: Instead of keying hostmap in on ip string, key on UniqueIP.hash()
 								// Check if the map value is set
 								if _, ok := hostMap[src]; !ok {
 									// create new host record with src and dst
@@ -466,6 +501,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									uconnMap[srcDst].Tuples = append(uconnMap[srcDst].Tuples, tuple)
 								}
 
+								//TODO[AGENT]: Instead of keying certMap in on ip string, key on UniqueIP.hash()
+
 								// Check if invalid cert record was written before the uconns
 								// record, we'll need to update it with the tuples.
 								if _, ok := certMap[dst]; ok {
@@ -480,10 +517,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								hostMap[src].ConnectionCount++
 								hostMap[dst].ConnectionCount++
 
+								//TODO[AGENT]: Covnert IP.ConnectedDstHosts to map[uint64]UniqueIP
 								if stringInSlice(dst, hostMap[src].ConnectedDstHosts) == false {
 									hostMap[src].ConnectedDstHosts = append(hostMap[src].ConnectedDstHosts, dst)
 								}
 
+								//TODO[AGENT]: Covnert IP.ConnectedSrcHosts to map[uint64]UniqueIP
 								if stringInSlice(src, hostMap[dst].ConnectedSrcHosts) == false {
 									hostMap[dst].ConnectedSrcHosts = append(hostMap[dst].ConnectedSrcHosts, src)
 								}
@@ -573,6 +612,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Run conn pair through filter to filter out certain connections
 								ignore := fs.filterConnPair(src, dst)
 								if !ignore {
+
+									//TODO[AGENT]: Index hostmap with UniqueIP hash rather than src IP string in DNS parsing
+
 									// Check if host map value is set, because this record could
 									// come before a relevant conns record
 									if _, ok := hostMap[src]; !ok {
@@ -682,6 +724,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Run conn pair through filter to filter out certain connections
 								ignore := fs.filterConnPair(src, dst)
 								if !ignore {
+
+									//TODO[AGENT]: Index uconnMap with UniqueIP hashWith rather than src+dst string in SSL parsing
+
 									// Check if uconn map value is set, because this record could
 									// come before a relevant uconns record
 									if _, ok := uconnMap[src+dst]; !ok {
@@ -695,6 +740,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									}
 									// mark as having invalid cert
 									uconnMap[src+dst].InvalidCertFlag = true
+
+									//TODO[AGENT]: Index certMap with UniqueIP hashh rather than dst IP string in SSL parsing
 
 									// update relevant cert record
 									if _, ok := certMap[dst]; !ok {

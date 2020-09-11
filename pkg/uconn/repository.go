@@ -18,6 +18,7 @@ type update struct {
 	hostMaxDur updateInfo
 }
 
+//TODO[AGENT]: Convert Pair Src/ Dst to UniqueIP. Consider renaming this to Input to match the style of other pkgs?
 //Pair ....
 type Pair struct {
 	Src             string

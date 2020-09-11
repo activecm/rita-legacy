@@ -13,6 +13,8 @@ type update struct {
 	collection string
 }
 
+//TODO[AGENT]: Convert Input Host to UniqueIP {Host, NetworkID, NetworkName}
+//TODO[AGENT]: Convert Input OrigIPs to []UniqueIP
 //Input ....
 type Input struct {
 	Host         string

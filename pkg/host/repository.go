@@ -12,6 +12,8 @@ type update struct {
 	query    interface{}
 }
 
+//TODO[AGENT]: Convert IP Host to Unique IP. Consider renaming to IP to Input to match other pkgs?
+//TODO[AGENT]: Convert ConnectedSrcHosts/ ConnectedDstHosts to map[uint64]UniqueIP
 //IP ....
 type IP struct {
 	Host                  string

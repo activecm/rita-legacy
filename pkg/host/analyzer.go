@@ -59,6 +59,8 @@ func (a *analyzer) start() {
 			// blacklisted flag
 			blacklisted := false
 
+			//TODO[AGENT]: Use new name for IP.Host (Input.IP) for checking ip blacklist
+
 			// check if blacklisted destination
 			blCount, _ := ssn.DB(a.conf.S.Blacklisted.BlacklistDatabase).C("ip").Find(bson.M{"index": data.Host}).Count()
 			if blCount > 0 {
@@ -74,6 +76,8 @@ func (a *analyzer) start() {
 				}
 
 				var res2 []hostRes
+
+				//TODO[AGENT]: Use new name for IP.Host (Input.IP) and Input.NetworkID for checking if ip in host table already
 
 				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(bson.M{"ip": data.Host}).All(&res2)
 
@@ -103,6 +107,8 @@ func (a *analyzer) start() {
 //standardQuery ...
 func standardQuery(chunk int, chunkStr string, ip string, local bool, ip4 bool, ip4bin int64, maxdur float64, txtQCount int64, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
 	var output update
+
+	//TODO[AGENT]: Integrate UniqueIP NetworkID/ Network Name into host collection aggregation "query"
 
 	// create query
 	query := bson.M{
