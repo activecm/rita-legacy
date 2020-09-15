@@ -39,6 +39,7 @@ func (r *repo) CreateIndexes() error {
 		}
 	}
 
+	//TODO[AGENT]: Ensure certificate host index includes UniqueIP NetworkID info
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"host"}, Unique: true},

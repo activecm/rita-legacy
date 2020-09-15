@@ -18,6 +18,7 @@ type Input struct {
 	ClientIPs   []string //DNS Client IPs which issued queries for a given hostname
 }
 
+//TODO[AGENT]: Use UniqueIP/ NetworkID info in hostname ips/ clientIPs
 type hostname struct {
 	host      string   `bson:"host"`
 	ips       []string `bson:"ips"`

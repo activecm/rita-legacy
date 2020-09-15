@@ -67,6 +67,8 @@ func (a *analyzer) start() {
 				data.Requests = data.Requests[:10]
 			}
 
+			//TODO[AGENT]: Use UniqueIP with NetworkID for orig_ips in useragent collection
+
 			// create query
 			query := bson.M{
 				"$push": bson.M{
@@ -110,6 +112,7 @@ func (a *analyzer) start() {
 					bson.M{"$match": bson.M{"count": bson.M{"$lte": maxLeft}}},
 				}
 
+				//TODO[AGENT]: Use UniqueIP with NetworkID for IPS in useragent reslist when querying host table
 				var resList struct {
 					ID    string   `bson:"_id"`
 					IPS   []string `bson:"ips"`
@@ -158,6 +161,7 @@ func (a *analyzer) start() {
 
 //hostQuery ...
 func hostQuery(chunk int, useragentStr string, ip string, newFlag bool) update {
+	//TODO[AGENT]: change ip to UniqueIP in hostQuery in useragent package
 	var output update
 
 	// create query

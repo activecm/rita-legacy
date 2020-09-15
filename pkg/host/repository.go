@@ -1,5 +1,6 @@
 package host
 
+//TODO[AGENT]: Convert hostMap into map[uint64]*host.IP and convert host.IP to UniqueIP
 // Repository for host collection
 type Repository interface {
 	CreateIndexes() error

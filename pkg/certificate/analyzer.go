@@ -74,6 +74,7 @@ func (a *analyzer) start() {
 				data.InvalidCerts = data.InvalidCerts[:10]
 			}
 
+			//TODO[AGENT]: Use UniqueIP with NetworkID for orig_ips in certificate collection
 			// create query
 			query := bson.M{
 				"$push": bson.M{
@@ -91,6 +92,8 @@ func (a *analyzer) start() {
 			output.query = query
 
 			output.collection = a.conf.T.Cert.CertificateTable
+
+			//TODO[AGENT]: Use UniqueIP with NetworkID for host in certificate collection
 			// create selector for output
 			output.selector = bson.M{"host": data.Host}
 

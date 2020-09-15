@@ -40,6 +40,7 @@ func (r *repo) CreateIndexes() error {
 		}
 	}
 
+	//TODO[AGENT]: Change indexes to include src and dst network ids. Consider "Create an Index on Embedded Document"
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"src", "dst"}, Unique: true},

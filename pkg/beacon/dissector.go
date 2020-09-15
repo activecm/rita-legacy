@@ -53,6 +53,8 @@ func (d *dissector) start() {
 		defer ssn.Close()
 
 		for data := range d.dissectChannel {
+			//TODO[AGENT]: Ensure uconn query in beacons uses NetworkID information
+
 			// This will work for both updating and inserting completely new Beacons
 			// for every new uconn record we have, we will check the uconns table. This
 			// will always return a result because even with a brand new database, we already

@@ -586,11 +586,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// geo.vortex.data.microsoft.com.akadns.net
 
+							//TODO[AGENT]: Use UniqueIP/ NetworkID in hostnameMap ClientIPs
+
 							// extract and store the dns client ip address
 							src := parseDNS.Source
 							if stringInSlice(src, hostnameMap[domain].ClientIPs) == false {
 								hostnameMap[domain].ClientIPs = append(hostnameMap[domain].ClientIPs, src)
 							}
+
+							//TODO[AGENT]: Use UniqueIP/ NetworkID in hostnameMap ResolvedIPs
 
 							if queryTypeName == "A" {
 								answers := parseDNS.Answers
@@ -655,6 +659,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// Safely store useragent information
 							mutex.Lock()
 
+							//TODO[AGENT]: Use UniqueIP with NetworkID for OrigIPs in useragentMap
 							// create record if it doesn't exist
 							if _, ok := useragentMap[userAgentName]; !ok {
 								useragentMap[userAgentName] = &useragent.Input{Seen: 1, OrigIps: []string{src}, Requests: []string{host}}
@@ -696,6 +701,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// Safely store ja3 information
 							mutex.Lock()
 
+							//TODO[AGENT]: Use UniqueIP with NetworkID for OrigIPs in useragentMap
 							// create record if it doesn't exist
 							if _, ok := useragentMap[ja3Hash]; !ok {
 								useragentMap[ja3Hash] = &useragent.Input{

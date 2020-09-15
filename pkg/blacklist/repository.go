@@ -11,6 +11,7 @@ type update struct {
 	query    interface{}
 }
 
+//TODO[AGENT]: Use UniqueIP for Host in blacklist uconnRes
 //uconnRes
 type uconnRes struct {
 	Host              string `bson:"_id"`
@@ -19,6 +20,7 @@ type uconnRes struct {
 	TotalBytes        int    `bson:"bl_total_bytes"`
 }
 
+//TODO[AGENT]: Use UniqueIP for hostres IP in blacklist
 type hostRes struct {
 	IP string `bson:"ip"`
 	// blacklisted bool   `bson:"blacklisted"`

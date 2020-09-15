@@ -64,6 +64,7 @@ func (a *analyzer) start() {
 			for _, entry := range connectedSrcHosts {
 				var res3 []hostRes
 				newblsrc := false
+				//TODO[AGENT]: Use UniqueIP for host table query in blacklist
 
 				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(bson.M{"ip": entry.Host, "dat.bl": ip}).All(&res3)
 
@@ -103,6 +104,7 @@ func (a *analyzer) start() {
 // If the internal system initiated the connection, then bl_out_count
 // holds the number of unique blacklisted IPs the given host contacted.
 func hasBlacklistedDstQuery(chunk int, ip string, entry uconnRes, newFlag bool) update {
+	//TODO[AGENT]: Use UniqueIP for ip in hasBlacklistedDstQuery
 
 	var output update
 
@@ -145,6 +147,7 @@ func hasBlacklistedDstQuery(chunk int, ip string, entry uconnRes, newFlag bool) 
 // If the internal system initiated the connection, then bl_out_count
 // holds the number of unique blacklisted IPs the given host contacted.
 func hasBlacklistedSrcQuery(chunk int, ip string, entry uconnRes, newFlag bool) update {
+	//TODO[AGENT]: Use UniqueIP for ip in hasBlacklistedSrcQuery
 
 	var output update
 
@@ -185,6 +188,7 @@ func hasBlacklistedSrcQuery(chunk int, ip string, entry uconnRes, newFlag bool) 
 
 // getBlaclistedIPConnections
 func (a *analyzer) getBlacklistedIPConnections(ip string, field1 string, field2 string) []uconnRes {
+	//TODO[AGENT]: Change ip to UniqueIP in getBlacklistedIPConnections and match with NetworkID
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 

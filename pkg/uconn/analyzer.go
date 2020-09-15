@@ -110,6 +110,7 @@ func (a *analyzer) start() {
 			// assign formatted query to output
 			output.uconn.query = query
 
+			//TODO[AGENT]: Change selector to use UniqueIP's NetworkID
 			// create selector for output
 			output.uconn.selector = bson.M{"src": data.Src, "dst": data.Dst}
 
@@ -131,6 +132,7 @@ func (a *analyzer) start() {
 	}()
 }
 
+//TODO[AGENT]: Change externalIP to NetworkID in hostMaxDurQuery
 func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP string, externalIP string) updateInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
@@ -146,6 +148,7 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP string, externalIP st
 	// the incorrect high max for that specific destination.
 	var resListExactMatch []interface{}
 
+	//TODO[AGENT]: Change mdip to use UniqueIP's NetworkID
 	maxDurMatchExactQuery := bson.M{
 		"ip":  localIP,
 		"dat": bson.M{"$elemMatch": bson.M{"mdip": externalIP, "max_duration": bson.M{"$lte": maxDur}}},
@@ -180,6 +183,8 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP string, externalIP st
 
 	var resListLower []interface{}
 	var resListUpper []interface{}
+
+	//TODO[AGENT]: Change ip to use UniqueIP's NetworkID in host table update/ queries
 
 	// this query will find any matching chunk that is reporting a lower
 	// max beacon score than the current one we are working with
@@ -221,6 +226,7 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP string, externalIP st
 	// max beacon ONLY if no matching chunks reporting higher max beacon scores
 	// are found.
 
+	//TODO[AGENT]: Change mdip to use UniqueIP's NetworkID
 	if newFlag {
 
 		query["$push"] = bson.M{

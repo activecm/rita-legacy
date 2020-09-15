@@ -45,6 +45,7 @@ func (r *repo) CreateIndexes() error {
 		}
 	}
 
+	//TODO[AGENT]: Ensure beacon indices use UniqueIP NetworkID information
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"-score"}},

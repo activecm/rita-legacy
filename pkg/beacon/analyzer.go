@@ -195,6 +195,7 @@ func (a *analyzer) start() {
 				dsScore := math.Ceil((dsSum/3.0)*1000) / 1000
 				score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
 
+				//TODO[AGENT]: Ensure beacon output uses NetworkID info in src/dst
 				// update beacon query
 				output.beacon = updateInfo{
 					query: bson.M{
@@ -260,6 +261,7 @@ func createCountMap(sortedIn []int64) ([]int64, []int64, int64, int64) {
 }
 
 func (a *analyzer) hostIcertQuery(icert bool, src string, dst string) updateInfo {
+	//TODO[AGENT]: Change src/ dst to UniqueIPs in hostIcertQuery in beacons
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -273,6 +275,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src string, dst string) updateInfo
 
 		newFlag := false
 
+		//TODO[AGENT]: Use UniqueIP instead of hostRes in hostICertQuery in beacons
 		type hostRes struct {
 			IP string `bson:"ip"`
 		}
@@ -285,6 +288,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src string, dst string) updateInfo
 			newFlag = true
 		}
 
+		//TODO[AGENT]: Ensure NetworkID info is stored in icdst in the invalid certificate host table update in beacons
 		if newFlag {
 
 			query["$push"] = bson.M{
@@ -315,6 +319,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src string, dst string) updateInfo
 }
 
 func (a *analyzer) hostBeaconQuery(score float64, src string, dst string) updateInfo {
+	//TODO[AGENT]: Change src/ dst to UniqueIPs in hostBeaconQuery in beacons
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -334,6 +339,8 @@ func (a *analyzer) hostBeaconQuery(score float64, src string, dst string) update
 		"dat.mbdst": dst,
 	}
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
+
+	//TODO[AGENT]: Ensure mbdst includes NetworkID information in beacons host table update
 
 	// if we have exact matches, update to new score and return
 	if len(resListExactMatch) > 0 {
