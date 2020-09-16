@@ -2,7 +2,6 @@ package beacon
 
 import "github.com/activecm/rita/pkg/uconn"
 
-//TODO[AGENT]: Convert uconnMap into map[uint64]*uconn.Pair
 // Repository for host collection
 type Repository interface {
 	CreateIndexes() error

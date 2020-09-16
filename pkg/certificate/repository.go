@@ -1,6 +1,5 @@
 package certificate
 
-//TODO[AGENT]: Convert hostMap into map[uint64]*certificate.Input and embed UniqueIP in certificate.Input
 // Repository for uconn collection
 type Repository interface {
 	CreateIndexes() error

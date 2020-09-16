@@ -330,14 +330,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 	useragentMap := make(map[string]*useragent.Input)
 
-	//TODO[AGENT]: Convert hostMap into map[uint64]*certificate.Input and embed UniqueIP in certificate.Input
 	certMap := make(map[string]*certificate.Input)
 
-	//TODO[AGENT]: Convert uconnMap into map[uint64]*uconn.Pair and convert pair.src/ pair.dst to UniqueIP
 	// Counts the number of uconns per source-destination pair
 	uconnMap := make(map[string]*uconn.Pair)
 
-	//TODO[AGENT]: Convert hostMap into map[uint64]*host.IP and convert host.IP to UniqueIP
 	// Counts the number of uconns per source-destination pair
 	hostMap := make(map[string]*host.IP)
 
@@ -517,12 +514,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								hostMap[src].ConnectionCount++
 								hostMap[dst].ConnectionCount++
 
-								//TODO[AGENT]: Covnert IP.ConnectedDstHosts to map[uint64]UniqueIP
+								//TODO[AGENT]: Covnert IP.ConnectedDstHosts to map[string]UniqueIP
 								if stringInSlice(dst, hostMap[src].ConnectedDstHosts) == false {
 									hostMap[src].ConnectedDstHosts = append(hostMap[src].ConnectedDstHosts, dst)
 								}
 
-								//TODO[AGENT]: Covnert IP.ConnectedSrcHosts to map[uint64]UniqueIP
+								//TODO[AGENT]: Covnert IP.ConnectedSrcHosts to map[string]UniqueIP
 								if stringInSlice(src, hostMap[dst].ConnectedSrcHosts) == false {
 									hostMap[dst].ConnectedSrcHosts = append(hostMap[dst].ConnectedSrcHosts, src)
 								}

@@ -1,6 +1,5 @@
 package host
 
-//TODO[AGENT]: Convert hostMap into map[uint64]*host.IP and convert host.IP to UniqueIP
 // Repository for host collection
 type Repository interface {
 	CreateIndexes() error
@@ -14,7 +13,7 @@ type update struct {
 }
 
 //TODO[AGENT]: Convert IP Host to Unique IP. Consider renaming to IP to Input to match other pkgs?
-//TODO[AGENT]: Convert ConnectedSrcHosts/ ConnectedDstHosts to map[uint64]UniqueIP
+//TODO[AGENT]: Convert ConnectedSrcHosts/ ConnectedDstHosts to []UniqueIP
 //IP ....
 type IP struct {
 	Host                  string
