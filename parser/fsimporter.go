@@ -296,33 +296,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 
-	//TODO[AGENT]: Create struct type for map keys which contains network ids
-	/*
-		//perhaps place this in pkg/data and embed it in host.IP, certificate.Input, and uconn.Pair
-		// might need New(...) constructor to properly zero out NetworkID if we don't have network data
-		type UniqueIP struct {
-			IP string
-			NetworkID bson.Binary //used for efficient UUID
-			NetworkName string
-		}
-		// only use IP and NetworkID.Data to compare UniqueIPs
-		func (u UniqueIP) hash() uint64 {
-			hasher := fnv.New64a()
-			hasher.Write(*(*[]byte)(unsafe.Pointer(&u.IP)))
-			hasher.Write(u.NetworkID.Data) //Needs to work in case this is nil/zero [standard zeek install]
-			return hasher.Sum64()
-		}
-		func (u UniqueIP) hashWith(other UniqueIP) uint64 {
-			hasher := fnv.New64a()
-			hasher.Write(*(*[]byte)(unsafe.Pointer(&u.IP)))
-			hasher.Write(u.NetworkID.Data)
-			hasher.Write(*(*[]byte)(unsafe.Pointer(&other.IP)))
-			hasher.Write(other.NetworkID.Data)
-			return hasher.Sum64()
-		}
-
-	*/
-
 	// create log parsing maps
 	explodeddnsMap := make(map[string]int)
 
