@@ -13,11 +13,7 @@ import (
 //   3. Not filtered if InternalSubnets is empty
 //   4. Filtered if both IPs are internal or both are external
 //   5. Not filtered in all other cases
-func (fs *FSImporter) filterConnPair(src string, dst string) bool {
-	// parse src and dst IPs
-	srcIP := net.ParseIP(src)
-	dstIP := net.ParseIP(dst)
-
+func (fs *FSImporter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 	// check if on always included list
 	isSrcIncluded := containsIP(fs.alwaysIncluded, srcIP)
 	isDstIncluded := containsIP(fs.alwaysIncluded, dstIP)

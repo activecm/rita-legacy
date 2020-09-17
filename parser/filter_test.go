@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -67,7 +68,7 @@ func TestFilterConnPairWithInternalSubnets(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		output := fsTest.filterConnPair(test.src, test.dst)
+		output := fsTest.filterConnPair(net.ParseIP(test.src), net.ParseIP(test.dst))
 		assert.Equal(t, test.out, output, test.msg)
 	}
 }
@@ -100,7 +101,7 @@ func TestFilterConnPairWithoutInternalSubnets(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		output := fsTest.filterConnPair(test.src, test.dst)
+		output := fsTest.filterConnPair(net.ParseIP(test.src), net.ParseIP(test.dst))
 		assert.Equal(t, test.out, output, test.msg)
 	}
 }

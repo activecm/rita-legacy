@@ -382,8 +382,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							src := parseConn.Source
 							dst := parseConn.Destination
 
+							srcIP := net.ParseIP(src)
+							dstIP := net.ParseIP(dst)
+
 							// Run conn pair through filter to filter out certain connections
-							ignore := fs.filterConnPair(src, dst)
+							ignore := fs.filterConnPair(srcIP, dstIP)
 
 							// If connection pair is not subject to filtering, process
 							if !ignore {
@@ -418,9 +421,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// create new host record with src and dst
 									hostMap[src] = &host.IP{
 										Host:    src,
-										IsLocal: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
+										IsLocal: containsIP(fs.GetInternalSubnets(), srcIP),
 										IP4:     isIPv4(src),
-										IP4Bin:  ipv4ToBinary(net.ParseIP(src)),
+										IP4Bin:  ipv4ToBinary(srcIP),
 									}
 								}
 
@@ -429,9 +432,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// create new host record with src and dst
 									hostMap[dst] = &host.IP{
 										Host:    dst,
-										IsLocal: containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
+										IsLocal: containsIP(fs.GetInternalSubnets(), dstIP),
 										IP4:     isIPv4(dst),
-										IP4Bin:  ipv4ToBinary(net.ParseIP(dst)),
+										IP4Bin:  ipv4ToBinary(dstIP),
 									}
 								}
 
@@ -443,8 +446,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									uconnMap[srcDst] = &uconn.Pair{
 										Src:        src,
 										Dst:        dst,
-										IsLocalSrc: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
-										IsLocalDst: containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
+										IsLocalSrc: containsIP(fs.GetInternalSubnets(), srcIP),
+										IsLocalDst: containsIP(fs.GetInternalSubnets(), dstIP),
 									}
 
 									hostMap[src].CountSrc++
@@ -560,6 +563,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// extract and store the dns client ip address
 							src := parseDNS.Source
+							srcIP := net.ParseIP(src)
+
 							if stringInSlice(src, hostnameMap[domain].ClientIPs) == false {
 								hostnameMap[domain].ClientIPs = append(hostnameMap[domain].ClientIPs, src)
 							}
@@ -582,9 +587,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							if queryTypeName == "TXT" {
 								// get destination for dns record
 								dst := parseDNS.Destination
+								dstIP := net.ParseIP(dst)
 
 								// Run conn pair through filter to filter out certain connections
-								ignore := fs.filterConnPair(src, dst)
+								ignore := fs.filterConnPair(srcIP, dstIP)
 								if !ignore {
 
 									//TODO[AGENT]: Index hostmap with UniqueIPMapKey(ip) rather than src IP string in DNS parsing
@@ -597,9 +603,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										// we only need to do this once if the uconn record does not exist
 										hostMap[src] = &host.IP{
 											Host:    src,
-											IsLocal: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
+											IsLocal: containsIP(fs.GetInternalSubnets(), srcIP),
 											IP4:     isIPv4(src),
-											IP4Bin:  ipv4ToBinary(net.ParseIP(src)),
+											IP4Bin:  ipv4ToBinary(srcIP),
 										}
 									}
 									// increment txt query count
@@ -664,6 +670,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							host := parseSSL.ServerName
 							certStatus := parseSSL.ValidationStatus
 
+							srcIP := net.ParseIP(src)
+							dstIP := net.ParseIP(dst)
+
 							if ja3Hash == "" {
 								ja3Hash = "No JA3 hash generated"
 							}
@@ -698,7 +707,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							//if there's any problem in the certificate, mark it invalid
 							if certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " " {
 								// Run conn pair through filter to filter out certain connections
-								ignore := fs.filterConnPair(src, dst)
+								ignore := fs.filterConnPair(srcIP, dstIP)
 								if !ignore {
 
 									//TODO[AGENT]: Index uconnMap with UniqueSrcDstIPMapKey(src, dst) rather than src+dst string in SSL parsing
@@ -710,8 +719,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										uconnMap[src+dst] = &uconn.Pair{
 											Src:        src,
 											Dst:        dst,
-											IsLocalSrc: containsIP(fs.GetInternalSubnets(), net.ParseIP(src)),
-											IsLocalDst: containsIP(fs.GetInternalSubnets(), net.ParseIP(dst)),
+											IsLocalSrc: containsIP(fs.GetInternalSubnets(), srcIP),
+											IsLocalDst: containsIP(fs.GetInternalSubnets(), dstIP),
 										}
 									}
 									// mark as having invalid cert
