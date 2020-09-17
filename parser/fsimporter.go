@@ -388,7 +388,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// If connection pair is not subject to filtering, process
 							if !ignore {
 								//TODO[AGENT]: grab network ids / names for source and destination
-								//TODO[AGENT]: build UniqueIP objects from IPs and network ids and names
+								//TODO[AGENT]: build UniqueIP objects from IPs and agent UUIDs/ Names
 								ts := parseConn.TimeStamp
 								origIPBytes := parseConn.OrigIPBytes
 								respIPBytes := parseConn.RespIPBytes
@@ -405,14 +405,14 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									tuple = strconv.Itoa(dstPort) + ":" + protocol + ":" + service
 								}
 
-								//TODO[AGENT]: Instead of keying uconn map in on src + dst string, key on UniqueIP.hashWith()
+								//TODO[AGENT]: Instead of keying uconn map in on src + dst, key on UniqueSrcDstIPMapKey(src, dst)
 								// Concatenate the source and destination IPs to use as a map key
 								srcDst := src + dst
 
 								// Safely store the number of conns for this uconn
 								mutex.Lock()
 
-								//TODO[AGENT]: Instead of keying hostmap in on ip string, key on UniqueIP.hash()
+								//TODO[AGENT]: Instead of keying hostmap in on ip string, key on UniqueIPMapKey(ip)
 								// Check if the map value is set
 								if _, ok := hostMap[src]; !ok {
 									// create new host record with src and dst
@@ -471,7 +471,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									uconnMap[srcDst].Tuples = append(uconnMap[srcDst].Tuples, tuple)
 								}
 
-								//TODO[AGENT]: Instead of keying certMap in on ip string, key on UniqueIP.hash()
+								//TODO[AGENT]: Instead of keying certMap in on ip string, key on UniqueIPMapKey(ip)
 
 								// Check if invalid cert record was written before the uconns
 								// record, we'll need to update it with the tuples.
@@ -487,12 +487,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								hostMap[src].ConnectionCount++
 								hostMap[dst].ConnectionCount++
 
-								//TODO[AGENT]: Covnert IP.ConnectedDstHosts to map[string]UniqueIP
+								//TODO[AGENT]: Convert IP.ConnectedDstHosts to map[string]UniqueIP
 								if stringInSlice(dst, hostMap[src].ConnectedDstHosts) == false {
 									hostMap[src].ConnectedDstHosts = append(hostMap[src].ConnectedDstHosts, dst)
 								}
 
-								//TODO[AGENT]: Covnert IP.ConnectedSrcHosts to map[string]UniqueIP
+								//TODO[AGENT]: Convert IP.ConnectedSrcHosts to map[string]UniqueIP
 								if stringInSlice(src, hostMap[dst].ConnectedSrcHosts) == false {
 									hostMap[dst].ConnectedSrcHosts = append(hostMap[dst].ConnectedSrcHosts, src)
 								}
@@ -556,7 +556,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// geo.vortex.data.microsoft.com.akadns.net
 
-							//TODO[AGENT]: Use UniqueIP/ NetworkID in hostnameMap ClientIPs
+							//TODO[AGENT]: Use UniqueIP in hostnameMap ClientIPs
 
 							// extract and store the dns client ip address
 							src := parseDNS.Source
@@ -564,7 +564,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								hostnameMap[domain].ClientIPs = append(hostnameMap[domain].ClientIPs, src)
 							}
 
-							//TODO[AGENT]: Use UniqueIP/ NetworkID in hostnameMap ResolvedIPs
+							//TODO[AGENT]: Use UniqueIP in hostnameMap ResolvedIPs
 
 							if queryTypeName == "A" {
 								answers := parseDNS.Answers
@@ -587,7 +587,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								ignore := fs.filterConnPair(src, dst)
 								if !ignore {
 
-									//TODO[AGENT]: Index hostmap with UniqueIP hash rather than src IP string in DNS parsing
+									//TODO[AGENT]: Index hostmap with UniqueIPMapKey(ip) rather than src IP string in DNS parsing
 
 									// Check if host map value is set, because this record could
 									// come before a relevant conns record
@@ -701,7 +701,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								ignore := fs.filterConnPair(src, dst)
 								if !ignore {
 
-									//TODO[AGENT]: Index uconnMap with UniqueIP hashWith rather than src+dst string in SSL parsing
+									//TODO[AGENT]: Index uconnMap with UniqueSrcDstIPMapKey(src, dst) rather than src+dst string in SSL parsing
 
 									// Check if uconn map value is set, because this record could
 									// come before a relevant uconns record
@@ -717,7 +717,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// mark as having invalid cert
 									uconnMap[src+dst].InvalidCertFlag = true
 
-									//TODO[AGENT]: Index certMap with UniqueIP hashh rather than dst IP string in SSL parsing
+									//TODO[AGENT]: Index certMap with UniqueIPMapKey(dst) rather than dst IP string in SSL parsing
 
 									// update relevant cert record
 									if _, ok := certMap[dst]; !ok {

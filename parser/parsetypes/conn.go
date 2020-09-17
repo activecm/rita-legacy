@@ -24,10 +24,8 @@ type Conn struct {
 	// DestinationPort is the port at the destination host
 	DestinationPort int `bson:"id_resp_p" bro:"id.resp_p" brotype:"port" json:"id.resp_p"`
 
-	// TODO[AGENT]: Add SourceNetworkID string
-	// TODO[AGENT]: Add SourceNetworkName string
-	// TODO[AGENT]: Add DestinationNetworkID string
-	// TODO[AGENT]: Add DestinationNetworkName string
+	// TODO[AGENT]: Add AgentUUID string
+	// TODO[AGENT]: Add AgentHostname string
 
 	// Proto is the string protocol identifier for this connection
 	Proto string `bson:"proto" bro:"proto" brotype:"enum" json:"proto"`
