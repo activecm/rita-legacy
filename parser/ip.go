@@ -111,10 +111,10 @@ func newUniqueIP(ip net.IP, agentUUID, agentName string) (data.UniqueIP, error) 
 		return u, err
 	}
 
-	u.NetworkUUID = bson.Binary{
+	u.NetworkUUID = &bson.Binary{
 		Kind: bson.BinaryUUID,
 		Data: id[:],
 	}
-	u.NetworkName = agentName
+	u.NetworkName = &agentName
 	return u, nil
 }

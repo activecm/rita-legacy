@@ -6,31 +6,70 @@ import (
 )
 
 type UniqueIP struct {
-	IP          string      `bson:"ip"`
-	NetworkUUID bson.Binary `bson:"network_uuid,omitempty"`
-	NetworkName string      `bson:"network_name,omitempty"`
+	IP          string       `bson:"ip"`
+	NetworkUUID *bson.Binary `bson:"network_uuid,omitempty"`
+	NetworkName *string      `bson:"network_name,omitempty"`
+}
+
+func (u UniqueIP) BSONQuery(ipField, networkUUIDField string) bson.M {
+	return bson.M{
+		ipField:          u.IP,
+		networkUUIDField: u.NetworkUUID,
+	}
+}
+
+func (u UniqueIP) SrcDstBSONQuery(dst UniqueIP, srcIPField, dstIPField, srcNetworkUUIDField, dstNetworkUUIDField string) bson.M {
+	return bson.M{
+		srcIPField:          u.IP,
+		dstIPField:          dst.IP,
+		srcNetworkUUIDField: u.NetworkUUID,
+		dstNetworkUUIDField: dst.NetworkUUID,
+	}
 }
 
 //MapKey generates a string which may be used to index a given UniqueIP. Concatenates IP and UUID.
 func (u UniqueIP) MapKey() string {
 	var builder strings.Builder
-	builder.Grow(len(u.IP) + 1 + len(u.NetworkUUID.Data))
+	uuidLen := 0
+	if u.NetworkUUID != nil {
+		uuidLen = len(u.NetworkUUID.Data)
+	}
+
+	builder.Grow(len(u.IP) + 1 + uuidLen)
 	builder.WriteString(u.IP)
 	builder.WriteByte(0xFF)
-	builder.Write(u.NetworkUUID.Data)
+	if u.NetworkUUID != nil {
+		builder.Write(u.NetworkUUID.Data)
+	}
+
 	return builder.String()
 }
 
 //SrcDstMapKey generates a string which may be used to index an ordered pair of UniqueIPs. Concatenates IPs and UUIDs.
 func (u UniqueIP) SrcDstMapKey(dst UniqueIP) string {
 	var builder strings.Builder
-	builder.Grow(len(u.IP) + 1 + len(u.NetworkUUID.Data) + 1 + len(dst.IP) + 1 + len(dst.NetworkUUID.Data))
+
+	srcUUIDLen := 0
+	if u.NetworkUUID != nil {
+		srcUUIDLen = len(u.NetworkUUID.Data)
+	}
+
+	dstUUIDLen := 0
+	if dst.NetworkUUID != nil {
+		dstUUIDLen = len(dst.NetworkUUID.Data)
+	}
+
+	builder.Grow(len(u.IP) + 1 + srcUUIDLen + 1 + len(dst.IP) + 1 + dstUUIDLen)
 	builder.WriteString(u.IP)
 	builder.WriteByte(0xFF)
-	builder.Write(u.NetworkUUID.Data)
+	if u.NetworkUUID != nil {
+		builder.Write(u.NetworkUUID.Data)
+	}
 	builder.WriteByte(0xFF)
 	builder.WriteString(dst.IP)
 	builder.WriteByte(0xFF)
-	builder.Write(dst.NetworkUUID.Data)
+	if dst.NetworkUUID != nil {
+		builder.Write(dst.NetworkUUID.Data)
+	}
 	return builder.String()
 }

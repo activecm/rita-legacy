@@ -47,7 +47,7 @@ func TestNewUniqueIP(t *testing.T) {
 		0xb7, 0x93, 0x52, 0x2b,
 		0xcd, 0x48, 0xa5, 0x60,
 	}, ip.NetworkUUID.Data, "uuid binary correctly parsed for local ip with valid data")
-	assert.Equal(t, "test", ip.NetworkName)
+	assert.Equal(t, "test", *ip.NetworkName)
 
 	ip, err = newUniqueIP(net.ParseIP("192.168.1.1"), "", "")
 	assert.Equal(t, ErrNoAgentInfoSupplied, err, "return error for local ip with invalid data")
@@ -56,13 +56,13 @@ func TestNewUniqueIP(t *testing.T) {
 	ip, err = newUniqueIP(net.ParseIP("192.168.1.1"), "invalid-uuid-here", "test")
 	assert.NotNil(t, err, "return uuid parsing error for local ip with invalid uuid")
 	assert.NotEqual(t, ErrNoAgentInfoSupplied, "return different errors for no uuid vs bad uuid")
-	assert.Equal(t, "", ip.NetworkName, "don't set network name when uuid invalid for local ip")
-	assert.Len(t, ip.NetworkUUID.Data, 0, "don't set network uuid with uuid invalid for local ip")
+	assert.Nil(t, ip.NetworkName, "don't set network name when uuid invalid for local ip")
+	assert.Nil(t, ip.NetworkUUID, "don't set network uuid with uuid invalid for local ip")
 
 	ip, err = newUniqueIP(net.ParseIP("8.8.8.8"), "", "")
 	assert.Nil(t, err, "error should be nil when parsing public ip")
 	assert.Equal(t, "8.8.8.8", ip.IP, "ip correctly assigned on public ip")
-	assert.Equal(t, "", ip.NetworkName, "don't set network name for public ip")
-	assert.Len(t, ip.NetworkUUID.Data, 0, "don't set network uuid for public ip")
+	assert.Nil(t, ip.NetworkName, "don't set network name for public ip")
+	assert.Nil(t, ip.NetworkUUID, "don't set network uuid for public ip")
 
 }
