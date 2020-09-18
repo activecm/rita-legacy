@@ -23,10 +23,6 @@ type Conn struct {
 	Destination string `bson:"id_resp_h" bro:"id.resp_h" brotype:"addr" json:"id.resp_h"`
 	// DestinationPort is the port at the destination host
 	DestinationPort int `bson:"id_resp_p" bro:"id.resp_p" brotype:"port" json:"id.resp_p"`
-
-	// TODO[AGENT]: Add AgentUUID string
-	// TODO[AGENT]: Add AgentHostname string
-
 	// Proto is the string protocol identifier for this connection
 	Proto string `bson:"proto" bro:"proto" brotype:"enum" json:"proto"`
 	// Service describes the service of this connection if there was one
@@ -57,6 +53,10 @@ type Conn struct {
 	RespIPBytes int64 `bson:"resp_ip_bytes" bro:"resp_ip_bytes" brotype:"count" json:"resp_ip_bytes"`
 	// TunnelParents lists tunnel parents
 	TunnelParents []string `bson:"tunnel_parents" bro:"tunnel_parents" brotype:"set[string]" json:"tunnel_parents"`
+	// AgentHostname names which sensor recorded this event. Only set when combining logs from multiple sensors.
+	AgentHostname string `bson:"agent_hostname" bro:"agent_hostname" brotype:"string" json:"agent_hostname"`
+	// AgentUUID identifies which sensor recorded this event. Only set when combining logs from multiple sensors.
+	AgentUUID string `bson:"agent_uuid" bro:"agent_uuid" brotype:"string" json:"agent_uuid"`
 }
 
 //TargetCollection returns the mongo collection this entry should be inserted

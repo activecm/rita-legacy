@@ -1,9 +1,7 @@
 package parser
 
 import (
-	"fmt"
 	"net"
-	"os"
 )
 
 // filterConnPair returns true if a connection pair is filtered/excluded.
@@ -53,41 +51,5 @@ func (fs *FSImporter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 	}
 
 	// default to not filter the connection pair
-	return false
-}
-
-//parseSubnets parses the provided subnets into net.ipnet format
-func getParsedSubnets(subnets []string) (parsedSubnets []*net.IPNet) {
-
-	for _, entry := range subnets {
-		//try to parse out cidr range
-		_, block, err := net.ParseCIDR(entry)
-
-		//if there was an error, check if entry was an IP not a range
-		if err != nil {
-			// try to parse out IP as range of single host
-			_, block, err = net.ParseCIDR(entry + "/32")
-
-			// if error, report and return
-			if err != nil {
-				fmt.Fprintf(os.Stdout, "Error parsing CIDR entry: %s\n", err.Error())
-				os.Exit(-1)
-				return
-			}
-		}
-
-		// add cidr range to list
-		parsedSubnets = append(parsedSubnets, block)
-	}
-	return
-}
-
-//containsIP checks if a specified subnet contains an ip
-func containsIP(subnets []*net.IPNet, ip net.IP) bool {
-	for _, block := range subnets {
-		if block.Contains(ip) {
-			return true
-		}
-	}
 	return false
 }
