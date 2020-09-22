@@ -290,7 +290,7 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, logger *log.Logger) (
-	map[string]*uconn.Pair, map[string]*host.IP, map[string]int, map[string]*hostname.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
+	map[string]*uconn.Pair, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 
@@ -306,7 +306,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	// Counts the number of uconns per source-destination pair
 	uconnMap := make(map[string]*uconn.Pair)
 
-	hostMap := make(map[string]*host.IP)
+	hostMap := make(map[string]*host.Input)
 
 	//set up parallel parsing
 	n := len(indexedFiles)
@@ -420,7 +420,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Check if the map value is set
 								if _, ok := hostMap[srcKey]; !ok {
 									// create new host record with src and dst
-									hostMap[srcKey] = &host.IP{
+									hostMap[srcKey] = &host.Input{
 										Host:    srcUniqIP,
 										IsLocal: containsIP(fs.GetInternalSubnets(), srcIP),
 										IP4:     isIPv4(src),
@@ -431,7 +431,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Check if the map value is set
 								if _, ok := hostMap[dstKey]; !ok {
 									// create new host record with src and dst
-									hostMap[dstKey] = &host.IP{
+									hostMap[dstKey] = &host.Input{
 										Host:    dstUniqIP,
 										IsLocal: containsIP(fs.GetInternalSubnets(), dstIP),
 										IP4:     isIPv4(dst),
@@ -590,7 +590,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										// create new uconn record with src and dst
 										// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
 										// we only need to do this once if the uconn record does not exist
-										hostMap[srcKey] = &host.IP{
+										hostMap[srcKey] = &host.Input{
 											Host:    srcUniqIP,
 											IsLocal: containsIP(fs.GetInternalSubnets(), srcIP),
 											IP4:     isIPv4(src),
@@ -855,7 +855,7 @@ func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Pair) {
 
 }
 
-func (fs *FSImporter) buildHosts(hostMap map[string]*host.IP) {
+func (fs *FSImporter) buildHosts(hostMap map[string]*host.Input) {
 	// non-optional module
 	if len(hostMap) > 0 {
 		hostRepo := host.NewMongoRepository(fs.res)
@@ -874,7 +874,7 @@ func (fs *FSImporter) buildHosts(hostMap map[string]*host.IP) {
 	}
 }
 
-func (fs *FSImporter) markBlacklistedPeers(hostMap map[string]*host.IP) {
+func (fs *FSImporter) markBlacklistedPeers(hostMap map[string]*host.Input) {
 	// non-optional module
 	if len(hostMap) > 0 {
 		blacklistRepo := blacklist.NewMongoRepository(fs.res)

@@ -49,7 +49,7 @@ func (r *repo) CreateIndexes() error {
 }
 
 //Upsert loops through every domain ....
-func (r *repo) Upsert(hostMap map[string]*IP) {
+func (r *repo) Upsert(hostMap map[string]*Input) {
 
 	//Create the workers
 	writerWorker := newWriter(r.res.Config.T.Structure.HostTable, r.res.DB, r.res.Config, r.res.Log)

@@ -8,7 +8,7 @@ import (
 // Repository for host collection
 type Repository interface {
 	CreateIndexes() error
-	Upsert(uconnMap map[string]*IP)
+	Upsert(uconnMap map[string]*Input)
 }
 
 //update ....
@@ -19,7 +19,7 @@ type update struct {
 
 //TODO[AGENT]: Convert IP Host to Unique IP. Consider renaming to IP to Input to match other pkgs?
 //IP ....
-type IP struct {
+type Input struct {
 	Host                  data.UniqueIP
 	IsLocal               bool
 	CountSrc              int
