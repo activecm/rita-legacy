@@ -350,7 +350,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 					}
 
 					//parse the line
-					data := parseLine(
+					datum := parseLine(
 						fileScanner.Text(),
 						indexedFiles[j].GetHeader(),
 						indexedFiles[j].GetFieldMap(),
@@ -359,7 +359,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						logger,
 					)
 
-					if data != nil {
+					if datum != nil {
 						//figure out which collection (dns, http, or conn) this line is heading for
 						targetCollection := indexedFiles[j].TargetCollection
 
@@ -370,7 +370,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						/// *************************************************************///
 						case fs.res.Config.T.Structure.ConnTable:
 
-							parseConn, ok := data.(*parsetypes.Conn)
+							parseConn, ok := datum.(*parsetypes.Conn)
 							if !ok {
 								continue
 							}
@@ -421,7 +421,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								if _, ok := hostMap[srcKey]; !ok {
 									// create new host record with src and dst
 									hostMap[srcKey] = &host.IP{
-										Host:    src,
+										Host:    srcUniqIP,
 										IsLocal: containsIP(fs.GetInternalSubnets(), srcIP),
 										IP4:     isIPv4(src),
 										IP4Bin:  ipv4ToBinary(srcIP),
@@ -432,7 +432,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								if _, ok := hostMap[dstKey]; !ok {
 									// create new host record with src and dst
 									hostMap[dstKey] = &host.IP{
-										Host:    dst,
+										Host:    dstUniqIP,
 										IsLocal: containsIP(fs.GetInternalSubnets(), dstIP),
 										IP4:     isIPv4(dst),
 										IP4Bin:  ipv4ToBinary(dstIP),
@@ -489,16 +489,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								hostMap[srcKey].ConnectionCount++
 								hostMap[dstKey].ConnectionCount++
 
-								//TODO[AGENT]: Convert IP.ConnectedDstHosts to map[string]UniqueIP
-								if stringInSlice(dst, hostMap[srcKey].ConnectedDstHosts) == false {
-									hostMap[srcKey].ConnectedDstHosts = append(hostMap[srcKey].ConnectedDstHosts, dst)
-								}
-
-								//TODO[AGENT]: Convert IP.ConnectedSrcHosts to map[string]UniqueIP
-								if stringInSlice(src, hostMap[dstKey].ConnectedSrcHosts) == false {
-									hostMap[dstKey].ConnectedSrcHosts = append(hostMap[dstKey].ConnectedSrcHosts, src)
-								}
-
 								// Only append unique timestamps to tslist
 								if int64InSlice(ts, uconnMap[srcDstKey].TsList) == false {
 									uconnMap[srcDstKey].TsList = append(uconnMap[srcDstKey].TsList, ts)
@@ -537,7 +527,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							///                             DNS                             ///
 							/// *************************************************************///
 						case fs.res.Config.T.Structure.DNSTable:
-							parseDNS, ok := data.(*parsetypes.DNS)
+							parseDNS, ok := datum.(*parsetypes.DNS)
 							if !ok {
 								continue
 							}
@@ -601,7 +591,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
 										// we only need to do this once if the uconn record does not exist
 										hostMap[srcKey] = &host.IP{
-											Host:    src,
+											Host:    srcUniqIP,
 											IsLocal: containsIP(fs.GetInternalSubnets(), srcIP),
 											IP4:     isIPv4(src),
 											IP4Bin:  ipv4ToBinary(srcIP),
@@ -619,7 +609,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							///                             HTTP                             ///
 							/// *************************************************************///
 						case fs.res.Config.T.Structure.HTTPTable:
-							parseHTTP, ok := data.(*parsetypes.HTTP)
+							parseHTTP, ok := datum.(*parsetypes.HTTP)
 							if !ok {
 								continue
 							}
@@ -659,7 +649,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							///                             SSL                             ///
 							/// *************************************************************///
 						case fs.res.Config.T.Structure.SSLTable:
-							parseSSL, ok := data.(*parsetypes.SSL)
+							parseSSL, ok := datum.(*parsetypes.SSL)
 							if !ok {
 								continue
 							}

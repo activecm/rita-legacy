@@ -6,9 +6,9 @@ import (
 )
 
 type UniqueIP struct {
-	IP          string       `bson:"ip"`
-	NetworkUUID *bson.Binary `bson:"network_uuid,omitempty"`
-	NetworkName *string      `bson:"network_name,omitempty"`
+	IP          string
+	NetworkUUID *bson.Binary
+	NetworkName *string
 }
 
 func (u UniqueIP) BSONQuery(ipField, networkUUIDField string) bson.M {
