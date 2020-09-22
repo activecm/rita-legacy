@@ -1,6 +1,9 @@
 package hostname
 
-import "github.com/activecm/rita/pkg/data"
+import (
+	"github.com/activecm/rita/pkg/data"
+	"github.com/globalsign/mgo/bson"
+)
 
 // Repository for hostnames collection
 type Repository interface {
@@ -10,8 +13,8 @@ type Repository interface {
 
 //update ....
 type update struct {
-	selector interface{}
-	query    interface{}
+	selector bson.M
+	query    bson.M
 }
 
 //Input ....
