@@ -543,7 +543,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// initialize the hostname input objects for new hostnames
 							if _, ok := hostnameMap[domain]; !ok {
-								hostnameMap[domain] = &hostname.Input{}
+								hostnameMap[domain] = &hostname.Input{
+									Host: domain,
+								}
 							}
 
 							// geo.vortex.data.microsoft.com.akadns.net

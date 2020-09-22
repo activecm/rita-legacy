@@ -85,19 +85,15 @@ func (r *repo) Upsert(hostnameMap map[string]*Input) {
 	)
 
 	// loop over map entries
-	for entry, ipLists := range hostnameMap {
+	for _, entry := range hostnameMap {
 		start := time.Now()
 		//Mongo Index key is limited to a size of 1024 https://docs.mongodb.com/v3.4/reference/limits/#index-limitations
 		//  so if the key is too large, we should cut it back, this is rough but
 		//  works. Figured 800 allows some wiggle room, while also not being too large
-		if len(entry) > 1024 {
-			entry = entry[:800]
+		if len(entry.Host) > 1024 {
+			entry.Host = entry.Host[:800]
 		}
-		analyzerWorker.collect(hostname{
-			host:      entry,
-			ips:       ipLists.ResolvedIPs,
-			clientIPs: ipLists.ClientIPs,
-		})
+		analyzerWorker.collect(entry)
 		bar.IncrBy(1, time.Since(start))
 	}
 

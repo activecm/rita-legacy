@@ -19,7 +19,7 @@ type (
 		conf             *config.Config // contains details needed to access MongoDB
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan hostname  // holds unanalyzed data
+		analysisChannel  chan *Input    // holds unanalyzed data
 		analysisWg       sync.WaitGroup // wait for analysis to finish
 	}
 )
@@ -33,12 +33,12 @@ func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallba
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan hostname),
+		analysisChannel:  make(chan *Input),
 	}
 }
 
 //collect sends a group of domains to be analyzed
-func (a *analyzer) collect(data hostname) {
+func (a *analyzer) collect(data *Input) {
 	a.analysisChannel <- data
 }
 
@@ -60,7 +60,7 @@ func (a *analyzer) start() {
 
 			// in some of these strings, the empty space will get counted as a domain,
 			// this was an issue in the old version of exploded dns and caused inaccuracies
-			if (data.host == "") || (strings.HasSuffix(data.host, "in-addr.arpa")) {
+			if (data.Host == "") || (strings.HasSuffix(data.Host, "in-addr.arpa")) {
 				continue
 			}
 
@@ -68,7 +68,7 @@ func (a *analyzer) start() {
 			blacklistFlag := false
 
 			// check ip against blacklist
-			blCount, _ := ssn.DB(a.conf.S.Blacklisted.BlacklistDatabase).C("hostname").Find(bson.M{"index": data.host}).Count()
+			blCount, _ := ssn.DB(a.conf.S.Blacklisted.BlacklistDatabase).C("hostname").Find(bson.M{"index": data.Host}).Count()
 			// check if hostname is blacklisted
 			if blCount > 0 {
 				blacklistFlag = true
@@ -84,8 +84,8 @@ func (a *analyzer) start() {
 				output.query = bson.M{
 					"$push": bson.M{
 						"dat": bson.M{
-							"ips":     data.ips,
-							"src_ips": data.clientIPs,
+							"ips":     data.ResolvedIPs,
+							"src_ips": data.ClientIPs,
 							"cid":     a.chunk,
 						},
 					},
@@ -98,8 +98,8 @@ func (a *analyzer) start() {
 				output.query = bson.M{
 					"$push": bson.M{
 						"dat": bson.M{
-							"ips":     data.ips,
-							"src_ips": data.clientIPs,
+							"ips":     data.ResolvedIPs,
+							"src_ips": data.ClientIPs,
 							"cid":     a.chunk,
 						},
 					},
@@ -108,7 +108,7 @@ func (a *analyzer) start() {
 			}
 
 			// create selector for output
-			output.selector = bson.M{"host": data.host}
+			output.selector = bson.M{"host": data.Host}
 
 			// set to writer channel
 			a.analyzedCallback(output)

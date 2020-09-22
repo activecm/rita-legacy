@@ -1,5 +1,7 @@
 package hostname
 
+//import "github.com/activecm/rita/pkg/data"
+
 // Repository for hostnames collection
 type Repository interface {
 	CreateIndexes() error
@@ -14,16 +16,12 @@ type update struct {
 
 //Input ....
 type Input struct {
+	Host        string   //A hostname
 	ResolvedIPs []string //Resolved IPs associated with a given hostname
 	ClientIPs   []string //DNS Client IPs which issued queries for a given hostname
 }
 
 //TODO[AGENT]: Use UniqueIP/ NetworkID info in hostname ips/ clientIPs
-type hostname struct {
-	host      string   `bson:"host"`
-	ips       []string `bson:"ips"`
-	clientIPs []string `bson:"client_ips"`
-}
 
 //AnalysisView (for reporting)
 type AnalysisView struct {
