@@ -76,9 +76,7 @@ func (a *analyzer) start() {
 
 				var res2 []hostRes
 
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(
-					HostsUniqueIPBSONSelector(datum.Host),
-				).All(&res2)
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(datum.Host.BSONKey()).All(&res2)
 
 				if !(len(res2) > 0) {
 					newRecordFlag = true
@@ -133,7 +131,7 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 
 		// create selector for output ,
 		output.query = query
-		output.selector = HostsUniqueIPBSONSelector(ip)
+		output.selector = ip.BSONKey()
 
 	} else {
 
@@ -146,18 +144,9 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 
 		// create selector for output
 		output.query = query
-		output.selector = HostsUniqueIPBSONSelector(ip)
+		output.selector = ip.BSONKey()
 		output.selector["dat.cid"] = chunk
 	}
 
 	return output
-}
-
-//HostsUniqueIPBSONSelector returns a bson map which selects entries in the hosts collection
-//which match a given UniqueIP
-func HostsUniqueIPBSONSelector(ip data.UniqueIP) bson.M {
-	return bson.M{
-		"ip":           ip.IP,
-		"network_uuid": ip.NetworkUUID,
-	}
 }

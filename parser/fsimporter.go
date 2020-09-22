@@ -548,30 +548,22 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 							}
 
-							// geo.vortex.data.microsoft.com.akadns.net
-
-							//TODO[AGENT]: Use UniqueIP in hostnameMap ClientIPs
-
 							// extract and store the dns client ip address
 							src := parseDNS.Source
 							srcIP := net.ParseIP(src)
 							srcUniqIP, _ := newUniqueIP(srcIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in DNS log
 							srcKey := srcUniqIP.MapKey()
 
-							if stringInSlice(src, hostnameMap[domain].ClientIPs) == false {
-								hostnameMap[domain].ClientIPs = append(hostnameMap[domain].ClientIPs, src)
-							}
-
-							//TODO[AGENT]: Use UniqueIP in hostnameMap ResolvedIPs
+							hostnameMap[domain].ClientIPs.Insert(srcUniqIP)
 
 							if queryTypeName == "A" {
 								answers := parseDNS.Answers
 								for _, answer := range answers {
+									answerIP := net.ParseIP(answer)
 									// Check if answer is an IP address and store it if it is
-									if net.ParseIP(answer) != nil {
-										if stringInSlice(answer, hostnameMap[domain].ResolvedIPs) == false {
-											hostnameMap[domain].ResolvedIPs = append(hostnameMap[domain].ResolvedIPs, answer)
-										}
+									if answerIP != nil {
+										answerUniqIP, _ := newUniqueIP(answerIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in DNS log
+										hostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
 									}
 								}
 							}

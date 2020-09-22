@@ -1,6 +1,6 @@
 package hostname
 
-//import "github.com/activecm/rita/pkg/data"
+import "github.com/activecm/rita/pkg/data"
 
 // Repository for hostnames collection
 type Repository interface {
@@ -16,12 +16,10 @@ type update struct {
 
 //Input ....
 type Input struct {
-	Host        string   //A hostname
-	ResolvedIPs []string //Resolved IPs associated with a given hostname
-	ClientIPs   []string //DNS Client IPs which issued queries for a given hostname
+	Host        string           //A hostname
+	ResolvedIPs data.UniqueIPSet //Set of resolved UniqueIPs associated with a given hostname
+	ClientIPs   data.UniqueIPSet //Set of DNS Client UniqueIPs which issued queries for a given hostname
 }
-
-//TODO[AGENT]: Use UniqueIP/ NetworkID info in hostname ips/ clientIPs
 
 //AnalysisView (for reporting)
 type AnalysisView struct {
