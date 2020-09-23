@@ -43,6 +43,7 @@ func (r *repo) CreateIndexes() error {
 	indexes := []mgo.Index{
 		{Key: []string{"user_agent"}, Unique: true},
 		{Key: []string{"dat.seen"}},
+		{Key: []string{"dat.orig_ips.ip", "dat.orig_ips.network_uuid"}},
 	}
 
 	// create collection
