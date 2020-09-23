@@ -105,8 +105,6 @@ func (a *analyzer) start() {
 func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4 bool, ip4bin int64, maxdur float64, txtQCount int64, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
 	var output update
 
-	//TODO[AGENT]: Integrate UniqueIP NetworkID/ Network Name into host collection aggregation "query"
-
 	// create query
 	query := bson.M{
 		"$set": bson.M{
@@ -116,6 +114,10 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 			"ipv4":        ip4,
 			"ipv4_binary": ip4bin,
 		},
+	}
+
+	if ip.NetworkName != nil {
+		query["$set"].(bson.M)["network_name"] = ip.NetworkName
 	}
 
 	if newFlag {
