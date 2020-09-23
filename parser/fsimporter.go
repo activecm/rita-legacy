@@ -445,8 +445,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
 									// we only need to do this once if the uconn record does not exist
 									uconnMap[srcDstKey] = &uconn.Pair{
-										Src:        src,
-										Dst:        dst,
+										Src:        srcUniqIP,
+										Dst:        dstUniqIP,
 										IsLocalSrc: containsIP(fs.GetInternalSubnets(), srcIP),
 										IsLocalDst: containsIP(fs.GetInternalSubnets(), dstIP),
 									}
@@ -706,8 +706,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									if _, ok := uconnMap[srcDstKey]; !ok {
 										// create new uconn record if it does not exist
 										uconnMap[srcDstKey] = &uconn.Pair{
-											Src:        src,
-											Dst:        dst,
+											Src:        srcUniqIP,
+											Dst:        dstUniqIP,
 											IsLocalSrc: containsIP(fs.GetInternalSubnets(), srcIP),
 											IsLocalDst: containsIP(fs.GetInternalSubnets(), dstIP),
 										}

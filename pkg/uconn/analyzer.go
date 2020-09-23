@@ -1,6 +1,7 @@
 package uconn
 
 import (
+	"github.com/activecm/rita/pkg/data"
 	"strconv"
 	"sync"
 
@@ -39,8 +40,8 @@ func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Confi
 }
 
 //collect sends a group of domains to be analyzed
-func (a *analyzer) collect(data *Pair) {
-	a.analysisChannel <- data
+func (a *analyzer) collect(datum *Pair) {
+	a.analysisChannel <- datum
 }
 
 //close waits for the collector to finish
@@ -55,73 +56,74 @@ func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
 
-		for data := range a.analysisChannel {
+		for datum := range a.analysisChannel {
 			// set up writer output
 			var output update
 
 			// create query
-			query := bson.M{
-				"$set": bson.M{
-					"local_src": data.IsLocalSrc,
-					"local_dst": data.IsLocalDst,
-				},
-			}
+			query := bson.M{}
 
-			if len(data.Tuples) > 5 {
-				data.Tuples = data.Tuples[:5]
+			if len(datum.Tuples) > 5 {
+				datum.Tuples = datum.Tuples[:5]
 			}
 
 			// if this connection qualifies to be a strobe with the current number
-			// of connections in the currently parsing in data, don't store bytes and ts.
+			// of connections in the current datum, don't store bytes and ts.
 			// it will not qualify to be downgraded to a beacon until this chunk is
 			// outdated and removed. If only importing once - still just a strobe.
-			if data.ConnectionCount >= a.connLimit {
+			if datum.ConnectionCount >= a.connLimit {
 				query["$set"] = bson.M{"strobe": true, "cid": a.chunk}
 				query["$push"] = bson.M{
 					"dat": bson.M{
-						"count":  data.ConnectionCount,
+						"count":  datum.ConnectionCount,
 						"bytes":  []interface{}{},
 						"ts":     []interface{}{},
-						"tuples": data.Tuples,
-						"icerts": data.InvalidCertFlag,
-						"maxdur": data.MaxDuration,
-						"tbytes": data.TotalBytes,
-						"tdur":   data.TotalDuration,
+						"tuples": datum.Tuples,
+						"icerts": datum.InvalidCertFlag,
+						"maxdur": datum.MaxDuration,
+						"tbytes": datum.TotalBytes,
+						"tdur":   datum.TotalDuration,
 						"cid":    a.chunk,
 					},
 				}
 			} else {
+				query["$set"] = bson.M{"cid": a.chunk}
 				query["$push"] = bson.M{
 					"dat": bson.M{
-						"count":  data.ConnectionCount,
-						"bytes":  data.OrigBytesList,
-						"ts":     data.TsList,
-						"tuples": data.Tuples,
-						"icerts": data.InvalidCertFlag,
-						"maxdur": data.MaxDuration,
-						"tbytes": data.TotalBytes,
-						"tdur":   data.TotalDuration,
+						"count":  datum.ConnectionCount,
+						"bytes":  datum.OrigBytesList,
+						"ts":     datum.TsList,
+						"tuples": datum.Tuples,
+						"icerts": datum.InvalidCertFlag,
+						"maxdur": datum.MaxDuration,
+						"tbytes": datum.TotalBytes,
+						"tdur":   datum.TotalDuration,
 						"cid":    a.chunk,
 					},
 				}
-				query["$set"] = bson.M{"cid": a.chunk}
+			}
+
+			if datum.Src.NetworkName != nil {
+				query["$set"].(bson.M)["src_network_name"] = datum.Src.NetworkName
+			}
+
+			if datum.Dst.NetworkName != nil {
+				query["$set"].(bson.M)["dst_network_name"] = datum.Dst.NetworkName
 			}
 
 			// assign formatted query to output
 			output.uconn.query = query
 
-			//TODO[AGENT]: Change selector to use UniqueIP's NetworkID
-			// create selector for output
-			output.uconn.selector = bson.M{"src": data.Src, "dst": data.Dst}
+			output.uconn.selector = datum.Src.SrcDstBSONKey(datum.Dst)
 
 			// get maxdur host table update
 			// since we are only updating stats for internal ips (as defined by the
 			// user in the file), we need to customize the query to update based on
 			// which ip in the connection was local.
-			if data.IsLocalSrc == true {
-				output.hostMaxDur = a.hostMaxDurQuery(data.MaxDuration, data.Src, data.Dst)
-			} else if data.IsLocalDst {
-				output.hostMaxDur = a.hostMaxDurQuery(data.MaxDuration, data.Dst, data.Src)
+			if datum.IsLocalSrc {
+				output.hostMaxDur = a.hostMaxDurQuery(datum.MaxDuration, datum.Src, datum.Dst)
+			} else if datum.IsLocalDst {
+				output.hostMaxDur = a.hostMaxDurQuery(datum.MaxDuration, datum.Dst, datum.Src)
 			}
 
 			// set to writer channel
@@ -132,8 +134,7 @@ func (a *analyzer) start() {
 	}()
 }
 
-//TODO[AGENT]: Change externalIP to NetworkID in hostMaxDurQuery
-func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP string, externalIP string) updateInfo {
+func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP data.UniqueIP, externalIP data.UniqueIP) updateInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -142,16 +143,20 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP string, externalIP st
 	// create query
 	query := bson.M{}
 
+	//TODO: Why do we update old chunks with new max durations??? (https://github.com/activecm/rita/pull/512/files) -LL
+
 	// check if we need to update
 	// we do this before the other queries because otherwise if a max dur
 	// starts out with a high number which reduces over time, it will keep
 	// the incorrect high max for that specific destination.
 	var resListExactMatch []interface{}
 
-	//TODO[AGENT]: Change mdip to use UniqueIP's NetworkID
-	maxDurMatchExactQuery := bson.M{
-		"ip":  localIP,
-		"dat": bson.M{"$elemMatch": bson.M{"mdip": externalIP, "max_duration": bson.M{"$lte": maxDur}}},
+	maxDurMatchExactQuery := localIP.BSONKey()
+	maxDurMatchExactQuery["dat"] = bson.M{
+		"$elemMatch": bson.M{
+			"mdip":         externalIP.BSONKey(),
+			"max_duration": bson.M{"$lte": maxDur},
+		},
 	}
 
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchExactQuery).All(&resListExactMatch)
@@ -184,41 +189,38 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP string, externalIP st
 	var resListLower []interface{}
 	var resListUpper []interface{}
 
-	//TODO[AGENT]: Change ip to use UniqueIP's NetworkID in host table update/ queries
-
 	// this query will find any matching chunk that is reporting a lower
 	// max beacon score than the current one we are working with
-	maxDurMatchLowerQuery := bson.M{
-		"ip": localIP,
-		"dat": bson.M{"$elemMatch": bson.M{
+	maxDurMatchLowerQuery := localIP.BSONKey()
+	maxDurMatchLowerQuery["dat"] = bson.M{
+		"$elemMatch": bson.M{
 			"cid":          a.chunk,
 			"max_duration": bson.M{"$lte": maxDur},
-		}},
+		},
 	}
 
-	maxDurMatchUpperQuery := bson.M{
-		"ip": localIP,
-		"dat": bson.M{"$elemMatch": bson.M{
+	maxDurMatchUpperQuery := localIP.BSONKey()
+	maxDurMatchUpperQuery["dat"] = bson.M{
+		"$elemMatch": bson.M{
 			"cid":          a.chunk,
 			"max_duration": bson.M{"$gte": maxDur},
-		}},
+		},
 	}
 
 	// find matching lower chunks
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchLowerQuery).All(&resListLower)
 
-	// if no matching chunks are found, we will set the new flag
-	if !(len(resListLower) > 0) {
-
-		// find matching upper chunks
+	// update if there are lower entries in this chunk
+	if len(resListLower) > 0 {
+		updateFlag = true
+	} else {
+		// find matching upper records in this chunk
 		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchUpperQuery).All(&resListUpper)
 
-		// update if no upper chunks are found
-		if !(len(resListUpper) > 0) {
+		// create a new entry if there are no bigger entries
+		if len(resListUpper) <= 0 {
 			newFlag = true
 		}
-	} else {
-		updateFlag = true
 	}
 
 	// since we didn't find any changeable lower max duration scores, we will
@@ -226,7 +228,6 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP string, externalIP st
 	// max beacon ONLY if no matching chunks reporting higher max beacon scores
 	// are found.
 
-	//TODO[AGENT]: Change mdip to use UniqueIP's NetworkID
 	if newFlag {
 
 		query["$push"] = bson.M{
@@ -238,7 +239,7 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP string, externalIP st
 
 		// create selector for output
 		output.query = query
-		output.selector = bson.M{"ip": localIP}
+		output.selector = localIP.BSONKey()
 
 	} else if updateFlag {
 		query["$set"] = bson.M{

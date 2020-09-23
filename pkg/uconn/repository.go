@@ -1,5 +1,10 @@
 package uconn
 
+import (
+	"github.com/activecm/rita/pkg/data"
+	"github.com/globalsign/mgo/bson"
+)
+
 // Repository for uconn collection
 type Repository interface {
 	CreateIndexes() error
@@ -8,8 +13,8 @@ type Repository interface {
 
 //updateInfo ....
 type updateInfo struct {
-	selector interface{}
-	query    interface{}
+	selector bson.M
+	query    bson.M
 }
 
 //update ....
@@ -18,11 +23,10 @@ type update struct {
 	hostMaxDur updateInfo
 }
 
-//TODO[AGENT]: Convert Pair Src/ Dst to UniqueIP. Consider renaming this to Input to match the style of other pkgs?
 //Pair ....
 type Pair struct {
-	Src             string
-	Dst             string
+	Src             data.UniqueIP
+	Dst             data.UniqueIP
 	ConnectionCount int64
 	IsLocalSrc      bool
 	IsLocalDst      bool
