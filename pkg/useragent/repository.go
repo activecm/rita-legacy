@@ -1,5 +1,10 @@
 package useragent
 
+import (
+	"github.com/activecm/rita/pkg/data"
+	"github.com/globalsign/mgo/bson"
+)
+
 // Repository for uconn collection
 type Repository interface {
 	CreateIndexes() error
@@ -8,17 +13,17 @@ type Repository interface {
 
 //update ....
 type update struct {
-	selector   interface{}
-	query      interface{}
+	selector   bson.M
+	query      bson.M
 	collection string
 }
 
 //TODO[AGENT]: Use UniqueIP with NetworkID for OrigIPs in useragent Input
 //Input ....
 type Input struct {
-	name     string
+	Name     string
 	Seen     int64
-	OrigIps  []string
+	OrigIps  data.UniqueIPSet
 	Requests []string
 	JA3      bool
 }

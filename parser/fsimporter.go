@@ -609,6 +609,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							}
 							userAgentName := parseHTTP.UserAgent
 							src := parseHTTP.Source
+							srcIP := net.ParseIP(src)
+							srcUniqIP, _ := newUniqueIP(srcIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in HTTP log
 							host := parseHTTP.Host
 
 							if userAgentName == "" {
@@ -618,18 +620,20 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// Safely store useragent information
 							mutex.Lock()
 
-							//TODO[AGENT]: Use UniqueIP with NetworkID for OrigIPs in useragentMap
 							// create record if it doesn't exist
 							if _, ok := useragentMap[userAgentName]; !ok {
-								useragentMap[userAgentName] = &useragent.Input{Seen: 1, OrigIps: []string{src}, Requests: []string{host}}
+								useragentMap[userAgentName] = &useragent.Input{
+									Name:     userAgentName,
+									Seen:     1,
+									Requests: []string{host},
+								}
+								useragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
 							} else {
 								// increment times seen count
 								useragentMap[userAgentName].Seen++
 
 								// add src of useragent request to unique array
-								if stringInSlice(src, useragentMap[userAgentName].OrigIps) == false {
-									useragentMap[userAgentName].OrigIps = append(useragentMap[userAgentName].OrigIps, src)
-								}
+								useragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
 
 								// add request string to unique array
 								if stringInSlice(host, useragentMap[userAgentName].Requests) == false {
@@ -669,23 +673,21 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// Safely store ja3 information
 							mutex.Lock()
 
-							//TODO[AGENT]: Use UniqueIP with NetworkID for OrigIPs in useragentMap
 							// create record if it doesn't exist
 							if _, ok := useragentMap[ja3Hash]; !ok {
 								useragentMap[ja3Hash] = &useragent.Input{
+									Name:     ja3Hash,
 									Seen:     1,
-									OrigIps:  []string{src},
 									Requests: []string{host},
 									JA3:      true,
 								}
+								useragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
 							} else {
 								// increment times seen count
 								useragentMap[ja3Hash].Seen++
 
 								// add src of ssl request to unique array
-								if stringInSlice(src, useragentMap[ja3Hash].OrigIps) == false {
-									useragentMap[ja3Hash].OrigIps = append(useragentMap[ja3Hash].OrigIps, src)
-								}
+								useragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
 
 								// add request string to unique array
 								if stringInSlice(host, useragentMap[ja3Hash].Requests) == false {
