@@ -88,6 +88,10 @@ func (a *analyzer) start() {
 				"$set": bson.M{"cid": a.chunk},
 			}
 
+			if datum.Host.NetworkName != nil {
+				query["$set"].(bson.M)["network_name"] = datum.Host.NetworkName
+			}
+
 			output.query = query
 
 			output.collection = a.conf.T.Cert.CertificateTable
