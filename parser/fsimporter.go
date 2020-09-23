@@ -719,7 +719,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									if _, ok := certMap[dstKey]; !ok {
 										// create new uconn record if it does not exist
 										certMap[dstKey] = &certificate.Input{
-											Host: dst,
+											Host: dstUniqIP,
 											Seen: 1,
 										}
 									} else {
@@ -737,9 +737,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										certMap[dstKey].InvalidCerts = append(certMap[dstKey].InvalidCerts, certStatus)
 									}
 									// add src of ssl request to unique array
-									if stringInSlice(src, certMap[dstKey].OrigIps) == false {
-										certMap[dstKey].OrigIps = append(certMap[dstKey].OrigIps, src)
-									}
+									certMap[dstKey].OrigIps.Insert(srcUniqIP)
 								}
 							}
 							mutex.Unlock()
