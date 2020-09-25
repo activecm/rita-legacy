@@ -117,7 +117,7 @@ func (a *analyzer) start() {
 				}
 
 				var rareSigList struct {
-					OrigIps []data.UniqueIPKey `bson:"ips"`
+					OrigIps []data.UniqueIP `bson:"ips"`
 				}
 
 				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.UserAgent.UserAgentTable).Pipe(query).AllowDiskUse().One(&rareSigList)
@@ -161,7 +161,7 @@ func (a *analyzer) start() {
 }
 
 //hostQuery ...
-func hostQuery(chunk int, useragentStr string, ip data.UniqueIPKey, newFlag bool) update {
+func hostQuery(chunk int, useragentStr string, ip data.UniqueIP, newFlag bool) update {
 	var output update
 
 	// create query

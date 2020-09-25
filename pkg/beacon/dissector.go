@@ -34,8 +34,8 @@ func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissect
 }
 
 //collect sends a chunk of data to be analyzed
-func (d *dissector) collect(data *uconn.Pair) {
-	d.dissectChannel <- data
+func (d *dissector) collect(datum *uconn.Pair) {
+	d.dissectChannel <- datum
 }
 
 //close waits for the collector to finish
@@ -52,8 +52,10 @@ func (d *dissector) start() {
 		ssn := d.db.Session.Copy()
 		defer ssn.Close()
 
-		for data := range d.dissectChannel {
-			//TODO[AGENT]: Ensure uconn query in beacons uses NetworkID information
+		for datum := range d.dissectChannel {
+
+			matchNoStrobeKey := datum.Hosts.BSONKey()
+			matchNoStrobeKey["strobe"] = bson.M{"$ne": true}
 
 			// This will work for both updating and inserting completely new Beacons
 			// for every new uconn record we have, we will check the uconns table. This
@@ -66,15 +68,9 @@ func (d *dissector) start() {
 			// and individual lookups like this are really fast. This also ensures a unique
 			// set of timestamps for analysis.
 			uconnFindQuery := []bson.M{
-				bson.M{"$match": bson.M{"$and": []bson.M{
-					bson.M{"src": data.Src},
-					bson.M{"dst": data.Dst},
-					bson.M{"strobe": bson.M{"$ne": true}},
-				}}},
+				bson.M{"$match": matchNoStrobeKey},
 				bson.M{"$limit": 1},
 				bson.M{"$project": bson.M{
-					"src":    "$src",
-					"dst":    "$dst",
 					"ts":     "$dat.ts",
 					"bytes":  "$dat.bytes",
 					"count":  "$dat.count",
@@ -84,8 +80,6 @@ func (d *dissector) start() {
 				bson.M{"$unwind": "$count"},
 				bson.M{"$group": bson.M{
 					"_id":    "$_id",
-					"src":    bson.M{"$first": "$src"},
-					"dst":    bson.M{"$first": "$dst"},
 					"ts":     bson.M{"$first": "$ts"},
 					"bytes":  bson.M{"$first": "$bytes"},
 					"count":  bson.M{"$sum": "$count"},
@@ -96,8 +90,6 @@ func (d *dissector) start() {
 				bson.M{"$unwind": "$tbytes"},
 				bson.M{"$group": bson.M{
 					"_id":    "$_id",
-					"src":    bson.M{"$first": "$src"},
-					"dst":    bson.M{"$first": "$dst"},
 					"ts":     bson.M{"$first": "$ts"},
 					"bytes":  bson.M{"$first": "$bytes"},
 					"count":  bson.M{"$first": "$count"},
@@ -108,8 +100,6 @@ func (d *dissector) start() {
 				bson.M{"$unwind": "$ts"},
 				bson.M{"$group": bson.M{
 					"_id":    "$_id",
-					"src":    bson.M{"$first": "$src"},
-					"dst":    bson.M{"$first": "$dst"},
 					"ts":     bson.M{"$addToSet": "$ts"},
 					"bytes":  bson.M{"$first": "$bytes"},
 					"count":  bson.M{"$first": "$count"},
@@ -120,8 +110,6 @@ func (d *dissector) start() {
 				bson.M{"$unwind": "$bytes"},
 				bson.M{"$group": bson.M{
 					"_id":    "$_id",
-					"src":    bson.M{"$first": "$src"},
-					"dst":    bson.M{"$first": "$dst"},
 					"ts":     bson.M{"$first": "$ts"},
 					"bytes":  bson.M{"$push": "$bytes"},
 					"count":  bson.M{"$first": "$count"},
@@ -131,8 +119,6 @@ func (d *dissector) start() {
 				bson.M{"$unwind": "$icerts"},
 				bson.M{"$group": bson.M{
 					"_id":    "$_id",
-					"src":    bson.M{"$first": "$src"},
-					"dst":    bson.M{"$first": "$dst"},
 					"ts":     bson.M{"$first": "$ts"},
 					"bytes":  bson.M{"$first": "$bytes"},
 					"count":  bson.M{"$first": "$count"},
@@ -141,8 +127,6 @@ func (d *dissector) start() {
 				}},
 				bson.M{"$project": bson.M{
 					"_id":    "$_id",
-					"src":    1,
-					"dst":    1,
 					"ts":     1,
 					"bytes":  1,
 					"count":  1,
@@ -152,8 +136,6 @@ func (d *dissector) start() {
 			}
 
 			var res struct {
-				Src    string  `bson:"src"`
-				Dst    string  `bson:"dst"`
 				Count  int64   `bson:"count"`
 				Ts     []int64 `bson:"ts"`
 				Bytes  []int64 `bson:"bytes"`
@@ -166,7 +148,12 @@ func (d *dissector) start() {
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results
 			if res.Count > 0 {
-				analysisInput := &uconn.Pair{Src: res.Src, Dst: res.Dst, ConnectionCount: res.Count, TotalBytes: res.TBytes, InvalidCertFlag: res.ICerts}
+				analysisInput := &uconn.Pair{
+					Hosts:           datum.Hosts,
+					ConnectionCount: res.Count,
+					TotalBytes:      res.TBytes,
+					InvalidCertFlag: res.ICerts,
+				}
 
 				// check if uconn has become a strobe
 				if analysisInput.ConnectionCount > d.connLimit {

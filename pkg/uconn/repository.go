@@ -25,8 +25,7 @@ type update struct {
 
 //Pair ....
 type Pair struct {
-	Src             data.UniqueIP
-	Dst             data.UniqueIP
+	Hosts           data.UniqueIPPair
 	ConnectionCount int64
 	IsLocalSrc      bool
 	IsLocalDst      bool

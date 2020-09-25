@@ -1,6 +1,9 @@
 package beacon
 
-import "github.com/activecm/rita/pkg/uconn"
+import (
+	"github.com/activecm/rita/pkg/uconn"
+	"github.com/globalsign/mgo/bson"
+)
 
 // Repository for host collection
 type Repository interface {
@@ -9,8 +12,8 @@ type Repository interface {
 }
 
 type updateInfo struct {
-	selector interface{}
-	query    interface{}
+	selector bson.M
+	query    bson.M
 }
 
 //update ....

@@ -103,27 +103,27 @@ func (a *analyzer) start() {
 				}
 			}
 
-			if datum.Src.NetworkName != nil {
-				query["$set"].(bson.M)["src_network_name"] = datum.Src.NetworkName
+			if datum.Hosts.SrcNetworkName != nil {
+				query["$set"].(bson.M)["src_network_name"] = datum.Hosts.SrcNetworkName
 			}
 
-			if datum.Dst.NetworkName != nil {
-				query["$set"].(bson.M)["dst_network_name"] = datum.Dst.NetworkName
+			if datum.Hosts.DstNetworkName != nil {
+				query["$set"].(bson.M)["dst_network_name"] = datum.Hosts.DstNetworkName
 			}
 
 			// assign formatted query to output
 			output.uconn.query = query
 
-			output.uconn.selector = datum.Src.SrcDstBSONKey(datum.Dst)
+			output.uconn.selector = datum.Hosts.BSONKey()
 
 			// get maxdur host table update
 			// since we are only updating stats for internal ips (as defined by the
 			// user in the file), we need to customize the query to update based on
 			// which ip in the connection was local.
 			if datum.IsLocalSrc {
-				output.hostMaxDur = a.hostMaxDurQuery(datum.MaxDuration, datum.Src, datum.Dst)
+				output.hostMaxDur = a.hostMaxDurQuery(datum.MaxDuration, datum.Hosts.Source(), datum.Hosts.Destination())
 			} else if datum.IsLocalDst {
-				output.hostMaxDur = a.hostMaxDurQuery(datum.MaxDuration, datum.Dst, datum.Src)
+				output.hostMaxDur = a.hostMaxDurQuery(datum.MaxDuration, datum.Hosts.Destination(), datum.Hosts.Source())
 			}
 
 			// set to writer channel

@@ -6,24 +6,26 @@ import (
 	"strings"
 )
 
-//UniqueIPKey binds an IP to an optional Network UUID which may be used to
-//disambiguate local IP addresses residing on different physical networks.
-//This index type should be used when determining the equality of UniqueIPs.
-type UniqueIPKey struct {
+//UniqueIP binds an IP to an optional Network UUID and Network Name.
+//The UUID and Name serve to diffferentiate local IP addresses
+//appearing on distinct physical networks. The Network Name should
+//not be considered when determining equality.
+type UniqueIP struct {
 	IP          string       `bson:"ip"`
 	NetworkUUID *bson.Binary `bson:"network_uuid,omitempty"`
+	NetworkName *string      `bson:"network_name,omitempty"`
 }
 
-//Equal checks if two UniqueIPKeys have the same IP and Network UUID fields
-func (u UniqueIPKey) Equal(ip UniqueIPKey) bool {
+//Equal checks if two UniqueIPs have the same UniqueIPKeys
+func (u UniqueIP) Equal(ip UniqueIP) bool {
 	return (u.IP == ip.IP && (u.NetworkUUID == ip.NetworkUUID ||
 		(u.NetworkUUID != nil && ip.NetworkUUID != nil &&
 			u.NetworkUUID.Kind == ip.NetworkUUID.Kind &&
 			bytes.Equal(u.NetworkUUID.Data, ip.NetworkUUID.Data))))
 }
 
-//MapKey generates a string which may be used to index a given UniqueIPKey. Concatenates IP and Network UUID.
-func (u UniqueIPKey) MapKey() string {
+//MapKey generates a string which may be used to index a given UniqueIP. Concatenates IP and Network UUID.
+func (u UniqueIP) MapKey() string {
 	var builder strings.Builder
 	uuidLen := 0
 	if u.NetworkUUID != nil {
@@ -40,8 +42,8 @@ func (u UniqueIPKey) MapKey() string {
 	return builder.String()
 }
 
-//BSONKey generates a BSON map which may be used to index a given UniqueIPKey. Includes IP and Network UUID.
-func (u UniqueIPKey) BSONKey() bson.M {
+//BSONKey generates a BSON map which may be used to index a given UniqueIP. Includes IP and Network UUID.
+func (u UniqueIP) BSONKey() bson.M {
 	key := bson.M{
 		"ip": u.IP,
 	}
@@ -51,74 +53,88 @@ func (u UniqueIPKey) BSONKey() bson.M {
 	return key
 }
 
-//SrcDstMapKey generates a string which may be used to index an ordered pair of UniqueIPKeys. Concatenates IPs and UUIDs.
-func (u UniqueIPKey) SrcDstMapKey(dst UniqueIPKey) string {
+//UniqueIPPair binds a pair of UniqueIPs where direction matters.
+type UniqueIPPair struct {
+	SrcIP          string       `bson:"src"`
+	SrcNetworkUUID *bson.Binary `bson:"src_network_uuid,omitempty"`
+	SrcNetworkName *string      `bson:"src_network_name,omitempty"`
+	DstIP          string       `bson:"dst"`
+	DstNetworkUUID *bson.Binary `bson:"dst_network_uuid,omitempty"`
+	DstNetworkName *string      `bson:"dst_network_name,omitempty"`
+}
+
+//NewUniqueIPPair binds a pair of UniqueIPs where direction matters.
+func NewUniqueIPPair(source UniqueIP, destination UniqueIP) UniqueIPPair {
+	return UniqueIPPair{
+		SrcIP:          source.IP,
+		DstIP:          destination.IP,
+		SrcNetworkUUID: source.NetworkUUID,
+		DstNetworkUUID: destination.NetworkUUID,
+		SrcNetworkName: source.NetworkName,
+		DstNetworkName: destination.NetworkName,
+	}
+}
+
+//Source returns the source UniqueIP from the pair.
+func (p UniqueIPPair) Source() UniqueIP {
+	return UniqueIP{
+		IP:          p.SrcIP,
+		NetworkUUID: p.SrcNetworkUUID,
+		NetworkName: p.SrcNetworkName,
+	}
+}
+
+//Destination returns the destination UniqueIP from the pair.
+func (p UniqueIPPair) Destination() UniqueIP {
+	return UniqueIP{
+		IP:          p.DstIP,
+		NetworkUUID: p.DstNetworkUUID,
+		NetworkName: p.DstNetworkName,
+	}
+}
+
+//MapKey generates a string which may be used to index an ordered pair of UniqueIPs. Concatenates IPs and UUIDs.
+func (p UniqueIPPair) MapKey() string {
 	var builder strings.Builder
 
 	srcUUIDLen := 0
-	if u.NetworkUUID != nil {
-		srcUUIDLen = 1 + len(u.NetworkUUID.Data)
+	if p.SrcNetworkUUID != nil {
+		srcUUIDLen = 1 + len(p.SrcNetworkUUID.Data)
 	}
 
 	dstUUIDLen := 0
-	if dst.NetworkUUID != nil {
-		dstUUIDLen = 1 + len(dst.NetworkUUID.Data)
+	if p.DstNetworkUUID != nil {
+		dstUUIDLen = 1 + len(p.DstNetworkUUID.Data)
 	}
 
-	builder.Grow(len(u.IP) + srcUUIDLen + len(dst.IP) + dstUUIDLen)
-	builder.WriteString(u.IP)
-	builder.WriteString(dst.IP)
-	if u.NetworkUUID != nil {
-		builder.WriteByte(u.NetworkUUID.Kind)
-		builder.Write(u.NetworkUUID.Data)
+	builder.Grow(len(p.SrcIP) + srcUUIDLen + len(p.DstIP) + dstUUIDLen)
+	builder.WriteString(p.SrcIP)
+	builder.WriteString(p.DstIP)
+	if p.SrcNetworkUUID != nil {
+		builder.WriteByte(p.SrcNetworkUUID.Kind)
+		builder.Write(p.SrcNetworkUUID.Data)
 	}
-	if dst.NetworkUUID != nil {
-		builder.WriteByte(dst.NetworkUUID.Kind)
-		builder.Write(dst.NetworkUUID.Data)
+	if p.DstNetworkUUID != nil {
+		builder.WriteByte(p.DstNetworkUUID.Kind)
+		builder.Write(p.DstNetworkUUID.Data)
 	}
 	return builder.String()
 }
 
-//SrcDstBSONKey generates a BSON map which may be used to index a given source/destination UniqueIPKey pair.
+//BSONKey generates a BSON map which may be used to index a given source/destination UniqueIP pair.
 //Includes IP and Network UUID.
-func (u UniqueIPKey) SrcDstBSONKey(dst UniqueIPKey) bson.M {
+func (p UniqueIPPair) BSONKey() bson.M {
 	key := bson.M{
-		"src": u.IP,
-		"dst": dst.IP,
+		"src": p.SrcIP,
+		"dst": p.DstIP,
 	}
-	if u.NetworkUUID != nil {
-		key["src_network_uuid"] = u.NetworkUUID
+	if p.SrcNetworkUUID != nil {
+		key["src_network_uuid"] = p.SrcNetworkUUID
 	}
-	if dst.NetworkUUID != nil {
-		key["dst_network_uuid"] = dst.NetworkUUID
+	if p.DstNetworkUUID != nil {
+		key["dst_network_uuid"] = p.DstNetworkUUID
 	}
 	return key
-}
-
-//UniqueIP binds an IP to an optional Network UUID and Network Name.
-//The UUID and Name serve to diffferentiate local IP addresses
-//appearing on distinct physical networks. The Network Name should
-//not be considered when determining equality. Use the UniqueIPKey
-//sub-type instead.
-type UniqueIP struct {
-	UniqueIPKey `bson:",inline"`
-	NetworkName *string `bson:"network_name,omitempty"`
-}
-
-//Equal checks if two UniqueIPs have the same UniqueIPKeys
-func (u UniqueIP) Equal(ip UniqueIP) bool {
-	return u.UniqueIPKey.Equal(ip.UniqueIPKey)
-}
-
-//SrcDstMapKey generates a string which may be used to index an ordered pair of UniqueIPs. Concatenates IPs and UUIDs.
-func (u UniqueIP) SrcDstMapKey(dst UniqueIP) string {
-	return u.UniqueIPKey.SrcDstMapKey(dst.UniqueIPKey)
-}
-
-//SrcDstBSONKey generates a BSON map which may be used to index a given source/destination UniqueIP pair.
-//Includes IP and Network UUID.
-func (u UniqueIP) SrcDstBSONKey(dst UniqueIP) bson.M {
-	return u.UniqueIPKey.SrcDstBSONKey(dst.UniqueIPKey)
 }
 
 //UniqueIPSet is a set of UniqueIPs which contains at most one instance of each UniqueIP

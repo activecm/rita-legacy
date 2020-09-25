@@ -49,9 +49,9 @@ func (r *repo) CreateIndexes() error {
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"-score"}},
-		{Key: []string{"src", "dst"}, Unique: true},
-		{Key: []string{"$hashed:src"}},
-		{Key: []string{"$hashed:dst"}},
+		{Key: []string{"src", "dst", "src_network_uuid", "dst_network_uuid"}, Unique: true},
+		{Key: []string{"src", "src_network_uuid"}},
+		{Key: []string{"dst", "dst_network_uuid"}},
 		{Key: []string{"-connection_count"}},
 	}
 

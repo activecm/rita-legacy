@@ -1,6 +1,7 @@
 package beacon
 
 import (
+	"github.com/activecm/rita/pkg/data"
 	"math"
 	"sort"
 	"strconv"
@@ -76,7 +77,7 @@ func (a *analyzer) start() {
 						"$set": bson.M{"strobe": true},
 					},
 					// create selector for output
-					selector: bson.M{"src": res.Src, "dst": res.Dst},
+					selector: res.Hosts.BSONKey(),
 				}
 
 				// set to writer channel
@@ -195,13 +196,10 @@ func (a *analyzer) start() {
 				dsScore := math.Ceil((dsSum/3.0)*1000) / 1000
 				score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
 
-				//TODO[AGENT]: Ensure beacon output uses NetworkID info in src/dst
 				// update beacon query
 				output.beacon = updateInfo{
 					query: bson.M{
 						"$set": bson.M{
-							"src":                res.Src,
-							"dst":                res.Dst,
 							"connection_count":   res.ConnectionCount,
 							"avg_bytes":          res.TotalBytes / res.ConnectionCount,
 							"ts.range":           tsIntervalRange,
@@ -225,11 +223,19 @@ func (a *analyzer) start() {
 							"cid":                a.chunk,
 						},
 					},
-					selector: bson.M{"src": res.Src, "dst": res.Dst},
+					selector: res.Hosts.BSONKey(),
 				}
 
-				output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Src, res.Dst)
-				output.hostBeacon = a.hostBeaconQuery(score, res.Src, res.Dst)
+				if res.Hosts.SrcNetworkName != nil {
+					output.beacon.query["$set"].(bson.M)["src_network_name"] = res.Hosts.SrcNetworkName
+				}
+
+				if res.Hosts.DstNetworkName != nil {
+					output.beacon.query["$set"].(bson.M)["dst_network_name"] = res.Hosts.DstNetworkName
+				}
+
+				output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Hosts.Source(), res.Hosts.Destination())
+				output.hostBeacon = a.hostBeaconQuery(score, res.Hosts.Source(), res.Hosts.Destination())
 
 				// set to writer channel
 				a.analyzedCallback(output)
@@ -260,8 +266,7 @@ func createCountMap(sortedIn []int64) ([]int64, []int64, int64, int64) {
 	return distinct, countsArr, mode, max
 }
 
-func (a *analyzer) hostIcertQuery(icert bool, src string, dst string) updateInfo {
-	//TODO[AGENT]: Change src/ dst to UniqueIPs in hostIcertQuery in beacons
+func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.UniqueIP) updateInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -275,20 +280,17 @@ func (a *analyzer) hostIcertQuery(icert bool, src string, dst string) updateInfo
 
 		newFlag := false
 
-		//TODO[AGENT]: Use UniqueIP instead of hostRes in hostICertQuery in beacons
-		type hostRes struct {
-			IP string `bson:"ip"`
-		}
+		var resList []interface{}
 
-		var resList []hostRes
+		hostSelector := src.BSONKey()
+		hostSelector["dat.icdst"] = dst.BSONKey()
 
-		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(bson.M{"ip": src, "dat.icdst": dst}).All(&resList)
+		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).All(&resList)
 
-		if !(len(resList) > 0) {
+		if len(resList) <= 0 {
 			newFlag = true
 		}
 
-		//TODO[AGENT]: Ensure NetworkID info is stored in icdst in the invalid certificate host table update in beacons
 		if newFlag {
 
 			query["$push"] = bson.M{
@@ -300,7 +302,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src string, dst string) updateInfo
 
 			// create selector for output
 			output.query = query
-			output.selector = bson.M{"ip": src}
+			output.selector = src.BSONKey()
 
 		} else {
 
@@ -311,15 +313,14 @@ func (a *analyzer) hostIcertQuery(icert bool, src string, dst string) updateInfo
 
 			// create selector for output
 			output.query = query
-			output.selector = bson.M{"ip": src, "dat.icdst": dst}
+			output.selector = hostSelector
 		}
 	}
 
 	return output
 }
 
-func (a *analyzer) hostBeaconQuery(score float64, src string, dst string) updateInfo {
-	//TODO[AGENT]: Change src/ dst to UniqueIPs in hostBeaconQuery in beacons
+func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.UniqueIP) updateInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -334,13 +335,10 @@ func (a *analyzer) hostBeaconQuery(score float64, src string, dst string) update
 	// the incorrect high max for that specific destination.
 	var resListExactMatch []interface{}
 
-	maxBeaconMatchExactQuery := bson.M{
-		"ip":        src,
-		"dat.mbdst": dst,
-	}
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
+	maxBeaconMatchExactQuery := src.BSONKey()
+	maxBeaconMatchExactQuery["dat.mbdst"] = dst.BSONKey()
 
-	//TODO[AGENT]: Ensure mbdst includes NetworkID information in beacons host table update
+	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
 
 	// if we have exact matches, update to new score and return
 	if len(resListExactMatch) > 0 {
@@ -366,37 +364,36 @@ func (a *analyzer) hostBeaconQuery(score float64, src string, dst string) update
 	newFlag := false
 	updateFlag := false
 
-	var resListLower []interface{}
-	var resListUpper []interface{}
-
 	// this query will find any matching chunk that is reporting a lower
 	// max beacon score than the current one we are working with
-	maxBeaconMatchLowerQuery := bson.M{
-		"ip": src,
-		"dat": bson.M{"$elemMatch": bson.M{
+	maxBeaconMatchLowerQuery := src.BSONKey()
+	maxBeaconMatchLowerQuery["dat"] = bson.M{
+		"$elemMatch": bson.M{
 			"cid":              a.chunk,
 			"max_beacon_score": bson.M{"$lte": score},
-		}},
+		},
 	}
-
-	maxBeaconMatchUpperQuery := bson.M{
-		"ip": src,
-		"dat": bson.M{"$elemMatch": bson.M{
-			"cid":              a.chunk,
-			"max_beacon_score": bson.M{"$gte": score},
-		}},
-	}
-
 	// find matching lower chunks
+	var resListLower []interface{}
+
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchLowerQuery).All(&resListLower)
 
 	// if no matching chunks are found, we will set the new flag
-	if !(len(resListLower) > 0) {
+	if len(resListLower) <= 0 {
+
+		maxBeaconMatchUpperQuery := src.BSONKey()
+		maxBeaconMatchUpperQuery["dat"] = bson.M{
+			"$elemMatch": bson.M{
+				"cid":              a.chunk,
+				"max_beacon_score": bson.M{"$gte": score},
+			},
+		}
 
 		// find matching upper chunks
+		var resListUpper []interface{}
 		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchUpperQuery).All(&resListUpper)
 		// update if no upper chunks are found
-		if !(len(resListUpper) > 0) {
+		if len(resListUpper) <= 0 {
 			newFlag = true
 		}
 	} else {
@@ -419,7 +416,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src string, dst string) update
 
 		// create selector for output
 		output.query = query
-		output.selector = bson.M{"ip": src}
+		output.selector = src.BSONKey()
 
 	} else if updateFlag {
 

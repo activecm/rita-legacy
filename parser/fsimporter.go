@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"github.com/activecm/rita/pkg/data"
 	"math"
 	"net"
 	"os"
@@ -387,11 +388,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// TODO: consider logging UUID parsing errors
 							srcUniqIP, _ := newUniqueIP(srcIP, parseConn.AgentUUID, parseConn.AgentHostname)
 							dstUniqIP, _ := newUniqueIP(dstIP, parseConn.AgentUUID, parseConn.AgentHostname)
+							srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
 
 							// get aggregation keys for ip addresses and connection pair
 							srcKey := srcUniqIP.MapKey()
 							dstKey := dstUniqIP.MapKey()
-							srcDstKey := srcUniqIP.SrcDstMapKey(dstUniqIP)
+							srcDstKey := srcDstPair.MapKey()
 
 							// Run conn pair through filter to filter out certain connections
 							ignore := fs.filterConnPair(srcIP, dstIP)
@@ -445,8 +447,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
 									// we only need to do this once if the uconn record does not exist
 									uconnMap[srcDstKey] = &uconn.Pair{
-										Src:        srcUniqIP,
-										Dst:        dstUniqIP,
+										Hosts:      srcDstPair,
 										IsLocalSrc: containsIP(fs.GetInternalSubnets(), srcIP),
 										IsLocalDst: containsIP(fs.GetInternalSubnets(), dstIP),
 									}
@@ -662,8 +663,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							srcUniqIP, _ := newUniqueIP(srcIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in SSL log
 							dstUniqIP, _ := newUniqueIP(dstIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in SSL log
+							srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
 
-							srcDstKey := srcUniqIP.SrcDstMapKey(dstUniqIP)
+							srcDstKey := srcDstPair.MapKey()
 							dstKey := dstUniqIP.MapKey()
 
 							if ja3Hash == "" {
@@ -706,8 +708,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									if _, ok := uconnMap[srcDstKey]; !ok {
 										// create new uconn record if it does not exist
 										uconnMap[srcDstKey] = &uconn.Pair{
-											Src:        srcUniqIP,
-											Dst:        dstUniqIP,
+											Hosts:      srcDstPair,
 											IsLocalSrc: containsIP(fs.GetInternalSubnets(), srcIP),
 											IsLocalDst: containsIP(fs.GetInternalSubnets(), dstIP),
 										}
