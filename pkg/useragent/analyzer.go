@@ -68,8 +68,6 @@ func (a *analyzer) start() {
 				datum.Requests = datum.Requests[:10]
 			}
 
-			//TODO[AGENT]: Use UniqueIP with NetworkID for orig_ips in useragent collection
-
 			// create query
 			query := bson.M{
 				"$push": bson.M{

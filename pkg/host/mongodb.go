@@ -28,8 +28,6 @@ func (r *repo) CreateIndexes() error {
 
 	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.HostTable)
 
-	//TODO[AGENT]: Change primary key to include NetworkID information
-
 	// create hosts collection
 	// Desired indexes
 	indexes := []mgo.Index{

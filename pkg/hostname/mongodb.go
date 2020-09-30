@@ -42,7 +42,7 @@ func (r *repo) CreateIndexes() error {
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"host"}, Unique: true},
-		{Key: []string{"dat.ips.ip", "dat.ips.network_uuid"}}, //TODO[AGENT]: Fix old queries using dat.ips as string arr
+		{Key: []string{"dat.ips.ip", "dat.ips.network_uuid"}},
 	}
 
 	// create collection

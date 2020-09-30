@@ -17,8 +17,7 @@ type update struct {
 	query    bson.M
 }
 
-//TODO[AGENT]: Convert IP Host to Unique IP. Consider renaming to IP to Input to match other pkgs?
-//IP ....
+//Input ...
 type Input struct {
 	Host                  data.UniqueIP
 	IsLocal               bool
