@@ -1,31 +1,26 @@
 package blacklist
 
+import (
+	"github.com/activecm/rita/pkg/data"
+	"github.com/globalsign/mgo/bson"
+)
+
 // Repository for blacklist results in host collection
 type Repository interface {
 	Upsert()
 }
 
-//update ....
-type update struct {
-	selector interface{}
-	query    interface{}
+//hostsUpdate is used to update the hosts table with blacklisted source and destinations
+type hostsUpdate struct {
+	selector bson.M
+	query    bson.M
 }
 
-//TODO[AGENT]: Use UniqueIP for Host in blacklist uconnRes
-//uconnRes
-type uconnRes struct {
-	Host              string `bson:"_id"`
-	Connections       int    `bson:"bl_conn_count"`
-	UniqueConnections int    `bson:"bl_in_count"`
-	TotalBytes        int    `bson:"bl_total_bytes"`
-}
-
-//TODO[AGENT]: Use UniqueIP for hostres IP in blacklist
-type hostRes struct {
-	IP string `bson:"ip"`
-	// blacklisted bool   `bson:"blacklisted"`
-	// CID int `bson:"cid"`
-	// dat         []interface{} `bson:"dat"`Host string `bson:"host"`
+//connectionPeer records how many connections were made to/ from a given host and how many bytes were sent/ received
+type connectionPeer struct {
+	Host        data.UniqueIP `bson:"_id"`
+	Connections int           `bson:"bl_conn_count"`
+	TotalBytes  int           `bson:"bl_total_bytes"`
 }
 
 //IP ....

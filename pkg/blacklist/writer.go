@@ -12,11 +12,11 @@ type (
 	//writer blah blah
 	writer struct { //structure for writing blacklist results to mongo
 		targetCollection string
-		db               *database.DB   // provides access to MongoDB
-		conf             *config.Config // contains details needed to access MongoDB
-		log              *log.Logger    // main logger for RITA
-		writeChannel     chan update    // holds analyzed data
-		writeWg          sync.WaitGroup // wait for writing to finish
+		db               *database.DB     // provides access to MongoDB
+		conf             *config.Config   // contains details needed to access MongoDB
+		log              *log.Logger      // main logger for RITA
+		writeChannel     chan hostsUpdate // holds analyzed data
+		writeWg          sync.WaitGroup   // wait for writing to finish
 	}
 )
 
@@ -27,12 +27,12 @@ func newWriter(targetCollection string, db *database.DB, conf *config.Config, lo
 		db:               db,
 		conf:             conf,
 		log:              log,
-		writeChannel:     make(chan update),
+		writeChannel:     make(chan hostsUpdate),
 	}
 }
 
 //collect sends a group of results to the writer for writing out to the database
-func (w *writer) collect(data update) {
+func (w *writer) collect(data hostsUpdate) {
 	w.writeChannel <- data
 }
 
