@@ -4,6 +4,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/activecm/rita/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,9 +21,9 @@ func TestFilterConnPairWithInternalSubnets(t *testing.T) {
 		res:             nil,
 		indexingThreads: 1,
 		parseThreads:    1,
-		internal:        getParsedSubnets([]string{"10.0.0.0/8"}),
-		alwaysIncluded:  getParsedSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
-		neverIncluded:   getParsedSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+		internal:        util.ParseSubnets([]string{"10.0.0.0/8"}),
+		alwaysIncluded:  util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
+		neverIncluded:   util.ParseSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
 	}
 
 	// all permutations of being on internal, always, and never lists

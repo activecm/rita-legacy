@@ -11,13 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIsIP(t *testing.T) {
-	testIP := "1.1.1.1"
-	notIP := "a.b.c.d"
-	assert.True(t, IsIP(testIP))
-	assert.False(t, IsIP(notIP))
-}
-
 // func TestFileExists(t *testing.T) {
 // 	filePath := "./.jeinwei8380243unt4u"
 // 	os.Remove(filePath)

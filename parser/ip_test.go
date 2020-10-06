@@ -7,35 +7,6 @@ import (
 	"testing"
 )
 
-type ipBoolTestCase struct {
-	ip  string
-	out bool
-	msg string
-}
-
-func TestIPIsPublicRoutable(t *testing.T) {
-
-	testCases := []ipBoolTestCase{
-		{"10.1.2.3", false, "RFC1918 Class A"},
-		{"172.16.1.2", false, "RFC1918 Class B"},
-		{"192.168.1.2", false, "RFC1918 Class C"},
-		{"fc00:1234::", false, "IPv6 local address"},
-		{"127.0.0.5", false, "IPv4 loopback"},
-		{"::1", false, "IPv6 loopback"},
-		{"169.254.1.2", false, "IPv4 link local"},
-		{"fe80:1234::", false, "IPv6 link local"},
-		{"224.0.0.1", false, "IPv4 multicast"},
-		{"ff12:1234::", false, "IPv6 multicast"},
-		{"8.8.8.8", true, "google dns ipv4"},
-		{"2001:4860:4860::8888", true, "google dns ipv6"},
-	}
-
-	for _, testCase := range testCases {
-		output := ipIsPubliclyRoutable(net.ParseIP(testCase.ip))
-		assert.Equal(t, testCase.out, output, testCase.msg)
-	}
-}
-
 func TestNewUniqueIP(t *testing.T) {
 	ip, err := newUniqueIP(net.ParseIP("192.168.1.1"), "ff0d0776-0cdc-4a10-b793-522bcd48a560", "test")
 	assert.Nil(t, err, "no error on local ip with valid data")

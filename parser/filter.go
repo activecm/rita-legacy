@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"github.com/activecm/rita/util"
 	"net"
 )
 
@@ -13,12 +14,12 @@ import (
 //   5. Not filtered in all other cases
 func (fs *FSImporter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 	// check if on always included list
-	isSrcIncluded := containsIP(fs.alwaysIncluded, srcIP)
-	isDstIncluded := containsIP(fs.alwaysIncluded, dstIP)
+	isSrcIncluded := util.ContainsIP(fs.alwaysIncluded, srcIP)
+	isDstIncluded := util.ContainsIP(fs.alwaysIncluded, dstIP)
 
 	// check if on never included list
-	isSrcExcluded := containsIP(fs.neverIncluded, srcIP)
-	isDstExcluded := containsIP(fs.neverIncluded, dstIP)
+	isSrcExcluded := util.ContainsIP(fs.neverIncluded, srcIP)
+	isDstExcluded := util.ContainsIP(fs.neverIncluded, dstIP)
 
 	// if either IP is on the AlwaysInclude list, filter does not apply
 	if isSrcIncluded || isDstIncluded {
@@ -37,8 +38,8 @@ func (fs *FSImporter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 	}
 
 	// check if src and dst are internal
-	isSrcInternal := containsIP(fs.internal, srcIP)
-	isDstInternal := containsIP(fs.internal, dstIP)
+	isSrcInternal := util.ContainsIP(fs.internal, srcIP)
+	isDstInternal := util.ContainsIP(fs.internal, dstIP)
 
 	// if both addresses are internal, filter applies
 	if isSrcInternal && isDstInternal {

@@ -3,79 +3,14 @@ package parser
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"net"
-	"os"
 	"strings"
 
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo/bson"
 	"github.com/google/uuid"
 )
-
-var privateIPBlocks []*net.IPNet
-
-func init() {
-	privateIPBlocks = getParsedSubnets(
-		[]string{
-			//"127.0.0.0/8",    // IPv4 Loopback; handled by ip.IsLoopback
-			//"::1/128",        // IPv6 Loopback; handled by ip.IsLoopback
-			//"169.254.0.0/16", // RFC3927 link-local; handled by ip.IsLinkLocalUnicast()
-			//"fe80::/10",      // IPv6 link-local; handled by ip.IsLinkLocalUnicast()
-			"10.0.0.0/8",     // RFC1918
-			"172.16.0.0/12",  // RFC1918
-			"192.168.0.0/16", // RFC1918
-			"fc00::/7",       // IPv6 unique local addr
-		})
-}
-
-//ipIsPubliclyRoutable checks if an IP address is publicly routable. See privateIPBlocks.
-func ipIsPubliclyRoutable(ip net.IP) bool {
-	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-		return false
-	}
-
-	if containsIP(privateIPBlocks, ip) {
-		return false
-	}
-	return true
-}
-
-//parseSubnets parses the provided subnets into net.ipnet format
-func getParsedSubnets(subnets []string) (parsedSubnets []*net.IPNet) {
-
-	for _, entry := range subnets {
-		//try to parse out cidr range
-		_, block, err := net.ParseCIDR(entry)
-
-		//if there was an error, check if entry was an IP not a range
-		if err != nil {
-			// try to parse out IP as range of single host
-			_, block, err = net.ParseCIDR(entry + "/32")
-
-			// if error, report and return
-			if err != nil {
-				fmt.Fprintf(os.Stdout, "Error parsing CIDR entry: %s\n", err.Error())
-				os.Exit(-1)
-				return
-			}
-		}
-
-		// add cidr range to list
-		parsedSubnets = append(parsedSubnets, block)
-	}
-	return
-}
-
-//containsIP checks if a specified subnet contains an ip
-func containsIP(subnets []*net.IPNet, ip net.IP) bool {
-	for _, block := range subnets {
-		if block.Contains(ip) {
-			return true
-		}
-	}
-	return false
-}
 
 //isIPv4 checks if an ip is ipv4
 func isIPv4(address string) bool {
@@ -98,7 +33,7 @@ func newUniqueIP(ip net.IP, agentUUID, agentName string) (data.UniqueIP, error) 
 	u.IP = ip.String()
 
 	// don't set network uuid/ name if the ip is publicly routable
-	if ipIsPubliclyRoutable(ip) {
+	if util.IPIsPubliclyRoutable(ip) {
 		return u, nil
 	}
 

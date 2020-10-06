@@ -45,13 +45,15 @@ type DSData struct {
 
 //AnalysisView (for reporting)
 type AnalysisView struct {
-	Src         string  `bson:"src"`
-	Dst         string  `bson:"dst"`
-	Connections int64   `bson:"connection_count"`
-	AvgBytes    float64 `bson:"avg_bytes"`
-	Ts          TSData  `bson:"ts"`
-	Ds          DSData  `bson:"ds"`
-	Score       float64 `bson:"score"`
+	Src            string  `bson:"src"`
+	Dst            string  `bson:"dst"`
+	SrcNetworkName *string `bson:"src_network_name"`
+	DstNetworkName *string `bson:"dst_network_name"`
+	Connections    int64   `bson:"connection_count"`
+	AvgBytes       float64 `bson:"avg_bytes"`
+	Ts             TSData  `bson:"ts"`
+	Ds             DSData  `bson:"ds"`
+	Score          float64 `bson:"score"`
 }
 
 //StrobeAnalysisView (for reporting)

@@ -2,7 +2,6 @@ package util
 
 import (
 	"math"
-	"net"
 	"os"
 )
 
@@ -11,14 +10,6 @@ const TimeFormat string = "2006-01-02-T15:04:05-0700"
 
 //DayFormat stores a correctly formatted timestamp for the day
 const DayFormat string = "2006-01-02"
-
-// IsIP returns true if string is a valid IP address
-func IsIP(ip string) bool {
-	if net.ParseIP(ip) != nil {
-		return true
-	}
-	return false
-}
 
 // Exists returns true if file or directory exists
 func Exists(path string) bool {

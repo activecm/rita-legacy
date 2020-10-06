@@ -21,6 +21,7 @@ func init() {
 			humanFlag,
 			configFlag,
 			delimFlag,
+			netNamesFlag,
 		},
 		Action: showBeacons,
 	}
@@ -47,62 +48,109 @@ func showBeacons(c *cli.Context) error {
 		return cli.NewExitError("No results were found for "+db, -1)
 	}
 
+	showNetNames := c.Bool("network-names")
+
 	if c.Bool("human-readable") {
-		err := showBeaconsHuman(data)
+		err := showBeaconsHuman(data, showNetNames)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
 		return nil
 	}
 
-	err = showBeaconsDelim(data, c.String("delimiter"))
+	err = showBeaconsDelim(data, c.String("delimiter"), showNetNames)
 	if err != nil {
 		return cli.NewExitError(err.Error(), -1)
 	}
 	return nil
 }
 
-func showBeaconsHuman(data []beacon.AnalysisView) error {
+func showBeaconsHuman(data []beacon.AnalysisView, showNetNames bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Score", "Source IP", "Destination IP",
-		"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
-		"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
-		"Size Skew", "Intvl Dispersion", "Size Dispersion"})
+	var headerFields []string
+	if showNetNames {
+		headerFields = []string{
+			"Score", "Source Network", "Destination Network", "Source IP", "Destination IP",
+			"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
+			"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
+			"Size Skew", "Intvl Dispersion", "Size Dispersion",
+		}
+	} else {
+		headerFields = []string{
+			"Score", "Source IP", "Destination IP",
+			"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
+			"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
+			"Size Skew", "Intvl Dispersion", "Size Dispersion",
+		}
+	}
+
+	table.SetHeader(headerFields)
 
 	for _, d := range data {
-		table.Append(
-			[]string{
+		var row []string
+		if showNetNames {
+			row = []string{
+				f(d.Score), validNetworkName(d.Src, d.SrcNetworkName), validNetworkName(d.Dst, d.DstNetworkName),
+				d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
+				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
+			}
+		} else {
+			row = []string{
 				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
 				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
-			},
-		)
+			}
+		}
+		table.Append(row)
 	}
 	table.Render()
 	return nil
 }
 
-func showBeaconsDelim(data []beacon.AnalysisView, delim string) error {
-	headers := []string{"Score", "Source IP", "Destination IP",
-		"Connections", "Avg Bytes", "Intvl Range", "Size Range", "Top Intvl",
-		"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
-		"Size Skew", "Intvl Dispersion", "Size Dispersion"}
+func showBeaconsDelim(data []beacon.AnalysisView, delim string, showNetNames bool) error {
+	var headerFields []string
+	if showNetNames {
+		headerFields = []string{
+			"Score", "Source Network", "Destination Network", "Source IP", "Destination IP",
+			"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
+			"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
+			"Size Skew", "Intvl Dispersion", "Size Dispersion",
+		}
+	} else {
+		headerFields = []string{
+			"Score", "Source IP", "Destination IP",
+			"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
+			"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
+			"Size Skew", "Intvl Dispersion", "Size Dispersion",
+		}
+	}
 
 	// Print the headers and analytic values, separated by a delimiter
-	fmt.Println(strings.Join(headers, delim))
+	fmt.Println(strings.Join(headerFields, delim))
 	for _, d := range data {
-		fmt.Println(
-			strings.Join(
-				[]string{
-					f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
-					i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
-					i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
-					i(d.Ts.Dispersion), i(d.Ds.Dispersion),
-				},
-				delim,
-			),
-		)
+
+		var row []string
+		if showNetNames {
+			row = []string{
+				f(d.Score), validNetworkName(d.Src, d.SrcNetworkName), validNetworkName(d.Dst, d.DstNetworkName),
+				d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
+				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
+			}
+		} else {
+			row = []string{
+				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
+				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
+			}
+		}
+
+		fmt.Println(strings.Join(row, delim))
 	}
 	return nil
 }

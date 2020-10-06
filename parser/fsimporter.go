@@ -63,9 +63,9 @@ func NewFSImporter(res *resources.Resources,
 		indexingThreads: indexingThreads,
 		parseThreads:    parseThreads,
 		batchSizeBytes:  2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
-		internal:        getParsedSubnets(res.Config.S.Filtering.InternalSubnets),
-		alwaysIncluded:  getParsedSubnets(res.Config.S.Filtering.AlwaysInclude),
-		neverIncluded:   getParsedSubnets(res.Config.S.Filtering.NeverInclude),
+		internal:        util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
+		alwaysIncluded:  util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
+		neverIncluded:   util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
 	}
 }
 
@@ -424,7 +424,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// create new host record with src and dst
 									hostMap[srcKey] = &host.Input{
 										Host:    srcUniqIP,
-										IsLocal: containsIP(fs.GetInternalSubnets(), srcIP),
+										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
 										IP4:     isIPv4(src),
 										IP4Bin:  ipv4ToBinary(srcIP),
 									}
@@ -435,7 +435,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// create new host record with src and dst
 									hostMap[dstKey] = &host.Input{
 										Host:    dstUniqIP,
-										IsLocal: containsIP(fs.GetInternalSubnets(), dstIP),
+										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
 										IP4:     isIPv4(dst),
 										IP4Bin:  ipv4ToBinary(dstIP),
 									}
@@ -448,8 +448,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// we only need to do this once if the uconn record does not exist
 									uconnMap[srcDstKey] = &uconn.Pair{
 										Hosts:      srcDstPair,
-										IsLocalSrc: containsIP(fs.GetInternalSubnets(), srcIP),
-										IsLocalDst: containsIP(fs.GetInternalSubnets(), dstIP),
+										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
 									}
 
 									hostMap[srcKey].CountSrc++
@@ -587,7 +587,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										// we only need to do this once if the uconn record does not exist
 										hostMap[srcKey] = &host.Input{
 											Host:    srcUniqIP,
-											IsLocal: containsIP(fs.GetInternalSubnets(), srcIP),
+											IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
 											IP4:     isIPv4(src),
 											IP4Bin:  ipv4ToBinary(srcIP),
 										}
@@ -709,8 +709,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										// create new uconn record if it does not exist
 										uconnMap[srcDstKey] = &uconn.Pair{
 											Hosts:      srcDstPair,
-											IsLocalSrc: containsIP(fs.GetInternalSubnets(), srcIP),
-											IsLocalDst: containsIP(fs.GetInternalSubnets(), dstIP),
+											IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+											IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
 										}
 									}
 									// mark as having invalid cert
