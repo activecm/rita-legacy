@@ -81,8 +81,8 @@ func TestFilterConnPairWithoutInternalSubnets(t *testing.T) {
 		indexingThreads: 1,
 		parseThreads:    1,
 		// purposely omitting internal subnet definition
-		alwaysIncluded: getParsedSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
-		neverIncluded:  getParsedSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+		alwaysIncluded: util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
+		neverIncluded:  util.ParseSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
 	}
 
 	// "internal" here is merely by convention as with no InternalSubnets

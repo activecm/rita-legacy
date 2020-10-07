@@ -385,9 +385,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							dstIP := net.ParseIP(dst)
 
 							// disambiguate addresses which are not publicly routable
-							// TODO: consider logging UUID parsing errors
-							srcUniqIP, _ := newUniqueIP(srcIP, parseConn.AgentUUID, parseConn.AgentHostname)
-							dstUniqIP, _ := newUniqueIP(dstIP, parseConn.AgentUUID, parseConn.AgentHostname)
+							srcUniqIP := newUniqueIP(srcIP, parseConn.AgentUUID, parseConn.AgentHostname)
+							dstUniqIP := newUniqueIP(dstIP, parseConn.AgentUUID, parseConn.AgentHostname)
 							srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
 
 							// get aggregation keys for ip addresses and connection pair
@@ -552,7 +551,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// extract and store the dns client ip address
 							src := parseDNS.Source
 							srcIP := net.ParseIP(src)
-							srcUniqIP, _ := newUniqueIP(srcIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in DNS log
+							srcUniqIP := newUniqueIP(srcIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in DNS log
 							srcKey := srcUniqIP.MapKey()
 
 							hostnameMap[domain].ClientIPs.Insert(srcUniqIP)
@@ -563,7 +562,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									answerIP := net.ParseIP(answer)
 									// Check if answer is an IP address and store it if it is
 									if answerIP != nil {
-										answerUniqIP, _ := newUniqueIP(answerIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in DNS log
+										answerUniqIP := newUniqueIP(answerIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in DNS log
 										hostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
 									}
 								}
@@ -611,7 +610,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							userAgentName := parseHTTP.UserAgent
 							src := parseHTTP.Source
 							srcIP := net.ParseIP(src)
-							srcUniqIP, _ := newUniqueIP(srcIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in HTTP log
+							srcUniqIP := newUniqueIP(srcIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in HTTP log
 							host := parseHTTP.Host
 
 							if userAgentName == "" {
@@ -661,8 +660,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							srcIP := net.ParseIP(src)
 							dstIP := net.ParseIP(dst)
 
-							srcUniqIP, _ := newUniqueIP(srcIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in SSL log
-							dstUniqIP, _ := newUniqueIP(dstIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in SSL log
+							srcUniqIP := newUniqueIP(srcIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in SSL log
+							dstUniqIP := newUniqueIP(dstIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in SSL log
 							srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
 
 							srcDstKey := srcDstPair.MapKey()

@@ -85,11 +85,10 @@ func (a *analyzer) start() {
 						"cid":      a.chunk,
 					},
 				},
-				"$set": bson.M{"cid": a.chunk},
-			}
-
-			if datum.Host.NetworkName != nil {
-				query["$set"].(bson.M)["network_name"] = datum.Host.NetworkName
+				"$set": bson.M{
+					"cid":          a.chunk,
+					"network_name": datum.Host.NetworkName,
+				},
 			}
 
 			output.query = query

@@ -11,33 +11,25 @@ import (
 //appearing on distinct physical networks. The Network Name should
 //not be considered when determining equality.
 type UniqueIP struct {
-	IP          string       `bson:"ip"`
-	NetworkUUID *bson.Binary `bson:"network_uuid,omitempty"`
-	NetworkName *string      `bson:"network_name,omitempty"`
+	IP          string      `bson:"ip"`
+	NetworkUUID bson.Binary `bson:"network_uuid"`
+	NetworkName string      `bson:"network_name"`
 }
 
-//Equal checks if two UniqueIPs have the same UniqueIPKeys
+//Equal checks if two UniqueIPs have the same IP and network UUID
 func (u UniqueIP) Equal(ip UniqueIP) bool {
-	return (u.IP == ip.IP && (u.NetworkUUID == ip.NetworkUUID ||
-		(u.NetworkUUID != nil && ip.NetworkUUID != nil &&
-			u.NetworkUUID.Kind == ip.NetworkUUID.Kind &&
-			bytes.Equal(u.NetworkUUID.Data, ip.NetworkUUID.Data))))
+	return (u.IP == ip.IP &&
+		u.NetworkUUID.Kind == ip.NetworkUUID.Kind &&
+		bytes.Equal(u.NetworkUUID.Data, ip.NetworkUUID.Data))
 }
 
 //MapKey generates a string which may be used to index a given UniqueIP. Concatenates IP and Network UUID.
 func (u UniqueIP) MapKey() string {
 	var builder strings.Builder
-	uuidLen := 0
-	if u.NetworkUUID != nil {
-		uuidLen = 1 + len(u.NetworkUUID.Data)
-	}
-
-	builder.Grow(len(u.IP) + uuidLen)
+	builder.Grow(len(u.IP) + 1 + len(u.NetworkUUID.Data))
 	builder.WriteString(u.IP)
-	if u.NetworkUUID != nil {
-		builder.WriteByte(u.NetworkUUID.Kind)
-		builder.Write(u.NetworkUUID.Data)
-	}
+	builder.WriteByte(u.NetworkUUID.Kind)
+	builder.Write(u.NetworkUUID.Data)
 
 	return builder.String()
 }
@@ -45,22 +37,20 @@ func (u UniqueIP) MapKey() string {
 //BSONKey generates a BSON map which may be used to index a given UniqueIP. Includes IP and Network UUID.
 func (u UniqueIP) BSONKey() bson.M {
 	key := bson.M{
-		"ip": u.IP,
-	}
-	if u.NetworkUUID != nil {
-		key["network_uuid"] = u.NetworkUUID
+		"ip":           u.IP,
+		"network_uuid": u.NetworkUUID,
 	}
 	return key
 }
 
 //UniqueIPPair binds a pair of UniqueIPs where direction matters.
 type UniqueIPPair struct {
-	SrcIP          string       `bson:"src"`
-	SrcNetworkUUID *bson.Binary `bson:"src_network_uuid,omitempty"`
-	SrcNetworkName *string      `bson:"src_network_name,omitempty"`
-	DstIP          string       `bson:"dst"`
-	DstNetworkUUID *bson.Binary `bson:"dst_network_uuid,omitempty"`
-	DstNetworkName *string      `bson:"dst_network_name,omitempty"`
+	SrcIP          string      `bson:"src"`
+	SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
+	SrcNetworkName string      `bson:"src_network_name"`
+	DstIP          string      `bson:"dst"`
+	DstNetworkUUID bson.Binary `bson:"dst_network_uuid"`
+	DstNetworkName string      `bson:"dst_network_name"`
 }
 
 //NewUniqueIPPair binds a pair of UniqueIPs where direction matters.
@@ -97,27 +87,17 @@ func (p UniqueIPPair) Destination() UniqueIP {
 func (p UniqueIPPair) MapKey() string {
 	var builder strings.Builder
 
-	srcUUIDLen := 0
-	if p.SrcNetworkUUID != nil {
-		srcUUIDLen = 1 + len(p.SrcNetworkUUID.Data)
-	}
-
-	dstUUIDLen := 0
-	if p.DstNetworkUUID != nil {
-		dstUUIDLen = 1 + len(p.DstNetworkUUID.Data)
-	}
+	srcUUIDLen := 1 + len(p.SrcNetworkUUID.Data)
+	dstUUIDLen := 1 + len(p.DstNetworkUUID.Data)
 
 	builder.Grow(len(p.SrcIP) + srcUUIDLen + len(p.DstIP) + dstUUIDLen)
 	builder.WriteString(p.SrcIP)
 	builder.WriteString(p.DstIP)
-	if p.SrcNetworkUUID != nil {
-		builder.WriteByte(p.SrcNetworkUUID.Kind)
-		builder.Write(p.SrcNetworkUUID.Data)
-	}
-	if p.DstNetworkUUID != nil {
-		builder.WriteByte(p.DstNetworkUUID.Kind)
-		builder.Write(p.DstNetworkUUID.Data)
-	}
+	builder.WriteByte(p.SrcNetworkUUID.Kind)
+	builder.Write(p.SrcNetworkUUID.Data)
+	builder.WriteByte(p.DstNetworkUUID.Kind)
+	builder.Write(p.DstNetworkUUID.Data)
+
 	return builder.String()
 }
 
@@ -125,14 +105,10 @@ func (p UniqueIPPair) MapKey() string {
 //Includes IP and Network UUID.
 func (p UniqueIPPair) BSONKey() bson.M {
 	key := bson.M{
-		"src": p.SrcIP,
-		"dst": p.DstIP,
-	}
-	if p.SrcNetworkUUID != nil {
-		key["src_network_uuid"] = p.SrcNetworkUUID
-	}
-	if p.DstNetworkUUID != nil {
-		key["dst_network_uuid"] = p.DstNetworkUUID
+		"src":              p.SrcIP,
+		"src_network_uuid": p.SrcNetworkUUID,
+		"dst":              p.DstIP,
+		"dst_network_uuid": p.DstNetworkUUID,
 	}
 	return key
 }

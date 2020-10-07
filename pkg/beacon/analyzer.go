@@ -221,17 +221,11 @@ func (a *analyzer) start() {
 							"ds.score":           dsScore,
 							"score":              score,
 							"cid":                a.chunk,
+							"src_network_name":   res.Hosts.SrcNetworkName,
+							"dst_network_name":   res.Hosts.DstNetworkName,
 						},
 					},
 					selector: res.Hosts.BSONKey(),
-				}
-
-				if res.Hosts.SrcNetworkName != nil {
-					output.beacon.query["$set"].(bson.M)["src_network_name"] = res.Hosts.SrcNetworkName
-				}
-
-				if res.Hosts.DstNetworkName != nil {
-					output.beacon.query["$set"].(bson.M)["dst_network_name"] = res.Hosts.DstNetworkName
 				}
 
 				output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Hosts.Source(), res.Hosts.Destination())

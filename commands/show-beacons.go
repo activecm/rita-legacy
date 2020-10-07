@@ -90,15 +90,15 @@ func showBeaconsHuman(data []beacon.AnalysisView, showNetNames bool) error {
 		var row []string
 		if showNetNames {
 			row = []string{
-				f(d.Score), validNetworkName(d.Src, d.SrcNetworkName), validNetworkName(d.Dst, d.DstNetworkName),
-				d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				f(d.Score), d.SrcNetworkName, d.DstNetworkName,
+				d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
 				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
 			}
 		} else {
 			row = []string{
-				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				f(d.Score), d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
 				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
@@ -135,15 +135,15 @@ func showBeaconsDelim(data []beacon.AnalysisView, delim string, showNetNames boo
 		var row []string
 		if showNetNames {
 			row = []string{
-				f(d.Score), validNetworkName(d.Src, d.SrcNetworkName), validNetworkName(d.Dst, d.DstNetworkName),
-				d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				f(d.Score), d.SrcNetworkName, d.DstNetworkName,
+				d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
 				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
 			}
 		} else {
 			row = []string{
-				f(d.Score), d.Src, d.Dst, i(d.Connections), f(d.AvgBytes),
+				f(d.Score), d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
 				i(d.Ts.Dispersion), i(d.Ds.Dispersion),

@@ -108,18 +108,14 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 	// create query
 	query := bson.M{
 		"$set": bson.M{
-			"blacklisted": blacklisted,
-			"cid":         chunk,
-			"local":       local,
-			"ipv4":        ip4,
-			"ipv4_binary": ip4bin,
+			"blacklisted":  blacklisted,
+			"cid":          chunk,
+			"local":        local,
+			"ipv4":         ip4,
+			"ipv4_binary":  ip4bin,
+			"network_name": ip.NetworkName,
 		},
 	}
-
-	if ip.NetworkName != nil {
-		query["$set"].(bson.M)["network_name"] = ip.NetworkName
-	}
-
 	if newFlag {
 
 		query["$push"] = bson.M{

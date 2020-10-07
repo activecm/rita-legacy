@@ -72,7 +72,12 @@ func (a *analyzer) start() {
 			// it will not qualify to be downgraded to a beacon until this chunk is
 			// outdated and removed. If only importing once - still just a strobe.
 			if datum.ConnectionCount >= a.connLimit {
-				query["$set"] = bson.M{"strobe": true, "cid": a.chunk}
+				query["$set"] = bson.M{
+					"strobe":           true,
+					"cid":              a.chunk,
+					"src_network_name": datum.Hosts.SrcNetworkName,
+					"dst_network_name": datum.Hosts.DstNetworkName,
+				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
 						"count":  datum.ConnectionCount,
@@ -87,7 +92,11 @@ func (a *analyzer) start() {
 					},
 				}
 			} else {
-				query["$set"] = bson.M{"cid": a.chunk}
+				query["$set"] = bson.M{
+					"cid":              a.chunk,
+					"src_network_name": datum.Hosts.SrcNetworkName,
+					"dst_network_name": datum.Hosts.DstNetworkName,
+				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
 						"count":  datum.ConnectionCount,
@@ -101,14 +110,6 @@ func (a *analyzer) start() {
 						"cid":    a.chunk,
 					},
 				}
-			}
-
-			if datum.Hosts.SrcNetworkName != nil {
-				query["$set"].(bson.M)["src_network_name"] = datum.Hosts.SrcNetworkName
-			}
-
-			if datum.Hosts.DstNetworkName != nil {
-				query["$set"].(bson.M)["dst_network_name"] = datum.Hosts.DstNetworkName
 			}
 
 			// assign formatted query to output
