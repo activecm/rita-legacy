@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/activecm/rita/pkg/host"
+	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/resources"
 	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
@@ -143,7 +143,7 @@ func printBLDestIPs(c *cli.Context) error {
 	return nil
 }
 
-func showBLIPs(ips []host.AnalysisView, connectedHosts, source bool, delim string) error {
+func showBLIPs(ips []blacklist.ResultsView, connectedHosts, source bool, delim string) error {
 	headers := []string{"IP", "Connections", "Unique Connections", "Total Bytes"}
 	if connectedHosts {
 		if source {
@@ -158,14 +158,18 @@ func showBLIPs(ips []host.AnalysisView, connectedHosts, source bool, delim strin
 	for _, entry := range ips {
 
 		serialized := []string{
-			entry.Host,
+			entry.Host.IP,
 			strconv.Itoa(entry.Connections),
 			strconv.Itoa(entry.UniqueConnections),
 			strconv.Itoa(entry.TotalBytes),
 		}
 		if connectedHosts {
-			sort.Strings(entry.ConnectedHosts)
-			serialized = append(serialized, strings.Join(entry.ConnectedHosts, " "))
+			var connectedHostsIPs []string
+			for _, connectedUniqIP := range entry.Peers {
+				connectedHostsIPs = append(connectedHostsIPs, connectedUniqIP.IP)
+			}
+			sort.Strings(connectedHostsIPs)
+			serialized = append(serialized, strings.Join(connectedHostsIPs, " "))
 		}
 		fmt.Println(
 			strings.Join(
@@ -177,7 +181,7 @@ func showBLIPs(ips []host.AnalysisView, connectedHosts, source bool, delim strin
 	return nil
 }
 
-func showBLIPsHuman(ips []host.AnalysisView, connectedHosts, source bool) error {
+func showBLIPsHuman(ips []blacklist.ResultsView, connectedHosts, source bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	headers := []string{"IP", "Connections", "Unique Connections", "Total Bytes"}
 	if connectedHosts {
@@ -191,14 +195,18 @@ func showBLIPsHuman(ips []host.AnalysisView, connectedHosts, source bool) error 
 	for _, entry := range ips {
 
 		serialized := []string{
-			entry.Host,
+			entry.Host.IP,
 			strconv.Itoa(entry.Connections),
 			strconv.Itoa(entry.UniqueConnections),
 			strconv.Itoa(entry.TotalBytes),
 		}
 		if connectedHosts {
-			sort.Strings(entry.ConnectedHosts)
-			serialized = append(serialized, strings.Join(entry.ConnectedHosts, " "))
+			var connectedHostsIPs []string
+			for _, connectedUniqIP := range entry.Peers {
+				connectedHostsIPs = append(connectedHostsIPs, connectedUniqIP.IP)
+			}
+			sort.Strings(connectedHostsIPs)
+			serialized = append(serialized, strings.Join(connectedHostsIPs, " "))
 		}
 		table.Append(serialized)
 	}
@@ -207,47 +215,132 @@ func showBLIPsHuman(ips []host.AnalysisView, connectedHosts, source bool) error 
 }
 
 //getBlaclistedIPsResultsView
-func getBlacklistedIPsResultsView(res *resources.Resources, sort string, noLimit bool, limit int, match bson.M, field1 string, field2 string) ([]host.AnalysisView, error) {
+func getBlacklistedIPsResultsView(res *resources.Resources, sort string, noLimit bool, limit int, match bson.M, field1 string, field2 string) ([]blacklist.ResultsView, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	var blIPs []host.AnalysisView
+	var blIPs []blacklist.ResultsView
 
 	blIPQuery := []bson.M{
+		// find blacklisted source/ destination hosts
 		bson.M{"$match": match},
-		bson.M{"$project": bson.M{"host": "$ip"}},
+		// only select ip info from hosts collection
+		bson.M{"$project": bson.M{
+			"ip":           1,
+			"network_uuid": 1,
+			"network_name": 1,
+		}},
+		// ideally, we'd join on both src/dst and src/dst_network_uuid, but MongoDB
+		// doesn't allow multi-field joins in versions < 3.6
+		// so, we will join on the ip and check the uuids manually next.
+		// find uconns where this ip appears as src/dst
 		bson.M{"$lookup": bson.M{
 			"from":         "uconn",
-			"localField":   "host",
+			"localField":   "ip",
 			"foreignField": field1,
-			"as":           "u",
+			"as":           "uconn",
 		}},
-		bson.M{"$unwind": "$u"},
-		bson.M{"$unwind": "$u.dat"},
-		bson.M{"$project": bson.M{"host": 1, "conns": "$u.dat.count", "bytes": "$u.dat.tbytes", "ip": ("$u." + field2)}},
+		// convert lookup array to separate records
+		bson.M{"$unwind": "$uconn"},
+		// check if the network uuids match each other
+		bson.M{"$project": bson.M{
+			"ip":           1,
+			"network_uuid": 1,
+			"network_name": 1,
+			"uconn":        1,
+			"match_uuid": bson.M{
+				"$cond": []interface{}{
+					bson.M{"$eq": []string{"$network_uuid", "$uconn." + field1 + "_network_uuid"}},
+					1, 0,
+				},
+			},
+		}},
+		// drop the records which do not have matching uuids
+		bson.M{"$match": bson.M{
+			"match_uuid": 1,
+		}},
+		// start aggregation across chunks/ time
+		bson.M{"$unwind": "$uconn.dat"},
+		// simplify names/ drop unused data
+		bson.M{"$project": bson.M{
+			"ip":                1,
+			"network_uuid":      1,
+			"network_name":      1,
+			"peer_ip":           "$uconn." + field2,
+			"peer_network_uuid": "$uconn." + field2 + "_network_uuid",
+			"peer_network_name": "$uconn." + field2 + "_network_name",
+			"conns":             "$uconn.dat.count",
+			"tbytes":            "$uconn.dat.tbytes",
+		}},
+		// we want to group on the blacklisted IP we started with and find
+		// the set of its peer IPs. Creating a set over {ip, network_uuid, network_name} objects
+		// takes a bit of work since the network_name may change over time and should not
+		// be used when determining equality.
+		// to get around this, we pick one of the names associated with a
+		// given peer uuid and throw away the rest.
+		// aggregate uconn data through time (over chunks)
 		bson.M{"$group": bson.M{
-			"_id":         "$host",
-			"host":        bson.M{"$first": "$host"},
-			"ips":         bson.M{"$addToSet": "$ip"},
-			"conn_count":  bson.M{"$sum": "$conns"},
-			"total_bytes": bson.M{"$sum": "$bytes"},
+			"_id": bson.M{
+				// group within each blacklisted host
+				"ip":           "$ip",
+				"network_uuid": "$network_uuid",
+				// group on the peers which connected to the blacklisted host
+				"peer_ip":           "$peer_ip",
+				"peer_network_uuid": "$peer_network_uuid",
+			},
+			// there should only be one network_name in each record
+			// as it comes from the hosts collection
+			"network_name": bson.M{"$last": "$network_name"},
+			// use one of the network names associated with the network_uuid
+			// for this partial result
+			"peer_network_name": bson.M{"$last": "$peer_network_name"},
+			// compute the partial sums over connections and bytes
+			"conns":  bson.M{"$sum": "$conns"},
+			"tbytes": bson.M{"$sum": "$tbytes"},
 		}},
+		// gather the peer fields so we can use addToSet
+		bson.M{"$project": bson.M{
+			"_id":          0, //move the id fields back out
+			"ip":           "$_id.ip",
+			"network_uuid": "$_id.network_uuid",
+			"network_name": "$network_name",
+			"peer": bson.M{
+				"ip":              "$_id.peer_ip",
+				"ip_network_uuid": "$_id.peer_network_uuid",
+				"ip_network_name": "$peer_network_name",
+			},
+			"conns":  1,
+			"tbytes": 1,
+		}},
+		// group the uconn data up to find which IPs peered with this blacklisted host,
+		// how many connections were made, and how much data was sent in total.
+		{"$group": bson.M{
+			"_id": bson.M{
+				"ip":           "$ip",
+				"network_uuid": "$network_uuid",
+				"network_name": "$network_name",
+			},
+			"peers":  bson.M{"$addToSet": "$peer"},
+			"conns":  bson.M{"$sum": "$conns"},
+			"tbytes": bson.M{"$sum": "$tbytes"},
+		}},
+		// move the id fields back out and add uconn_count
+		bson.M{"$project": bson.M{
+			"_id":          0,
+			"ip":           "$_id.ip",
+			"network_uuid": "$_id.network_uuid",
+			"network_name": "$_id.network_name",
+			"peers":        1,
+			"conn_count":   "$conns",
+			"uconn_count":  bson.M{"$size": bson.M{"$ifNull": []interface{}{"$peers", []interface{}{}}}},
+			"total_bytes":  "$tbytes",
+		}},
+		bson.M{"$sort": bson.M{sort: -1}},
 	}
 
 	if !noLimit {
 		blIPQuery = append(blIPQuery, bson.M{"$limit": limit})
 	}
-
-	blIPQuery = append(blIPQuery, bson.M{"$sort": bson.M{sort: -1}},
-		bson.M{"$project": bson.M{
-			"_id":         0,
-			"uconn_count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
-			"ips":         1,
-			"conn_count":  1,
-			"host":        1,
-			"total_bytes": 1,
-		}},
-	)
 
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
 

@@ -23,31 +23,11 @@ type connectionPeer struct {
 	TotalBytes  int           `bson:"bl_total_bytes"`
 }
 
-//IP ....
-// type IP struct {
-// 	Host                  string
-// 	IsLocal               bool
-// 	CountSrc              int
-// 	CountDst              int
-// 	ConnectionCount       int64
-// 	TotalBytes            int64
-// 	MaxDuration           float64
-// 	TotalDuration         float64
-// 	TXTQueryCount         int64
-// 	UntrustedAppConnCount int64
-// 	MaxTS                 int64
-// 	MinTS                 int64
-// 	ConnectedSrcHosts     []string
-// 	ConnectedDstHosts     []string
-// 	IP4                   bool
-// 	IP4Bin                int64
-// }
-//
-// //AnalysisView for blacklisted ips (for reporting)
-// type AnalysisView struct {
-// 	Host              string   `bson:"host"`
-// 	Connections       int      `bson:"conn_count"`
-// 	UniqueConnections int      `bson:"uconn_count"`
-// 	TotalBytes        int      `bson:"total_bytes"`
-// 	ConnectedHosts    []string `bson:"ips,omitempty"`
-// }
+//ResultsView for blacklisted ips (for reporting)
+type ResultsView struct {
+	Host              data.UniqueIP   `bson:",inline"`
+	Peers             []data.UniqueIP `bson:"peers"`
+	Connections       int             `bson:"conn_count"`
+	UniqueConnections int             `bson:"uconn_count"`
+	TotalBytes        int             `bson:"total_bytes"`
+}

@@ -35,6 +35,7 @@ type Input struct {
 	IP4Bin                int64
 }
 
+//TODO: Remove
 //AnalysisView for blacklisted ips (for reporting)
 type AnalysisView struct {
 	Host              string   `bson:"host"`
