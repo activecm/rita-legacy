@@ -121,7 +121,7 @@ var (
 
 	netNamesFlag = cli.BoolFlag{
 		Name:  "network-names, nn",
-		Usage: "Show network names associated with private IP addresses reused across multiple physical networks",
+		Usage: "Show network names associated with IP addresses. Helps when private IPs are reused across multiple physical networks.",
 	}
 )
 

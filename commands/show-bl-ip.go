@@ -26,6 +26,7 @@ func init() {
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
+			netNamesFlag,
 		},
 		Usage:  "Print blacklisted IPs which initiated connections",
 		Action: printBLSourceIPs,
@@ -42,6 +43,7 @@ func init() {
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
+			netNamesFlag,
 		},
 		Usage:  "Print blacklisted IPs which received connections",
 		Action: printBLDestIPs,
@@ -50,22 +52,23 @@ func init() {
 	bootstrapCommands(blSourceIPs, blDestIPs)
 }
 
-func parseBLArgs(c *cli.Context) (string, string, bool, bool, error) {
+func parseBLArgs(c *cli.Context) (string, string, bool, bool, bool, error) {
 	db := c.Args().Get(0)
 	sort := c.String("sort")
 	connected := c.Bool("connected")
 	human := c.Bool("human-readable")
+	netNames := c.Bool("network-names")
 	if db == "" {
-		return db, sort, connected, human, cli.NewExitError("Specify a database", -1)
+		return db, sort, connected, human, netNames, cli.NewExitError("Specify a database", -1)
 	}
 	if sort != "conn_count" && sort != "total_bytes" {
-		return db, sort, connected, human, cli.NewExitError("Invalid option passed to sort flag", -1)
+		return db, sort, connected, human, netNames, cli.NewExitError("Invalid option passed to sort flag", -1)
 	}
-	return db, sort, connected, human, nil
+	return db, sort, connected, human, netNames, nil
 }
 
 func printBLSourceIPs(c *cli.Context) error {
-	db, sort, connected, human, err := parseBLArgs(c)
+	db, sort, connected, human, netNames, err := parseBLArgs(c)
 	if err != nil {
 		return err
 	}
@@ -90,12 +93,12 @@ func printBLSourceIPs(c *cli.Context) error {
 	}
 
 	if human {
-		err = showBLIPsHuman(data, connected, true)
+		err = showBLIPsHuman(data, connected, netNames, true)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
 	} else {
-		err = showBLIPs(data, connected, true, c.String("delimiter"))
+		err = showBLIPs(data, connected, netNames, true, c.String("delimiter"))
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
@@ -104,7 +107,7 @@ func printBLSourceIPs(c *cli.Context) error {
 }
 
 func printBLDestIPs(c *cli.Context) error {
-	db, sort, connected, human, err := parseBLArgs(c)
+	db, sort, connected, human, netNames, err := parseBLArgs(c)
 	if err != nil {
 		return err
 	}
@@ -130,12 +133,12 @@ func printBLDestIPs(c *cli.Context) error {
 	}
 
 	if human {
-		err = showBLIPsHuman(data, connected, false)
+		err = showBLIPsHuman(data, connected, netNames, false)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
 	} else {
-		err = showBLIPs(data, connected, false, c.String("delimiter"))
+		err = showBLIPs(data, connected, netNames, false, c.String("delimiter"))
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
@@ -143,8 +146,16 @@ func printBLDestIPs(c *cli.Context) error {
 	return nil
 }
 
-func showBLIPs(ips []blacklist.ResultsView, connectedHosts, source bool, delim string) error {
-	headers := []string{"IP", "Connections", "Unique Connections", "Total Bytes"}
+func showBLIPs(ips []blacklist.ResultsView, connectedHosts, netNames, source bool, delim string) error {
+	var headers []string
+	if netNames {
+		headers = []string{"IP", "Network"}
+	} else {
+		headers = []string{"IP"}
+	}
+
+	headers = append(headers, "Connections", "Unique Connections", "Total Bytes")
+
 	if connectedHosts {
 		if source {
 			headers = append(headers, "Destinations")
@@ -157,16 +168,33 @@ func showBLIPs(ips []blacklist.ResultsView, connectedHosts, source bool, delim s
 	fmt.Println(strings.Join(headers, delim))
 	for _, entry := range ips {
 
-		serialized := []string{
-			entry.Host.IP,
+		var serialized []string
+		if netNames {
+			serialized = []string{entry.Host.IP, entry.Host.NetworkName}
+		} else {
+			serialized = []string{entry.Host.IP}
+		}
+
+		serialized = append(serialized,
 			strconv.Itoa(entry.Connections),
 			strconv.Itoa(entry.UniqueConnections),
 			strconv.Itoa(entry.TotalBytes),
-		}
+		)
+
 		if connectedHosts {
 			var connectedHostsIPs []string
 			for _, connectedUniqIP := range entry.Peers {
-				connectedHostsIPs = append(connectedHostsIPs, connectedUniqIP.IP)
+
+				var connectedIPStr string
+				if netNames {
+					escapedNetName := strings.ReplaceAll(connectedUniqIP.NetworkName, " ", "_")
+					escapedNetName = strings.ReplaceAll(escapedNetName, ":", "_")
+					connectedIPStr = escapedNetName + ":" + connectedUniqIP.IP
+				} else {
+					connectedIPStr = connectedUniqIP.IP
+				}
+
+				connectedHostsIPs = append(connectedHostsIPs, connectedIPStr)
 			}
 			sort.Strings(connectedHostsIPs)
 			serialized = append(serialized, strings.Join(connectedHostsIPs, " "))
@@ -181,9 +209,17 @@ func showBLIPs(ips []blacklist.ResultsView, connectedHosts, source bool, delim s
 	return nil
 }
 
-func showBLIPsHuman(ips []blacklist.ResultsView, connectedHosts, source bool) error {
+func showBLIPsHuman(ips []blacklist.ResultsView, connectedHosts, netNames, source bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	headers := []string{"IP", "Connections", "Unique Connections", "Total Bytes"}
+	var headers []string
+	if netNames {
+		headers = []string{"IP", "Network"}
+	} else {
+		headers = []string{"IP"}
+	}
+
+	headers = append(headers, "Connections", "Unique Connections", "Total Bytes")
+
 	if connectedHosts {
 		if source {
 			headers = append(headers, "Destinations")
@@ -194,16 +230,33 @@ func showBLIPsHuman(ips []blacklist.ResultsView, connectedHosts, source bool) er
 	table.SetHeader(headers)
 	for _, entry := range ips {
 
-		serialized := []string{
-			entry.Host.IP,
+		var serialized []string
+		if netNames {
+			serialized = []string{entry.Host.IP, entry.Host.NetworkName}
+		} else {
+			serialized = []string{entry.Host.IP}
+		}
+
+		serialized = append(serialized,
 			strconv.Itoa(entry.Connections),
 			strconv.Itoa(entry.UniqueConnections),
 			strconv.Itoa(entry.TotalBytes),
-		}
+		)
+
 		if connectedHosts {
 			var connectedHostsIPs []string
 			for _, connectedUniqIP := range entry.Peers {
-				connectedHostsIPs = append(connectedHostsIPs, connectedUniqIP.IP)
+
+				var connectedIPStr string
+				if netNames {
+					escapedNetName := strings.ReplaceAll(connectedUniqIP.NetworkName, " ", "_")
+					escapedNetName = strings.ReplaceAll(escapedNetName, ":", "_")
+					connectedIPStr = escapedNetName + ":" + connectedUniqIP.IP
+				} else {
+					connectedIPStr = connectedUniqIP.IP
+				}
+
+				connectedHostsIPs = append(connectedHostsIPs, connectedIPStr)
 			}
 			sort.Strings(connectedHostsIPs)
 			serialized = append(serialized, strings.Join(connectedHostsIPs, " "))
@@ -305,9 +358,9 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, noLimit
 			"network_uuid": "$_id.network_uuid",
 			"network_name": "$network_name",
 			"peer": bson.M{
-				"ip":              "$_id.peer_ip",
-				"ip_network_uuid": "$_id.peer_network_uuid",
-				"ip_network_name": "$peer_network_name",
+				"ip":           "$_id.peer_ip",
+				"network_uuid": "$_id.peer_network_uuid",
+				"network_name": "$peer_network_name",
 			},
 			"conns":  1,
 			"tbytes": 1,
