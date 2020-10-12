@@ -25,9 +25,8 @@ LogConfig:
 UserConfig:
     UpdateCheckFrequency: 14
 BlackListed:
-    myIP.ms: true
     MalwareDomains.com: true
-    MalwareDomainList.com: true
+    feodotracker.abuse.ch: true
     BlacklistDatabase: "rita-bl"
     CustomIPBlacklists: [test1]
     CustomHostnameBlacklists: [test2]
@@ -53,7 +52,7 @@ var testConfigFullExp = StaticCfg{
 			VerifyCertificate: false,
 			CAFile:            "aaaaa",
 		},
-		MetaDB:       "MetaDatabase",
+		MetaDB: "MetaDatabase",
 	},
 	Log: LogStaticCfg{
 		LogLevel:    2,
@@ -65,8 +64,7 @@ var testConfigFullExp = StaticCfg{
 		UpdateCheckFrequency: 14,
 	},
 	Blacklisted: BlacklistedStaticCfg{
-		UseIPms:            true,
-		UseMDL:             true,
+		UseFeodo:           true,
 		UseDNSBH:           true,
 		BlacklistDatabase:  "rita-bl",
 		IPBlacklists:       []string{"test1"},
