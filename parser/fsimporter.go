@@ -6,7 +6,6 @@ import (
 	"math"
 	"net"
 	"os"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
@@ -372,29 +372,29 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						/// *************************************************************///
 						case fs.res.Config.T.Structure.ConnTable:
 
-							// Use reflection to access the conn entry's fields. At this point inside
-							// the if statement we know parseConn is a "conn" instance, but the code
-							// assumes a generic "BroType" interface.
-							parseConn := reflect.ValueOf(data).Elem()
+							parseConn, ok := data.(*parsetypes.Conn)
+							if !ok {
+								continue
+							}
 
 							// get source destination pair for connection record
-							src := parseConn.FieldByName("Source").Interface().(string)
-							dst := parseConn.FieldByName("Destination").Interface().(string)
+							src := parseConn.Source
+							dst := parseConn.Destination
 
 							// Run conn pair through filter to filter out certain connections
 							ignore := fs.filterConnPair(src, dst)
 
 							// If connection pair is not subject to filtering, process
 							if !ignore {
-								ts := parseConn.FieldByName("TimeStamp").Interface().(int64)
-								origIPBytes := parseConn.FieldByName("OrigIPBytes").Interface().(int64)
-								respIPBytes := parseConn.FieldByName("RespIPBytes").Interface().(int64)
-								duration := float64(parseConn.FieldByName("Duration").Interface().(float64))
+								ts := parseConn.TimeStamp
+								origIPBytes := parseConn.OrigIPBytes
+								respIPBytes := parseConn.RespIPBytes
+								duration := parseConn.Duration
 								duration = math.Ceil((duration)*10000) / 10000
 								bytes := int64(origIPBytes + respIPBytes)
-								protocol := parseConn.FieldByName("Proto").Interface().(string)
-								service := parseConn.FieldByName("Service").Interface().(string)
-								dstPort := parseConn.FieldByName("DestinationPort").Interface().(int)
+								protocol := parseConn.Proto
+								service := parseConn.Service
+								dstPort := parseConn.DestinationPort
 								var tuple string
 								if service == "" {
 									tuple = strconv.Itoa(dstPort) + ":" + protocol + ":-"
@@ -526,10 +526,13 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							///                             DNS                             ///
 							/// *************************************************************///
 						case fs.res.Config.T.Structure.DNSTable:
-							parseDNS := reflect.ValueOf(data).Elem()
+							parseDNS, ok := data.(*parsetypes.DNS)
+							if !ok {
+								continue
+							}
 
-							domain := parseDNS.FieldByName("Query").Interface().(string)
-							queryTypeName := parseDNS.FieldByName("QTypeName").Interface().(string)
+							domain := parseDNS.Query
+							queryTypeName := parseDNS.QTypeName
 
 							// Safely store the number of conns for this uconn
 							mutex.Lock()
@@ -545,13 +548,13 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// geo.vortex.data.microsoft.com.akadns.net
 
 							// extract and store the dns client ip address
-							src := parseDNS.FieldByName("Source").Interface().(string)
+							src := parseDNS.Source
 							if stringInSlice(src, hostnameMap[domain].ClientIPs) == false {
 								hostnameMap[domain].ClientIPs = append(hostnameMap[domain].ClientIPs, src)
 							}
 
 							if queryTypeName == "A" {
-								answers := parseDNS.FieldByName("Answers").Interface().([]string)
+								answers := parseDNS.Answers
 								for _, answer := range answers {
 									// Check if answer is an IP address and store it if it is
 									if net.ParseIP(answer) != nil {
@@ -565,7 +568,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// increment txt query count for host in uconn
 							if queryTypeName == "TXT" {
 								// get destination for dns record
-								dst := parseDNS.FieldByName("Destination").Interface().(string)
+								dst := parseDNS.Destination
 
 								// Run conn pair through filter to filter out certain connections
 								ignore := fs.filterConnPair(src, dst)
@@ -595,10 +598,13 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							///                             HTTP                             ///
 							/// *************************************************************///
 						case fs.res.Config.T.Structure.HTTPTable:
-							parseHTTP := reflect.ValueOf(data).Elem()
-							userAgentName := parseHTTP.FieldByName("UserAgent").Interface().(string)
-							src := parseHTTP.FieldByName("Source").Interface().(string)
-							host := parseHTTP.FieldByName("Host").Interface().(string)
+							parseHTTP, ok := data.(*parsetypes.HTTP)
+							if !ok {
+								continue
+							}
+							userAgentName := parseHTTP.UserAgent
+							src := parseHTTP.Source
+							host := parseHTTP.Host
 
 							if userAgentName == "" {
 								userAgentName = "Empty user agent string"
@@ -631,12 +637,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							///                             SSL                             ///
 							/// *************************************************************///
 						case fs.res.Config.T.Structure.SSLTable:
-							parseSSL := reflect.ValueOf(data).Elem()
-							ja3Hash := parseSSL.FieldByName("JA3").Interface().(string)
-							src := parseSSL.FieldByName("Source").Interface().(string)
-							dst := parseSSL.FieldByName("Destination").Interface().(string)
-							host := parseSSL.FieldByName("ServerName").Interface().(string)
-							certStatus := parseSSL.FieldByName("ValidationStatus").Interface().(string)
+							parseSSL, ok := data.(*parsetypes.SSL)
+							if !ok {
+								continue
+							}
+							ja3Hash := parseSSL.JA3
+							src := parseSSL.Source
+							dst := parseSSL.Destination
+							host := parseSSL.ServerName
+							certStatus := parseSSL.ValidationStatus
 
 							if ja3Hash == "" {
 								ja3Hash = "No JA3 hash generated"
