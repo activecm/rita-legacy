@@ -15,7 +15,7 @@ import (
 //versions of MongoDB compatible with RITA
 var MinMongoDBVersion = semver.Version{
 	Major: 3,
-	Minor: 2,
+	Minor: 6,
 	Patch: 0,
 }
 

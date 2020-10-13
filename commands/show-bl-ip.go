@@ -283,35 +283,20 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, noLimit
 			"network_uuid": 1,
 			"network_name": 1,
 		}},
-		// ideally, we'd join on both src/dst and src/dst_network_uuid, but MongoDB
-		// doesn't allow multi-field joins in versions < 3.6
-		// so, we will join on the ip and check the uuids manually next.
-		// find uconns where this ip appears as src/dst
+		// join on both src/dst and src/dst_network_uuid
 		bson.M{"$lookup": bson.M{
-			"from":         "uconn",
-			"localField":   "ip",
-			"foreignField": field1,
-			"as":           "uconn",
+			"from": "uconn",
+			"let":  bson.M{"ip": "$ip", "network_uuid": "$network_uuid"},
+			"pipeline": []bson.M{{"$match": bson.M{
+				"$expr": bson.M{"$and": []bson.M{
+					{"$eq": []string{"$" + field1, "$$ip"}},
+					{"$eq": []string{"$" + field1 + "_network_uuid", "$$network_uuid"}},
+				}},
+			}}},
+			"as": "uconn",
 		}},
 		// convert lookup array to separate records
 		bson.M{"$unwind": "$uconn"},
-		// check if the network uuids match each other
-		bson.M{"$project": bson.M{
-			"ip":           1,
-			"network_uuid": 1,
-			"network_name": 1,
-			"uconn":        1,
-			"match_uuid": bson.M{
-				"$cond": []interface{}{
-					bson.M{"$eq": []string{"$network_uuid", "$uconn." + field1 + "_network_uuid"}},
-					1, 0,
-				},
-			},
-		}},
-		// drop the records which do not have matching uuids
-		bson.M{"$match": bson.M{
-			"match_uuid": 1,
-		}},
 		// start aggregation across chunks/ time
 		bson.M{"$unwind": "$uconn.dat"},
 		// simplify names/ drop unused data
