@@ -26,9 +26,9 @@ type Input struct {
 
 //AnalysisView (for reporting)
 type AnalysisView struct {
-	Host              string   `bson:"host"`
-	Connections       int      `bson:"conn_count"`
-	UniqueConnections int      `bson:"uconn_count"`
-	TotalBytes        int      `bson:"total_bytes"`
-	ConnectedHosts    []string `bson:"ips,omitempty"`
+	Host              string          `bson:"host"`
+	Connections       int             `bson:"conn_count"`
+	UniqueConnections int             `bson:"uconn_count"`
+	TotalBytes        int             `bson:"total_bytes"`
+	ConnectedHosts    []data.UniqueIP `bson:"sources,omitempty"`
 }

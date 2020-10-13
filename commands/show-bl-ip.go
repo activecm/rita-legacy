@@ -287,12 +287,12 @@ func getBlacklistedIPsResultsView(res *resources.Resources, sort string, noLimit
 		bson.M{"$lookup": bson.M{
 			"from": "uconn",
 			"let":  bson.M{"ip": "$ip", "network_uuid": "$network_uuid"},
-			"pipeline": []bson.M{{"$match": bson.M{
-				"$expr": bson.M{"$and": []bson.M{
+			"pipeline": []bson.M{{"$match": bson.M{"$expr": bson.M{
+				"$and": []bson.M{
 					{"$eq": []string{"$" + field1, "$$ip"}},
 					{"$eq": []string{"$" + field1 + "_network_uuid", "$$network_uuid"}},
-				}},
-			}}},
+				},
+			}}}},
 			"as": "uconn",
 		}},
 		// convert lookup array to separate records

@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"html/template"
 	"os"
-	"sort"
+	//TODO[AGENT]: Sort UniqIPs
+	//"sort"
 
 	"github.com/globalsign/mgo/bson"
 
@@ -52,7 +53,8 @@ func getBLHostnameWriter(results []hostname.AnalysisView) (string, error) {
 	w := new(bytes.Buffer)
 
 	for _, result := range results {
-		sort.Strings(result.ConnectedHosts)
+		//TODO[AGENT]: Sort UniqIPs
+		//sort.Strings(result.ConnectedHosts)
 		err := out.Execute(w, result)
 		if err != nil {
 			return "", err
