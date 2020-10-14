@@ -70,7 +70,7 @@ func printBLHostnames(c *cli.Context) error {
 	return nil
 }
 
-func showBLHostnames(hostnames []hostname.AnalysisView, delim string, netNames bool) error {
+func showBLHostnames(hostnames []hostname.AnalysisView, delim string, showNetNames bool) error {
 	headers := []string{"Host", "Connections", "Unique Connections", "Total Bytes", "Sources"}
 
 	// Print the headers and analytic values, separated by a delimiter
@@ -85,7 +85,7 @@ func showBLHostnames(hostnames []hostname.AnalysisView, delim string, netNames b
 		}
 
 		var sourceIPs []string
-		if netNames {
+		if showNetNames {
 			for _, connectedUniqIP := range entry.ConnectedHosts {
 				escapedNetName := strings.ReplaceAll(connectedUniqIP.NetworkName, " ", "_")
 				escapedNetName = strings.ReplaceAll(escapedNetName, ":", "_")
@@ -112,7 +112,7 @@ func showBLHostnames(hostnames []hostname.AnalysisView, delim string, netNames b
 	return nil
 }
 
-func showBLHostnamesHuman(hostnames []hostname.AnalysisView, netNames bool) error {
+func showBLHostnamesHuman(hostnames []hostname.AnalysisView, showNetNames bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	headers := []string{"Hostname", "Connections", "Unique Connections", "Total Bytes", "Sources"}
 
@@ -127,7 +127,7 @@ func showBLHostnamesHuman(hostnames []hostname.AnalysisView, netNames bool) erro
 		}
 
 		var sourceIPs []string
-		if netNames {
+		if showNetNames {
 			for _, connectedUniqIP := range entry.ConnectedHosts {
 				escapedNetName := strings.ReplaceAll(connectedUniqIP.NetworkName, " ", "_")
 				escapedNetName = strings.ReplaceAll(escapedNetName, ":", "_")

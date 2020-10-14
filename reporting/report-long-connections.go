@@ -49,8 +49,12 @@ func getLongConnWriter(conns []uconn.LongConnAnalysisView) (string, error) {
 	}
 	w := new(bytes.Buffer)
 	for _, conn := range conns {
-		conn.TupleStr = strings.Join(conn.Tuples, ",  ")
-		err := out.Execute(w, conn)
+		connTmplData := struct {
+			uconn.LongConnAnalysisView
+			TupleStr string
+		}{conn, strings.Join(conn.Tuples, ",  ")}
+
+		err := out.Execute(w, connTmplData)
 		if err != nil {
 			return "", err
 		}

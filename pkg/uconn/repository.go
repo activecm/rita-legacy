@@ -42,9 +42,7 @@ type Pair struct {
 
 //LongConnAnalysisView (for reporting)
 type LongConnAnalysisView struct {
-	Src         string   `bson:"src"`
-	Dst         string   `bson:"dst"`
-	MaxDuration float64  `bson:"maxdur"`
-	Tuples      []string `bson:"tuples"`
-	TupleStr    string
+	data.UniqueIPPair `bson:",inline"`
+	MaxDuration       float64  `bson:"maxdur"`
+	Tuples            []string `bson:"tuples"`
 }

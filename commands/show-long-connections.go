@@ -25,6 +25,7 @@ func init() {
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
+			netNamesFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
@@ -51,13 +52,13 @@ func init() {
 			}
 
 			if c.Bool("human-readable") {
-				err := showConnsHuman(data)
+				err := showConnsHuman(data, c.Bool("network-names"))
 				if err != nil {
 					return cli.NewExitError(err.Error(), -1)
 				}
 				return nil
 			}
-			err = showConns(data, c.String("delimiter"))
+			err = showConns(data, c.String("delimiter"), c.Bool("network-names"))
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -93,38 +94,74 @@ func duration(d time.Duration) string {
 	return b.String()
 }
 
-func showConns(connResults []uconn.LongConnAnalysisView, delim string) error {
-	headers := []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration"}
+func showConns(connResults []uconn.LongConnAnalysisView, delim string, showNetNames bool) error {
+
+	var headerFields []string
+	if showNetNames {
+		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration"}
+	} else {
+		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration"}
+	}
 
 	// Print the headers and analytic values, separated by a delimiter
-	fmt.Println(strings.Join(headers, delim))
+	fmt.Println(strings.Join(headerFields, delim))
 	for _, result := range connResults {
-		fmt.Println(
-			strings.Join(
-				[]string{
-					result.Src,
-					result.Dst,
-					strings.Join(result.Tuples, " "),
-					f(result.MaxDuration),
-				},
-				delim,
-			),
-		)
+		var row []string
+		if showNetNames {
+			row = []string{
+				result.SrcNetworkName,
+				result.DstNetworkName,
+				result.SrcIP,
+				result.DstIP,
+				strings.Join(result.Tuples, " "),
+				f(result.MaxDuration),
+			}
+		} else {
+			row = []string{
+				result.SrcIP,
+				result.DstIP,
+				strings.Join(result.Tuples, " "),
+				f(result.MaxDuration),
+			}
+		}
+
+		fmt.Println(strings.Join(row, delim))
 	}
 	return nil
 }
 
-func showConnsHuman(connResults []uconn.LongConnAnalysisView) error {
+func showConnsHuman(connResults []uconn.LongConnAnalysisView, showNetNames bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Source IP", "Destination IP",
-		"DstPort:Protocol:Service", "Duration"})
+
+	var headerFields []string
+	if showNetNames {
+		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration"}
+	} else {
+		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration"}
+	}
+
+	table.SetHeader(headerFields)
 	for _, result := range connResults {
-		table.Append([]string{
-			result.Src,
-			result.Dst,
-			strings.Join(result.Tuples, ",\n"),
-			duration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
-		})
+		var row []string
+		if showNetNames {
+			row = []string{
+				result.SrcNetworkName,
+				result.DstNetworkName,
+				result.SrcIP,
+				result.DstIP,
+				strings.Join(result.Tuples, " "),
+				duration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
+			}
+		} else {
+			row = []string{
+				result.SrcIP,
+				result.DstIP,
+				strings.Join(result.Tuples, " "),
+				duration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
+			}
+		}
+
+		table.Append(row)
 	}
 	table.Render()
 	return nil
@@ -139,22 +176,39 @@ func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, 
 
 	longConnQuery := []bson.M{
 		bson.M{"$match": bson.M{"dat.maxdur": bson.M{"$gt": thresh}}},
-		bson.M{"$project": bson.M{"maxdur": "$dat.maxdur", "src": "$src", "dst": "$dst", "tuples": bson.M{"$ifNull": []interface{}{"$dat.tuples", []interface{}{}}}}},
+		bson.M{"$project": bson.M{
+			"src":              1,
+			"src_network_uuid": 1,
+			"src_network_name": 1,
+			"dst":              1,
+			"dst_network_uuid": 1,
+			"dst_network_name": 1,
+			"maxdur":           "$dat.maxdur",
+			"tuples":           bson.M{"$ifNull": []interface{}{"$dat.tuples", []interface{}{}}},
+		}},
 		bson.M{"$unwind": "$maxdur"},
 		bson.M{"$unwind": "$tuples"},
 		bson.M{"$unwind": "$tuples"}, // not an error, must be done twice
 		bson.M{"$group": bson.M{
-			"_id":    "$_id",
-			"maxdur": bson.M{"$max": "$maxdur"},
-			"src":    bson.M{"$first": "$src"},
-			"dst":    bson.M{"$first": "$dst"},
-			"tuples": bson.M{"$addToSet": "$tuples"},
+			"_id":              "$_id",
+			"maxdur":           bson.M{"$max": "$maxdur"},
+			"src":              bson.M{"$first": "$src"},
+			"src_network_uuid": bson.M{"$first": "$src_network_uuid"},
+			"src_network_name": bson.M{"$first": "$src_network_name"},
+			"dst":              bson.M{"$first": "$dst"},
+			"dst_network_uuid": bson.M{"$first": "$dst_network_uuid"},
+			"dst_network_name": bson.M{"$first": "$dst_network_name"},
+			"tuples":           bson.M{"$addToSet": "$tuples"},
 		}},
 		bson.M{"$project": bson.M{
-			"maxdur": 1,
-			"src":    1,
-			"dst":    1,
-			"tuples": bson.M{"$slice": []interface{}{"$tuples", 5}},
+			"maxdur":           1,
+			"src":              1,
+			"src_network_uuid": 1,
+			"src_network_name": 1,
+			"dst":              1,
+			"dst_network_uuid": 1,
+			"dst_network_name": 1,
+			"tuples":           bson.M{"$slice": []interface{}{"$tuples", 5}},
 		}},
 		bson.M{"$sort": bson.M{sort: sortDirection}},
 	}
