@@ -56,7 +56,6 @@ type AnalysisView struct {
 
 //StrobeAnalysisView (for reporting)
 type StrobeAnalysisView struct {
-	Src             string `bson:"src"`
-	Dst             string `bson:"dst"`
-	ConnectionCount int64  `bson:"conn_count"`
+	data.UniqueIPPair `bson:",inline"`
+	ConnectionCount   int64 `bson:"connection_count"`
 }
