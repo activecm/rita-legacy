@@ -20,7 +20,7 @@ type (
 		conf             *config.Config // contains details needed to access MongoDB
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *Pair     // holds unanalyzed data
+		analysisChannel  chan *Input    // holds unanalyzed data
 		analysisWg       sync.WaitGroup // wait for analysis to finish
 	}
 )
@@ -35,12 +35,12 @@ func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Confi
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan *Pair),
+		analysisChannel:  make(chan *Input),
 	}
 }
 
 //collect sends a group of domains to be analyzed
-func (a *analyzer) collect(datum *Pair) {
+func (a *analyzer) collect(datum *Input) {
 	a.analysisChannel <- datum
 }
 

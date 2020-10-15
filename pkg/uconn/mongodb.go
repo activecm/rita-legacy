@@ -57,7 +57,7 @@ func (r *repo) CreateIndexes() error {
 }
 
 //Upsert loops through every domain ....
-func (r *repo) Upsert(uconnMap map[string]*Pair) {
+func (r *repo) Upsert(uconnMap map[string]*Input) {
 
 	//Create the workers
 	writerWorker := newWriter(r.res.Config.T.Structure.UniqueConnTable, r.res.DB, r.res.Config, r.res.Log)

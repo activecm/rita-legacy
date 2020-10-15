@@ -8,7 +8,7 @@ import (
 // Repository for uconn collection
 type Repository interface {
 	CreateIndexes() error
-	Upsert(uconnMap map[string]*Pair)
+	Upsert(uconnMap map[string]*Input)
 }
 
 //updateInfo ....
@@ -23,8 +23,8 @@ type update struct {
 	hostMaxDur updateInfo
 }
 
-//Pair ....
-type Pair struct {
+//Input holds aggregated connection information between two hosts in a dataset
+type Input struct {
 	Hosts           data.UniqueIPPair
 	ConnectionCount int64
 	IsLocalSrc      bool

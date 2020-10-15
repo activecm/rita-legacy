@@ -64,7 +64,7 @@ func (r *repo) CreateIndexes() error {
 }
 
 //Upsert loops through every new uconn ....
-func (r *repo) Upsert(uconnMap map[string]*uconn.Pair) {
+func (r *repo) Upsert(uconnMap map[string]*uconn.Input) {
 
 	//Create the workers
 	writerWorker := newWriter(

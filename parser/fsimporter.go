@@ -291,7 +291,7 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, logger *log.Logger) (
-	map[string]*uconn.Pair, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
+	map[string]*uconn.Input, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 
@@ -305,7 +305,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	certMap := make(map[string]*certificate.Input)
 
 	// Counts the number of uconns per source-destination pair
-	uconnMap := make(map[string]*uconn.Pair)
+	uconnMap := make(map[string]*uconn.Input)
 
 	hostMap := make(map[string]*host.Input)
 
@@ -445,7 +445,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// create new uconn record with src and dst
 									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
 									// we only need to do this once if the uconn record does not exist
-									uconnMap[srcDstKey] = &uconn.Pair{
+									uconnMap[srcDstKey] = &uconn.Input{
 										Hosts:      srcDstPair,
 										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
 										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
@@ -706,7 +706,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// come before a relevant uconns record
 									if _, ok := uconnMap[srcDstKey]; !ok {
 										// create new uconn record if it does not exist
-										uconnMap[srcDstKey] = &uconn.Pair{
+										uconnMap[srcDstKey] = &uconn.Input{
 											Hosts:      srcDstPair,
 											IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
 											IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
@@ -828,7 +828,7 @@ func (fs *FSImporter) buildHostnames(hostnameMap map[string]*hostname.Input) {
 
 }
 
-func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Pair) {
+func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Input) {
 	// non-optional module
 	if len(uconnMap) > 0 {
 		// Set up the database
@@ -878,7 +878,7 @@ func (fs *FSImporter) markBlacklistedPeers(hostMap map[string]*host.Input) {
 	}
 }
 
-func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Pair) {
+func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input) {
 	if fs.res.Config.S.Beacon.Enabled {
 		if len(uconnMap) > 0 {
 			beaconRepo := beacon.NewMongoRepository(fs.res)

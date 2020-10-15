@@ -16,16 +16,16 @@ import (
 
 type (
 	analyzer struct {
-		tsMin            int64            // min timestamp for the whole dataset
-		tsMax            int64            // max timestamp for the whole dataset
-		chunk            int              //current chunk (0 if not on rolling analysis)
-		chunkStr         string           //current chunk (0 if not on rolling analysis)
-		db               *database.DB     // provides access to MongoDB
-		conf             *config.Config   // contains details needed to access MongoDB
-		analyzedCallback func(*update)    // called on each analyzed result
-		closedCallback   func()           // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *uconn.Pair // holds unanalyzed data
-		analysisWg       sync.WaitGroup   // wait for analysis to finish
+		tsMin            int64             // min timestamp for the whole dataset
+		tsMax            int64             // max timestamp for the whole dataset
+		chunk            int               //current chunk (0 if not on rolling analysis)
+		chunkStr         string            //current chunk (0 if not on rolling analysis)
+		db               *database.DB      // provides access to MongoDB
+		conf             *config.Config    // contains details needed to access MongoDB
+		analyzedCallback func(*update)     // called on each analyzed result
+		closedCallback   func()            // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *uconn.Input // holds unanalyzed data
+		analysisWg       sync.WaitGroup    // wait for analysis to finish
 	}
 )
 
@@ -40,12 +40,12 @@ func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan *uconn.Pair),
+		analysisChannel:  make(chan *uconn.Input),
 	}
 }
 
 //collect sends a chunk of data to be analyzed
-func (a *analyzer) collect(data *uconn.Pair) {
+func (a *analyzer) collect(data *uconn.Input) {
 	a.analysisChannel <- data
 }
 
