@@ -41,7 +41,7 @@ func printBeacons(db string, res *resources.Resources) error {
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getBeaconWriter(beacons []beacon.AnalysisView) (string, error) {
+func getBeaconWriter(beacons []beacon.Result) (string, error) {
 	tmpl := "<tr><td>{{printf \"%.3f\" .Score}}</td><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.Connections}}</td><td>{{printf \"%.3f\" .AvgBytes}}</td><td>"
 	tmpl += "{{.Ts.Range}}</td><td>{{.Ds.Range}}</td><td>{{.Ts.Mode}}</td><td>{{.Ds.Mode}}</td><td>{{.Ts.ModeCount}}</td><td>{{.Ds.ModeCount}}<td>"
 	tmpl += "{{printf \"%.3f\" .Ts.Skew}}</td><td>{{printf \"%.3f\" .Ds.Skew}}</td><td>{{.Ts.Dispersion}}</td><td>{{.Ds.Dispersion}}</td>"
@@ -66,11 +66,11 @@ func getBeaconWriter(beacons []beacon.AnalysisView) (string, error) {
 
 //getBeaconResultsView finds beacons greater than a given cutoffScore
 //and links the data from the unique connections table back in to the results
-func getBeaconResultsView(res *resources.Resources, cutoffScore float64) ([]beacon.AnalysisView, error) {
+func getBeaconResultsView(res *resources.Resources, cutoffScore float64) ([]beacon.Result, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	var beacons []beacon.AnalysisView
+	var beacons []beacon.Result
 
 	beaconQuery := bson.M{"score": bson.M{"$gt": cutoffScore}}
 

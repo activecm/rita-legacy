@@ -44,8 +44,9 @@ type DSData struct {
 	ModeCount  int64   `bson:"mode_count"`
 }
 
-//AnalysisView (for reporting)
-type AnalysisView struct {
+//Result represents a beacon between two hosts. Contains information
+//on connection delta times and the amount of data transferred
+type Result struct {
 	data.UniqueIPPair `bson:",inline"`
 	Connections       int64   `bson:"connection_count"`
 	AvgBytes          float64 `bson:"avg_bytes"`
@@ -54,8 +55,9 @@ type AnalysisView struct {
 	Score             float64 `bson:"score"`
 }
 
-//StrobeAnalysisView (for reporting)
-type StrobeAnalysisView struct {
+//StrobeResult represents a unique connection with a large amount
+//of connections between the hosts
+type StrobeResult struct {
 	data.UniqueIPPair `bson:",inline"`
 	ConnectionCount   int64 `bson:"connection_count"`
 }

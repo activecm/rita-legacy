@@ -40,8 +40,9 @@ type Pair struct {
 	UPPSFlag        bool
 }
 
-//LongConnAnalysisView (for reporting)
-type LongConnAnalysisView struct {
+//LongConnResult represents a pair of hosts that communicated and
+//the longest connection between those hosts.
+type LongConnResult struct {
 	data.UniqueIPPair `bson:",inline"`
 	MaxDuration       float64  `bson:"maxdur"`
 	Tuples            []string `bson:"tuples"`

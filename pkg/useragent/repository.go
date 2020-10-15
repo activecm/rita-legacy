@@ -27,8 +27,9 @@ type Input struct {
 	JA3      bool
 }
 
-//AnalysisView (for reporting)
-type AnalysisView struct {
+//Result represents a user agent and how many times that user agent
+//was seen in the dataset
+type Result struct {
 	UserAgent string `bson:"user_agent"`
 	TimesUsed int64  `bson:"seen"`
 }

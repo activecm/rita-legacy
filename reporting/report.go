@@ -20,7 +20,7 @@ import (
 // a directory named after the selected dataset, or `rita-html-report` if
 // mupltiple were selected, within the current working directory,
 // mongodb must be running to call this command, will exit on any writing error
-func PrintHTML(dbsIn []string, res *resources.Resources) error {
+func PrintHTML(dbsIn []string, showNetNames bool, res *resources.Resources) error {
 	if len(dbsIn) == 0 {
 		return errors.New("no analyzed databases to report on")
 	}
@@ -73,7 +73,7 @@ func PrintHTML(dbsIn []string, res *resources.Resources) error {
 
 	// Start db iteration
 	for k := range dbs {
-		err = writeDB(dbs[k], wd, res)
+		err = writeDB(dbs[k], wd, showNetNames, res)
 		if err != nil {
 			return err
 		}
@@ -125,7 +125,7 @@ func writeDBHomePage(db string) error {
 	return out.Execute(f, htmlTempl.ReportingInfo{DB: db})
 }
 
-func writeDB(db string, wd string, res *resources.Resources) error {
+func writeDB(db string, wd string, showNetNames bool, res *resources.Resources) error {
 	writeDir := wd + "/" + db
 	var err error
 
@@ -147,7 +147,7 @@ func writeDB(db string, wd string, res *resources.Resources) error {
 		fmt.Println("[-] Error writing Home page: " + err.Error())
 	}
 
-	err = printDNS(db, res)
+	err = printDNS(db, showNetNames, res)
 	if err != nil {
 		fmt.Println("[-] Error writing DNS page: " + err.Error())
 	}

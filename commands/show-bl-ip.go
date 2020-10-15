@@ -9,7 +9,6 @@ import (
 
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/resources"
-	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -75,13 +74,7 @@ func printBLSourceIPs(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
-	match := bson.M{
-		"$and": []bson.M{
-			bson.M{"blacklisted": true},
-			bson.M{"dat.count_src": bson.M{"$gt": 0}},
-		}}
-
-	data, err := getBlacklistedIPsResultsView(res, sort, c.Bool("no-limit"), c.Int("limit"), match, "src", "dst")
+	data, err := blacklist.SrcIPResults(res, sort, c.Bool("no-limit"), c.Int("limit"))
 
 	if err != nil {
 		res.Log.Error(err)
@@ -115,13 +108,7 @@ func printBLDestIPs(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
-	match := bson.M{
-		"$and": []bson.M{
-			bson.M{"blacklisted": true},
-			bson.M{"dat.count_dst": bson.M{"$gt": 0}},
-		}}
-
-	data, err := getBlacklistedIPsResultsView(res, sort, c.Bool("no-limit"), c.Int("limit"), match, "dst", "src")
+	data, err := blacklist.DstIPResults(res, sort, c.Bool("no-limit"), c.Int("limit"))
 
 	if err != nil {
 		res.Log.Error(err)
@@ -146,7 +133,7 @@ func printBLDestIPs(c *cli.Context) error {
 	return nil
 }
 
-func showBLIPs(ips []blacklist.ResultsView, connectedHosts, showNetNames, source bool, delim string) error {
+func showBLIPs(ips []blacklist.IPResult, connectedHosts, showNetNames, source bool, delim string) error {
 	var headers []string
 	if showNetNames {
 		headers = []string{"IP", "Network"}
@@ -209,7 +196,7 @@ func showBLIPs(ips []blacklist.ResultsView, connectedHosts, showNetNames, source
 	return nil
 }
 
-func showBLIPsHuman(ips []blacklist.ResultsView, connectedHosts, showNetNames, source bool) error {
+func showBLIPsHuman(ips []blacklist.IPResult, connectedHosts, showNetNames, source bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	var headers []string
 	if showNetNames {
@@ -265,123 +252,4 @@ func showBLIPsHuman(ips []blacklist.ResultsView, connectedHosts, showNetNames, s
 	}
 	table.Render()
 	return nil
-}
-
-//getBlaclistedIPsResultsView
-func getBlacklistedIPsResultsView(res *resources.Resources, sort string, noLimit bool, limit int, match bson.M, field1 string, field2 string) ([]blacklist.ResultsView, error) {
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	var blIPs []blacklist.ResultsView
-
-	blIPQuery := []bson.M{
-		// find blacklisted source/ destination hosts
-		bson.M{"$match": match},
-		// only select ip info from hosts collection
-		bson.M{"$project": bson.M{
-			"ip":           1,
-			"network_uuid": 1,
-			"network_name": 1,
-		}},
-		// join on both src/dst and src/dst_network_uuid
-		bson.M{"$lookup": bson.M{
-			"from": "uconn",
-			"let":  bson.M{"ip": "$ip", "network_uuid": "$network_uuid"},
-			"pipeline": []bson.M{{"$match": bson.M{"$expr": bson.M{
-				"$and": []bson.M{
-					{"$eq": []string{"$" + field1, "$$ip"}},
-					{"$eq": []string{"$" + field1 + "_network_uuid", "$$network_uuid"}},
-				},
-			}}}},
-			"as": "uconn",
-		}},
-		// convert lookup array to separate records
-		bson.M{"$unwind": "$uconn"},
-		// start aggregation across chunks/ time
-		bson.M{"$unwind": "$uconn.dat"},
-		// simplify names/ drop unused data
-		bson.M{"$project": bson.M{
-			"ip":                1,
-			"network_uuid":      1,
-			"network_name":      1,
-			"peer_ip":           "$uconn." + field2,
-			"peer_network_uuid": "$uconn." + field2 + "_network_uuid",
-			"peer_network_name": "$uconn." + field2 + "_network_name",
-			"conns":             "$uconn.dat.count",
-			"tbytes":            "$uconn.dat.tbytes",
-		}},
-		// we want to group on the blacklisted IP we started with and find
-		// the set of its peer IPs. Creating a set over {ip, network_uuid, network_name} objects
-		// takes a bit of work since the network_name may change over time and should not
-		// be used when determining equality.
-		// to get around this, we pick one of the names associated with a
-		// given peer uuid and throw away the rest.
-		// aggregate uconn data through time (over chunks)
-		bson.M{"$group": bson.M{
-			"_id": bson.M{
-				// group within each blacklisted host
-				"ip":           "$ip",
-				"network_uuid": "$network_uuid",
-				// group on the peers which connected to the blacklisted host
-				"peer_ip":           "$peer_ip",
-				"peer_network_uuid": "$peer_network_uuid",
-			},
-			// there should only be one network_name in each record
-			// as it comes from the hosts collection
-			"network_name": bson.M{"$last": "$network_name"},
-			// use one of the network names associated with the network_uuid
-			// for this partial result
-			"peer_network_name": bson.M{"$last": "$peer_network_name"},
-			// compute the partial sums over connections and bytes
-			"conns":  bson.M{"$sum": "$conns"},
-			"tbytes": bson.M{"$sum": "$tbytes"},
-		}},
-		// gather the peer fields so we can use addToSet
-		bson.M{"$project": bson.M{
-			"_id":          0, //move the id fields back out
-			"ip":           "$_id.ip",
-			"network_uuid": "$_id.network_uuid",
-			"network_name": "$network_name",
-			"peer": bson.M{
-				"ip":           "$_id.peer_ip",
-				"network_uuid": "$_id.peer_network_uuid",
-				"network_name": "$peer_network_name",
-			},
-			"conns":  1,
-			"tbytes": 1,
-		}},
-		// group the uconn data up to find which IPs peered with this blacklisted host,
-		// how many connections were made, and how much data was sent in total.
-		{"$group": bson.M{
-			"_id": bson.M{
-				"ip":           "$ip",
-				"network_uuid": "$network_uuid",
-				"network_name": "$network_name",
-			},
-			"peers":  bson.M{"$addToSet": "$peer"},
-			"conns":  bson.M{"$sum": "$conns"},
-			"tbytes": bson.M{"$sum": "$tbytes"},
-		}},
-		// move the id fields back out and add uconn_count
-		bson.M{"$project": bson.M{
-			"_id":          0,
-			"ip":           "$_id.ip",
-			"network_uuid": "$_id.network_uuid",
-			"network_name": "$_id.network_name",
-			"peers":        1,
-			"conn_count":   "$conns",
-			"uconn_count":  bson.M{"$size": bson.M{"$ifNull": []interface{}{"$peers", []interface{}{}}}},
-			"total_bytes":  "$tbytes",
-		}},
-		bson.M{"$sort": bson.M{sort: -1}},
-	}
-
-	if !noLimit {
-		blIPQuery = append(blIPQuery, bson.M{"$limit": limit})
-	}
-
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.HostTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
-
-	return blIPs, err
-
 }

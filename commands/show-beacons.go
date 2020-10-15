@@ -7,7 +7,6 @@ import (
 
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/resources"
-	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -37,7 +36,7 @@ func showBeacons(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
-	data, err := getBeaconResultsView(res, 0)
+	data, err := beacon.Results(res, 0)
 
 	if err != nil {
 		res.Log.Error(err)
@@ -65,7 +64,7 @@ func showBeacons(c *cli.Context) error {
 	return nil
 }
 
-func showBeaconsHuman(data []beacon.AnalysisView, showNetNames bool) error {
+func showBeaconsHuman(data []beacon.Result, showNetNames bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	var headerFields []string
 	if showNetNames {
@@ -110,7 +109,7 @@ func showBeaconsHuman(data []beacon.AnalysisView, showNetNames bool) error {
 	return nil
 }
 
-func showBeaconsDelim(data []beacon.AnalysisView, delim string, showNetNames bool) error {
+func showBeaconsDelim(data []beacon.Result, delim string, showNetNames bool) error {
 	var headerFields []string
 	if showNetNames {
 		headerFields = []string{
@@ -153,19 +152,4 @@ func showBeaconsDelim(data []beacon.AnalysisView, delim string, showNetNames boo
 		fmt.Println(strings.Join(row, delim))
 	}
 	return nil
-}
-
-//getBeaconResultsView finds beacons greater than a given cutoffScore
-//and links the data from the unique connections table back in to the results
-func getBeaconResultsView(res *resources.Resources, cutoffScore float64) ([]beacon.AnalysisView, error) {
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	var beacons []beacon.AnalysisView
-
-	beaconQuery := bson.M{"score": bson.M{"$gt": cutoffScore}}
-
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Beacon.BeaconTable).Find(beaconQuery).Sort("-score").All(&beacons)
-
-	return beacons, err
 }

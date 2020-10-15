@@ -23,11 +23,22 @@ type connectionPeer struct {
 	TotalBytes  int           `bson:"bl_total_bytes"`
 }
 
-//ResultsView for blacklisted ips (for reporting)
-type ResultsView struct {
+//IPResult represtes a blacklisted IP and summary data
+//about the connections involving that IP
+type IPResult struct {
 	Host              data.UniqueIP   `bson:",inline"`
-	Peers             []data.UniqueIP `bson:"peers"`
 	Connections       int             `bson:"conn_count"`
 	UniqueConnections int             `bson:"uconn_count"`
 	TotalBytes        int             `bson:"total_bytes"`
+	Peers             []data.UniqueIP `bson:"peers"`
+}
+
+//HostnameResult represents a blacklisted hostname and summary
+//data about the connections made to that hostname
+type HostnameResult struct {
+	Host              string          `bson:"host"`
+	Connections       int             `bson:"conn_count"`
+	UniqueConnections int             `bson:"uconn_count"`
+	TotalBytes        int             `bson:"total_bytes"`
+	ConnectedHosts    []data.UniqueIP `bson:"sources,omitempty"`
 }

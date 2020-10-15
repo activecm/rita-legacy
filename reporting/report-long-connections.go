@@ -9,7 +9,6 @@ import (
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
-	"github.com/globalsign/mgo/bson"
 )
 
 func printLongConns(db string, res *resources.Resources) error {
@@ -25,11 +24,8 @@ func printLongConns(db string, res *resources.Resources) error {
 
 	res.DB.SelectDB(db)
 
-	sortStr := "maxdur"
-	sortDirection := -1
 	thresh := 60 // 1 minute
-
-	data, err := getLongConnsResultsView(res, thresh, sortStr, sortDirection, 1000)
+	data, err := uconn.LongConnResults(res, thresh, 1000, false)
 	if err != nil {
 		return err
 	}
@@ -41,7 +37,7 @@ func printLongConns(db string, res *resources.Resources) error {
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getLongConnWriter(conns []uconn.LongConnAnalysisView) (string, error) {
+func getLongConnWriter(conns []uconn.LongConnResult) (string, error) {
 	tmpl := "<tr><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.TupleStr}}</td><td>{{.MaxDuration}}</td></tr>\n"
 	out, err := template.New("Conn").Parse(tmpl)
 	if err != nil {
@@ -50,7 +46,7 @@ func getLongConnWriter(conns []uconn.LongConnAnalysisView) (string, error) {
 	w := new(bytes.Buffer)
 	for _, conn := range conns {
 		connTmplData := struct {
-			uconn.LongConnAnalysisView
+			uconn.LongConnResult
 			TupleStr string
 		}{conn, strings.Join(conn.Tuples, ",  ")}
 
@@ -60,43 +56,4 @@ func getLongConnWriter(conns []uconn.LongConnAnalysisView) (string, error) {
 		}
 	}
 	return w.String(), nil
-}
-
-//getLongConnsResultsView gets the long connection results
-func getLongConnsResultsView(res *resources.Resources, thresh int, sort string, sortDirection int, limit int) ([]uconn.LongConnAnalysisView, error) {
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	var longConnResults []uconn.LongConnAnalysisView
-
-	longConnQuery := []bson.M{
-		bson.M{"$match": bson.M{"dat.maxdur": bson.M{"$gt": thresh}}},
-		bson.M{"$project": bson.M{"maxdur": "$dat.maxdur", "src": "$src", "dst": "$dst", "tuples": bson.M{"$ifNull": []interface{}{"$dat.tuples", []interface{}{}}}}},
-		bson.M{"$unwind": "$maxdur"},
-		bson.M{"$unwind": "$tuples"},
-		bson.M{"$unwind": "$tuples"}, // not an error, must be done twice
-		bson.M{"$group": bson.M{
-			"_id":    "$_id",
-			"maxdur": bson.M{"$max": "$maxdur"},
-			"src":    bson.M{"$first": "$src"},
-			"dst":    bson.M{"$first": "$dst"},
-			"tuples": bson.M{"$addToSet": "$tuples"},
-		}},
-		bson.M{"$project": bson.M{
-			"maxdur": 1,
-			"src":    1,
-			"dst":    1,
-			"tuples": bson.M{"$slice": []interface{}{"$tuples", 5}},
-		}},
-		bson.M{"$sort": bson.M{sort: sortDirection}},
-		bson.M{"$limit": limit},
-	}
-
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(longConnQuery).AllowDiskUse().All(&longConnResults)
-	if err != nil {
-		return nil, err
-	}
-
-	return longConnResults, nil
-
 }
