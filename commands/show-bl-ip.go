@@ -74,7 +74,7 @@ func printBLSourceIPs(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
-	data, err := blacklist.SrcIPResults(res, sort, c.Bool("no-limit"), c.Int("limit"))
+	data, err := blacklist.SrcIPResults(res, sort, c.Int("limit"), c.Bool("no-limit"))
 
 	if err != nil {
 		res.Log.Error(err)
@@ -108,7 +108,7 @@ func printBLDestIPs(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
-	data, err := blacklist.DstIPResults(res, sort, c.Bool("no-limit"), c.Int("limit"))
+	data, err := blacklist.DstIPResults(res, sort, c.Int("limit"), c.Bool("no-limit"))
 
 	if err != nil {
 		res.Log.Error(err)

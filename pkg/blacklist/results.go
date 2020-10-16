@@ -112,22 +112,22 @@ func HostnameResults(res *resources.Resources, sort string, limit int, noLimit b
 //hosts which the blacklisted IP connected to. The results will be sorted in
 //descending order keyed on of {uconn_count, conn_count, total_bytes} depending on the value
 //of sort. limit and noLimit control how many results are returned.
-func SrcIPResults(res *resources.Resources, sort string, noLimit bool, limit int) ([]IPResult, error) {
-	return ipResults(res, sort, noLimit, limit, true)
+func SrcIPResults(res *resources.Resources, sort string, limit int, noLimit bool) ([]IPResult, error) {
+	return ipResults(res, sort, limit, noLimit, true)
 }
 
 //DstIPResults finds blacklisted destination IPs in the database and the IPs of the
 //hosts which connected to the blacklisted IP. The results will be sorted in
 //descending order keyed on of {uconn_count, conn_count, total_bytes} depending on the value
 //of sort. limit and noLimit control how many results are returned.
-func DstIPResults(res *resources.Resources, sort string, noLimit bool, limit int) ([]IPResult, error) {
-	return ipResults(res, sort, noLimit, limit, false)
+func DstIPResults(res *resources.Resources, sort string, limit int, noLimit bool) ([]IPResult, error) {
+	return ipResults(res, sort, limit, false, noLimit)
 }
 
 //ipResults implements SrcIPResults and DstIPResults. Set sourceDestFlag to true
 //to find blacklisted source IPs. Set sourceDestFlag to false to find blacklisted
 //destination IPs.
-func ipResults(res *resources.Resources, sort string, noLimit bool, limit int, sourceDestFlag bool) ([]IPResult, error) {
+func ipResults(res *resources.Resources, sort string, limit int, noLimit bool, sourceDestFlag bool) ([]IPResult, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 

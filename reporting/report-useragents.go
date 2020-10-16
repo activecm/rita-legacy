@@ -10,7 +10,7 @@ import (
 	"github.com/activecm/rita/resources"
 )
 
-func printUserAgents(db string, res *resources.Resources) error {
+func printUserAgents(db string, showNetNames bool, res *resources.Resources) error {
 	f, err := os.Create("useragents.html")
 	if err != nil {
 		return err

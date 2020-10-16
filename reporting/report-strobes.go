@@ -10,13 +10,21 @@ import (
 	"github.com/activecm/rita/resources"
 )
 
-func printStrobes(db string, res *resources.Resources) error {
+func printStrobes(db string, showNetNames bool, res *resources.Resources) error {
 	f, err := os.Create("strobes.html")
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	out, err := template.New("strobes.html").Parse(templates.StrobesTempl)
+
+	var strobesTempl string
+	if showNetNames {
+		strobesTempl = templates.StrobesNetNamesTempl
+	} else {
+		strobesTempl = templates.StrobesTempl
+	}
+
+	out, err := template.New("strobes.html").Parse(strobesTempl)
 	if err != nil {
 		return err
 	}
@@ -26,15 +34,21 @@ func printStrobes(db string, res *resources.Resources) error {
 		return err
 	}
 
-	w, err := getStrobesWriter(data)
+	w, err := getStrobesWriter(data, showNetNames)
 	if err != nil {
 		return err
 	}
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getStrobesWriter(strobes []beacon.StrobeResult) (string, error) {
-	tmpl := "<tr><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.ConnectionCount}}</td></tr>\n"
+func getStrobesWriter(strobes []beacon.StrobeResult, showNetNames bool) (string, error) {
+	var tmpl string
+	if showNetNames {
+		tmpl = "<tr><td>{{.SrcNetworkName}}</td><td>{{.DstNetworkName}}</td><td>{{.SrcIP}}</td><td>{{.DstIP}}</td><td>{{.ConnectionCount}}</td></tr>\n"
+	} else {
+		tmpl = "<tr><td>{{.SrcIP}}</td><td>{{.DstIP}}</td><td>{{.ConnectionCount}}</td></tr>\n"
+	}
+
 	out, err := template.New("Strobes").Parse(tmpl)
 	if err != nil {
 		return "", err

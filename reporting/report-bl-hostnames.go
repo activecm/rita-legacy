@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"html/template"
 	"os"
-	//TODO[AGENT]: Sort UniqIPs
-	//"sort"
+	"sort"
+	"strings"
 
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 )
 
-func printBLHostnames(db string, res *resources.Resources) error {
+func printBLHostnames(db string, showNetNames bool, res *resources.Resources) error {
 	f, err := os.Create("bl-hostnames.html")
 	if err != nil {
 		return err
@@ -29,7 +29,7 @@ func printBLHostnames(db string, res *resources.Resources) error {
 		return err
 	}
 
-	w, err := getBLHostnameWriter(data)
+	w, err := getBLHostnameWriter(data, showNetNames)
 	if err != nil {
 		return err
 	}
@@ -37,10 +37,10 @@ func printBLHostnames(db string, res *resources.Resources) error {
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getBLHostnameWriter(results []blacklist.HostnameResult) (string, error) {
+func getBLHostnameWriter(results []blacklist.HostnameResult, showNetNames bool) (string, error) {
 	tmpl := "<tr><td>{{.Host}}</td><td>{{.Connections}}</td><td>{{.UniqueConnections}}</td>" +
 		"<td>{{.TotalBytes}}</td>" +
-		"<td>{{range $idx, $host := .ConnectedHosts}}{{if $idx}}, {{end}}{{ $host }}{{end}}</td>" +
+		"<td>{{range $idx, $host := .ConnectedHostStrs}}{{if $idx}}, {{end}}{{ $host }}{{end}}</td>" +
 		"</tr>\n"
 
 	out, err := template.New("blhostname").Parse(tmpl)
@@ -51,9 +51,30 @@ func getBLHostnameWriter(results []blacklist.HostnameResult) (string, error) {
 	w := new(bytes.Buffer)
 
 	for _, result := range results {
-		//TODO[AGENT]: Sort UniqIPs
-		//sort.Strings(result.ConnectedHosts)
-		err := out.Execute(w, result)
+
+		//format UniqueIP destinations
+		var connectedHostStrs []string
+		for _, connectedUniqIP := range result.ConnectedHosts {
+
+			var connectedIPStr string
+			if showNetNames {
+				escapedNetName := strings.ReplaceAll(connectedUniqIP.NetworkName, " ", "_")
+				escapedNetName = strings.ReplaceAll(escapedNetName, ":", "_")
+				connectedIPStr = escapedNetName + ":" + connectedUniqIP.IP
+			} else {
+				connectedIPStr = connectedUniqIP.IP
+			}
+
+			connectedHostStrs = append(connectedHostStrs, connectedIPStr)
+		}
+		sort.Strings(connectedHostStrs)
+
+		formattedResult := struct {
+			blacklist.HostnameResult
+			ConnectedHostStrs []string
+		}{result, connectedHostStrs}
+
+		err := out.Execute(w, formattedResult)
 		if err != nil {
 			return "", err
 		}

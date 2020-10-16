@@ -151,34 +151,34 @@ func writeDB(db string, wd string, showNetNames bool, res *resources.Resources) 
 	if err != nil {
 		fmt.Println("[-] Error writing DNS page: " + err.Error())
 	}
-	err = printBLSourceIPs(db, res)
+	err = printBLSourceIPs(db, showNetNames, res)
 	if err != nil {
 		fmt.Println("[-] Error writing blacklist-source page: " + err.Error())
 	}
-	err = printBLDestIPs(db, res)
+	err = printBLDestIPs(db, showNetNames, res)
 	if err != nil {
 		fmt.Println("[-] Error writing blacklist-destination page: " + err.Error())
 	}
-	err = printBLHostnames(db, res)
+	err = printBLHostnames(db, showNetNames, res)
 	if err != nil {
 		fmt.Println("[-] Error writing blacklist-hostnames page: " + err.Error())
 	}
 
-	err = printBeacons(db, res)
+	err = printBeacons(db, showNetNames, res)
 	if err != nil {
 		fmt.Println("[-] Error writing beacons page: " + err.Error())
 	}
 
-	err = printStrobes(db, res)
+	err = printStrobes(db, showNetNames, res)
 	if err != nil {
 		fmt.Println("[-] Error writing strobes page: " + err.Error())
 	}
 
-	err = printLongConns(db, res)
+	err = printLongConns(db, showNetNames, res)
 	if err != nil {
 		fmt.Println("[-] Error writing long connections page: " + err.Error())
 	}
-	err = printUserAgents(db, res)
+	err = printUserAgents(db, showNetNames, res)
 	if err != nil {
 		fmt.Println("[-] Error writing user agents page: " + err.Error())
 	}

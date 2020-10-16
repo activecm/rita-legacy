@@ -11,13 +11,21 @@ import (
 	"github.com/activecm/rita/resources"
 )
 
-func printLongConns(db string, res *resources.Resources) error {
+func printLongConns(db string, showNetNames bool, res *resources.Resources) error {
 	f, err := os.Create("long-conns.html")
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	out, err := template.New("long-conns.html").Parse(templates.LongConnsTempl)
+
+	var longConnsTempl string
+	if showNetNames {
+		longConnsTempl = templates.LongConnsNetNamesTempl
+	} else {
+		longConnsTempl = templates.LongConnsTempl
+	}
+
+	out, err := template.New("long-conns.html").Parse(longConnsTempl)
 	if err != nil {
 		return err
 	}
@@ -30,15 +38,21 @@ func printLongConns(db string, res *resources.Resources) error {
 		return err
 	}
 
-	w, err := getLongConnWriter(data)
+	w, err := getLongConnWriter(data, showNetNames)
 	if err != nil {
 		return err
 	}
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getLongConnWriter(conns []uconn.LongConnResult) (string, error) {
-	tmpl := "<tr><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.TupleStr}}</td><td>{{.MaxDuration}}</td></tr>\n"
+func getLongConnWriter(conns []uconn.LongConnResult, showNetNames bool) (string, error) {
+	var tmpl string
+	if showNetNames {
+		tmpl = "<tr><td>{{.SrcNetworkName}}</td><td>{{.DstNetworkName}}</td><td>{{.SrcIP}}</td><td>{{.DstIP}}</td><td>{{.TupleStr}}</td><td>{{.MaxDuration}}</td></tr>\n"
+	} else {
+		tmpl = "<tr><td>{{.SrcIP}}</td><td>{{.DstIP}}</td><td>{{.TupleStr}}</td><td>{{.MaxDuration}}</td></tr>\n"
+	}
+
 	out, err := template.New("Conn").Parse(tmpl)
 	if err != nil {
 		return "", err
