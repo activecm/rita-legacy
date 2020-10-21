@@ -4,6 +4,8 @@
 
 If you get value out of RITA and would like to go a step further with hunting automation, futuristic visualizations, and data encrichment take a look at [AI-Hunter](https://www.activecountermeasures.com/).
 
+Sponsored by [Active Countermeasures](https://activecountermeasures.com/).
+
 ---
 
 RITA is an open source framework for network traffic analysis.
