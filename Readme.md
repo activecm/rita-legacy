@@ -2,7 +2,7 @@
 
 [![RITA Logo](rita-logo.png)](https://www.activecountermeasures.com/free-tools/rita/)
 
-Brought to you by [Active Countermeasures](https://www.activecountermeasures.com/).
+If you get value out of RITA and would like to go a step further with hunting automation, futuristic visualizations, and data encrichment take a look at [AI-Hunter](https://www.activecountermeasures.com/).
 
 ---
 
@@ -49,7 +49,6 @@ See [this guide](docs/Upgrading.md) for upgrade instructions.
 
 RITA's config file is located at `/etc/rita/config.yaml` though you can specify a custom path on individual commands with the `-c` command line flag.
 
-:exclamation: **IMPORTANT** :exclamation:
 * The `Filtering: InternalSubnets` section *must* be configured or you will not see any results in certain modules (e.g. beacons, long connections). If your network uses the standard RFC1918 internal IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) you don't need to do anything as the default `InternalSubnets` section already has these. Otherwise, adjust this section to match your environment. RITA's main purpose is to find the signs of a compromised internal system talking to an external system and will automatically exclude internal to internal connections and external to external connections from parts of the analysis.
 
 You may also wish to change the defaults for the following option:
