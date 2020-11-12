@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"github.com/activecm/rita/util"
-	"net"
 	"strconv"
 )
 
@@ -12,17 +10,4 @@ func f(f float64) string {
 }
 func i(i int64) string {
 	return strconv.FormatInt(i, 10)
-}
-
-//helper function for formatting uniqueIP NetworkName
-func validNetworkName(ip string, networkName *string) string {
-	if networkName != nil {
-		return *networkName
-	}
-	netIP := net.ParseIP(ip)
-	if util.IPIsPubliclyRoutable(netIP) {
-		return "Public"
-	} else {
-		return "Unknown Private Network"
-	}
 }
