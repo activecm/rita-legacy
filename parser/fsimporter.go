@@ -551,7 +551,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// extract and store the dns client ip address
 							src := parseDNS.Source
 							srcIP := net.ParseIP(src)
-							srcUniqIP := newUniqueIP(srcIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in DNS log
+							srcUniqIP := newUniqueIP(srcIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
 							srcKey := srcUniqIP.MapKey()
 
 							hostnameMap[domain].ClientIPs.Insert(srcUniqIP)
@@ -562,7 +562,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									answerIP := net.ParseIP(answer)
 									// Check if answer is an IP address and store it if it is
 									if answerIP != nil {
-										answerUniqIP := newUniqueIP(answerIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in DNS log
+										answerUniqIP := newUniqueIP(answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
 										hostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
 									}
 								}
@@ -610,7 +610,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							userAgentName := parseHTTP.UserAgent
 							src := parseHTTP.Source
 							srcIP := net.ParseIP(src)
-							srcUniqIP := newUniqueIP(srcIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in HTTP log
+							srcUniqIP := newUniqueIP(srcIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
 							host := parseHTTP.Host
 
 							if userAgentName == "" {
@@ -660,8 +660,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							srcIP := net.ParseIP(src)
 							dstIP := net.ParseIP(dst)
 
-							srcUniqIP := newUniqueIP(srcIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in SSL log
-							dstUniqIP := newUniqueIP(dstIP, "", "") //TODO[AGENT]: Update w/ Agent name and UUID in SSL log
+							srcUniqIP := newUniqueIP(srcIP, parseSSL.AgentUUID, parseSSL.AgentHostname)
+							dstUniqIP := newUniqueIP(dstIP, parseSSL.AgentUUID, parseSSL.AgentHostname)
 							srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
 
 							srcDstKey := srcDstPair.MapKey()

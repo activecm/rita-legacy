@@ -60,16 +60,15 @@ type DNS struct {
 	TTLs []float64 `bson:"TTLs" bro:"TTLs" brotype:"vector[interval]" json:"TTLs"`
 	// Rejected indicates if this query was rejected or not
 	Rejected bool `bson:"rejected" bro:"rejected" brotype:"bool" json:"rejected"`
+	// AgentHostname names which sensor recorded this event. Only set when combining logs from multiple sensors.
+	AgentHostname string `bson:"agent_hostname" bro:"agent_hostname" brotype:"string" json:"agent_hostname"`
+	// AgentUUID identifies which sensor recorded this event. Only set when combining logs from multiple sensors.
+	AgentUUID string `bson:"agent_uuid" bro:"agent_uuid" brotype:"string" json:"agent_uuid"`
 }
 
 //TargetCollection returns the mongo collection this entry should be inserted
 func (line *DNS) TargetCollection(config *config.StructureTableCfg) string {
 	return config.DNSTable
-}
-
-//Indices gives MongoDB indices that should be used with the collection
-func (line *DNS) Indices() []string {
-	return []string{"$hashed:id_orig_h", "$hashed:id_resp_h", "$hashed:query"}
 }
 
 //ConvertFromJSON performs any extra conversions necessary when reading from JSON
