@@ -57,7 +57,7 @@ func readFiles(paths []string, logger *log.Logger) []string {
 			toReturn = append(toReturn, path)
 		} else {
 			logger.WithFields(log.Fields{
-				"path":  path,
+				"path": path,
 			}).Warn("Ignoring non .log or .gz file")
 		}
 	}
@@ -103,22 +103,23 @@ func scanTSVHeader(fileScanner *bufio.Scanner) (*fpt.BroHeader, error) {
 		//On the comment lines
 		if fileScanner.Text()[0] == '#' {
 			line := strings.Fields(fileScanner.Text())
-			if strings.Contains(line[0], "separator") {
-				//TODO: Figure out how to escape read in string
-				if line[1] == "\\x09" {
-					toReturn.Separator = "\x09"
+			if line[0][1:] == "separator" {
+				var err error
+				toReturn.Separator, err = strconv.Unquote("\"" + line[1] + "\"")
+				if err != nil {
+					return toReturn, err
 				}
-			} else if strings.Contains(line[0], "set_separator") {
+			} else if line[0][1:] == "set_separator" {
 				toReturn.SetSep = line[1]
-			} else if strings.Contains(line[0], "empty_field") {
+			} else if line[0][1:] == "empty_field" {
 				toReturn.Empty = line[1]
-			} else if strings.Contains(line[0], "unset_field") {
+			} else if line[0][1:] == "unset_field" {
 				toReturn.Unset = line[1]
-			} else if strings.Contains(line[0], "fields") {
+			} else if line[0][1:] == "fields" {
 				toReturn.Names = line[1:]
-			} else if strings.Contains(line[0], "types") {
+			} else if line[0][1:] == "types" {
 				toReturn.Types = line[1:]
-			} else if strings.Contains(line[0], "path") {
+			} else if line[0][1:] == "path" {
 				toReturn.ObjType = line[1]
 			}
 		} else {
@@ -214,7 +215,6 @@ func parseLine(lineString string, header *fpt.BroHeader,
 	}
 	return parseTSVLine(lineString, header, fieldMap, broDataFactory, logger)
 }
-
 
 func parseJSONLine(lineString string, broDataFactory func() pt.BroData,
 	logger *log.Logger) pt.BroData {
