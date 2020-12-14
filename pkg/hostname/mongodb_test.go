@@ -7,7 +7,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo/dbtest"
 )
 
@@ -19,18 +21,27 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testHostname = map[string]*Input{
-	"a.b.activecountermeasures.com":   &Input{ClientIPs: []string{"192.168.1.1"}, ResolvedIPs: []string{"127.0.0.1", "127.0.0.2"}},
-	"x.a.b.activecountermeasures.com": &Input{ClientIPs: []string{"192.168.1.1"}, ResolvedIPs: []string{"127.0.0.1", "127.0.0.2"}},
-	"activecountermeasures.com":       &Input{ClientIPs: []string{"192.168.1.1"}, ResolvedIPs: []string{}},
-	"google.com":                      &Input{ClientIPs: []string{"192.168.1.1", "192.168.1.2"}, ResolvedIPs: []string{"127.0.0.1", "127.0.0.2", "0.0.0.0"}},
+func ipFactory(ip string) data.UniqueIP {
+	return data.UniqueIP{
+		IP:          ip,
+		NetworkUUID: util.UnknownPrivateNetworkUUID,
+		NetworkName: util.UnknownPrivateNetworkName,
+	}
 }
 
-func TestCreateIndexes(t *testing.T) {
-	err := testRepo.CreateIndexes()
-	if err != nil {
-		t.Errorf("Error creating hostnames indexes")
-	}
+var testHostname = map[string]*Input{
+	"a.b.activecountermeasures.com": &Input{
+		ClientIPs:   data.UniqueIPSet{ipFactory("192.168.1.1")},
+		ResolvedIPs: data.UniqueIPSet{ipFactory("127.0.0.1"), ipFactory("127.0.0.2")}},
+	"x.a.b.activecountermeasures.com": &Input{
+		ClientIPs:   data.UniqueIPSet{ipFactory("192.168.1.1")},
+		ResolvedIPs: data.UniqueIPSet{ipFactory("127.0.0.1"), ipFactory("127.0.0.2")}},
+	"activecountermeasures.com": &Input{
+		ClientIPs:   data.UniqueIPSet{ipFactory("192.168.1.1")},
+		ResolvedIPs: data.UniqueIPSet{}},
+	"google.com": &Input{
+		ClientIPs:   data.UniqueIPSet{ipFactory("192.168.1.1"), ipFactory("192.168.1.2")},
+		ResolvedIPs: data.UniqueIPSet{ipFactory("127.0.0.1"), ipFactory("127.0.0.2"), ipFactory("0.0.0.0")}},
 }
 
 func TestUpsert(t *testing.T) {

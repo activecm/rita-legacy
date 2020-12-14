@@ -2,8 +2,12 @@ package data
 
 import (
 	"bytes"
-	"github.com/globalsign/mgo/bson"
+	"net"
 	"strings"
+
+	"github.com/activecm/rita/util"
+	"github.com/globalsign/mgo/bson"
+	"github.com/google/uuid"
 )
 
 //UniqueIP binds an IP to an optional Network UUID and Network Name.
@@ -14,6 +18,36 @@ type UniqueIP struct {
 	IP          string      `bson:"ip"`
 	NetworkUUID bson.Binary `bson:"network_uuid"`
 	NetworkName string      `bson:"network_name"`
+}
+
+//NewUniqueIP returns a new UniqueIP. If the given ip is publicly routable, the resulting UniqueIP's
+//NetworkUUID and NetworkName will be set to PublicNetworkUUID and PublicNetworkName respectively.
+//Otherwise, the NetworkUUID and NetworkName will be set based on the provided agentName and agentUUID.
+//If the provided agent data is invalid, the NetworkUUID and NetworkName will be set to
+//UnknownPrivateNetworkUUID and UnknownPrivateNetworkName.
+func NewUniqueIP(ip net.IP, agentUUID, agentName string) UniqueIP {
+	u := UniqueIP{}
+	u.IP = ip.String()
+
+	if util.IPIsPubliclyRoutable(ip) {
+		u.NetworkName = util.PublicNetworkName
+		u.NetworkUUID = util.PublicNetworkUUID
+		return u
+	}
+
+	id, err := uuid.Parse(agentUUID)
+	if err != nil || len(agentUUID) == 0 || len(agentName) == 0 {
+		u.NetworkName = util.UnknownPrivateNetworkName
+		u.NetworkUUID = util.UnknownPrivateNetworkUUID
+		return u
+	}
+
+	u.NetworkUUID = bson.Binary{
+		Kind: bson.BinaryUUID,
+		Data: id[:],
+	}
+	u.NetworkName = agentName
+	return u
 }
 
 //Equal checks if two UniqueIPs have the same IP and network UUID

@@ -1,9 +1,13 @@
 package util
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
+	"strings"
+
+	"github.com/globalsign/mgo/bson"
 )
 
 var privateIPBlocks []*net.IPNet
@@ -77,3 +81,34 @@ func IsIP(ip string) bool {
 	}
 	return false
 }
+
+//IsIPv4 checks if an ip is ipv4
+func IsIPv4(address string) bool {
+	return strings.Count(address, ":") < 2
+}
+
+//IPv4ToBinary generates binary representations of the IPv4 addresses
+func IPv4ToBinary(ipv4 net.IP) int64 {
+	return int64(binary.BigEndian.Uint32(ipv4[12:16]))
+}
+
+//PublicNetworkUUID is the UUID bound to publicly routable UniqueIP addresses
+var PublicNetworkUUID bson.Binary = bson.Binary{
+	Kind: bson.BinaryUUID,
+	Data: []byte{
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	},
+}
+
+const PublicNetworkName string = "Public"
+
+var UnknownPrivateNetworkUUID bson.Binary = bson.Binary{
+	Kind: bson.BinaryUUID,
+	Data: []byte{
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+	},
+}
+
+const UnknownPrivateNetworkName string = "Unknown Private"

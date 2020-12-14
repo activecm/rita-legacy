@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"github.com/activecm/rita/pkg/data"
 	"math"
 	"net"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/explodeddns"
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
@@ -385,8 +385,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							dstIP := net.ParseIP(dst)
 
 							// disambiguate addresses which are not publicly routable
-							srcUniqIP := newUniqueIP(srcIP, parseConn.AgentUUID, parseConn.AgentHostname)
-							dstUniqIP := newUniqueIP(dstIP, parseConn.AgentUUID, parseConn.AgentHostname)
+							srcUniqIP := data.NewUniqueIP(srcIP, parseConn.AgentUUID, parseConn.AgentHostname)
+							dstUniqIP := data.NewUniqueIP(dstIP, parseConn.AgentUUID, parseConn.AgentHostname)
 							srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
 
 							// get aggregation keys for ip addresses and connection pair
@@ -424,8 +424,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									hostMap[srcKey] = &host.Input{
 										Host:    srcUniqIP,
 										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
-										IP4:     isIPv4(src),
-										IP4Bin:  ipv4ToBinary(srcIP),
+										IP4:     util.IsIPv4(src),
+										IP4Bin:  util.IPv4ToBinary(srcIP),
 									}
 								}
 
@@ -435,8 +435,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									hostMap[dstKey] = &host.Input{
 										Host:    dstUniqIP,
 										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
-										IP4:     isIPv4(dst),
-										IP4Bin:  ipv4ToBinary(dstIP),
+										IP4:     util.IsIPv4(dst),
+										IP4Bin:  util.IPv4ToBinary(dstIP),
 									}
 								}
 
@@ -551,7 +551,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// extract and store the dns client ip address
 							src := parseDNS.Source
 							srcIP := net.ParseIP(src)
-							srcUniqIP := newUniqueIP(srcIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
+							srcUniqIP := data.NewUniqueIP(srcIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
 							srcKey := srcUniqIP.MapKey()
 
 							hostnameMap[domain].ClientIPs.Insert(srcUniqIP)
@@ -562,7 +562,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									answerIP := net.ParseIP(answer)
 									// Check if answer is an IP address and store it if it is
 									if answerIP != nil {
-										answerUniqIP := newUniqueIP(answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
+										answerUniqIP := data.NewUniqueIP(answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
 										hostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
 									}
 								}
@@ -587,8 +587,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										hostMap[srcKey] = &host.Input{
 											Host:    srcUniqIP,
 											IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
-											IP4:     isIPv4(src),
-											IP4Bin:  ipv4ToBinary(srcIP),
+											IP4:     util.IsIPv4(src),
+											IP4Bin:  util.IPv4ToBinary(srcIP),
 										}
 									}
 									// increment txt query count
@@ -610,7 +610,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							userAgentName := parseHTTP.UserAgent
 							src := parseHTTP.Source
 							srcIP := net.ParseIP(src)
-							srcUniqIP := newUniqueIP(srcIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
+							srcUniqIP := data.NewUniqueIP(srcIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
 							host := parseHTTP.Host
 
 							if userAgentName == "" {
@@ -660,8 +660,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							srcIP := net.ParseIP(src)
 							dstIP := net.ParseIP(dst)
 
-							srcUniqIP := newUniqueIP(srcIP, parseSSL.AgentUUID, parseSSL.AgentHostname)
-							dstUniqIP := newUniqueIP(dstIP, parseSSL.AgentUUID, parseSSL.AgentHostname)
+							srcUniqIP := data.NewUniqueIP(srcIP, parseSSL.AgentUUID, parseSSL.AgentHostname)
+							dstUniqIP := data.NewUniqueIP(dstIP, parseSSL.AgentUUID, parseSSL.AgentHostname)
 							srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
 
 							srcDstKey := srcDstPair.MapKey()
