@@ -2,7 +2,14 @@ name: Upload files to new release
 
 on:
   release:
-    types: [published]
+    types:
+      - published
+      #- unpublished
+      - created
+      - edited
+      #- deleted
+      - prereleased
+      - released
 
 jobs:
   upload:
