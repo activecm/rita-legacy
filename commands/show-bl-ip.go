@@ -57,13 +57,13 @@ func parseBLArgs(c *cli.Context) (string, string, bool, bool, bool, error) {
 	connected := c.Bool("connected")
 	human := c.Bool("human-readable")
 	showNetNames := c.Bool("network-names")
+	var err error
 	if db == "" {
-		return db, sort, connected, human, showNetNames, cli.NewExitError("Specify a database", -1)
+		err = cli.NewExitError("Specify a database", -1)
+	} else if sort != "conn_count" && sort != "total_bytes" {
+		err = cli.NewExitError("Invalid option passed to sort flag", -1)
 	}
-	if sort != "conn_count" && sort != "total_bytes" {
-		return db, sort, connected, human, showNetNames, cli.NewExitError("Invalid option passed to sort flag", -1)
-	}
-	return db, sort, connected, human, showNetNames, nil
+	return db, sort, connected, human, showNetNames, err
 }
 
 func printBLSourceIPs(c *cli.Context) error {
@@ -134,25 +134,23 @@ func printBLDestIPs(c *cli.Context) error {
 }
 
 func showBLIPs(ips []blacklist.IPResult, connectedHosts, showNetNames, source bool, delim string) error {
-	var headers []string
-	if showNetNames {
-		headers = []string{"IP", "Network"}
-	} else {
-		headers = []string{"IP"}
+	var headerFields []string
+	if !showNetNames && !connectedHosts {
+		headerFields = []string{"IP", "Connections", "Unique Connections", "Total Bytes"}
+	} else if showNetNames && !connectedHosts {
+		headerFields = []string{"IP", "Network", "Connections", "Unique Connections", "Total Bytes"}
+	} else if !showNetNames && connectedHosts && source {
+		headerFields = []string{"IP", "Connections", "Unique Connections", "Total Bytes", "Destinations"}
+	} else if !showNetNames && connectedHosts && !source {
+		headerFields = []string{"IP", "Connections", "Unique Connections", "Total Bytes", "Sources"}
+	} else if showNetNames && connectedHosts && source {
+		headerFields = []string{"IP", "Network", "Connections", "Unique Connections", "Total Bytes", "Destinations"}
+	} else if showNetNames && connectedHosts && !source {
+		headerFields = []string{"IP", "Network", "Connections", "Unique Connections", "Total Bytes", "Sources"}
 	}
 
-	headers = append(headers, "Connections", "Unique Connections", "Total Bytes")
-
-	if connectedHosts {
-		if source {
-			headers = append(headers, "Destinations")
-		} else {
-			headers = append(headers, "Sources")
-		}
-	}
-
-	// Print the headers and analytic values, separated by a delimiter
-	fmt.Println(strings.Join(headers, delim))
+	// Print the headerFields and analytic values, separated by a delimiter
+	fmt.Println(strings.Join(headerFields, delim))
 	for _, entry := range ips {
 
 		var serialized []string
@@ -170,18 +168,17 @@ func showBLIPs(ips []blacklist.IPResult, connectedHosts, showNetNames, source bo
 
 		if connectedHosts {
 			var connectedHostsIPs []string
-			for _, connectedUniqIP := range entry.Peers {
-
-				var connectedIPStr string
-				if showNetNames {
+			if showNetNames {
+				for _, connectedUniqIP := range entry.Peers {
 					escapedNetName := strings.ReplaceAll(connectedUniqIP.NetworkName, " ", "_")
 					escapedNetName = strings.ReplaceAll(escapedNetName, ":", "_")
-					connectedIPStr = escapedNetName + ":" + connectedUniqIP.IP
-				} else {
-					connectedIPStr = connectedUniqIP.IP
+					connectedIPStr := escapedNetName + ":" + connectedUniqIP.IP
+					connectedHostsIPs = append(connectedHostsIPs, connectedIPStr)
 				}
-
-				connectedHostsIPs = append(connectedHostsIPs, connectedIPStr)
+			} else {
+				for _, connectedUniqIP := range entry.Peers {
+					connectedHostsIPs = append(connectedHostsIPs, connectedUniqIP.IP)
+				}
 			}
 			sort.Strings(connectedHostsIPs)
 			serialized = append(serialized, strings.Join(connectedHostsIPs, " "))
@@ -198,23 +195,23 @@ func showBLIPs(ips []blacklist.IPResult, connectedHosts, showNetNames, source bo
 
 func showBLIPsHuman(ips []blacklist.IPResult, connectedHosts, showNetNames, source bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	var headers []string
-	if showNetNames {
-		headers = []string{"IP", "Network"}
-	} else {
-		headers = []string{"IP"}
+	var headerFields []string
+
+	if !showNetNames && !connectedHosts {
+		headerFields = []string{"IP", "Connections", "Unique Connections", "Total Bytes"}
+	} else if showNetNames && !connectedHosts {
+		headerFields = []string{"IP", "Network", "Connections", "Unique Connections", "Total Bytes"}
+	} else if !showNetNames && connectedHosts && source {
+		headerFields = []string{"IP", "Connections", "Unique Connections", "Total Bytes", "Destinations"}
+	} else if !showNetNames && connectedHosts && !source {
+		headerFields = []string{"IP", "Connections", "Unique Connections", "Total Bytes", "Sources"}
+	} else if showNetNames && connectedHosts && source {
+		headerFields = []string{"IP", "Network", "Connections", "Unique Connections", "Total Bytes", "Destinations"}
+	} else if showNetNames && connectedHosts && !source {
+		headerFields = []string{"IP", "Network", "Connections", "Unique Connections", "Total Bytes", "Sources"}
 	}
 
-	headers = append(headers, "Connections", "Unique Connections", "Total Bytes")
-
-	if connectedHosts {
-		if source {
-			headers = append(headers, "Destinations")
-		} else {
-			headers = append(headers, "Sources")
-		}
-	}
-	table.SetHeader(headers)
+	table.SetHeader(headerFields)
 	for _, entry := range ips {
 
 		var serialized []string

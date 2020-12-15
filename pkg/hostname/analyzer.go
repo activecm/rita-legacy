@@ -77,7 +77,6 @@ func (a *analyzer) start() {
 			// set up writer output
 			var output update
 
-			//TODO[AGENT]: Use UniqueIP/ NetworkID info in ips/ src_ips in hostnames collection
 			// create query
 			if blacklistFlag {
 				// flag as blacklisted if blacklisted

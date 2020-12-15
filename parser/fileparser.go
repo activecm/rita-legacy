@@ -103,23 +103,24 @@ func scanTSVHeader(fileScanner *bufio.Scanner) (*fpt.BroHeader, error) {
 		//On the comment lines
 		if fileScanner.Text()[0] == '#' {
 			line := strings.Fields(fileScanner.Text())
-			if line[0][1:] == "separator" {
+			switch line[0][1:] {
+			case "separator":
 				var err error
 				toReturn.Separator, err = strconv.Unquote("\"" + line[1] + "\"")
 				if err != nil {
 					return toReturn, err
 				}
-			} else if line[0][1:] == "set_separator" {
+			case "set_separator":
 				toReturn.SetSep = line[1]
-			} else if line[0][1:] == "empty_field" {
+			case "empty_field":
 				toReturn.Empty = line[1]
-			} else if line[0][1:] == "unset_field" {
+			case "unset_field":
 				toReturn.Unset = line[1]
-			} else if line[0][1:] == "fields" {
+			case "fields":
 				toReturn.Names = line[1:]
-			} else if line[0][1:] == "types" {
+			case "types":
 				toReturn.Types = line[1:]
-			} else if line[0][1:] == "path" {
+			case "path":
 				toReturn.ObjType = line[1]
 			}
 		} else {
