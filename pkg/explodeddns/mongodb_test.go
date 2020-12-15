@@ -26,13 +26,6 @@ var testExplodedDNS = map[string]int{
 	"google.com":                      912,
 }
 
-func TestCreateIndexes(t *testing.T) {
-	err := testRepo.CreateIndexes()
-	if err != nil {
-		t.Errorf("Error creating explodedDNS indexes")
-	}
-}
-
 func TestUpdateDomains(t *testing.T) {
 	testRepo.Upsert(testExplodedDNS)
 	// if err != nil {

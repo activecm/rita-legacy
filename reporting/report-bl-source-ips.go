@@ -5,38 +5,38 @@ import (
 	"html/template"
 	"os"
 	"sort"
+	"strings"
 
-	"github.com/globalsign/mgo/bson"
-
-	"github.com/activecm/rita/pkg/host"
+	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
 )
 
-func printBLSourceIPs(db string, res *resources.Resources) error {
+func printBLSourceIPs(db string, showNetNames bool, res *resources.Resources) error {
 	f, err := os.Create("bl-source-ips.html")
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	match := bson.M{
-		"$and": []bson.M{
-			bson.M{"blacklisted": true},
-			bson.M{"dat.count_src": bson.M{"$gt": 0}},
-		}}
-
-	data, err := getBlacklistedIPsResultsView(res, "conn_count", 1000, match, "src", "dst")
+	data, err := blacklist.SrcIPResults(res, "conn_count", 1000, false)
 	if err != nil {
 		return err
 	}
 
-	out, err := template.New("bl-source-ips.html").Parse(templates.BLSourceIPTempl)
+	var blSourceIPTempl string
+	if showNetNames {
+		blSourceIPTempl = templates.BLSourceIPNetNamesTempl
+	} else {
+		blSourceIPTempl = templates.BLSourceIPTempl
+	}
+
+	out, err := template.New("bl-source-ips.html").Parse(blSourceIPTempl)
 	if err != nil {
 		return err
 	}
 
-	w, err := getBLIPWriter(data)
+	w, err := getBLIPWriter(data, showNetNames)
 	if err != nil {
 		return err
 	}
@@ -44,11 +44,19 @@ func printBLSourceIPs(db string, res *resources.Resources) error {
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getBLIPWriter(results []host.AnalysisView) (string, error) {
-	tmpl := "<tr><td>{{.Host}}</td><td>{{.Connections}}</td><td>{{.UniqueConnections}}</td>" +
-		"<td>{{.TotalBytes}}</td>" +
-		"<td>{{range $idx, $host := .ConnectedHosts}}{{if $idx}}, {{end}}{{ $host }}{{end}}</td>" +
-		"</tr>\n"
+func getBLIPWriter(results []blacklist.IPResult, showNetNames bool) (string, error) {
+	var tmpl string
+	if showNetNames {
+		tmpl = "<tr><td>{{.Host.IP}}</td><td>{{.Host.NetworkName}}</td><td>{{.Connections}}</td><td>{{.UniqueConnections}}</td>" +
+			"<td>{{.TotalBytes}}</td>" +
+			"<td>{{range $idx, $host := .ConnectedHostStrs}}{{if $idx}}, {{end}}{{ $host }}{{end}}</td>" +
+			"</tr>\n"
+	} else {
+		tmpl = "<tr><td>{{.Host.IP}}</td><td>{{.Connections}}</td><td>{{.UniqueConnections}}</td>" +
+			"<td>{{.TotalBytes}}</td>" +
+			"<td>{{range $idx, $host := .ConnectedHostStrs}}{{if $idx}}, {{end}}{{ $host }}{{end}}</td>" +
+			"</tr>\n"
+	}
 
 	out, err := template.New("blip").Parse(tmpl)
 	if err != nil {
@@ -58,8 +66,30 @@ func getBLIPWriter(results []host.AnalysisView) (string, error) {
 	w := new(bytes.Buffer)
 
 	for _, result := range results {
-		sort.Strings(result.ConnectedHosts)
-		err := out.Execute(w, result)
+
+		//format UniqueIP destinations
+		var connectedHostStrs []string
+		for _, connectedUniqIP := range result.Peers {
+
+			var connectedIPStr string
+			if showNetNames {
+				escapedNetName := strings.ReplaceAll(connectedUniqIP.NetworkName, " ", "_")
+				escapedNetName = strings.ReplaceAll(escapedNetName, ":", "_")
+				connectedIPStr = escapedNetName + ":" + connectedUniqIP.IP
+			} else {
+				connectedIPStr = connectedUniqIP.IP
+			}
+
+			connectedHostStrs = append(connectedHostStrs, connectedIPStr)
+		}
+		sort.Strings(connectedHostStrs)
+
+		formattedResult := struct {
+			blacklist.IPResult
+			ConnectedHostStrs []string
+		}{result, connectedHostStrs}
+
+		err := out.Execute(w, formattedResult)
 		if err != nil {
 			return "", err
 		}

@@ -31,7 +31,8 @@ func (r *repo) CreateIndexes() error {
 	// create hosts collection
 	// Desired indexes
 	indexes := []mgo.Index{
-		{Key: []string{"ip"}, Unique: true},
+		{Key: []string{"ip"}}, //TODO[AGENT]: Determine if this index is needed
+		{Key: []string{"ip", "network_uuid"}, Unique: true},
 		{Key: []string{"local"}},
 		{Key: []string{"ipv4_binary"}},
 	}
@@ -46,7 +47,7 @@ func (r *repo) CreateIndexes() error {
 }
 
 //Upsert loops through every domain ....
-func (r *repo) Upsert(hostMap map[string]*IP) {
+func (r *repo) Upsert(hostMap map[string]*Input) {
 
 	//Create the workers
 	writerWorker := newWriter(r.res.Config.T.Structure.HostTable, r.res.DB, r.res.Config, r.res.Log)

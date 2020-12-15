@@ -8,34 +8,47 @@ import (
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
-	"github.com/globalsign/mgo/bson"
 )
 
-func printStrobes(db string, res *resources.Resources) error {
+func printStrobes(db string, showNetNames bool, res *resources.Resources) error {
 	f, err := os.Create("strobes.html")
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	out, err := template.New("strobes.html").Parse(templates.StrobesTempl)
+
+	var strobesTempl string
+	if showNetNames {
+		strobesTempl = templates.StrobesNetNamesTempl
+	} else {
+		strobesTempl = templates.StrobesTempl
+	}
+
+	out, err := template.New("strobes.html").Parse(strobesTempl)
 	if err != nil {
 		return err
 	}
 
-	data, err := getStrobeResultsView(res, "conn_count", 1000)
+	data, err := beacon.StrobeResults(res, -1, 1000, false)
 	if err != nil {
 		return err
 	}
 
-	w, err := getStrobesWriter(data)
+	w, err := getStrobesWriter(data, showNetNames)
 	if err != nil {
 		return err
 	}
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getStrobesWriter(strobes []beacon.StrobeAnalysisView) (string, error) {
-	tmpl := "<tr><td>{{.Src}}</td><td>{{.Dst}}</td><td>{{.ConnectionCount}}</td></tr>\n"
+func getStrobesWriter(strobes []beacon.StrobeResult, showNetNames bool) (string, error) {
+	var tmpl string
+	if showNetNames {
+		tmpl = "<tr><td>{{.SrcNetworkName}}</td><td>{{.DstNetworkName}}</td><td>{{.SrcIP}}</td><td>{{.DstIP}}</td><td>{{.ConnectionCount}}</td></tr>\n"
+	} else {
+		tmpl = "<tr><td>{{.SrcIP}}</td><td>{{.DstIP}}</td><td>{{.ConnectionCount}}</td></tr>\n"
+	}
+
 	out, err := template.New("Strobes").Parse(tmpl)
 	if err != nil {
 		return "", err
@@ -48,33 +61,4 @@ func getStrobesWriter(strobes []beacon.StrobeAnalysisView) (string, error) {
 		}
 	}
 	return w.String(), nil
-}
-
-//getStrobeResultsView ...
-func getStrobeResultsView(res *resources.Resources, sort string, limit int) ([]beacon.StrobeAnalysisView, error) {
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	var strobes []beacon.StrobeAnalysisView
-
-	strobeQuery := []bson.M{
-		bson.M{"$match": bson.M{"strobe": true}},
-		bson.M{"$unwind": "$dat"},
-		bson.M{"$project": bson.M{"src": 1, "dst": 1, "conns": "$dat.count"}},
-		bson.M{"$group": bson.M{
-			"_id":        "$_id",
-			"src":        bson.M{"$first": "$src"},
-			"dst":        bson.M{"$first": "$dst"},
-			"conn_count": bson.M{"$sum": "$conns"},
-		}},
-		bson.M{"$sort": bson.M{sort: -1}},
-		bson.M{"$limit": limit},
-	}
-
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).AllowDiskUse().All(&strobes)
-	if err != nil {
-		return nil, err
-	}
-
-	return strobes, nil
 }

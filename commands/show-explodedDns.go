@@ -8,7 +8,6 @@ import (
 
 	"github.com/activecm/rita/pkg/explodeddns"
 	"github.com/activecm/rita/resources"
-	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -35,7 +34,7 @@ func init() {
 			res := resources.InitResources(c.String("config"))
 			res.DB.SelectDB(db)
 
-			data, err := getExplodedDNSResultsView(res, c.Int("limit"), c.Bool("no-limit"))
+			data, err := explodeddns.Results(res, c.Int("limit"), c.Bool("no-limit"))
 
 			if err != nil {
 				res.Log.Error(err)
@@ -83,7 +82,7 @@ func splitSubN(s string, n int) []string {
 	return subs
 }
 
-func showDNSResults(dnsResults []explodeddns.AnalysisView, delim string) error {
+func showDNSResults(dnsResults []explodeddns.Result, delim string) error {
 	headers := []string{"Domain", "Unique Subdomains", "Times Looked Up"}
 
 	// Print the headers and analytic values, separated by a delimiter
@@ -99,7 +98,7 @@ func showDNSResults(dnsResults []explodeddns.AnalysisView, delim string) error {
 	return nil
 }
 
-func showDNSResultsHuman(dnsResults []explodeddns.AnalysisView) error {
+func showDNSResultsHuman(dnsResults []explodeddns.Result) error {
 	const DOMAINRECLEN = 80
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(true)
@@ -119,39 +118,4 @@ func showDNSResultsHuman(dnsResults []explodeddns.AnalysisView) error {
 	}
 	table.Render()
 	return nil
-}
-
-//getExplodedDNSResultsView gets the exploded dns results
-func getExplodedDNSResultsView(res *resources.Resources, limit int, noLimit bool) ([]explodeddns.AnalysisView, error) {
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	var explodedDNSResults []explodeddns.AnalysisView
-
-	explodedDNSQuery := []bson.M{
-		bson.M{"$unwind": "$dat"},
-		bson.M{"$project": bson.M{"domain": 1, "subdomain_count": 1, "visited": "$dat.visited"}},
-		bson.M{"$group": bson.M{
-			"_id":             "$domain",
-			"visited":         bson.M{"$sum": "$visited"},
-			"subdomain_count": bson.M{"$first": "$subdomain_count"},
-		}},
-		bson.M{"$project": bson.M{
-			"_id":             0,
-			"domain":          "$_id",
-			"visited":         1,
-			"subdomain_count": 1,
-		}},
-		bson.M{"$sort": bson.M{"visited": -1}},
-		bson.M{"$sort": bson.M{"subdomain_count": -1}},
-	}
-
-	if !noLimit {
-		explodedDNSQuery = append(explodedDNSQuery, bson.M{"$limit": limit})
-	}
-
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.ExplodedDNSTable).Pipe(explodedDNSQuery).AllowDiskUse().All(&explodedDNSResults)
-
-	return explodedDNSResults, err
-
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -37,8 +38,8 @@ func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallba
 }
 
 //collect sends a group of domains to be analyzed
-func (a *analyzer) collect(data *Input) {
-	a.analysisChannel <- data
+func (a *analyzer) collect(datum *Input) {
+	a.analysisChannel <- datum
 }
 
 //close waits for the collector to finish
@@ -55,47 +56,50 @@ func (a *analyzer) start() {
 		ssn := a.db.Session.Copy()
 		defer ssn.Close()
 
-		for data := range a.analysisChannel {
+		for datum := range a.analysisChannel {
 			// set up writer output
 			var output update
 
-			if len(data.OrigIps) > 10 {
-				data.OrigIps = data.OrigIps[:10]
+			if len(datum.OrigIps) > 10 {
+				datum.OrigIps = datum.OrigIps[:10]
 			}
 
-			if len(data.Requests) > 10 {
-				data.Requests = data.Requests[:10]
+			if len(datum.Requests) > 10 {
+				datum.Requests = datum.Requests[:10]
 			}
 
 			// create query
 			query := bson.M{
 				"$push": bson.M{
 					"dat": bson.M{
-						"seen":     data.Seen,
-						"orig_ips": data.OrigIps,
-						"hosts":    data.Requests,
+						"seen":     datum.Seen,
+						"orig_ips": datum.OrigIps,
+						"hosts":    datum.Requests,
 						"cid":      a.chunk,
 					},
 				},
 				"$set":         bson.M{"cid": a.chunk},
-				"$setOnInsert": bson.M{"ja3": data.JA3},
+				"$setOnInsert": bson.M{"ja3": datum.JA3},
 			}
 
 			output.query = query
 
 			output.collection = a.conf.T.UserAgent.UserAgentTable
 			// create selector for output
-			output.selector = bson.M{"user_agent": data.name}
+			output.selector = bson.M{"user_agent": datum.Name}
 
 			// set to writer channel
 			a.analyzedCallback(output)
 
 			// this is for flagging rarely used j3 and useragent hosts
-			if len(data.OrigIps) < 5 {
-				maxLeft := 5 - len(data.OrigIps)
+			if len(datum.OrigIps) < 5 {
+				maxLeft := 5 - len(datum.OrigIps)
 
 				query := []bson.M{
-					bson.M{"$match": bson.M{"user_agent": data.name}},
+					bson.M{"$match": bson.M{"user_agent": datum.Name}},
+					bson.M{"$project": bson.M{
+						"dat.orig_ips.network_name": 0, // drop network_name before UniqueIP comparisons
+					}},
 					bson.M{"$project": bson.M{"ips": "$dat.orig_ips", "user_agent": 1}},
 					bson.M{"$unwind": "$ips"},
 					bson.M{"$unwind": "$ips"}, // not an error, needs to be done twice
@@ -110,38 +114,36 @@ func (a *analyzer) start() {
 					bson.M{"$match": bson.M{"count": bson.M{"$lte": maxLeft}}},
 				}
 
-				var resList struct {
-					ID    string   `bson:"_id"`
-					IPS   []string `bson:"ips"`
-					Count int      `bson:"count"`
+				var rareSigList struct {
+					OrigIps []data.UniqueIP `bson:"ips"`
 				}
 
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.UserAgent.UserAgentTable).Pipe(query).AllowDiskUse().One(&resList)
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.UserAgent.UserAgentTable).Pipe(query).AllowDiskUse().One(&rareSigList)
 
-				for _, entry := range resList.IPS {
+				for _, rareSigIP := range rareSigList.OrigIps {
 
-					newRecordFlag := false
+					newRecordFlag := false // have we created a rare signature entry for this host in this chunk yet?
 
-					type hostRes struct {
+					type hostEntry struct {
 						CID int `bson:"cid"`
 					}
 
-					var res2 []hostRes
+					var hostEntries []hostEntry
 
-					_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(bson.M{"ip": entry, "dat.rsig": data.name}).All(&res2)
+					entryHostQuery := rareSigIP.BSONKey()
+					entryHostQuery["dat.rsig"] = datum.Name
+					//TODO: Consider adding the chunk to the query instead of checking it after the query
 
-					if !(len(res2) > 0) {
+					_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(entryHostQuery).All(&hostEntries)
+
+					//TODO: I think there might be a bug here. From what I can tell, if we set the new record flag
+					// when there is a rare signature record from a previous chunk, then we will end up pushing a duplicate
+					// record for each chunk. We should investigate removing this chunk check here. -LL
+					if len(hostEntries) <= 0 || hostEntries[0].CID != a.chunk {
 						newRecordFlag = true
-						// fmt.Println("host no results", res2, data.Host)
-					} else {
-
-						if res2[0].CID != a.chunk {
-							// fmt.Println("host existing", a.chunk, res2, data.Host)
-							newRecordFlag = true
-						}
 					}
 
-					output := hostQuery(a.chunk, data.name, entry, newRecordFlag)
+					output := hostQuery(a.chunk, datum.Name, rareSigIP, newRecordFlag)
 					output.collection = a.conf.T.Structure.HostTable
 
 					// set to writer channel
@@ -157,7 +159,7 @@ func (a *analyzer) start() {
 }
 
 //hostQuery ...
-func hostQuery(chunk int, useragentStr string, ip string, newFlag bool) update {
+func hostQuery(chunk int, useragentStr string, ip data.UniqueIP, newFlag bool) update {
 	var output update
 
 	// create query
@@ -173,7 +175,7 @@ func hostQuery(chunk int, useragentStr string, ip string, newFlag bool) update {
 
 		// create selector for output ,
 		output.query = query
-		output.selector = bson.M{"ip": ip}
+		output.selector = ip.BSONKey()
 
 	} else {
 
@@ -187,7 +189,8 @@ func hostQuery(chunk int, useragentStr string, ip string, newFlag bool) update {
 		// already listed, we just want to update it to the most recent chunk instead
 		// of adding more
 		output.query = query
-		output.selector = bson.M{"ip": ip, "dat.rsig": useragentStr}
+		output.selector = ip.BSONKey()
+		output.selector["dat.rsig"] = useragentStr
 	}
 
 	return output

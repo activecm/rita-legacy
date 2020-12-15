@@ -88,16 +88,15 @@ type SSL struct {
 	ValidationCode int `bson:"validation_code" bro:"validation_code" brotype:"int" json:"validation_code"`
 	// JA3 hash
 	JA3 string `bson:"ja3" bro:"ja3" brotype:"string" json:"ja3"`
+	// AgentHostname names which sensor recorded this event. Only set when combining logs from multiple sensors.
+	AgentHostname string `bson:"agent_hostname" bro:"agent_hostname" brotype:"string" json:"agent_hostname"`
+	// AgentUUID identifies which sensor recorded this event. Only set when combining logs from multiple sensors.
+	AgentUUID string `bson:"agent_uuid" bro:"agent_uuid" brotype:"string" json:"agent_uuid"`
 }
 
 //TargetCollection returns the mongo collection this entry should be inserted
 func (line *SSL) TargetCollection(config *config.StructureTableCfg) string {
 	return config.SSLTable
-}
-
-//Indices gives MongoDB indices that should be used with the collection
-func (line *SSL) Indices() []string {
-	return []string{"$hashed:id_orig_h", "$hashed:id_resp_h"}
 }
 
 //ConvertFromJSON performs any extra conversions necessary when reading from JSON

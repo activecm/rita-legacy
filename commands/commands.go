@@ -2,7 +2,6 @@ package commands
 
 import (
 	"runtime"
-	"strconv"
 
 	"github.com/activecm/rita/resources"
 	log "github.com/sirupsen/logrus"
@@ -119,6 +118,11 @@ var (
 		Usage: "Use a specific `DELIM` string for non-human-readable output",
 		Value: ",", //default to comma-separated
 	}
+
+	netNamesFlag = cli.BoolFlag{
+		Name:  "network-names, nn",
+		Usage: "Show network names associated with IP addresses. Helps when private IPs are reused across multiple physical networks.",
+	}
 )
 
 // bootstrapCommands simply adds a given command to the allCommands array
@@ -153,12 +157,4 @@ func bootstrapCommands(commands ...cli.Command) {
 // Commands provides all of the defined commands to the front end
 func Commands() []cli.Command {
 	return allCommands
-}
-
-//helper functions for formatting floats and integers
-func f(f float64) string {
-	return strconv.FormatFloat(f, 'g', 6, 64)
-}
-func i(i int64) string {
-	return strconv.FormatInt(i, 10)
 }

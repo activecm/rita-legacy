@@ -53,16 +53,15 @@ type Conn struct {
 	RespIPBytes int64 `bson:"resp_ip_bytes" bro:"resp_ip_bytes" brotype:"count" json:"resp_ip_bytes"`
 	// TunnelParents lists tunnel parents
 	TunnelParents []string `bson:"tunnel_parents" bro:"tunnel_parents" brotype:"set[string]" json:"tunnel_parents"`
+	// AgentHostname names which sensor recorded this event. Only set when combining logs from multiple sensors.
+	AgentHostname string `bson:"agent_hostname" bro:"agent_hostname" brotype:"string" json:"agent_hostname"`
+	// AgentUUID identifies which sensor recorded this event. Only set when combining logs from multiple sensors.
+	AgentUUID string `bson:"agent_uuid" bro:"agent_uuid" brotype:"string" json:"agent_uuid"`
 }
 
 //TargetCollection returns the mongo collection this entry should be inserted
 func (line *Conn) TargetCollection(config *config.StructureTableCfg) string {
 	return config.ConnTable
-}
-
-//Indices gives MongoDB indices that should be used with the collection
-func (line *Conn) Indices() []string {
-	return []string{"$hashed:id_orig_h", "$hashed:id_resp_h", "-duration", "ts", "uid"}
 }
 
 //ConvertFromJSON performs any extra conversions necessary when reading from JSON

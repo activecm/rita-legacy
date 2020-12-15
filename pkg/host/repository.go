@@ -1,20 +1,25 @@
 package host
 
+import (
+	"github.com/activecm/rita/pkg/data"
+	"github.com/globalsign/mgo/bson"
+)
+
 // Repository for host collection
 type Repository interface {
 	CreateIndexes() error
-	Upsert(uconnMap map[string]*IP)
+	Upsert(uconnMap map[string]*Input)
 }
 
 //update ....
 type update struct {
-	selector interface{}
-	query    interface{}
+	selector bson.M
+	query    bson.M
 }
 
-//IP ....
-type IP struct {
-	Host                  string
+//Input ...
+type Input struct {
+	Host                  data.UniqueIP
 	IsLocal               bool
 	CountSrc              int
 	CountDst              int
@@ -26,17 +31,6 @@ type IP struct {
 	UntrustedAppConnCount int64
 	MaxTS                 int64
 	MinTS                 int64
-	ConnectedSrcHosts     []string
-	ConnectedDstHosts     []string
 	IP4                   bool
 	IP4Bin                int64
-}
-
-//AnalysisView for blacklisted ips (for reporting)
-type AnalysisView struct {
-	Host              string   `bson:"host"`
-	Connections       int      `bson:"conn_count"`
-	UniqueConnections int      `bson:"uconn_count"`
-	TotalBytes        int      `bson:"total_bytes"`
-	ConnectedHosts    []string `bson:"ips,omitempty"`
 }

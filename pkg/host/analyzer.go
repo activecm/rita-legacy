@@ -6,6 +6,7 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -18,7 +19,7 @@ type (
 		conf             *config.Config // contains details needed to access MongoDB
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *IP       // holds unanalyzed data
+		analysisChannel  chan *Input    // holds unanalyzed data
 		analysisWg       sync.WaitGroup // wait for analysis to finish
 	}
 )
@@ -32,13 +33,13 @@ func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallba
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan *IP),
+		analysisChannel:  make(chan *Input),
 	}
 }
 
 //collect sends a chunk of data to be analyzed
-func (a *analyzer) collect(data *IP) {
-	a.analysisChannel <- data
+func (a *analyzer) collect(datum *Input) {
+	a.analysisChannel <- datum
 }
 
 //close waits for the collector to finish
@@ -55,18 +56,18 @@ func (a *analyzer) start() {
 		ssn := a.db.Session.Copy()
 		defer ssn.Close()
 
-		for data := range a.analysisChannel {
+		for datum := range a.analysisChannel {
 			// blacklisted flag
 			blacklisted := false
 
 			// check if blacklisted destination
-			blCount, _ := ssn.DB(a.conf.S.Blacklisted.BlacklistDatabase).C("ip").Find(bson.M{"index": data.Host}).Count()
+			blCount, _ := ssn.DB(a.conf.S.Blacklisted.BlacklistDatabase).C("ip").Find(bson.M{"index": datum.Host.IP}).Count()
 			if blCount > 0 {
 				blacklisted = true
 			}
 
 			// update src of connection in hosts table
-			if data.IP4 {
+			if datum.IP4 {
 				var output update
 				newRecordFlag := false
 				type hostRes struct {
@@ -75,20 +76,20 @@ func (a *analyzer) start() {
 
 				var res2 []hostRes
 
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(bson.M{"ip": data.Host}).All(&res2)
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(datum.Host.BSONKey()).All(&res2)
 
 				if !(len(res2) > 0) {
 					newRecordFlag = true
-					// fmt.Println("host no results", res2, data.Host)
+					// fmt.Println("host no results", res2, datum.Host)
 				} else {
 
 					if res2[0].CID != a.chunk {
-						// fmt.Println("host existing", a.chunk, res2, data.Host)
+						// fmt.Println("host existing", a.chunk, res2, datum.Host)
 						newRecordFlag = true
 					}
 				}
 
-				output = standardQuery(a.chunk, a.chunkStr, data.Host, data.IsLocal, data.IP4, data.IP4Bin, data.MaxDuration, data.TXTQueryCount, data.UntrustedAppConnCount, data.CountSrc, data.CountDst, blacklisted, newRecordFlag)
+				output = standardQuery(a.chunk, a.chunkStr, datum.Host, datum.IsLocal, datum.IP4, datum.IP4Bin, datum.MaxDuration, datum.TXTQueryCount, datum.UntrustedAppConnCount, datum.CountSrc, datum.CountDst, blacklisted, newRecordFlag)
 
 				// set to writer channel
 				a.analyzedCallback(output)
@@ -101,20 +102,20 @@ func (a *analyzer) start() {
 }
 
 //standardQuery ...
-func standardQuery(chunk int, chunkStr string, ip string, local bool, ip4 bool, ip4bin int64, maxdur float64, txtQCount int64, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
+func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4 bool, ip4bin int64, maxdur float64, txtQCount int64, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
 	var output update
 
 	// create query
 	query := bson.M{
 		"$set": bson.M{
-			"blacklisted": blacklisted,
-			"cid":         chunk,
-			"local":       local,
-			"ipv4":        ip4,
-			"ipv4_binary": ip4bin,
+			"blacklisted":  blacklisted,
+			"cid":          chunk,
+			"local":        local,
+			"ipv4":         ip4,
+			"ipv4_binary":  ip4bin,
+			"network_name": ip.NetworkName,
 		},
 	}
-
 	if newFlag {
 
 		query["$push"] = bson.M{
@@ -128,7 +129,7 @@ func standardQuery(chunk int, chunkStr string, ip string, local bool, ip4 bool, 
 
 		// create selector for output ,
 		output.query = query
-		output.selector = bson.M{"ip": ip}
+		output.selector = ip.BSONKey()
 
 	} else {
 
@@ -141,7 +142,8 @@ func standardQuery(chunk int, chunkStr string, ip string, local bool, ip4 bool, 
 
 		// create selector for output
 		output.query = query
-		output.selector = bson.M{"ip": ip, "dat.cid": chunk}
+		output.selector = ip.BSONKey()
+		output.selector["dat.cid"] = chunk
 	}
 
 	return output

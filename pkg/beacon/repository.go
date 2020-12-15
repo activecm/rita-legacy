@@ -1,16 +1,20 @@
 package beacon
 
-import "github.com/activecm/rita/pkg/uconn"
+import (
+	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/uconn"
+	"github.com/globalsign/mgo/bson"
+)
 
 // Repository for host collection
 type Repository interface {
 	CreateIndexes() error
-	Upsert(uconnMap map[string]*uconn.Pair)
+	Upsert(uconnMap map[string]*uconn.Input)
 }
 
 type updateInfo struct {
-	selector interface{}
-	query    interface{}
+	selector bson.M
+	query    bson.M
 }
 
 //update ....
@@ -40,20 +44,20 @@ type DSData struct {
 	ModeCount  int64   `bson:"mode_count"`
 }
 
-//AnalysisView (for reporting)
-type AnalysisView struct {
-	Src         string  `bson:"src"`
-	Dst         string  `bson:"dst"`
-	Connections int64   `bson:"connection_count"`
-	AvgBytes    float64 `bson:"avg_bytes"`
-	Ts          TSData  `bson:"ts"`
-	Ds          DSData  `bson:"ds"`
-	Score       float64 `bson:"score"`
+//Result represents a beacon between two hosts. Contains information
+//on connection delta times and the amount of data transferred
+type Result struct {
+	data.UniqueIPPair `bson:",inline"`
+	Connections       int64   `bson:"connection_count"`
+	AvgBytes          float64 `bson:"avg_bytes"`
+	Ts                TSData  `bson:"ts"`
+	Ds                DSData  `bson:"ds"`
+	Score             float64 `bson:"score"`
 }
 
-//StrobeAnalysisView (for reporting)
-type StrobeAnalysisView struct {
-	Src             string `bson:"src"`
-	Dst             string `bson:"dst"`
-	ConnectionCount int64  `bson:"conn_count"`
+//StrobeResult represents a unique connection with a large amount
+//of connections between the hosts
+type StrobeResult struct {
+	data.UniqueIPPair `bson:",inline"`
+	ConnectionCount   int64 `bson:"connection_count"`
 }

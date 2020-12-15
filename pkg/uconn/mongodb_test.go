@@ -7,7 +7,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo/dbtest"
 )
 
@@ -19,10 +21,16 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testUconn = map[string]*Pair{
-	"test": &Pair{
-		Src:             "127.0.0.1",
-		Dst:             "127.0.0.1",
+var testUconn = map[string]*Input{
+	"test": &Input{
+		Hosts: data.UniqueIPPair{
+			SrcIP:          "127.0.0.1",
+			SrcNetworkUUID: util.UnknownPrivateNetworkUUID,
+			SrcNetworkName: util.UnknownPrivateNetworkName,
+			DstIP:          "127.0.0.1",
+			DstNetworkUUID: util.UnknownPrivateNetworkUUID,
+			DstNetworkName: util.UnknownPrivateNetworkName,
+		},
 		ConnectionCount: 12,
 		IsLocalSrc:      true,
 		IsLocalDst:      true,
@@ -32,13 +40,6 @@ var testUconn = map[string]*Pair{
 		TotalDuration:   123.0,
 		MaxDuration:     12,
 	},
-}
-
-func TestCreateIndexes(t *testing.T) {
-	err := testRepo.CreateIndexes()
-	if err != nil {
-		t.Errorf("Error creating uconn indexes")
-	}
 }
 
 func TestUpsert(t *testing.T) {

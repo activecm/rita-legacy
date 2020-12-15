@@ -7,9 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/activecm/rita/pkg/hostname"
+	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/resources"
-	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -25,6 +24,7 @@ func init() {
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
+			netNamesFlag,
 		},
 		Usage:  "Print blacklisted hostnames which received connections",
 		Action: printBLHostnames,
@@ -43,7 +43,7 @@ func printBLHostnames(c *cli.Context) error {
 	res := resources.InitResources(c.String("config"))
 	res.DB.SelectDB(db)
 
-	data, err := getBlacklistedHostnameResultsView(res, "conn_count", c.Int("limit"), c.Bool("no-limit"))
+	data, err := blacklist.HostnameResults(res, "conn_count", c.Int("limit"), c.Bool("no-limit"))
 
 	if err != nil {
 		res.Log.Error(err)
@@ -55,12 +55,12 @@ func printBLHostnames(c *cli.Context) error {
 	}
 
 	if c.Bool("human-readable") {
-		err = showBLHostnamesHuman(data)
+		err = showBLHostnamesHuman(data, c.Bool("network-names"))
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
 	} else {
-		err = showBLHostnames(data, c.String("delimiter"))
+		err = showBLHostnames(data, c.String("delimiter"), c.Bool("network-names"))
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
@@ -69,7 +69,7 @@ func printBLHostnames(c *cli.Context) error {
 	return nil
 }
 
-func showBLHostnames(hostnames []hostname.AnalysisView, delim string) error {
+func showBLHostnames(hostnames []blacklist.HostnameResult, delim string, showNetNames bool) error {
 	headers := []string{"Host", "Connections", "Unique Connections", "Total Bytes", "Sources"}
 
 	// Print the headers and analytic values, separated by a delimiter
@@ -83,8 +83,22 @@ func showBLHostnames(hostnames []hostname.AnalysisView, delim string) error {
 			strconv.Itoa(entry.TotalBytes),
 		}
 
-		sort.Strings(entry.ConnectedHosts)
-		serialized = append(serialized, strings.Join(entry.ConnectedHosts, " "))
+		var sourceIPs []string
+		if showNetNames {
+			for _, connectedUniqIP := range entry.ConnectedHosts {
+				escapedNetName := strings.ReplaceAll(connectedUniqIP.NetworkName, " ", "_")
+				escapedNetName = strings.ReplaceAll(escapedNetName, ":", "_")
+				connectedIPStr := escapedNetName + ":" + connectedUniqIP.IP
+				sourceIPs = append(sourceIPs, connectedIPStr)
+			}
+		} else {
+			for _, connectedUniqIP := range entry.ConnectedHosts {
+				sourceIPs = append(sourceIPs, connectedUniqIP.IP)
+			}
+		}
+
+		sort.Strings(sourceIPs)
+		serialized = append(serialized, strings.Join(sourceIPs, " "))
 
 		fmt.Println(
 			strings.Join(
@@ -97,7 +111,7 @@ func showBLHostnames(hostnames []hostname.AnalysisView, delim string) error {
 	return nil
 }
 
-func showBLHostnamesHuman(hostnames []hostname.AnalysisView) error {
+func showBLHostnamesHuman(hostnames []blacklist.HostnameResult, showNetNames bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	headers := []string{"Hostname", "Connections", "Unique Connections", "Total Bytes", "Sources"}
 
@@ -111,65 +125,25 @@ func showBLHostnamesHuman(hostnames []hostname.AnalysisView) error {
 			strconv.Itoa(entry.TotalBytes),
 		}
 
-		sort.Strings(entry.ConnectedHosts)
-		serialized = append(serialized, strings.Join(entry.ConnectedHosts, " "))
+		var sourceIPs []string
+		if showNetNames {
+			for _, connectedUniqIP := range entry.ConnectedHosts {
+				escapedNetName := strings.ReplaceAll(connectedUniqIP.NetworkName, " ", "_")
+				escapedNetName = strings.ReplaceAll(escapedNetName, ":", "_")
+				connectedIPStr := escapedNetName + ":" + connectedUniqIP.IP
+				sourceIPs = append(sourceIPs, connectedIPStr)
+			}
+		} else {
+			for _, connectedUniqIP := range entry.ConnectedHosts {
+				sourceIPs = append(sourceIPs, connectedUniqIP.IP)
+			}
+		}
+
+		sort.Strings(sourceIPs)
+		serialized = append(serialized, strings.Join(sourceIPs, " "))
 
 		table.Append(serialized)
 	}
 	table.Render()
 	return nil
-}
-
-//getBlacklistedHostnameResultsView ....
-func getBlacklistedHostnameResultsView(res *resources.Resources, sort string, limit int, noLimit bool) ([]hostname.AnalysisView, error) {
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	blHostsQuery := []bson.M{
-		bson.M{"$match": bson.M{"blacklisted": true}},
-		bson.M{"$unwind": "$dat"},
-		bson.M{"$project": bson.M{"host": 1, "ips": "$dat.ips"}},
-		bson.M{"$unwind": "$ips"},
-		bson.M{"$group": bson.M{
-			"_id": "$host",
-			"ips": bson.M{"$addToSet": "$ips"},
-		}},
-		bson.M{"$unwind": "$ips"},
-		bson.M{"$lookup": bson.M{
-			"from":         "uconn",
-			"localField":   "ips",
-			"foreignField": "dst",
-			"as":           "uconn",
-		}},
-		bson.M{"$unwind": "$uconn"},
-		bson.M{"$unwind": "$uconn.dat"},
-		bson.M{"$project": bson.M{"host": 1, "conns": "$uconn.dat.count", "bytes": "$uconn.dat.tbytes", "ip": "$uconn.src"}},
-		bson.M{"$group": bson.M{
-			"_id":         "$_id",
-			"ips":         bson.M{"$addToSet": "$ip"},
-			"conn_count":  bson.M{"$sum": "$conns"},
-			"total_bytes": bson.M{"$sum": "$bytes"},
-		}},
-	}
-
-	if !noLimit {
-		blHostsQuery = append(blHostsQuery, bson.M{"$limit": limit})
-	}
-
-	blHostsQuery = append(blHostsQuery, bson.M{"$sort": bson.M{sort: -1}},
-		bson.M{"$project": bson.M{
-			"_id":         0,
-			"host":        "$_id",
-			"uconn_count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
-			"ips":         1,
-			"conn_count":  1,
-			"total_bytes": 1,
-		}},
-	)
-
-	var blHosts []hostname.AnalysisView
-
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.HostnamesTable).Pipe(blHostsQuery).AllowDiskUse().All(&blHosts)
-
-	return blHosts, err
 }

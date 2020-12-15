@@ -70,16 +70,15 @@ type HTTP struct {
 	RespFilenames []string `bson:"resp_filenames" bro:"resp_filenames" brotype:"vector[string]" json:"resp_filenames"`
 	// RespMimeTypes contains an ordered vector of unique MIME entities in the HTTP response body
 	RespMimeTypes []string `bson:"resp_mime_types" bro:"resp_mime_types" brotype:"vector[string]" json:"resp_mime_types"`
+	// AgentHostname names which sensor recorded this event. Only set when combining logs from multiple sensors.
+	AgentHostname string `bson:"agent_hostname" bro:"agent_hostname" brotype:"string" json:"agent_hostname"`
+	// AgentUUID identifies which sensor recorded this event. Only set when combining logs from multiple sensors.
+	AgentUUID string `bson:"agent_uuid" bro:"agent_uuid" brotype:"string" json:"agent_uuid"`
 }
 
 //TargetCollection returns the mongo collection this entry should be inserted
 func (line *HTTP) TargetCollection(config *config.StructureTableCfg) string {
 	return config.HTTPTable
-}
-
-//Indices gives MongoDB indices that should be used with the collection
-func (line *HTTP) Indices() []string {
-	return []string{"$hashed:id_orig_h", "$hashed:id_resp_h", "$hashed:user_agent", "uid"}
 }
 
 //ConvertFromJSON performs any extra conversions necessary when reading from JSON

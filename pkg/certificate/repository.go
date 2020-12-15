@@ -1,5 +1,10 @@
 package certificate
 
+import (
+	"github.com/activecm/rita/pkg/data"
+	"github.com/globalsign/mgo/bson"
+)
+
 // Repository for uconn collection
 type Repository interface {
 	CreateIndexes() error
@@ -8,16 +13,16 @@ type Repository interface {
 
 //update ....
 type update struct {
-	selector   interface{}
-	query      interface{}
+	selector   bson.M
+	query      bson.M
 	collection string
 }
 
 //Input ....
 type Input struct {
-	Host         string
+	Host         data.UniqueIP
 	Seen         int64
-	OrigIps      []string
+	OrigIps      data.UniqueIPSet
 	InvalidCerts []string
 	Tuples       []string
 }

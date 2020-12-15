@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo/bson"
@@ -45,7 +46,7 @@ func (r *repo) Upsert() {
 		writerWorker.start()
 	}
 
-	var res hostRes
+	var res data.UniqueIP
 	fmt.Println("\t[-] Updating blacklisted peers ...")
 	// loop over map entries
 	for iter.Next(&res) {

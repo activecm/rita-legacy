@@ -12,28 +12,28 @@ import (
 
 type (
 	sorter struct {
-		db             *database.DB      // provides access to MongoDB
-		conf           *config.Config    // contains details needed to access MongoDB
-		sortedCallback func(*uconn.Pair) // called on each analyzed result
-		closedCallback func()            // called when .close() is called and no more calls to analyzedCallback will be made
-		sortChannel    chan *uconn.Pair  // holds unanalyzed data
-		sortWg         sync.WaitGroup    // wait for analysis to finish
+		db             *database.DB       // provides access to MongoDB
+		conf           *config.Config     // contains details needed to access MongoDB
+		sortedCallback func(*uconn.Input) // called on each analyzed result
+		closedCallback func()             // called when .close() is called and no more calls to analyzedCallback will be made
+		sortChannel    chan *uconn.Input  // holds unanalyzed data
+		sortWg         sync.WaitGroup     // wait for analysis to finish
 	}
 )
 
 //newsorter creates a new collector for gathering data
-func newSorter(db *database.DB, conf *config.Config, sortedCallback func(*uconn.Pair), closedCallback func()) *sorter {
+func newSorter(db *database.DB, conf *config.Config, sortedCallback func(*uconn.Input), closedCallback func()) *sorter {
 	return &sorter{
 		db:             db,
 		conf:           conf,
 		sortedCallback: sortedCallback,
 		closedCallback: closedCallback,
-		sortChannel:    make(chan *uconn.Pair),
+		sortChannel:    make(chan *uconn.Input),
 	}
 }
 
 //collect sends a chunk of data to be analyzed
-func (s *sorter) collect(data *uconn.Pair) {
+func (s *sorter) collect(data *uconn.Input) {
 	s.sortChannel <- data
 }
 

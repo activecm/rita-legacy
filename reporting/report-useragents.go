@@ -8,10 +8,9 @@ import (
 	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
-	"github.com/globalsign/mgo/bson"
 )
 
-func printUserAgents(db string, res *resources.Resources) error {
+func printUserAgents(db string, showNetNames bool, res *resources.Resources) error {
 	f, err := os.Create("useragents.html")
 	if err != nil {
 		return err
@@ -22,7 +21,7 @@ func printUserAgents(db string, res *resources.Resources) error {
 		return err
 	}
 
-	data, err := getUseragentResultsView(res, "seen", 1, 1000)
+	data, err := useragent.Results(res, 1, 1000, false)
 	if err != nil {
 		return err
 	}
@@ -34,7 +33,7 @@ func printUserAgents(db string, res *resources.Resources) error {
 	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
 }
 
-func getUserAgentsWriter(agents []useragent.AnalysisView) (string, error) {
+func getUserAgentsWriter(agents []useragent.Result) (string, error) {
 	tmpl := "<tr><td>{{.UserAgent}}</td><td>{{.TimesUsed}}</td></tr>\n"
 	out, err := template.New("Agents").Parse(tmpl)
 	if err != nil {
@@ -48,36 +47,4 @@ func getUserAgentsWriter(agents []useragent.AnalysisView) (string, error) {
 		}
 	}
 	return w.String(), nil
-}
-
-//getUseragentResultsView gets the useragent results
-func getUseragentResultsView(res *resources.Resources, sort string, sortDirection int, limit int) ([]useragent.AnalysisView, error) {
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	var useragentResults []useragent.AnalysisView
-
-	useragentQuery := []bson.M{
-		bson.M{"$project": bson.M{"user_agent": 1, "seen": "$dat.seen"}},
-		bson.M{"$unwind": "$seen"},
-		bson.M{"$group": bson.M{
-			"_id":  "$user_agent",
-			"seen": bson.M{"$sum": "$seen"},
-		}},
-		bson.M{"$project": bson.M{
-			"_id":        0,
-			"user_agent": "$_id",
-			"seen":       1,
-		}},
-		bson.M{"$sort": bson.M{sort: sortDirection}},
-		bson.M{"$limit": limit},
-	}
-
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.UserAgent.UserAgentTable).Pipe(useragentQuery).AllowDiskUse().All(&useragentResults)
-	if err != nil {
-		return nil, err
-	}
-
-	return useragentResults, nil
-
 }

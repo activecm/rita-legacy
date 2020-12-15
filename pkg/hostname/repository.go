@@ -1,5 +1,10 @@
 package hostname
 
+import (
+	"github.com/activecm/rita/pkg/data"
+	"github.com/globalsign/mgo/bson"
+)
+
 // Repository for hostnames collection
 type Repository interface {
 	CreateIndexes() error
@@ -8,27 +13,13 @@ type Repository interface {
 
 //update ....
 type update struct {
-	selector interface{}
-	query    interface{}
+	selector bson.M
+	query    bson.M
 }
 
 //Input ....
 type Input struct {
-	ResolvedIPs []string //Resolved IPs associated with a given hostname
-	ClientIPs   []string //DNS Client IPs which issued queries for a given hostname
-}
-
-type hostname struct {
-	host      string   `bson:"host"`
-	ips       []string `bson:"ips"`
-	clientIPs []string `bson:"client_ips"`
-}
-
-//AnalysisView (for reporting)
-type AnalysisView struct {
-	Host              string   `bson:"host"`
-	Connections       int      `bson:"conn_count"`
-	UniqueConnections int      `bson:"uconn_count"`
-	TotalBytes        int      `bson:"total_bytes"`
-	ConnectedHosts    []string `bson:"ips,omitempty"`
+	Host        string           //A hostname
+	ResolvedIPs data.UniqueIPSet //Set of resolved UniqueIPs associated with a given hostname
+	ClientIPs   data.UniqueIPSet //Set of DNS Client UniqueIPs which issued queries for a given hostname
 }

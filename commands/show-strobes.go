@@ -7,7 +7,6 @@ import (
 
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/resources"
-	"github.com/globalsign/mgo/bson"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -28,6 +27,7 @@ func init() {
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
+			netNamesFlag,
 		},
 		Action: func(c *cli.Context) error {
 			db := c.Args().Get(0)
@@ -38,13 +38,12 @@ func init() {
 			res := resources.InitResources(c.String("config"))
 			res.DB.SelectDB(db)
 
-			sortStr := "conn_count"
 			sortDirection := -1
 			if c.Bool("connection-count") == false {
 				sortDirection = 1
 			}
 
-			data, err := getStrobeResultsView(res, sortStr, sortDirection, c.Int("limit"), c.Bool("no-limit"))
+			data, err := beacon.StrobeResults(res, sortDirection, c.Int("limit"), c.Bool("no-limit"))
 
 			if err != nil {
 				res.Log.Error(err)
@@ -56,13 +55,13 @@ func init() {
 			}
 
 			if c.Bool("human-readable") {
-				err := showStrobesHuman(data)
+				err := showStrobesHuman(data, c.Bool("network-names"))
 				if err != nil {
 					return cli.NewExitError(err.Error(), -1)
 				}
 				return nil
 			}
-			err = showStrobes(data, c.String("delimiter"))
+			err = showStrobes(data, c.String("delimiter"), c.Bool("network-names"))
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -72,59 +71,69 @@ func init() {
 	bootstrapCommands(command)
 }
 
-func showStrobes(strobes []beacon.StrobeAnalysisView, delim string) error {
-	headers := []string{"Source", "Destination", "Connection Count"}
+func showStrobes(strobes []beacon.StrobeResult, delim string, showNetNames bool) error {
+	var headerFields []string
+	if showNetNames {
+		headerFields = []string{"Source Network", "Destination Network", "Source", "Destination", "Connection Count"}
+	} else {
+		headerFields = []string{"Source", "Destination", "Connection Count"}
+	}
 
 	// Print the headers and analytic values, separated by a delimiter
-	fmt.Println(strings.Join(headers, delim))
+	fmt.Println(strings.Join(headerFields, delim))
 	for _, strobe := range strobes {
-		fmt.Println(
-			strings.Join(
-				[]string{strobe.Src, strobe.Dst, i(strobe.ConnectionCount)},
-				delim,
-			),
-		)
+		var row []string
+		if showNetNames {
+			row = []string{
+				strobe.SrcNetworkName,
+				strobe.DstNetworkName,
+				strobe.SrcIP,
+				strobe.DstIP,
+				i(strobe.ConnectionCount),
+			}
+		} else {
+			row = []string{
+				strobe.SrcIP,
+				strobe.DstIP,
+				i(strobe.ConnectionCount),
+			}
+		}
+		fmt.Println(strings.Join(row, delim))
 	}
 	return nil
 }
 
-func showStrobesHuman(strobes []beacon.StrobeAnalysisView) error {
+func showStrobesHuman(strobes []beacon.StrobeResult, showNetNames bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetColWidth(100)
-	table.SetHeader([]string{"Source", "Destination", "Connection Count"})
+
+	var headerFields []string
+	if showNetNames {
+		headerFields = []string{"Source Network", "Destination Network", "Source", "Destination", "Connection Count"}
+	} else {
+		headerFields = []string{"Source", "Destination", "Connection Count"}
+	}
+	table.SetHeader(headerFields)
+
 	for _, strobe := range strobes {
-		table.Append([]string{strobe.Src, strobe.Dst, i(strobe.ConnectionCount)})
+		var row []string
+		if showNetNames {
+			row = []string{
+				strobe.SrcNetworkName,
+				strobe.DstNetworkName,
+				strobe.SrcIP,
+				strobe.DstIP,
+				i(strobe.ConnectionCount),
+			}
+		} else {
+			row = []string{
+				strobe.SrcIP,
+				strobe.DstIP,
+				i(strobe.ConnectionCount),
+			}
+		}
+		table.Append(row)
 	}
 	table.Render()
 	return nil
-}
-
-//getStrobeResultsView ...
-func getStrobeResultsView(res *resources.Resources, sort string, sortDir, limit int, noLimit bool) ([]beacon.StrobeAnalysisView, error) {
-	ssn := res.DB.Session.Copy()
-	defer ssn.Close()
-
-	var strobes []beacon.StrobeAnalysisView
-
-	strobeQuery := []bson.M{
-		bson.M{"$match": bson.M{"strobe": true}},
-		bson.M{"$unwind": "$dat"},
-		bson.M{"$project": bson.M{"src": 1, "dst": 1, "conns": "$dat.count"}},
-		bson.M{"$group": bson.M{
-			"_id":        "$_id",
-			"src":        bson.M{"$first": "$src"},
-			"dst":        bson.M{"$first": "$dst"},
-			"conn_count": bson.M{"$sum": "$conns"},
-		}},
-		bson.M{"$sort": bson.M{sort: sortDir}},
-	}
-
-	if !noLimit {
-		strobeQuery = append(strobeQuery, bson.M{"$limit": limit})
-	}
-
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(strobeQuery).AllowDiskUse().All(&strobes)
-
-	return strobes, err
-
 }

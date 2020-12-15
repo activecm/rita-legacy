@@ -100,11 +100,36 @@ var BeaconsTempl = dbHeader + `
 </div>
 `
 
+// BeaconsNetNamesTempl is our beacons html template with network names
+var BeaconsNetNamesTempl = dbHeader + `
+<div class="container">
+  <table>
+  <tr>
+	<th>Score</th><th>Source Network</th><th>Destination Network</th><th>Source</th><th>Destination</th>
+	<th>Connections</th><th>Avg. Bytes</th><th>Intvl. Range</th><th>Size Range</th><th>Intvl. Mode</th>
+	<th>Size Mode</th><th>Intvl. Mode Count</th><th>Size Mode Count</th><th>Intvl. Skew</th><th>Size Skew</th>
+	<th>Intvl. Dispersion</th><th>Size Dispersion</th>
+  </tr>
+	{{.Writer}}
+  </table>
+</div>
+`
+
 //StrobesTempl is the strobes html template
 var StrobesTempl = dbHeader + `
 <div class="container">
   <table>
 	<tr><th>Source</th><th>Destination</th><th>Connection Count</th></tr>
+	  {{.Writer}}
+	</table>
+</div>
+`
+
+//StrobesNetNamesTempl is the strobes html template with network names
+var StrobesNetNamesTempl = dbHeader + `
+<div class="container">
+  <table>
+	<tr><th>Source Network</th><th>Destination Network</th><th>Source</th><th>Destination</th><th>Connection Count</th></tr>
 	  {{.Writer}}
 	</table>
 </div>
@@ -120,11 +145,31 @@ var BLSourceIPTempl = dbHeader + `
 </div>
 `
 
+// BLSourceIPNetNamesTempl is our blacklisted source ip html template with network names
+var BLSourceIPNetNamesTempl = dbHeader + `
+<div class="container">
+  <table>
+  <tr><th>IP</th><th>Network</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Destinations</th><tr>
+    {{.Writer}}
+  </table>
+</div>
+`
+
 // BLDestIPTempl is our blacklisted destination ip html template
 var BLDestIPTempl = dbHeader + `
 <div class="container">
   <table>
   <tr><th>IP</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Sources</th><tr>
+    {{.Writer}}
+  </table>
+</div>
+`
+
+// BLDestIPNetNamesTempl is our blacklisted destination ip html template with network names
+var BLDestIPNetNamesTempl = dbHeader + `
+<div class="container">
+  <table>
+  <tr><th>IP</th><th>Network</th><th>Connections</th><th>Unique Connections</th><th>Total Bytes</th><th>Sources</th><tr>
     {{.Writer}}
   </table>
 </div>
@@ -145,6 +190,16 @@ var LongConnsTempl = dbHeader + `
 <div class="container">
   <table>
 	<tr><th>Source</th><th>Destination</th><th>DstPort:Protocol:Service</th><th>Duration</th></tr>
+	  {{.Writer}}
+	</table>
+</div>
+`
+
+// LongConnsNetNamesTempl is our long connections html template with network names
+var LongConnsNetNamesTempl = dbHeader + `
+<div class="container">
+  <table>
+	<tr><th>Source Network</th><th>Destination Network</th><th>Source</th><th>Destination</th><th>DstPort:Protocol:Service</th><th>Duration</th></tr>
 	  {{.Writer}}
 	</table>
 </div>

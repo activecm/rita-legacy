@@ -7,7 +7,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo/dbtest"
 )
 
@@ -19,21 +21,18 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testHost = map[string]*IP{
-	"test": &IP{
-		Host:            "127.0.0.1",
+var testHost = map[string]*Input{
+	"test": &Input{
+		Host: data.UniqueIP{
+			IP:          "1.2.3.4",
+			NetworkUUID: util.PublicNetworkUUID,
+			NetworkName: util.PublicNetworkName,
+		},
 		ConnectionCount: 12,
 		TotalBytes:      123,
 		TotalDuration:   123.0,
 		MaxDuration:     12,
 	},
-}
-
-func TestCreateIndexes(t *testing.T) {
-	err := testRepo.CreateIndexes()
-	if err != nil {
-		t.Errorf("Error creating host indexes")
-	}
 }
 
 func TestUpsert(t *testing.T) {

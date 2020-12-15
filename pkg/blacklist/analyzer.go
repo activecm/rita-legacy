@@ -6,25 +6,26 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/globalsign/mgo/bson"
 )
 
 type (
 	//analyzer : structure for host analysis
 	analyzer struct {
-		chunk            int            //current chunk (0 if not on rolling analysis)
-		chunkStr         string         //current chunk (0 if not on rolling analysis)
-		db               *database.DB   // provides access to MongoDB
-		conf             *config.Config // contains details needed to access MongoDB
-		analyzedCallback func(update)   // called on each analyzed result
-		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan hostRes   // holds unanalyzed data
-		analysisWg       sync.WaitGroup // wait for analysis to finish
+		chunk            int                //current chunk (0 if not on rolling analysis)
+		chunkStr         string             //current chunk (0 if not on rolling analysis)
+		db               *database.DB       // provides access to MongoDB
+		conf             *config.Config     // contains details needed to access MongoDB
+		analyzedCallback func(hostsUpdate)  // called on each analyzed result
+		closedCallback   func()             // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan data.UniqueIP // holds unanalyzed data
+		analysisWg       sync.WaitGroup     // wait for analysis to finish
 	}
 )
 
 //newAnalyzer creates a new collector for gathering data
-func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(hostsUpdate), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
 		chunkStr:         strconv.Itoa(chunk),
@@ -32,13 +33,13 @@ func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallba
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan hostRes),
+		analysisChannel:  make(chan data.UniqueIP),
 	}
 }
 
 //collect sends a chunk of data to be analyzed
-func (a *analyzer) collect(data hostRes) {
-	a.analysisChannel <- data
+func (a *analyzer) collect(datum data.UniqueIP) {
+	a.analysisChannel <- datum
 }
 
 //close waits for the collector to finish
@@ -55,41 +56,45 @@ func (a *analyzer) start() {
 		ssn := a.db.Session.Copy()
 		defer ssn.Close()
 
-		for data := range a.analysisChannel {
+		for blacklistedIP := range a.analysisChannel {
+			blDstUconns := a.getUniqueConnsforBLDestination(blacklistedIP)
+			blSrcUconns := a.getUniqueConnsforBLSource(blacklistedIP)
 
-			ip := data.IP
-			connectedSrcHosts := a.getBlacklistedIPConnections(ip, "dst", "src")
-			connectedDstHosts := a.getBlacklistedIPConnections(ip, "src", "dst")
+			for _, blUconnData := range blDstUconns { // update sources which contacted the blacklisted destination
+				var blHostEntries []data.UniqueIP
+				newBLSrc := false
 
-			for _, entry := range connectedSrcHosts {
-				var res3 []hostRes
-				newblsrc := false
+				srcBLKey := blUconnData.Host.BSONKey()
+				srcBLKey["dat.bl"] = blacklistedIP.BSONKey()
 
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(bson.M{"ip": entry.Host, "dat.bl": ip}).All(&res3)
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(srcBLKey).All(&blHostEntries)
 
-				if !(len(res3) > 0) {
-					newblsrc = true
-					// fmt.Println("host no results", res3, ip)
+				if !(len(blHostEntries) > 0) {
+					newBLSrc = true
+					// fmt.Println("host no results", blHostEntries, blacklistedIP)
 				}
 
-				blsrcOutput := hasBlacklistedDstQuery(a.chunk, ip, entry, newblsrc)
+				srcHostUpdate := appendBlacklistedDstQuery(a.chunk, blacklistedIP, blUconnData, newBLSrc)
 				// set to writer channel
-				a.analyzedCallback(blsrcOutput)
+				a.analyzedCallback(srcHostUpdate)
 			}
-			for _, entry := range connectedDstHosts {
-				var res3 []hostRes
-				newbldst := false
+			for _, blUconnData := range blSrcUconns { // update destinations which were contacted by the blacklisted source
+				var blHostEntries []data.UniqueIP
+				newBLDst := false
 
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(bson.M{"ip": entry.Host, "dat.bl": ip}).All(&res3)
+				dstBLKey := blUconnData.Host.BSONKey()
+				dstBLKey["dat.bl"] = blacklistedIP.BSONKey()
 
-				if !(len(res3) > 0) {
-					newbldst = true
-					// fmt.Println("host no results", res3, ip)
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(dstBLKey).All(&blHostEntries)
+
+				if !(len(blHostEntries) > 0) {
+					newBLDst = true
+					// fmt.Println("host no results", blHostEntries, ip)
 				}
 
-				bldstOutput := hasBlacklistedSrcQuery(a.chunk, ip, entry, newbldst)
+				dstHostUpdate := appendBlacklistedSrcQuery(a.chunk, blacklistedIP, blUconnData, newBLDst)
 				// set to writer channel
-				a.analyzedCallback(bldstOutput)
+				a.analyzedCallback(dstHostUpdate)
 
 			}
 
@@ -99,12 +104,9 @@ func (a *analyzer) start() {
 	}()
 }
 
-//hasBlacklistedQuery ...
-// If the internal system initiated the connection, then bl_out_count
-// holds the number of unique blacklisted IPs the given host contacted.
-func hasBlacklistedDstQuery(chunk int, ip string, entry uconnRes, newFlag bool) update {
-
-	var output update
+//appendBlacklistedDstQuery adds a blacklist record to a host which contacted by a blacklisted destination
+func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnData connectionPeer, newFlag bool) hostsUpdate {
+	var output hostsUpdate
 
 	// create query
 	query := bson.M{}
@@ -113,40 +115,37 @@ func hasBlacklistedDstQuery(chunk int, ip string, entry uconnRes, newFlag bool) 
 
 		query["$push"] = bson.M{
 			"dat": bson.M{
-				"bl":             ip,
+				"bl":             blacklistedDst,
 				"bl_out_count":   1,
-				"bl_total_bytes": entry.TotalBytes,
-				"bl_conn_count":  entry.Connections,
+				"bl_total_bytes": srcConnData.TotalBytes,
+				"bl_conn_count":  srcConnData.Connections,
 				"cid":            chunk,
 			}}
 
 		// create selector for output
 		output.query = query
-		output.selector = bson.M{"ip": entry.Host}
+		output.selector = srcConnData.Host.BSONKey()
 
 	} else {
 
 		query["$set"] = bson.M{
-			"dat.$.bl_conn_count":  entry.Connections,
-			"dat.$.bl_total_bytes": entry.TotalBytes,
+			"dat.$.bl_conn_count":  srcConnData.Connections,
+			"dat.$.bl_total_bytes": srcConnData.TotalBytes,
 			"dat.$.bl_out_count":   1,
 			"dat.$.cid":            chunk,
 		}
 
 		// create selector for output
-		output.query = query
-		output.selector = bson.M{"ip": entry.Host, "dat.bl": ip}
+		output.selector = srcConnData.Host.BSONKey()
+		output.selector["dat.bl"] = blacklistedDst.BSONKey()
 	}
 
 	return output
 }
 
-//hasBlacklistedQuery ...
-// If the internal system initiated the connection, then bl_out_count
-// holds the number of unique blacklisted IPs the given host contacted.
-func hasBlacklistedSrcQuery(chunk int, ip string, entry uconnRes, newFlag bool) update {
-
-	var output update
+//appendBlacklistedSrcQuery adds a blacklist record to a host which was contacted by a blacklisted source
+func appendBlacklistedSrcQuery(chunk int, blacklistedSrc data.UniqueIP, dstConnData connectionPeer, newFlag bool) hostsUpdate {
+	var output hostsUpdate
 
 	// create query
 	query := bson.M{}
@@ -155,48 +154,54 @@ func hasBlacklistedSrcQuery(chunk int, ip string, entry uconnRes, newFlag bool) 
 
 		query["$push"] = bson.M{
 			"dat": bson.M{
-				"bl":             ip,
+				"bl":             blacklistedSrc,
 				"bl_in_count":    1,
-				"bl_total_bytes": entry.TotalBytes,
-				"bl_conn_count":  entry.Connections,
+				"bl_total_bytes": dstConnData.TotalBytes,
+				"bl_conn_count":  dstConnData.Connections,
 				"cid":            chunk,
 			}}
 
 		// create selector for output
 		output.query = query
-		output.selector = bson.M{"ip": entry.Host}
+		output.selector = dstConnData.Host.BSONKey()
 
 	} else {
 
 		query["$set"] = bson.M{
-			"dat.$.bl_conn_count":  entry.Connections,
-			"dat.$.bl_total_bytes": entry.TotalBytes,
+			"dat.$.bl_conn_count":  dstConnData.Connections,
+			"dat.$.bl_total_bytes": dstConnData.TotalBytes,
 			"dat.$.bl_in_count":    1,
 			"dat.$.cid":            chunk,
 		}
 
 		// create selector for output
-		output.query = query
-		output.selector = bson.M{"ip": entry.Host, "dat.bl": ip}
+		output.selector = dstConnData.Host.BSONKey()
+		output.selector["dat.bl"] = blacklistedSrc.BSONKey()
 	}
 
 	return output
 }
 
-// getBlaclistedIPConnections
-func (a *analyzer) getBlacklistedIPConnections(ip string, field1 string, field2 string) []uconnRes {
+//getUniqueConnsforBLDestination returns the IP addresses that contacted a given blacklisted IP along with the number
+//of connections and bytes sent
+func (a *analyzer) getUniqueConnsforBLDestination(blDestinationIP data.UniqueIP) []connectionPeer {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
-	var blIPs []uconnRes
+	var blIPs []connectionPeer
 
 	blIPQuery := []bson.M{
-		bson.M{"$match": bson.M{field1: ip}},
+		bson.M{"$match": bson.M{
+			"dst":              blDestinationIP.IP,
+			"dst_network_uuid": blDestinationIP.NetworkUUID,
+		}},
 		bson.M{"$unwind": "$dat"},
 		bson.M{"$group": bson.M{
-			"_id":            "$" + field2,
+			"_id": bson.M{
+				"ip":           "$src",
+				"network_uuid": "$src_network_uuid",
+			},
 			"bl_conn_count":  bson.M{"$sum": "$dat.count"},
-			"bl_in_count":    bson.M{"$sum": 1},
 			"bl_total_bytes": bson.M{"$sum": "$dat.tbytes"},
 		}},
 	}
@@ -204,5 +209,33 @@ func (a *analyzer) getBlacklistedIPConnections(ip string, field1 string, field2 
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.UniqueConnTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
 
 	return blIPs
+}
 
+//getUniqueConnsforBLSource returns the IP addresses that a given blacklisted IP contacted along with the number
+//of connections and bytes sent
+func (a *analyzer) getUniqueConnsforBLSource(blSourceIP data.UniqueIP) []connectionPeer {
+	ssn := a.db.Session.Copy()
+	defer ssn.Close()
+
+	var blIPs []connectionPeer
+
+	blIPQuery := []bson.M{
+		bson.M{"$match": bson.M{
+			"src":              blSourceIP.IP,
+			"src_network_uuid": blSourceIP.NetworkUUID,
+		}},
+		bson.M{"$unwind": "$dat"},
+		bson.M{"$group": bson.M{
+			"_id": bson.M{
+				"ip":           "$dst",
+				"network_uuid": "$dst_network_uuid",
+			},
+			"bl_conn_count":  bson.M{"$sum": "$dat.count"},
+			"bl_total_bytes": bson.M{"$sum": "$dat.tbytes"},
+		}},
+	}
+
+	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.UniqueConnTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
+
+	return blIPs
 }

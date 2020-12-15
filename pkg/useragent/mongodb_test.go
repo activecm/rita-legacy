@@ -7,7 +7,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo/dbtest"
 )
 
@@ -21,16 +23,20 @@ var testRepo Repository
 
 var testUserAgent = map[string]*Input{
 	"Debian APT-HTTP/1.3 (1.2.24)": &Input{
-		OrigIps: []string{"1.2.3.4", "1.1.1.1"},
-		Seen:    123,
+		OrigIps: data.UniqueIPSet{
+			data.UniqueIP{
+				IP:          "5.6.7.8",
+				NetworkUUID: util.PublicNetworkUUID,
+				NetworkName: util.PublicNetworkName,
+			},
+			data.UniqueIP{
+				IP:          "9.10.11.12",
+				NetworkUUID: util.PublicNetworkUUID,
+				NetworkName: util.PublicNetworkName,
+			},
+		},
+		Seen: 123,
 	},
-}
-
-func TestCreateIndexes(t *testing.T) {
-	err := testRepo.CreateIndexes()
-	if err != nil {
-		t.Errorf("Error creating useragent indexes")
-	}
 }
 
 func TestUpsert(t *testing.T) {
