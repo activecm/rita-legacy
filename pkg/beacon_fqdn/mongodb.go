@@ -73,36 +73,36 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 	// 	r.res.Config,
 	// 	r.res.Log,
 	// )
-	//
-	// analyzerWorker := newAnalyzer(
-	// 	r.min,
-	// 	r.max,
-	// 	r.res.Config.S.Rolling.CurrentChunk,
-	// 	r.res.DB,
-	// 	r.res.Config,
-	// 	writerWorker.collect,
-	// 	writerWorker.close,
-	// )
-	//
-	// sorterWorker := newSorter(
-	// 	r.res.DB,
-	// 	r.res.Config,
-	// 	analyzerWorker.collect,
-	// 	analyzerWorker.close,
-	// )
+
+	analyzerWorker := newAnalyzer(
+		r.min,
+		r.max,
+		r.res.Config.S.Rolling.CurrentChunk,
+		r.res.DB,
+		r.res.Config,
+		// writerWorker.collect,
+		// writerWorker.close,
+	)
+
+	sorterWorker := newSorter(
+		r.res.DB,
+		r.res.Config,
+		analyzerWorker.collect,
+		analyzerWorker.close,
+	)
 
 	dissectorWorker := newDissector(
 		int64(r.res.Config.S.Strobe.ConnectionLimit),
 		r.res.DB,
 		r.res.Config,
-		// sorterWorker.collect,
-		// sorterWorker.close,
+		sorterWorker.collect,
+		sorterWorker.close,
 	)
 
 	//kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		dissectorWorker.start()
-		// sorterWorker.start()
+		sorterWorker.start()
 		// analyzerWorker.start()
 		// writerWorker.start()
 	}
@@ -111,17 +111,44 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 	p := mpb.New(mpb.WithWidth(20))
 	bar := p.AddBar(int64(len(hostnameMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] FQDN Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
 	)
 
-	// loop over map entries
+	// count := 0
+	// loop over map entries (each hostname)
 	for _, entry := range hostnameMap {
+
 		start := time.Now()
-		dissectorWorker.collect(entry)
+
+		// check to make sure hostname has resolved ips, skip otherwise
+		if len(entry.ResolvedIPs) <= 0 {
+			continue
+		}
+
+		// count++;
+
+		// for each src that connected to a hostname...
+		for _, src := range entry.ClientIPs {
+
+			input := &hostname.FqdnInput{
+				Src:         src,
+				Host:        entry.Host,
+				ResolvedIPs: entry.ResolvedIPs,
+			}
+
+			// fmt.Println("src: ",input.Src)
+			dissectorWorker.collect(input)
+		}
+
+		// progress bar increment
 		bar.IncrBy(1, time.Since(start))
+
+		// if count == 10 {
+		// 	break;
+		// }
 	}
 	p.Wait()
 

@@ -77,6 +77,24 @@ func (u UniqueIP) BSONKey() bson.M {
 	return key
 }
 
+//DstBSONKey generates a BSON map which may be used to index a given UniqueIP. Includes IP and Network UUID.
+func (u UniqueIP) SrcBSONKey() bson.M {
+	key := bson.M{
+		"src":           u.IP,
+		"src_network_uuid": u.NetworkUUID,
+	}
+	return key
+}
+
+//DstBSONKey generates a BSON map which may be used to index a given UniqueIP. Includes IP and Network UUID.
+func (u UniqueIP) DstBSONKey() bson.M {
+	key := bson.M{
+		"dst":           u.IP,
+		"dst_network_uuid": u.NetworkUUID,
+	}
+	return key
+}
+
 //UniqueIPPair binds a pair of UniqueIPs where direction matters.
 type UniqueIPPair struct {
 	SrcIP          string      `bson:"src"`

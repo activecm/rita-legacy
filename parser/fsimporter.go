@@ -13,10 +13,11 @@ import (
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
+	beaconfqdn "github.com/activecm/rita/pkg/beacon_fqdn"
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/explodeddns"
+	// "github.com/activecm/rita/pkg/explodeddns"
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/pkg/remover"
@@ -165,7 +166,8 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fmt.Printf("\t[-] Processing batch %d of %d\n", i+1, len(batchedIndexedFiles))
 
 		// parse in those files!
-		uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
+		// uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
+		uconnMap, hostMap, _, hostnameMap, _, _ := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
 
 		// Set chunk before we continue so if process dies, we still verify with a delete if
 		// any data was written out.
@@ -181,22 +183,25 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fs.updateTimestampRange()
 
 		// build or update the exploded DNS table. Must go before hostnames
-		fs.buildExplodedDNS(explodeddnsMap)
+		// fs.buildExplodedDNS(explodeddnsMap)
 
 		// build or update the exploded DNS table
-		fs.buildHostnames(hostnameMap)
+		// fs.buildHostnames(hostnameMap)
 
 		// build or update Beacons table
-		fs.buildBeacons(uconnMap)
+		// fs.buildBeacons(uconnMap)
 
-		// build or update UserAgent table
-		fs.buildUserAgent(useragentMap)
+		// build or update the FQDN Beacons Table
+		fs.buildFQDNBeacons(hostnameMap)
 
-		// build or update Certificate table
-		fs.buildCertificates(certMap)
-
-		// update blacklisted peers in hosts collection
-		fs.markBlacklistedPeers(hostMap)
+		// // build or update UserAgent table
+		// fs.buildUserAgent(useragentMap)
+		//
+		// // build or update Certificate table
+		// fs.buildCertificates(certMap)
+		//
+		// // update blacklisted peers in hosts collection
+		// fs.markBlacklistedPeers(hostMap)
 
 		// record file+database name hash in metadabase to prevent duplicate content
 		fmt.Println("\t[-] Indexing log entries ... ")
@@ -761,20 +766,20 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 //buildExplodedDNS .....
 func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 
-	if fs.res.Config.S.DNS.Enabled {
-		if len(domainMap) > 0 {
-			// Set up the database
-			explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
-			err := explodedDNSRepo.CreateIndexes()
-			if err != nil {
-				fs.res.Log.Error(err)
-			}
-			explodedDNSRepo.Upsert(domainMap)
-		} else {
-			fmt.Println("\t[!] No DNS data to analyze")
-		}
-
-	}
+	// if fs.res.Config.S.DNS.Enabled {
+	// 	if len(domainMap) > 0 {
+	// 		// Set up the database
+	// 		explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
+	// 		err := explodedDNSRepo.CreateIndexes()
+	// 		if err != nil {
+	// 			fs.res.Log.Error(err)
+	// 		}
+	// 		explodedDNSRepo.Upsert(domainMap)
+	// 	} else {
+	// 		fmt.Println("\t[!] No DNS data to analyze")
+	// 	}
+	//
+	// }
 }
 
 //buildExplodedDNS .....
@@ -892,6 +897,26 @@ func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input) {
 			beaconRepo.Upsert(uconnMap)
 		} else {
 			fmt.Println("\t[!] No Beacon data to analyze")
+		}
+	}
+
+}
+
+func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
+	// TODO : make separate config thingie for fqdn
+	if fs.res.Config.S.Beacon.Enabled {
+		if len(hostnameMap) > 0 {
+			beaconFQDNRepo := beaconfqdn.NewMongoRepository(fs.res)
+
+			err := beaconFQDNRepo.CreateIndexes()
+			if err != nil {
+				fs.res.Log.Error(err)
+			}
+
+			// send uconns to beacon analysis
+			beaconFQDNRepo.Upsert(hostnameMap)
+		} else {
+			fmt.Println("\t[!] No FQDN Beacon data to analyze")
 		}
 	}
 

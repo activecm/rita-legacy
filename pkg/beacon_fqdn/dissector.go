@@ -1,6 +1,7 @@
 package beacon
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/activecm/rita/config"
@@ -11,30 +12,30 @@ import (
 
 type (
 	dissector struct {
-		connLimit         int64              // limit for strobe classification
-		db                *database.DB       // provides access to MongoDB
-		conf              *config.Config     // contains details needed to access MongoDB
-		// dissectedCallback func(*hostname.Input) // called on each analyzed result
-		// closedCallback    func()             // called when .close() is called and no more calls to analyzedCallback will be made
-		dissectChannel    chan *hostname.Input  // holds unanalyzed data
-		dissectWg         sync.WaitGroup     // wait for analysis to finish
+		connLimit         int64                     // limit for strobe classification
+		db                *database.DB              // provides access to MongoDB
+		conf              *config.Config            // contains details needed to access MongoDB
+		dissectedCallback func(*hostname.FqdnInput) // called on each analyzed result
+		closedCallback    func()                    // called when .close() is called and no more calls to analyzedCallback will be made
+		dissectChannel    chan *hostname.FqdnInput  // holds unanalyzed data
+		dissectWg         sync.WaitGroup            // wait for analysis to finish
 	}
 )
 
-//newdissector creates a new collector for gathering data //, dissectedCallback func(*uconn.Input), closedCallback func()
-func newDissector(connLimit int64, db *database.DB, conf *config.Config) *dissector {
+//newdissector creates a new collector for gathering data
+func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(*hostname.FqdnInput), closedCallback func()) *dissector {
 	return &dissector{
 		connLimit:         connLimit,
 		db:                db,
 		conf:              conf,
-		// dissectedCallback: dissectedCallback,
-		// closedCallback:    closedCallback,
-		dissectChannel:    make(chan *hostname.Input),
+		dissectedCallback: dissectedCallback,
+		closedCallback:    closedCallback,
+		dissectChannel:    make(chan *hostname.FqdnInput),
 	}
 }
 
 //collect sends a chunk of data to be analyzed
-func (d *dissector) collect(datum *hostname.Input) {
+func (d *dissector) collect(datum *hostname.FqdnInput) {
 	d.dissectChannel <- datum
 }
 
@@ -54,9 +55,16 @@ func (d *dissector) start() {
 
 		for datum := range d.dissectChannel {
 
+			// set up src match key (src ip + network uuid)
+			srcMatchKey := datum.Src.SrcBSONKey()
 
-			matchNoStrobeKey := datum.Hosts.BSONKey()
-			matchNoStrobeKey["strobe"] = bson.M{"$ne": true}
+			// fmt.Println("dissector src: ", srcMatchKey)
+
+			var dstList []interface{}
+			// create dst match query section
+			for _, dst := range datum.ResolvedIPs {
+				dstList = append(dstList, dst.DstBSONKey())
+			}
 
 			// This will work for both updating and inserting completely new Beacons
 			// for every new uconn record we have, we will check the uconns table. This
@@ -69,68 +77,58 @@ func (d *dissector) start() {
 			// and individual lookups like this are really fast. This also ensures a unique
 			// set of timestamps for analysis.
 			uconnFindQuery := []bson.M{
-				bson.M{"$match": bson.M{
-		        "src":"192.168.88.2",
-		    }},
-		     bson.M{"$match": bson.M{"dst":bson.M{"$in": []interface{}{"65.153.18.183","65.153.18.190"}}},
-		     },
-		     bson.M{"$project": bson.M{
-		          "ts": bson.M{
-		                "$reduce": bson.M{
-		                    "input": "$dat.ts",
-		                    "initialValue": []interface{}{},
-		                    "in": bson.M{"$concatArrays": []interface{}{"$$value", "$$this"}},
-		                },
-		            },
-		             "bytes":  bson.M{
-		                "$reduce": bson.M{
-		                    "input": "$dat.bytes",
-		                    "initialValue": []interface{}{},
-		                    "in": bson.M{"$concatArrays": []interface{}{"$$value", "$$this"}},
-		                },
-		            },
-		                "count":  bson.M{"$sum":"$dat.count"},
-		                "tbytes": bson.M{"$sum":"$dat.tbytes"},
-		                "icerts": bson.M{"$anyElementTrue": []interface{}{"$dat.icerts"}},
-		     }},
-		    bson.M{"$group": bson.M{
-		        "_id":    1,
-		        "ts":     bson.M{"$push": "$ts"},
-		        "bytes":  bson.M{"$push": "$bytes"},
-		        "count":  bson.M{"$sum": "$count"},
-		        "tbytes": bson.M{"$sum": "$tbytes"},
-		        "icerts": bson.M{"$push": "$icerts"},
-		    }},
-		    bson.M{"$unwind": "$ts"},
-		    bson.M{"$unwind": "$ts"},
-		    bson.M{"$group": bson.M{
-		        "_id":    "$_id",
-		        "ts":     bson.M{"$addToSet": "$ts"},
-		        "bytes":  bson.M{"$first": "$bytes"},
-		        "count":  bson.M{"$first": "$count"},
-		        "tbytes": bson.M{"$first": "$tbytes"},
-		        "icerts": bson.M{"$first": "$icerts"},
-		    }},
-		    bson.M{"$unwind": "$bytes"},
-		    bson.M{"$unwind": "$bytes"},
-		    bson.M{"$group": bson.M{
-		            "_id":    1,
-		            "ts":     bson.M{"$first": "$ts"},
-		            "bytes":  bson.M{"$push": "$bytes"},
-		            "count":  bson.M{"$first": "$count"},
-		            "tbytes": bson.M{"$first": "$tbytes"},
-		            "icerts": bson.M{"$first": "$icerts"},
-		    }},
-		    bson.M{"$project": bson.M{
-		            "_id":    0,
-		            "ts":     1,
-		            "bytes":  1,
-		            "count":  1,
-		            "tbytes": 1,
-		            "icerts": bson.M{"$anyElementTrue": []interface{}{"$icerts"}},
-		    }},
+				bson.M{"$match": srcMatchKey},
+				bson.M{"$match": bson.M{"$or": dstList}},
 				bson.M{"$project": bson.M{
+					"src": 1,
+					"ts": bson.M{
+						"$reduce": bson.M{
+							"input":        "$dat.ts",
+							"initialValue": []interface{}{},
+							"in":           bson.M{"$concatArrays": []interface{}{"$$value", "$$this"}},
+						},
+					},
+					"bytes": bson.M{
+						"$reduce": bson.M{
+							"input":        "$dat.bytes",
+							"initialValue": []interface{}{},
+							"in":           bson.M{"$concatArrays": []interface{}{"$$value", "$$this"}},
+						},
+					},
+					"count":  bson.M{"$sum": "$dat.count"},
+					"tbytes": bson.M{"$sum": "$dat.tbytes"},
+					"icerts": bson.M{"$anyElementTrue": []interface{}{"$dat.icerts"}},
+				}},
+				bson.M{"$group": bson.M{
+					"_id":    "$src",
+					"ts":     bson.M{"$push": "$ts"},
+					"bytes":  bson.M{"$push": "$bytes"},
+					"count":  bson.M{"$sum": "$count"},
+					"tbytes": bson.M{"$sum": "$tbytes"},
+					"icerts": bson.M{"$push": "$icerts"},
+				}},
+				bson.M{"$unwind": "$ts"},
+				bson.M{"$unwind": "$ts"},
+				bson.M{"$group": bson.M{
 					"_id":    "$_id",
+					"ts":     bson.M{"$addToSet": "$ts"},
+					"bytes":  bson.M{"$first": "$bytes"},
+					"count":  bson.M{"$first": "$count"},
+					"tbytes": bson.M{"$first": "$tbytes"},
+					"icerts": bson.M{"$first": "$icerts"},
+				}},
+				bson.M{"$unwind": "$bytes"},
+				bson.M{"$unwind": "$bytes"},
+				bson.M{"$group": bson.M{
+					"_id":    "$_id",
+					"ts":     bson.M{"$first": "$ts"},
+					"bytes":  bson.M{"$push": "$bytes"},
+					"count":  bson.M{"$first": "$count"},
+					"tbytes": bson.M{"$first": "$tbytes"},
+					"icerts": bson.M{"$first": "$icerts"},
+				}},
+				bson.M{"$project": bson.M{
+					"_id":    0,
 					"ts":     1,
 					"bytes":  1,
 					"count":  1,
@@ -152,30 +150,26 @@ func (d *dissector) start() {
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results
 			if res.Count > 0 {
-				analysisInput := &uconn.Input{
-					Hosts:           datum.Hosts,
+
+				analysisInput := &hostname.FqdnInput{
+					Host:            datum.Host,
+					Src:             datum.Src,
 					ConnectionCount: res.Count,
 					TotalBytes:      res.TBytes,
 					InvalidCertFlag: res.ICerts,
 				}
 
-				// check if uconn has become a strobe
-				if analysisInput.ConnectionCount > d.connLimit {
+				//  parse timestamps and orig ip bytes
 
-					// set to writer channel
+				analysisInput.TsList = res.Ts
+				analysisInput.OrigBytesList = res.Bytes
+
+				// send to writer channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
+				if len(analysisInput.TsList) > 3 {
+					fmt.Println(analysisInput)
 					// d.dissectedCallback(analysisInput)
-
-				} else { // otherwise, parse timestamps and orig ip bytes
-
-					analysisInput.TsList = res.Ts
-					analysisInput.OrigBytesList = res.Bytes
-
-					// send to writer channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
-					if len(analysisInput.TsList) > 3 {
-						// d.dissectedCallback(analysisInput)
-					}
-
 				}
+
 			}
 
 		}

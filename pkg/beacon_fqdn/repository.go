@@ -2,14 +2,14 @@ package beacon
 
 import (
 	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/uconn"
+	"github.com/activecm/rita/pkg/hostname"
 	"github.com/globalsign/mgo/bson"
 )
 
 // Repository for host collection
 type Repository interface {
 	CreateIndexes() error
-	Upsert(uconnMap map[string]*uconn.Input)
+	Upsert(hostnameMap map[string]*hostname.Input)
 }
 
 type updateInfo struct {
