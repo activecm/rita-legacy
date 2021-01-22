@@ -94,32 +94,6 @@ func (w *writer) start() {
 					}
 				}
 			}
-
-			if data.uconn.query != nil {
-				// update uconns table
-				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.UniqueConnTable).Upsert(data.uconn.selector, data.uconn.query)
-
-				if err != nil ||
-					((info.Updated == 0) && (info.UpsertedId == nil)) {
-					w.log.WithFields(log.Fields{
-						"Module": "beacons",
-						"Info":   info,
-						"Data":   data,
-					}).Error(err)
-				}
-
-				//delete the record (no longer a beacon - its a strobe)
-				info, err = ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).RemoveAll(data.uconn.selector)
-				if err != nil ||
-					((info.Updated == 0) && (info.Removed == 0) && (info.Matched == 0) && (info.UpsertedId == nil)) {
-					w.log.WithFields(log.Fields{
-						"Module": "beacons",
-						"Info":   info,
-						"Data":   data,
-					}).Error(err)
-				}
-			}
-
 		}
 		w.writeWg.Done()
 	}()

@@ -41,7 +41,7 @@ func (s *sorter) collect(data *hostname.FqdnInput) {
 func (s *sorter) close() {
 	close(s.sortChannel)
 	s.sortWg.Wait()
-	// s.closedCallback()
+	s.closedCallback()
 }
 
 //start kicks off a new analysis thread

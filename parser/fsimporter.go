@@ -17,7 +17,8 @@ import (
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/data"
-	// "github.com/activecm/rita/pkg/explodeddns"
+	"github.com/activecm/rita/pkg/explodeddns"
+
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/pkg/remover"
@@ -166,8 +167,7 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fmt.Printf("\t[-] Processing batch %d of %d\n", i+1, len(batchedIndexedFiles))
 
 		// parse in those files!
-		// uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
-		uconnMap, hostMap, _, hostnameMap, _, _ := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
+		uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
 
 		// Set chunk before we continue so if process dies, we still verify with a delete if
 		// any data was written out.
@@ -183,25 +183,25 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fs.updateTimestampRange()
 
 		// build or update the exploded DNS table. Must go before hostnames
-		// fs.buildExplodedDNS(explodeddnsMap)
+		fs.buildExplodedDNS(explodeddnsMap)
 
 		// build or update the exploded DNS table
-		// fs.buildHostnames(hostnameMap)
+		fs.buildHostnames(hostnameMap)
 
 		// build or update Beacons table
-		// fs.buildBeacons(uconnMap)
+		fs.buildBeacons(uconnMap)
 
 		// build or update the FQDN Beacons Table
 		fs.buildFQDNBeacons(hostnameMap)
 
-		// // build or update UserAgent table
-		// fs.buildUserAgent(useragentMap)
-		//
-		// // build or update Certificate table
-		// fs.buildCertificates(certMap)
-		//
-		// // update blacklisted peers in hosts collection
-		// fs.markBlacklistedPeers(hostMap)
+		// build or update UserAgent table
+		fs.buildUserAgent(useragentMap)
+
+		// build or update Certificate table
+		fs.buildCertificates(certMap)
+
+		// update blacklisted peers in hosts collection
+		fs.markBlacklistedPeers(hostMap)
 
 		// record file+database name hash in metadabase to prevent duplicate content
 		fmt.Println("\t[-] Indexing log entries ... ")
@@ -766,23 +766,22 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 //buildExplodedDNS .....
 func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 
-	// if fs.res.Config.S.DNS.Enabled {
-	// 	if len(domainMap) > 0 {
-	// 		// Set up the database
-	// 		explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
-	// 		err := explodedDNSRepo.CreateIndexes()
-	// 		if err != nil {
-	// 			fs.res.Log.Error(err)
-	// 		}
-	// 		explodedDNSRepo.Upsert(domainMap)
-	// 	} else {
-	// 		fmt.Println("\t[!] No DNS data to analyze")
-	// 	}
-	//
-	// }
+	if fs.res.Config.S.DNS.Enabled {
+		if len(domainMap) > 0 {
+			// Set up the database
+			explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
+			err := explodedDNSRepo.CreateIndexes()
+			if err != nil {
+				fs.res.Log.Error(err)
+			}
+			explodedDNSRepo.Upsert(domainMap)
+		} else {
+			fmt.Println("\t[!] No DNS data to analyze")
+		}
+	}
 }
 
-//buildExplodedDNS .....
+//buildCertificates .....
 func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 	if len(certMap) > 0 {
@@ -799,7 +798,7 @@ func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 }
 
-//buildHostnames .....
+//removeAnalysisChunk .....
 func (fs *FSImporter) removeAnalysisChunk(cid int) error {
 
 	// Set up the remover
@@ -851,7 +850,6 @@ func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Input) {
 		fmt.Printf("\t\t[!!] No local network traffic found, please check ")
 		fmt.Println("InternalSubnets in your RITA config (/etc/rita/config.yaml)")
 	}
-
 }
 
 func (fs *FSImporter) buildHosts(hostMap map[string]*host.Input) {

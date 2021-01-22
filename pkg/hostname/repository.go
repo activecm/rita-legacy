@@ -26,7 +26,7 @@ type Input struct {
 
 //FqdnInput ....
 type FqdnInput struct {
-	Host            string           //A hostname
+	FQDN            string           //A hostname
 	Src             data.UniqueIP    // Single src that connected to a hostname
 	ResolvedIPs     data.UniqueIPSet //Set of resolved UniqueIPs associated with a given hostname
 	InvalidCertFlag bool

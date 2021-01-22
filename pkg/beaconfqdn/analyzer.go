@@ -65,26 +65,6 @@ func (a *analyzer) start() {
 
 			output := &update{}
 
-			// // if uconn has turned into a strobe, we will not have any timestamps here,
-			// // and need to update uconn table with the strobe flag. This is being done
-			// // here and not in uconns because uconns doesn't do reads, and doesn't know
-			// // the updated conn count
-			// if (res.TsList) == nil {
-			//
-			// 	output.uconn = updateInfo{
-			// 		// update hosts record
-			// 		query: bson.M{
-			// 			"$set": bson.M{"strobe": true},
-			// 		},
-			// 		// create selector for output
-			// 		selector: res.Hosts.BSONKey(),
-			// 	}
-			//
-			// 	// set to writer channel
-			// 	a.analyzedCallback(output)
-			//
-			// } else {
-
 			//store the diff slice length since we use it a lot
 			//for timestamps this is one less then the data slice length
 			//since we are calculating the times in between readings
@@ -197,7 +177,7 @@ func (a *analyzer) start() {
 			score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
 
 			// create selector pair object
-			selectorPair := data.NewUniqueSrcHostnamePair(res.Src, res.Host)
+			selectorPair := data.NewUniqueSrcHostnamePair(res.Src, res.FQDN)
 
 			// update beacon query
 			output.beacon = updateInfo{
@@ -231,14 +211,14 @@ func (a *analyzer) start() {
 				selector: selectorPair.BSONKey(),
 			}
 
-			// output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Hosts.Source(), res.Hosts.Destination())
-			// output.hostBeacon = a.hostBeaconQuery(score, res.Hosts.Source(), res.Hosts.Destination())
+			// updates source entry in hosts table to flag for invalid certificates
+			output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Src, res.FQDN)
+
+			// updates max FQDN beacon score for the source entry in the hosts table
+			output.hostBeacon = a.hostBeaconQuery(score, res.Src, res.FQDN)
 
 			// set to writer channel
 			a.analyzedCallback(output)
-
-			// }
-
 		}
 		a.analysisWg.Done()
 	}()
@@ -263,7 +243,7 @@ func createCountMap(sortedIn []int64) ([]int64, []int64, int64, int64) {
 	return distinct, countsArr, mode, max
 }
 
-func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.UniqueIP) updateInfo {
+func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, fqdn string) updateInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -280,7 +260,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 		var resList []interface{}
 
 		hostSelector := src.BSONKey()
-		hostSelector["dat.icdst"] = dst.BSONKey()
+		hostSelector["dat.icfqdn"] = fqdn
 
 		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).All(&resList)
 
@@ -292,9 +272,9 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 
 			query["$push"] = bson.M{
 				"dat": bson.M{
-					"icdst": dst,
-					"icert": 1,
-					"cid":   a.chunk,
+					"icfqdn": fqdn,
+					"icert":  1,
+					"cid":    a.chunk,
 				}}
 
 			// create selector for output
@@ -317,7 +297,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 	return output
 }
 
-func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.UniqueIP) updateInfo {
+func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string) updateInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -333,16 +313,16 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 	var resListExactMatch []interface{}
 
 	maxBeaconMatchExactQuery := src.BSONKey()
-	maxBeaconMatchExactQuery["dat.mbdst"] = dst.BSONKey()
+	maxBeaconMatchExactQuery["dat.mbfqdn"] = fqdn
 
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
 
 	// if we have exact matches, update to new score and return
 	if len(resListExactMatch) > 0 {
 		query["$set"] = bson.M{
-			"dat.$.max_beacon_score": score,
-			"dat.$.mbdst":            dst,
-			"dat.$.cid":              a.chunk,
+			"dat.$.max_beacon_fqdn_score": score,
+			"dat.$.mbfqdn":                fqdn,
+			"dat.$.cid":                   a.chunk,
 		}
 
 		// create selector for output
@@ -366,8 +346,8 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 	maxBeaconMatchLowerQuery := src.BSONKey()
 	maxBeaconMatchLowerQuery["dat"] = bson.M{
 		"$elemMatch": bson.M{
-			"cid":              a.chunk,
-			"max_beacon_score": bson.M{"$lte": score},
+			"cid":                   a.chunk,
+			"max_beacon_fqdn_score": bson.M{"$lte": score},
 		},
 	}
 	// find matching lower chunks
@@ -381,8 +361,8 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 		maxBeaconMatchUpperQuery := src.BSONKey()
 		maxBeaconMatchUpperQuery["dat"] = bson.M{
 			"$elemMatch": bson.M{
-				"cid":              a.chunk,
-				"max_beacon_score": bson.M{"$gte": score},
+				"cid":                   a.chunk,
+				"max_beacon_fqdn_score": bson.M{"$gte": score},
 			},
 		}
 
@@ -406,9 +386,9 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 
 		query["$push"] = bson.M{
 			"dat": bson.M{
-				"max_beacon_score": score,
-				"mbdst":            dst,
-				"cid":              a.chunk,
+				"max_beacon_fqdn_score": score,
+				"mbfqdn":                fqdn,
+				"cid":                   a.chunk,
 			}}
 
 		// create selector for output
@@ -418,9 +398,9 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 	} else if updateFlag {
 
 		query["$set"] = bson.M{
-			"dat.$.max_beacon_score": score,
-			"dat.$.mbdst":            dst,
-			"dat.$.cid":              a.chunk,
+			"dat.$.max_beacon_fqdn_score": score,
+			"dat.$.mbfqdn":                fqdn,
+			"dat.$.cid":                   a.chunk,
 		}
 
 		// create selector for output

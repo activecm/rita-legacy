@@ -2,14 +2,14 @@ package beaconfqdn
 
 import (
 	"runtime"
-	// "time"
+	"time"
 
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
-	// "github.com/vbauerster/mpb"
-	// "github.com/vbauerster/mpb/decor"
+	"github.com/vbauerster/mpb"
+	"github.com/vbauerster/mpb/decor"
 )
 
 type repo struct {
@@ -48,9 +48,8 @@ func (r *repo) CreateIndexes() error {
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"-score"}},
-		// {Key: []string{"src", "dst", "src_network_uuid", "dst_network_uuid"}, Unique: true},
-		// {Key: []string{"src", "src_network_uuid"}},
-		// {Key: []string{"dst", "dst_network_uuid"}},
+		{Key: []string{"src", "src_network_uuid"}},
+		{Key: []string{"fqdn"}},
 		{Key: []string{"-connection_count"}},
 	}
 
@@ -107,24 +106,24 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		writerWorker.start()
 	}
 
-	// // progress bar for troubleshooting
-	// p := mpb.New(mpb.WithWidth(20))
-	// bar := p.AddBar(int64(len(hostnameMap)),
-	// 	mpb.PrependDecorators(
-	// 		decor.Name("\t[-] FQDN Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
-	// 		decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
-	// 	),
-	// 	mpb.AppendDecorators(decor.Percentage()),
-	// )
+	// progress bar for troubleshooting
+	p := mpb.New(mpb.WithWidth(20))
+	bar := p.AddBar(int64(len(hostnameMap)),
+		mpb.PrependDecorators(
+			decor.Name("\t[-] FQDN Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+		),
+		mpb.AppendDecorators(decor.Percentage()),
+	)
 
-	// count := 0
 	// loop over map entries (each hostname)
 	for _, entry := range hostnameMap {
 
-		// start := time.Now()
+		start := time.Now()
 
 		// check to make sure hostname has resolved ips, skip otherwise
 		if len(entry.ResolvedIPs) <= 0 {
+			bar.IncrBy(1, time.Since(start))
 			continue
 		}
 
@@ -133,19 +132,18 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 
 			input := &hostname.FqdnInput{
 				Src:         src,
-				Host:        entry.Host,
+				FQDN:        entry.Host,
 				ResolvedIPs: entry.ResolvedIPs,
 			}
 
-			// fmt.Println("src: ",input.Src)
 			dissectorWorker.collect(input)
 		}
 
 		// progress bar increment
-		// bar.IncrBy(1, time.Since(start))
+		bar.IncrBy(1, time.Since(start))
 
 	}
-	// p.Wait()
+	p.Wait()
 
 	// start the closing cascade (this will also close the other channels)
 	dissectorWorker.close()

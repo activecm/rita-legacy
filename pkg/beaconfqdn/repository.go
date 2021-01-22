@@ -22,7 +22,6 @@ type update struct {
 	beacon     updateInfo
 	hostIcert  updateInfo
 	hostBeacon updateInfo
-	uconn      updateInfo
 }
 
 //TSData ...

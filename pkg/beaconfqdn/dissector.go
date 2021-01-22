@@ -1,7 +1,6 @@
 package beaconfqdn
 
 import (
-	// "fmt"
 	"sync"
 
 	"github.com/activecm/rita/config"
@@ -58,8 +57,6 @@ func (d *dissector) start() {
 			// set up src match key (src ip + network uuid)
 			srcMatchKey := datum.Src.SrcBSONKey()
 
-			// fmt.Println("dissector src: ", srcMatchKey)
-
 			var dstList []interface{}
 			// create dst match query section
 			for _, dst := range datum.ResolvedIPs {
@@ -67,13 +64,15 @@ func (d *dissector) start() {
 			}
 
 			// This will work for both updating and inserting completely new Beacons
-			// for every new uconn record we have, we will check the uconns table. This
+			// for every new hostnames record we have, we will check every entry in the
+			// uconn table where the source IP from the hostnames record connected to one
+			// of the associated IPs for  FQDN. This
 			// will always return a result because even with a brand new database, we already
 			// created the uconns table. It will only continue and analyze if the connection
-			// meets the required specs, again working for both an update and a new src-dst pair.
-			// We would have to perform this check regardless if we want the rolling update
-			// option to remain, and this gets us the vetting for both situations, and Only
-			// works on the current entries - not a re-aggregation on the whole collection,
+			// meets the required specs, again working for both an update and a new src-fqdn
+			// pair. We would have to perform this check regardless if we want the rolling
+			// update option to remain, and this gets us the vetting for both situations, and
+			// Only works on the current entries - not a re-aggregation on the whole collection,
 			// and individual lookups like this are really fast. This also ensures a unique
 			// set of timestamps for analysis.
 			uconnFindQuery := []bson.M{
@@ -152,7 +151,7 @@ func (d *dissector) start() {
 			if res.Count > 0 {
 
 				analysisInput := &hostname.FqdnInput{
-					Host:            datum.Host,
+					FQDN:            datum.FQDN,
 					Src:             datum.Src,
 					ConnectionCount: res.Count,
 					TotalBytes:      res.TBytes,
