@@ -13,7 +13,7 @@ import (
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
-	beaconfqdn "github.com/activecm/rita/pkg/beacon_fqdn"
+	"github.com/activecm/rita/pkg/beaconfqdn"
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/data"

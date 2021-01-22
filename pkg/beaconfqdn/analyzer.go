@@ -1,7 +1,6 @@
-package beacon
+package beaconfqdn
 
 import (
-	"github.com/activecm/rita/pkg/data"
 	"math"
 	"sort"
 	"strconv"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo/bson"
@@ -29,18 +29,18 @@ type (
 	}
 )
 
-//newAnalyzer creates a new collector for gathering data //, analyzedCallback func(*update), closedCallback func()
-func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.Config) *analyzer {
+//newAnalyzer creates a new collector for gathering data //
+func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.Config, analyzedCallback func(*update), closedCallback func()) *analyzer {
 	return &analyzer{
-		tsMin:    min,
-		tsMax:    max,
-		chunk:    chunk,
-		chunkStr: strconv.Itoa(chunk),
-		db:       db,
-		conf:     conf,
-		// analyzedCallback: analyzedCallback,
-		// closedCallback:   closedCallback,
-		analysisChannel: make(chan *hostname.FqdnInput),
+		tsMin:            min,
+		tsMax:            max,
+		chunk:            chunk,
+		chunkStr:         strconv.Itoa(chunk),
+		db:               db,
+		conf:             conf,
+		analyzedCallback: analyzedCallback,
+		closedCallback:   closedCallback,
+		analysisChannel:  make(chan *hostname.FqdnInput),
 	}
 }
 
@@ -196,6 +196,9 @@ func (a *analyzer) start() {
 			dsScore := math.Ceil((dsSum/3.0)*1000) / 1000
 			score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
 
+			// create selector pair object
+			selectorPair := data.NewUniqueSrcHostnamePair(res.Src, res.Host)
+
 			// update beacon query
 			output.beacon = updateInfo{
 				query: bson.M{
@@ -221,15 +224,15 @@ func (a *analyzer) start() {
 						"ds.score":           dsScore,
 						"score":              score,
 						"cid":                a.chunk,
-						"src_network_name":   res.Hosts.SrcNetworkName,
-						"dst_network_name":   res.Hosts.DstNetworkName,
+						"src_network_name":   res.Src.NetworkName,
+						"resolved_ips":       res.ResolvedIPs,
 					},
 				},
-				selector: res.Hosts.BSONKey(),
+				selector: selectorPair.BSONKey(),
 			}
 
-			output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Hosts.Source(), res.Hosts.Destination())
-			output.hostBeacon = a.hostBeaconQuery(score, res.Hosts.Source(), res.Hosts.Destination())
+			// output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Hosts.Source(), res.Hosts.Destination())
+			// output.hostBeacon = a.hostBeaconQuery(score, res.Hosts.Source(), res.Hosts.Destination())
 
 			// set to writer channel
 			a.analyzedCallback(output)

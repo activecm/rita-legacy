@@ -14,11 +14,35 @@ import (
 //The UUID and Name serve to diffferentiate local IP addresses
 //appearing on distinct physical networks. The Network Name should
 //not be considered when determining equality.
-type UniqueIP struct {
-	IP          string      `bson:"ip"`
-	NetworkUUID bson.Binary `bson:"network_uuid"`
-	NetworkName string      `bson:"network_name"`
-}
+type (
+	UniqueIP struct {
+		IP          string      `bson:"ip"`
+		NetworkUUID bson.Binary `bson:"network_uuid"`
+		NetworkName string      `bson:"network_name"`
+	}
+
+	//UniqueIPSet is a set of UniqueIPs which contains at most one instance of each UniqueIP
+	//this implementation is based on a slice of UniqueIPs rather than a map[string]UniqueIP
+	//since it requires less RAM.
+	UniqueIPSet []UniqueIP
+
+	//UniqueIPPair binds a pair of UniqueIPs where direction matters.
+	UniqueIPPair struct {
+		SrcIP          string      `bson:"src"`
+		SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
+		SrcNetworkName string      `bson:"src_network_name"`
+		DstIP          string      `bson:"dst"`
+		DstNetworkUUID bson.Binary `bson:"dst_network_uuid"`
+		DstNetworkName string      `bson:"dst_network_name"`
+	}
+
+	//UniqueSrcHostnamePair ...
+	UniqueSrcHostnamePair struct {
+		SrcIP          string      `bson:"src"`
+		SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
+		FQDN           string      `bson:"fqdn"`
+	}
+)
 
 //NewUniqueIP returns a new UniqueIP. If the given ip is publicly routable, the resulting UniqueIP's
 //NetworkUUID and NetworkName will be set to PublicNetworkUUID and PublicNetworkName respectively.
@@ -77,10 +101,10 @@ func (u UniqueIP) BSONKey() bson.M {
 	return key
 }
 
-//DstBSONKey generates a BSON map which may be used to index a given UniqueIP. Includes IP and Network UUID.
+//SrcBSONKey generates a BSON map which may be used to index a given UniqueIP. Includes IP and Network UUID.
 func (u UniqueIP) SrcBSONKey() bson.M {
 	key := bson.M{
-		"src":           u.IP,
+		"src":              u.IP,
 		"src_network_uuid": u.NetworkUUID,
 	}
 	return key
@@ -89,20 +113,10 @@ func (u UniqueIP) SrcBSONKey() bson.M {
 //DstBSONKey generates a BSON map which may be used to index a given UniqueIP. Includes IP and Network UUID.
 func (u UniqueIP) DstBSONKey() bson.M {
 	key := bson.M{
-		"dst":           u.IP,
+		"dst":              u.IP,
 		"dst_network_uuid": u.NetworkUUID,
 	}
 	return key
-}
-
-//UniqueIPPair binds a pair of UniqueIPs where direction matters.
-type UniqueIPPair struct {
-	SrcIP          string      `bson:"src"`
-	SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
-	SrcNetworkName string      `bson:"src_network_name"`
-	DstIP          string      `bson:"dst"`
-	DstNetworkUUID bson.Binary `bson:"dst_network_uuid"`
-	DstNetworkName string      `bson:"dst_network_name"`
 }
 
 //NewUniqueIPPair binds a pair of UniqueIPs where direction matters.
@@ -114,6 +128,15 @@ func NewUniqueIPPair(source UniqueIP, destination UniqueIP) UniqueIPPair {
 		DstNetworkUUID: destination.NetworkUUID,
 		SrcNetworkName: source.NetworkName,
 		DstNetworkName: destination.NetworkName,
+	}
+}
+
+//NewUniqueSrcHostnamePair binds a pair of UniqueIPs where direction matters.
+func NewUniqueSrcHostnamePair(source UniqueIP, fqdn string) UniqueSrcHostnamePair {
+	return UniqueSrcHostnamePair{
+		SrcIP:          source.IP,
+		SrcNetworkUUID: source.NetworkUUID,
+		FQDN:           fqdn,
 	}
 }
 
@@ -165,10 +188,17 @@ func (p UniqueIPPair) BSONKey() bson.M {
 	return key
 }
 
-//UniqueIPSet is a set of UniqueIPs which contains at most one instance of each UniqueIP
-//this implementation is based on a slice of UniqueIPs rather than a map[string]UniqueIP
-//since it requires less RAM.
-type UniqueIPSet []UniqueIP
+//BSONKey generates a BSON map which may be used to index a given a unique src
+// fqdn pair
+//Includes IP and Network UUID.
+func (p UniqueSrcHostnamePair) BSONKey() bson.M {
+	key := bson.M{
+		"src":              p.SrcIP,
+		"src_network_uuid": p.SrcNetworkUUID,
+		"fqdn":             p.FQDN,
+	}
+	return key
+}
 
 //Insert adds a UniqueIP to the set
 func (s *UniqueIPSet) Insert(ip UniqueIP) {

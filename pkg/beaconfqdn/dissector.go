@@ -1,7 +1,7 @@
-package beacon
+package beaconfqdn
 
 import (
-	"fmt"
+	// "fmt"
 	"sync"
 
 	"github.com/activecm/rita/config"
@@ -166,8 +166,7 @@ func (d *dissector) start() {
 
 				// send to writer channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
 				if len(analysisInput.TsList) > 3 {
-					fmt.Println(analysisInput)
-					// d.dissectedCallback(analysisInput)
+					d.dissectedCallback(analysisInput)
 				}
 
 			}

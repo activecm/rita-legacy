@@ -1,4 +1,4 @@
-package beacon
+package beaconfqdn
 
 import (
 	"github.com/activecm/rita/pkg/data"

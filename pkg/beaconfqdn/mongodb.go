@@ -1,15 +1,15 @@
-package beacon
+package beaconfqdn
 
 import (
 	"runtime"
-	"time"
+	// "time"
 
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
-	"github.com/vbauerster/mpb"
-	"github.com/vbauerster/mpb/decor"
+	// "github.com/vbauerster/mpb"
+	// "github.com/vbauerster/mpb/decor"
 )
 
 type repo struct {
@@ -66,13 +66,13 @@ func (r *repo) CreateIndexes() error {
 //Upsert loops through every new hostname ....
 func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 
-	// //Create the workers
-	// writerWorker := newWriter(
-	// 	r.res.Config.T.Beacon.BeaconTable,
-	// 	r.res.DB,
-	// 	r.res.Config,
-	// 	r.res.Log,
-	// )
+	//Create the workers
+	writerWorker := newWriter(
+		r.res.Config.T.BeaconFQDN.BeaconFQDNTable,
+		r.res.DB,
+		r.res.Config,
+		r.res.Log,
+	)
 
 	analyzerWorker := newAnalyzer(
 		r.min,
@@ -80,8 +80,8 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		r.res.Config.S.Rolling.CurrentChunk,
 		r.res.DB,
 		r.res.Config,
-		// writerWorker.collect,
-		// writerWorker.close,
+		writerWorker.collect,
+		writerWorker.close,
 	)
 
 	sorterWorker := newSorter(
@@ -103,32 +103,30 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		dissectorWorker.start()
 		sorterWorker.start()
-		// analyzerWorker.start()
-		// writerWorker.start()
+		analyzerWorker.start()
+		writerWorker.start()
 	}
 
-	// progress bar for troubleshooting
-	p := mpb.New(mpb.WithWidth(20))
-	bar := p.AddBar(int64(len(hostnameMap)),
-		mpb.PrependDecorators(
-			decor.Name("\t[-] FQDN Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
-			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
-		),
-		mpb.AppendDecorators(decor.Percentage()),
-	)
+	// // progress bar for troubleshooting
+	// p := mpb.New(mpb.WithWidth(20))
+	// bar := p.AddBar(int64(len(hostnameMap)),
+	// 	mpb.PrependDecorators(
+	// 		decor.Name("\t[-] FQDN Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+	// 		decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+	// 	),
+	// 	mpb.AppendDecorators(decor.Percentage()),
+	// )
 
 	// count := 0
 	// loop over map entries (each hostname)
 	for _, entry := range hostnameMap {
 
-		start := time.Now()
+		// start := time.Now()
 
 		// check to make sure hostname has resolved ips, skip otherwise
 		if len(entry.ResolvedIPs) <= 0 {
 			continue
 		}
-
-		// count++;
 
 		// for each src that connected to a hostname...
 		for _, src := range entry.ClientIPs {
@@ -144,13 +142,10 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		}
 
 		// progress bar increment
-		bar.IncrBy(1, time.Since(start))
+		// bar.IncrBy(1, time.Since(start))
 
-		// if count == 10 {
-		// 	break;
-		// }
 	}
-	p.Wait()
+	// p.Wait()
 
 	// start the closing cascade (this will also close the other channels)
 	dissectorWorker.close()

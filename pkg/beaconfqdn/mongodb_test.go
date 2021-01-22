@@ -1,6 +1,6 @@
 // +build integration
 
-package beacon
+package beaconfqdn
 
 import (
 	"io/ioutil"
