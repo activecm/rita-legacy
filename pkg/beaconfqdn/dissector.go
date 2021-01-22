@@ -157,12 +157,10 @@ func (d *dissector) start() {
 					ConnectionCount: res.Count,
 					TotalBytes:      res.TBytes,
 					InvalidCertFlag: res.ICerts,
+					TsList:          res.Ts,
+					OrigBytesList:   res.Bytes,
+					ResolvedIPs:     datum.ResolvedIPs,
 				}
-
-				//  parse timestamps and orig ip bytes
-
-				analysisInput.TsList = res.Ts
-				analysisInput.OrigBytesList = res.Bytes
 
 				// send to writer channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
 				if len(analysisInput.TsList) > 3 {
