@@ -177,7 +177,7 @@ func (a *analyzer) start() {
 			score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
 
 			// create selector pair object
-			selectorPair := data.NewUniqueSrcHostnamePair(res.Src, res.FQDN)
+			selectorPair := newUniqueSrcHostnamePair(res.Src, res.FQDN)
 
 			// update beacon query
 			output.beacon = updateInfo{

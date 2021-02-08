@@ -35,13 +35,6 @@ type (
 		DstNetworkUUID bson.Binary `bson:"dst_network_uuid"`
 		DstNetworkName string      `bson:"dst_network_name"`
 	}
-
-	//UniqueSrcHostnamePair ...
-	UniqueSrcHostnamePair struct {
-		SrcIP          string      `bson:"src"`
-		SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
-		FQDN           string      `bson:"fqdn"`
-	}
 )
 
 //NewUniqueIP returns a new UniqueIP. If the given ip is publicly routable, the resulting UniqueIP's
@@ -131,15 +124,6 @@ func NewUniqueIPPair(source UniqueIP, destination UniqueIP) UniqueIPPair {
 	}
 }
 
-//NewUniqueSrcHostnamePair binds a pair of UniqueIPs where direction matters.
-func NewUniqueSrcHostnamePair(source UniqueIP, fqdn string) UniqueSrcHostnamePair {
-	return UniqueSrcHostnamePair{
-		SrcIP:          source.IP,
-		SrcNetworkUUID: source.NetworkUUID,
-		FQDN:           fqdn,
-	}
-}
-
 //Source returns the source UniqueIP from the pair.
 func (p UniqueIPPair) Source() UniqueIP {
 	return UniqueIP{
@@ -184,18 +168,6 @@ func (p UniqueIPPair) BSONKey() bson.M {
 		"src_network_uuid": p.SrcNetworkUUID,
 		"dst":              p.DstIP,
 		"dst_network_uuid": p.DstNetworkUUID,
-	}
-	return key
-}
-
-//BSONKey generates a BSON map which may be used to index a given a unique src
-// fqdn pair
-//Includes IP and Network UUID.
-func (p UniqueSrcHostnamePair) BSONKey() bson.M {
-	key := bson.M{
-		"src":              p.SrcIP,
-		"src_network_uuid": p.SrcNetworkUUID,
-		"fqdn":             p.FQDN,
 	}
 	return key
 }
