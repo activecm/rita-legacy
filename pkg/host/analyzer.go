@@ -89,7 +89,7 @@ func (a *analyzer) start() {
 					}
 				}
 
-				output = standardQuery(a.chunk, a.chunkStr, datum.Host, datum.IsLocal, datum.IP4, datum.IP4Bin, datum.MaxDuration, datum.TXTQueryCount, datum.UntrustedAppConnCount, datum.CountSrc, datum.CountDst, blacklisted, newRecordFlag)
+				output = standardQuery(a.chunk, a.chunkStr, datum.Host, datum.IsLocal, datum.IP4, datum.IP4Bin, datum.MaxDuration, datum.DNSQueryCount, datum.UntrustedAppConnCount, datum.CountSrc, datum.CountDst, blacklisted, newRecordFlag)
 
 				// set to writer channel
 				a.analyzedCallback(output)
@@ -102,7 +102,7 @@ func (a *analyzer) start() {
 }
 
 //standardQuery ...
-func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4 bool, ip4bin int64, maxdur float64, txtQCount int64, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
+func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4 bool, ip4bin int64, maxdur float64, dnsQCount int64, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
 	var output update
 
 	// create query
@@ -122,7 +122,7 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 			"dat": bson.M{
 				"count_src":       countSrc,
 				"count_dst":       countDst,
-				"txt_query_count": txtQCount,
+				"dns_query_count": dnsQCount,
 				"upps_count":      untrustedACC,
 				"cid":             chunk,
 			}}
@@ -136,7 +136,7 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 		query["$inc"] = bson.M{
 			"dat.$.count_src":       countSrc,
 			"dat.$.count_dst":       countDst,
-			"dat.$.txt_query_count": txtQCount,
+			"dat.$.dns_query_count": dnsQCount,
 			"dat.$.upps_count":      untrustedACC,
 		}
 

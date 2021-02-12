@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -568,16 +569,17 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 							}
 
-							// increment txt query count for host in uconn
-							if queryTypeName == "TXT" {
-								// get destination for dns record
-								dst := parseDNS.Destination
-								dstIP := net.ParseIP(dst)
+							// get destination for dns record
+							dst := parseDNS.Destination
+							dstIP := net.ParseIP(dst)
 
-								// Run conn pair through filter to filter out certain connections
-								ignore := fs.filterConnPair(srcIP, dstIP)
-								if !ignore {
-
+							// Run conn pair through filter to filter out certain connections
+							ignore := fs.filterConnPair(srcIP, dstIP)
+							if !ignore {
+								// in some of these strings, the empty space will get counted as a domain,
+								// don't add host or increment dns query count if queried domain
+								// is blank or ends in 'in-addr.arpa'
+								if (domain != "") && (!strings.HasSuffix(domain, "in-addr.arpa")) {
 									// Check if host map value is set, because this record could
 									// come before a relevant conns record
 									if _, ok := hostMap[srcKey]; !ok {
@@ -591,13 +593,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 											IP4Bin:  util.IPv4ToBinary(srcIP),
 										}
 									}
-									// increment txt query count
-									hostMap[srcKey].TXTQueryCount++
+									// increment dns query count
+									hostMap[srcKey].DNSQueryCount++
 								}
-
 							}
 
-							mutex.Unlock()
+						mutex.Unlock()
 
 							/// *************************************************************///
 							///                             HTTP                             ///
