@@ -47,7 +47,7 @@ type (
 	trustedAppTiplet struct {
 		protocol string
 		port     int
-		service  string
+		service  []string
 	}
 )
 
@@ -70,8 +70,9 @@ func NewFSImporter(res *resources.Resources,
 }
 
 var trustedAppReferenceList = [...]trustedAppTiplet{
-	{"tcp", 80, "http"},
-	{"tcp", 443, "ssl"},
+	{"tcp", 80, []string{"http"}},
+	{"tcp", 443, []string{"ssl"}},
+	{"udp", 53, []string{"dns"}},
 }
 
 //GetInternalSubnets returns the internal subnets from the config file
@@ -462,9 +463,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								if uconnMap[srcDstKey].UPPSFlag == false {
 									for _, entry := range trustedAppReferenceList {
 										if (protocol == entry.protocol) && (dstPort == entry.port) {
-											if service != entry.service {
-												hostMap[srcKey].UntrustedAppConnCount++
-												uconnMap[srcDstKey].UPPSFlag = true
+											for i := range entry.service {
+												if service != entry.service[i] {
+													hostMap[srcKey].UntrustedAppConnCount++
+													uconnMap[srcDstKey].UPPSFlag = true
+													break;
+												}
 											}
 										}
 									}
