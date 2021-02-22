@@ -569,33 +569,29 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 							}
 
-							// get destination for dns record
-							dst := parseDNS.Destination
-							dstIP := net.ParseIP(dst)
+							// increment txt query count for host in uconn
+							if queryTypeName == "TXT" {
+								// We don't filter out the src ips like we do with the conn
+								// section since a c2 channel running over dns could have an
+								// internal ip to internal ip connection and not having that ip
+								// in the host table is limiting
 
-							// Run conn pair through filter to filter out certain connections
-							ignore := fs.filterConnPair(srcIP, dstIP)
-							if !ignore {
-								// in some of these strings, the empty space will get counted as a domain,
-								// don't add host or increment dns query count if queried domain
-								// is blank or ends in 'in-addr.arpa'
-								if (domain != "") && (!strings.HasSuffix(domain, "in-addr.arpa")) {
-									// Check if host map value is set, because this record could
-									// come before a relevant conns record
-									if _, ok := hostMap[srcKey]; !ok {
-										// create new uconn record with src and dst
-										// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
-										// we only need to do this once if the uconn record does not exist
-										hostMap[srcKey] = &host.Input{
-											Host:    srcUniqIP,
-											IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
-											IP4:     util.IsIPv4(src),
-											IP4Bin:  util.IPv4ToBinary(srcIP),
-										}
+								// Check if host map value is set, because this record could
+								// come before a relevant conns record
+								if _, ok := hostMap[srcKey]; !ok {
+									// create new uconn record with src and dst
+									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
+									// we only need to do this once if the uconn record does not exist
+									hostMap[srcKey] = &host.Input{
+										Host:    srcUniqIP,
+										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+										IP4:     util.IsIPv4(src),
+										IP4Bin:  util.IPv4ToBinary(srcIP),
 									}
-									// increment dns query count
-									hostMap[srcKey].DNSQueryCount++
 								}
+								// increment txt query count
+								hostMap[srcKey].TXTQueryCount++
+
 							}
 
 						mutex.Unlock()
