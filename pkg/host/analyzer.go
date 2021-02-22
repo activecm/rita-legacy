@@ -114,7 +114,7 @@ func (a *analyzer) start() {
 }
 
 //standardQuery ...
-func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4 bool, ip4bin int64, maxdur float64, maxDnsQCount int64, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
+func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4 bool, ip4bin int64, maxdur float64, maxDNSQCount int64, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
 	var output update
 
 	// create query
@@ -134,7 +134,7 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 			"dat": bson.M{
 				"count_src":       countSrc,
 				"count_dst":       countDst,
-				"max_dns_query_count": maxDnsQCount,
+				"max_dns_query_count": maxDNSQCount,
 				"upps_count":      untrustedACC,
 				"cid":             chunk,
 			}}
@@ -148,7 +148,7 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 		query["$inc"] = bson.M{
 			"dat.$.count_src":       countSrc,
 			"dat.$.count_dst":       countDst,
-			"dat.$.max_dns_query_count": maxDnsQCount,
+			"dat.$.max_dns_query_count": maxDNSQCount,
 			"dat.$.upps_count":      untrustedACC,
 		}
 
