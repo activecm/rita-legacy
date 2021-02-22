@@ -1,13 +1,12 @@
 package host
 
 import (
-	"strconv"
-	"sync"
-
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
 	"github.com/globalsign/mgo/bson"
+	"strconv"
+	"sync"
 )
 
 type (
@@ -66,6 +65,19 @@ func (a *analyzer) start() {
 				blacklisted = true
 			}
 
+			// find maximum dns query count in domain[count] map
+			// this represents the total count of dns queries made by the domain who
+			// was most queried by this host
+			var maxDNSQCount int64
+			maxDNSQCount = 0
+			if len(datum.MaxDNSQueryCount) > 0 {
+				for _, count := range datum.MaxDNSQueryCount {
+					if count > maxDNSQCount {
+						maxDNSQCount = count
+					}
+				}
+			}
+
 			// update src of connection in hosts table
 			if datum.IP4 {
 				var output update
@@ -89,7 +101,7 @@ func (a *analyzer) start() {
 					}
 				}
 
-				output = standardQuery(a.chunk, a.chunkStr, datum.Host, datum.IsLocal, datum.IP4, datum.IP4Bin, datum.MaxDuration, datum.DNSQueryCount, datum.UntrustedAppConnCount, datum.CountSrc, datum.CountDst, blacklisted, newRecordFlag)
+				output = standardQuery(a.chunk, a.chunkStr, datum.Host, datum.IsLocal, datum.IP4, datum.IP4Bin, datum.MaxDuration, maxDNSQCount, datum.UntrustedAppConnCount, datum.CountSrc, datum.CountDst, blacklisted, newRecordFlag)
 
 				// set to writer channel
 				a.analyzedCallback(output)
@@ -102,7 +114,7 @@ func (a *analyzer) start() {
 }
 
 //standardQuery ...
-func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4 bool, ip4bin int64, maxdur float64, dnsQCount int64, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
+func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4 bool, ip4bin int64, maxdur float64, maxDnsQCount int64, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
 	var output update
 
 	// create query
@@ -122,7 +134,7 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 			"dat": bson.M{
 				"count_src":       countSrc,
 				"count_dst":       countDst,
-				"dns_query_count": dnsQCount,
+				"max_dns_query_count": maxDnsQCount,
 				"upps_count":      untrustedACC,
 				"cid":             chunk,
 			}}
@@ -136,7 +148,7 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 		query["$inc"] = bson.M{
 			"dat.$.count_src":       countSrc,
 			"dat.$.count_dst":       countDst,
-			"dat.$.dns_query_count": dnsQCount,
+			"dat.$.max_dns_query_count": maxDnsQCount,
 			"dat.$.upps_count":      untrustedACC,
 		}
 

@@ -569,13 +569,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 							}
 
-							// increment txt query count for host in uconn
-							if queryTypeName == "TXT" {
-								// We don't filter out the src ips like we do with the conn
-								// section since a c2 channel running over dns could have an
-								// internal ip to internal ip connection and not having that ip
-								// in the host table is limiting
+							// We don't filter out the src ips like we do with the conn
+							// section since a c2 channel running over dns could have an
+							// internal ip to internal ip connection and not having that ip
+							// in the host table is limiting
 
+							// in some of these strings, the empty space will get counted as a domain,
+							// don't add host or increment dns query count if queried domain
+							// is blank or ends in 'in-addr.arpa'
+							if (domain != "") && (!strings.HasSuffix(domain, "in-addr.arpa")) {
 								// Check if host map value is set, because this record could
 								// come before a relevant conns record
 								if _, ok := hostMap[srcKey]; !ok {
@@ -589,10 +591,30 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										IP4Bin:  util.IPv4ToBinary(srcIP),
 									}
 								}
-								// increment txt query count
-								hostMap[srcKey].TXTQueryCount++
 
+								// if there are no entries in the maxdnsquerycount map for this
+								// srcKey, initialize map
+								if hostMap[srcKey].MaxDNSQueryCount == nil {
+									hostMap[srcKey].MaxDNSQueryCount = make(map[string]int64)
+								}
+
+								// split the domain string on periods
+								split := strings.Split(domain, ".")
+
+								// we will not count the very last item, because it will be either all or
+								// a part of the tlds. This means that something like ".co.uk" will still
+								// not be fully excluded, but it will greatly reduce the complexity for the
+								// most common tlds
+								max := len(split) - 1
+
+								for i := 1; i <= max; i++ {
+									// parse domain which will be the part we are on until the end of the string
+									entry := strings.Join(split[max-i:], ".")
+									// increment the dns query count for this exploded domain
+									hostMap[srcKey].MaxDNSQueryCount[entry]++
+								}
 							}
+
 
 						mutex.Unlock()
 

@@ -27,7 +27,7 @@ type Input struct {
 	TotalBytes            int64
 	MaxDuration           float64
 	TotalDuration         float64
-	DNSQueryCount         int64
+	MaxDNSQueryCount      map[string]int64
 	UntrustedAppConnCount int64
 	MaxTS                 int64
 	MinTS                 int64
