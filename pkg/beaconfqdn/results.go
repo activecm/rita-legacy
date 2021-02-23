@@ -5,16 +5,16 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
-//Results finds beacons in the database greater than a given cutoffScore
+//Results finds beacons FQDN in the database greater than a given cutoffScore
 func Results(res *resources.Resources, cutoffScore float64) ([]Result, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 
-	var beacons []Result
+	var beaconsFQDN []Result
 
-	beaconQuery := bson.M{"score": bson.M{"$gt": cutoffScore}}
+	beaconFQDNQuery := bson.M{"score": bson.M{"$gt": cutoffScore}}
 
-	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.BeaconFQDN.BeaconFQDNTable).Find(beaconQuery).Sort("-score").All(&beacons)
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.BeaconFQDN.BeaconFQDNTable).Find(beaconFQDNQuery).Sort("-score").All(&beaconsFQDN)
 
-	return beacons, err
+	return beaconsFQDN, err
 }
