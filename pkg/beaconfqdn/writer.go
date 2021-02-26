@@ -57,7 +57,7 @@ func (w *writer) start() {
 				if err != nil ||
 					((info.Updated == 0) && (info.UpsertedId == nil)) {
 					w.log.WithFields(log.Fields{
-						"Module": "beacons",
+						"Module": "beaconsFQDN",
 						"Info":   info,
 						"Data":   data,
 					}).Error(err)
@@ -71,7 +71,7 @@ func (w *writer) start() {
 					if err != nil ||
 						((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
 						w.log.WithFields(log.Fields{
-							"Module": "beacons",
+							"Module": "beaconsFQDN",
 							"Info":   info,
 							"Data":   data,
 						}).Error(err)
@@ -87,7 +87,7 @@ func (w *writer) start() {
 					if err != nil ||
 						((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
 						w.log.WithFields(log.Fields{
-							"Module": "beacons",
+							"Module": "beaconsFQDN",
 							"Info":   info,
 							"Data":   data,
 						}).Error(err)
