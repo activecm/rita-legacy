@@ -19,6 +19,7 @@ type (
 		Log          LogStaticCfg         `yaml:"LogConfig"`
 		Blacklisted  BlacklistedStaticCfg `yaml:"BlackListed"`
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
+		BeaconFQDN   BeaconFQDNStaticCfg  `yaml:"BeaconFQDN"`
 		DNS          DNSStaticCfg         `yaml:"DNS"`
 		UserAgent    UserAgentStaticCfg   `yaml:"UserAgent"`
 		Bro          BroStaticCfg         `yaml:"Bro"` // kept in for MetaDB backwards compatibility
@@ -82,6 +83,12 @@ type (
 
 	//BeaconStaticCfg is used to control the beaconing analysis module
 	BeaconStaticCfg struct {
+		Enabled                 bool `yaml:"Enabled" default:"true"`
+		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
+	}
+
+	//BeaconStaticFQDNCfg is used to control the beaconing analysis module
+	BeaconStaticFQDNCfg struct {
 		Enabled                 bool `yaml:"Enabled" default:"true"`
 		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
 	}
