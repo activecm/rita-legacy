@@ -21,6 +21,20 @@ type (
 		NetworkName string      `bson:"network_name"`
 	}
 
+	//UniqueSrcIP ...
+	UniqueSrcIP struct {
+		SrcIP          string      `bson:"src"`
+		SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
+		SrcNetworkName string      `bson:"src_network_name"`
+	}
+
+	//UniqueDstIP ..
+	UniqueDstIP struct {
+		DstIP          string      `bson:"dst"`
+		DstNetworkUUID bson.Binary `bson:"dst_network_uuid"`
+		DstNetworkName string      `bson:"dst_network_name"`
+	}
+
 	//UniqueIPSet is a set of UniqueIPs which contains at most one instance of each UniqueIP
 	//this implementation is based on a slice of UniqueIPs rather than a map[string]UniqueIP
 	//since it requires less RAM.
@@ -28,12 +42,8 @@ type (
 
 	//UniqueIPPair binds a pair of UniqueIPs where direction matters.
 	UniqueIPPair struct {
-		SrcIP          string      `bson:"src"`
-		SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
-		SrcNetworkName string      `bson:"src_network_name"`
-		DstIP          string      `bson:"dst"`
-		DstNetworkUUID bson.Binary `bson:"dst_network_uuid"`
-		DstNetworkName string      `bson:"dst_network_name"`
+		UniqueSrcIP
+		UniqueDstIP
 	}
 )
 
@@ -95,33 +105,35 @@ func (u UniqueIP) BSONKey() bson.M {
 }
 
 //SrcBSONKey generates a BSON map which may be used to index a given UniqueIP. Includes IP and Network UUID.
-func (u UniqueIP) SrcBSONKey() bson.M {
-	key := bson.M{
-		"src":              u.IP,
-		"src_network_uuid": u.NetworkUUID,
+func (u UniqueSrcIP) SrcBSONKey() bson.M {
+	return bson.M{
+		"ip":           u.SrcIP,
+		"network_uuid": u.SrcNetworkUUID,
 	}
-	return key
+
 }
 
 //DstBSONKey generates a BSON map which may be used to index a given UniqueIP. Includes IP and Network UUID.
 func (u UniqueIP) DstBSONKey() bson.M {
-	key := bson.M{
+	return bson.M{
 		"dst":              u.IP,
 		"dst_network_uuid": u.NetworkUUID,
 	}
-	return key
+
 }
 
 //NewUniqueIPPair binds a pair of UniqueIPs where direction matters.
 func NewUniqueIPPair(source UniqueIP, destination UniqueIP) UniqueIPPair {
-	return UniqueIPPair{
-		SrcIP:          source.IP,
-		DstIP:          destination.IP,
-		SrcNetworkUUID: source.NetworkUUID,
-		DstNetworkUUID: destination.NetworkUUID,
-		SrcNetworkName: source.NetworkName,
-		DstNetworkName: destination.NetworkName,
-	}
+	res := UniqueIPPair{}
+	res.SrcIP = source.IP
+	res.DstIP = destination.IP
+	res.SrcNetworkUUID = source.NetworkUUID
+	res.DstNetworkUUID = destination.NetworkUUID
+	res.SrcNetworkName = source.NetworkName
+	res.DstNetworkName = destination.NetworkName
+
+	return res
+
 }
 
 //Source returns the source UniqueIP from the pair.

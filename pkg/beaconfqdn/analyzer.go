@@ -177,7 +177,11 @@ func (a *analyzer) start() {
 			score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
 
 			// create selector pair object
-			selectorPair := newUniqueSrcHostnamePair(res.Src, res.FQDN)
+			selectorPair := uniqueSrcHostnamePair{
+				res.Src.SrcIP,
+				res.Src.SrcNetworkUUID,
+				res.FQDN,
+			}
 
 			// update beacon query
 			output.beacon = updateInfo{
@@ -204,7 +208,7 @@ func (a *analyzer) start() {
 						"ds.score":           dsScore,
 						"score":              score,
 						"cid":                a.chunk,
-						"src_network_name":   res.Src.NetworkName,
+						"src_network_name":   res.Src.SrcNetworkName,
 						"resolved_ips":       res.ResolvedIPs,
 					},
 				},
@@ -243,7 +247,7 @@ func createCountMap(sortedIn []int64) ([]int64, []int64, int64, int64) {
 	return distinct, countsArr, mode, max
 }
 
-func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, fqdn string) updateInfo {
+func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueSrcIP, fqdn string) updateInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -259,7 +263,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, fqdn string) up
 
 		var resList []interface{}
 
-		hostSelector := src.BSONKey()
+		hostSelector := src.SrcBSONKey()
 		hostSelector["dat.icfqdn"] = fqdn
 
 		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).All(&resList)
@@ -279,7 +283,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, fqdn string) up
 
 			// create selector for output
 			output.query = query
-			output.selector = src.BSONKey()
+			output.selector = src.SrcBSONKey()
 
 		} else {
 
@@ -297,7 +301,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, fqdn string) up
 	return output
 }
 
-func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string) updateInfo {
+func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueSrcIP, fqdn string) updateInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -312,7 +316,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 	// the incorrect high max for that specific destination.
 	var resListExactMatch []interface{}
 
-	maxBeaconMatchExactQuery := src.BSONKey()
+	maxBeaconMatchExactQuery := src.SrcBSONKey()
 	maxBeaconMatchExactQuery["dat.mbfqdn"] = fqdn
 
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
@@ -343,7 +347,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 
 	// this query will find any matching chunk that is reporting a lower
 	// max beacon score than the current one we are working with
-	maxBeaconMatchLowerQuery := src.BSONKey()
+	maxBeaconMatchLowerQuery := src.SrcBSONKey()
 	maxBeaconMatchLowerQuery["dat"] = bson.M{
 		"$elemMatch": bson.M{
 			"cid":                   a.chunk,
@@ -358,7 +362,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 	// if no matching chunks are found, we will set the new flag
 	if len(resListLower) <= 0 {
 
-		maxBeaconMatchUpperQuery := src.BSONKey()
+		maxBeaconMatchUpperQuery := src.SrcBSONKey()
 		maxBeaconMatchUpperQuery["dat"] = bson.M{
 			"$elemMatch": bson.M{
 				"cid":                   a.chunk,
@@ -393,7 +397,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 
 		// create selector for output
 		output.query = query
-		output.selector = src.BSONKey()
+		output.selector = src.SrcBSONKey()
 
 	} else if updateFlag {
 

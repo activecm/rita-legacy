@@ -54,15 +54,6 @@ func (d *dissector) start() {
 
 		for datum := range d.dissectChannel {
 
-			// set up src match key (src ip + network uuid)
-			srcMatchKey := datum.Src.SrcBSONKey()
-
-			var dstList []interface{}
-			// create dst match query section
-			for _, dst := range datum.ResolvedIPs {
-				dstList = append(dstList, dst.DstBSONKey())
-			}
-
 			// This will work for both updating and inserting completely new Beacons
 			// for every new hostnames record we have, we will check every entry in the
 			// uconn table where the source IP from the hostnames record connected to one
@@ -76,9 +67,9 @@ func (d *dissector) start() {
 			// and individual lookups like this are really fast. This also ensures a unique
 			// set of timestamps for analysis.
 			uconnFindQuery := []bson.M{
-				bson.M{"$match": srcMatchKey},
-				bson.M{"$match": bson.M{"$or": dstList}},
-				bson.M{"$project": bson.M{
+				{"$match": datum.Src},
+				{"$match": bson.M{"$or": datum.DstBSONList}},
+				{"$project": bson.M{
 					"src": 1,
 					"ts": bson.M{
 						"$reduce": bson.M{
@@ -98,7 +89,7 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$sum": "$dat.tbytes"},
 					"icerts": bson.M{"$anyElementTrue": []interface{}{"$dat.icerts"}},
 				}},
-				bson.M{"$group": bson.M{
+				{"$group": bson.M{
 					"_id":    "$src",
 					"ts":     bson.M{"$push": "$ts"},
 					"bytes":  bson.M{"$push": "$bytes"},
@@ -106,9 +97,9 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$sum": "$tbytes"},
 					"icerts": bson.M{"$push": "$icerts"},
 				}},
-				bson.M{"$unwind": "$ts"},
-				bson.M{"$unwind": "$ts"},
-				bson.M{"$group": bson.M{
+				{"$unwind": "$ts"},
+				{"$unwind": "$ts"},
+				{"$group": bson.M{
 					"_id":    "$_id",
 					"ts":     bson.M{"$addToSet": "$ts"},
 					"bytes":  bson.M{"$first": "$bytes"},
@@ -116,9 +107,9 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$first": "$tbytes"},
 					"icerts": bson.M{"$first": "$icerts"},
 				}},
-				bson.M{"$unwind": "$bytes"},
-				bson.M{"$unwind": "$bytes"},
-				bson.M{"$group": bson.M{
+				{"$unwind": "$bytes"},
+				{"$unwind": "$bytes"},
+				{"$group": bson.M{
 					"_id":    "$_id",
 					"ts":     bson.M{"$first": "$ts"},
 					"bytes":  bson.M{"$push": "$bytes"},
@@ -126,7 +117,7 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$first": "$tbytes"},
 					"icerts": bson.M{"$first": "$icerts"},
 				}},
-				bson.M{"$project": bson.M{
+				{"$project": bson.M{
 					"_id":    0,
 					"ts":     1,
 					"bytes":  1,
