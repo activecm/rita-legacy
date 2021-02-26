@@ -109,7 +109,9 @@ func (d *dissector) start() {
 				bson.M{"$unwind": "$ts"},
 				bson.M{"$unwind": "$ts"},
 				bson.M{"$group": bson.M{
-					"_id":    "$_id",
+					"_id": "$_id",
+					// need to unique-ify timestamps or else results
+					// will be skewed by "0 distant" data points
 					"ts":     bson.M{"$addToSet": "$ts"},
 					"bytes":  bson.M{"$first": "$bytes"},
 					"count":  bson.M{"$first": "$count"},
