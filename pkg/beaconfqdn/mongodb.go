@@ -4,10 +4,12 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
 )
@@ -64,6 +66,9 @@ func (r *repo) CreateIndexes() error {
 
 //Upsert loops through every new hostname ....
 func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
+
+	session := r.res.DB.Session.Copy()
+	defer session.Close()
 
 	//Create the workers
 	writerWorker := newWriter(
@@ -127,12 +132,37 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 			continue
 		}
 
-		// for each src that connected to a hostname...
-		for _, src := range entry.ClientIPs {
+		// create resolved dst array for match query
+		var dstList []interface{}
+		for _, dst := range entry.ResolvedIPs {
+			dstList = append(dstList, dst.DstBSONKey())
+		}
+
+		// create match query
+		srcMatchQuery := []bson.M{
+			{"$match": bson.M{
+				"$or": dstList,
+			}},
+			{"$project": bson.M{
+				"src":              1,
+				"src_network_uuid": 1,
+				"src_network_name": 1,
+			}},
+		}
+
+		// get all src ips that connected to the resolved ips
+		var srcRes []data.UniqueSrcIP
+
+		// execute query
+		_ = session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.UniqueConnTable).Pipe(srcMatchQuery).AllowDiskUse().All(&srcRes)
+
+		// for each src that connected to a resolved ip...
+		for _, src := range srcRes {
 
 			input := &hostname.FqdnInput{
 				Src:         src,
 				FQDN:        entry.Host,
+				DstBSONList: dstList,
 				ResolvedIPs: entry.ResolvedIPs,
 			}
 

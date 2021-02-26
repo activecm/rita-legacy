@@ -77,15 +77,6 @@ type (
 	}
 )
 
-//newUniqueSrcHostnamePair binds a pair of UniqueIPs where direction matters.
-func newUniqueSrcHostnamePair(source data.UniqueIP, fqdn string) uniqueSrcHostnamePair {
-	return uniqueSrcHostnamePair{
-		SrcIP:          source.IP,
-		SrcNetworkUUID: source.NetworkUUID,
-		FQDN:           fqdn,
-	}
-}
-
 //BSONKey generates a BSON map which may be used to index a given a unique src
 // fqdn pair
 //Includes IP and Network UUID.

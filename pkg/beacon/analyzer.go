@@ -1,11 +1,12 @@
 package beacon
 
 import (
-	"github.com/activecm/rita/pkg/data"
 	"math"
 	"sort"
 	"strconv"
 	"sync"
+
+	"github.com/activecm/rita/pkg/data"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
