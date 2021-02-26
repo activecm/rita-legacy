@@ -65,164 +65,185 @@ func (a *analyzer) start() {
 
 			output := &update{}
 
-			//store the diff slice length since we use it a lot
-			//for timestamps this is one less then the data slice length
-			//since we are calculating the times in between readings
-			tsLength := len(res.TsList) - 1
-			dsLength := len(res.OrigBytesList)
+			// if uconn has turned into a strobe, we will not have any timestamps here,
+			// and need to update uconn table with the strobeFQDN flag. This is being done
+			// here and not in uconns because uconns doesn't do reads, and doesn't know
+			// the updated conn count
+			if (res.TsList) == nil {
 
-			//find the delta times between the timestamps
-			diff := make([]int64, tsLength)
-			for i := 0; i < tsLength; i++ {
-				diff[i] = res.TsList[i+1] - res.TsList[i]
-			}
+				// TODO: Implement strobesFQDN
+				// output.uconn = updateInfo{
+				// 	// update hosts record
+				// 	query: bson.M{
+				// 		"$set": bson.M{"strobeFQDN": true},
+				// 	},
+				// 	// create selector for output
+				// 	selector: res.Hosts.BSONKey(),
+				// }
 
-			//perfect beacons should have symmetric delta time and size distributions
-			//Bowley's measure of skew is used to check symmetry
-			sort.Sort(util.SortableInt64(diff))
-			tsSkew := float64(0)
-			dsSkew := float64(0)
+				// // set to writer channel
+				// a.analyzedCallback(output)
 
-			//tsLength -1 is used since diff is a zero based slice
-			tsLow := diff[util.Round(.25*float64(tsLength-1))]
-			tsMid := diff[util.Round(.5*float64(tsLength-1))]
-			tsHigh := diff[util.Round(.75*float64(tsLength-1))]
-			tsBowleyNum := tsLow + tsHigh - 2*tsMid
-			tsBowleyDen := tsHigh - tsLow
+			} else {
+				//store the diff slice length since we use it a lot
+				//for timestamps this is one less then the data slice length
+				//since we are calculating the times in between readings
+				tsLength := len(res.TsList) - 1
+				dsLength := len(res.OrigBytesList)
 
-			//we do the same for datasizes
-			dsLow := res.OrigBytesList[util.Round(.25*float64(dsLength-1))]
-			dsMid := res.OrigBytesList[util.Round(.5*float64(dsLength-1))]
-			dsHigh := res.OrigBytesList[util.Round(.75*float64(dsLength-1))]
-			dsBowleyNum := dsLow + dsHigh - 2*dsMid
-			dsBowleyDen := dsHigh - dsLow
+				//find the delta times between the timestamps
+				diff := make([]int64, tsLength)
+				for i := 0; i < tsLength; i++ {
+					diff[i] = res.TsList[i+1] - res.TsList[i]
+				}
 
-			//tsSkew should equal zero if the denominator equals zero
-			//bowley skew is unreliable if Q2 = Q1 or Q2 = Q3
-			if tsBowleyDen != 0 && tsMid != tsLow && tsMid != tsHigh {
-				tsSkew = float64(tsBowleyNum) / float64(tsBowleyDen)
-			}
+				//perfect beacons should have symmetric delta time and size distributions
+				//Bowley's measure of skew is used to check symmetry
+				sort.Sort(util.SortableInt64(diff))
+				tsSkew := float64(0)
+				dsSkew := float64(0)
 
-			if dsBowleyDen != 0 && dsMid != dsLow && dsMid != dsHigh {
-				dsSkew = float64(dsBowleyNum) / float64(dsBowleyDen)
-			}
+				//tsLength -1 is used since diff is a zero based slice
+				tsLow := diff[util.Round(.25*float64(tsLength-1))]
+				tsMid := diff[util.Round(.5*float64(tsLength-1))]
+				tsHigh := diff[util.Round(.75*float64(tsLength-1))]
+				tsBowleyNum := tsLow + tsHigh - 2*tsMid
+				tsBowleyDen := tsHigh - tsLow
 
-			//perfect beacons should have very low dispersion around the
-			//median of their delta times
-			//Median Absolute Deviation About the Median
-			//is used to check dispersion
-			devs := make([]int64, tsLength)
-			for i := 0; i < tsLength; i++ {
-				devs[i] = util.Abs(diff[i] - tsMid)
-			}
+				//we do the same for datasizes
+				dsLow := res.OrigBytesList[util.Round(.25*float64(dsLength-1))]
+				dsMid := res.OrigBytesList[util.Round(.5*float64(dsLength-1))]
+				dsHigh := res.OrigBytesList[util.Round(.75*float64(dsLength-1))]
+				dsBowleyNum := dsLow + dsHigh - 2*dsMid
+				dsBowleyDen := dsHigh - dsLow
 
-			dsDevs := make([]int64, dsLength)
-			for i := 0; i < dsLength; i++ {
-				dsDevs[i] = util.Abs(res.OrigBytesList[i] - dsMid)
-			}
+				//tsSkew should equal zero if the denominator equals zero
+				//bowley skew is unreliable if Q2 = Q1 or Q2 = Q3
+				if tsBowleyDen != 0 && tsMid != tsLow && tsMid != tsHigh {
+					tsSkew = float64(tsBowleyNum) / float64(tsBowleyDen)
+				}
 
-			sort.Sort(util.SortableInt64(devs))
-			sort.Sort(util.SortableInt64(dsDevs))
+				if dsBowleyDen != 0 && dsMid != dsLow && dsMid != dsHigh {
+					dsSkew = float64(dsBowleyNum) / float64(dsBowleyDen)
+				}
 
-			tsMadm := devs[util.Round(.5*float64(tsLength-1))]
-			dsMadm := dsDevs[util.Round(.5*float64(dsLength-1))]
+				//perfect beacons should have very low dispersion around the
+				//median of their delta times
+				//Median Absolute Deviation About the Median
+				//is used to check dispersion
+				devs := make([]int64, tsLength)
+				for i := 0; i < tsLength; i++ {
+					devs[i] = util.Abs(diff[i] - tsMid)
+				}
 
-			//Store the range for human analysis
-			tsIntervalRange := diff[tsLength-1] - diff[0]
-			dsRange := res.OrigBytesList[dsLength-1] - res.OrigBytesList[0]
+				dsDevs := make([]int64, dsLength)
+				for i := 0; i < dsLength; i++ {
+					dsDevs[i] = util.Abs(res.OrigBytesList[i] - dsMid)
+				}
 
-			//get a list of the intervals found in the data,
-			//the number of times the interval was found,
-			//and the most occurring interval
-			intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
-			dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(res.OrigBytesList)
+				sort.Sort(util.SortableInt64(devs))
+				sort.Sort(util.SortableInt64(dsDevs))
 
-			//more skewed distributions receive a lower score
-			//less skewed distributions receive a higher score
-			tsSkewScore := 1.0 - math.Abs(tsSkew) //smush tsSkew
-			dsSkewScore := 1.0 - math.Abs(dsSkew) //smush dsSkew
+				tsMadm := devs[util.Round(.5*float64(tsLength-1))]
+				dsMadm := dsDevs[util.Round(.5*float64(dsLength-1))]
 
-			//lower dispersion is better, cutoff dispersion scores at 30 seconds
-			tsMadmScore := 1.0 - float64(tsMadm)/30.0
-			if tsMadmScore < 0 {
-				tsMadmScore = 0
-			}
+				//Store the range for human analysis
+				tsIntervalRange := diff[tsLength-1] - diff[0]
+				dsRange := res.OrigBytesList[dsLength-1] - res.OrigBytesList[0]
 
-			//lower dispersion is better, cutoff dispersion scores at 32 bytes
-			dsMadmScore := 1.0 - float64(dsMadm)/32.0
-			if dsMadmScore < 0 {
-				dsMadmScore = 0
-			}
+				//get a list of the intervals found in the data,
+				//the number of times the interval was found,
+				//and the most occurring interval
+				intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
+				dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(res.OrigBytesList)
 
-			//smaller data sizes receive a higher score
-			dsSmallnessScore := 1.0 - float64(dsMode)/65535.0
-			if dsSmallnessScore < 0 {
-				dsSmallnessScore = 0
-			}
+				//more skewed distributions receive a lower score
+				//less skewed distributions receive a higher score
+				tsSkewScore := 1.0 - math.Abs(tsSkew) //smush tsSkew
+				dsSkewScore := 1.0 - math.Abs(dsSkew) //smush dsSkew
 
-			// connection count scoring
-			tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 10.0
-			tsConnCountScore := float64(res.ConnectionCount) / tsConnDiv
-			if tsConnCountScore > 1.0 {
-				tsConnCountScore = 1.0
-			}
+				//lower dispersion is better, cutoff dispersion scores at 30 seconds
+				tsMadmScore := 1.0 - float64(tsMadm)/30.0
+				if tsMadmScore < 0 {
+					tsMadmScore = 0
+				}
 
-			//score numerators
-			tsSum := tsSkewScore + tsMadmScore + tsConnCountScore
-			dsSum := dsSkewScore + dsMadmScore + dsSmallnessScore
+				//lower dispersion is better, cutoff dispersion scores at 32 bytes
+				dsMadmScore := 1.0 - float64(dsMadm)/32.0
+				if dsMadmScore < 0 {
+					dsMadmScore = 0
+				}
 
-			//score averages
-			tsScore := math.Ceil((tsSum/3.0)*1000) / 1000
-			dsScore := math.Ceil((dsSum/3.0)*1000) / 1000
-			score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
+				//smaller data sizes receive a higher score
+				dsSmallnessScore := 1.0 - float64(dsMode)/65535.0
+				if dsSmallnessScore < 0 {
+					dsSmallnessScore = 0
+				}
 
-			// create selector pair object
-			selectorPair := uniqueSrcHostnamePair{
-				res.Src.SrcIP,
-				res.Src.SrcNetworkUUID,
-				res.FQDN,
-			}
+				// connection count scoring
+				tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 10.0
+				tsConnCountScore := float64(res.ConnectionCount) / tsConnDiv
+				if tsConnCountScore > 1.0 {
+					tsConnCountScore = 1.0
+				}
 
-			// update beacon query
-			output.beacon = updateInfo{
-				query: bson.M{
-					"$set": bson.M{
-						"connection_count":   res.ConnectionCount,
-						"avg_bytes":          res.TotalBytes / res.ConnectionCount,
-						"ts.range":           tsIntervalRange,
-						"ts.mode":            tsMode,
-						"ts.mode_count":      tsModeCount,
-						"ts.intervals":       intervals,
-						"ts.interval_counts": intervalCounts,
-						"ts.dispersion":      tsMadm,
-						"ts.skew":            tsSkew,
-						"ts.conns_score":     tsConnCountScore,
-						"ts.score":           tsScore,
-						"ds.range":           dsRange,
-						"ds.mode":            dsMode,
-						"ds.mode_count":      dsModeCount,
-						"ds.sizes":           dsSizes,
-						"ds.counts":          dsCounts,
-						"ds.dispersion":      dsMadm,
-						"ds.skew":            dsSkew,
-						"ds.score":           dsScore,
-						"score":              score,
-						"cid":                a.chunk,
-						"src_network_name":   res.Src.SrcNetworkName,
-						"resolved_ips":       res.ResolvedIPs,
+				//score numerators
+				tsSum := tsSkewScore + tsMadmScore + tsConnCountScore
+				dsSum := dsSkewScore + dsMadmScore + dsSmallnessScore
+
+				//score averages
+				tsScore := math.Ceil((tsSum/3.0)*1000) / 1000
+				dsScore := math.Ceil((dsSum/3.0)*1000) / 1000
+				score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
+
+				// create selector pair object
+				selectorPair := uniqueSrcHostnamePair{
+					res.Src.SrcIP,
+					res.Src.SrcNetworkUUID,
+					res.FQDN,
+				}
+
+				// update beacon query
+				output.beacon = updateInfo{
+					query: bson.M{
+						"$set": bson.M{
+							"connection_count":   res.ConnectionCount,
+							"avg_bytes":          res.TotalBytes / res.ConnectionCount,
+							"ts.range":           tsIntervalRange,
+							"ts.mode":            tsMode,
+							"ts.mode_count":      tsModeCount,
+							"ts.intervals":       intervals,
+							"ts.interval_counts": intervalCounts,
+							"ts.dispersion":      tsMadm,
+							"ts.skew":            tsSkew,
+							"ts.conns_score":     tsConnCountScore,
+							"ts.score":           tsScore,
+							"ds.range":           dsRange,
+							"ds.mode":            dsMode,
+							"ds.mode_count":      dsModeCount,
+							"ds.sizes":           dsSizes,
+							"ds.counts":          dsCounts,
+							"ds.dispersion":      dsMadm,
+							"ds.skew":            dsSkew,
+							"ds.score":           dsScore,
+							"score":              score,
+							"cid":                a.chunk,
+							"src_network_name":   res.Src.SrcNetworkName,
+							"resolved_ips":       res.ResolvedIPs,
+						},
 					},
-				},
-				selector: selectorPair.BSONKey(),
+					selector: selectorPair.BSONKey(),
+				}
+
+				// updates source entry in hosts table to flag for invalid certificates
+				output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Src, res.FQDN)
+
+				// updates max FQDN beacon score for the source entry in the hosts table
+				output.hostBeacon = a.hostBeaconQuery(score, res.Src, res.FQDN)
+
+				// set to writer channel
+				a.analyzedCallback(output)
 			}
-
-			// updates source entry in hosts table to flag for invalid certificates
-			output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Src, res.FQDN)
-
-			// updates max FQDN beacon score for the source entry in the hosts table
-			output.hostBeacon = a.hostBeaconQuery(score, res.Src, res.FQDN)
-
-			// set to writer channel
-			a.analyzedCallback(output)
 		}
 		a.analysisWg.Done()
 	}()

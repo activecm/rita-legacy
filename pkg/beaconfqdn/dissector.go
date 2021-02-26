@@ -154,9 +154,22 @@ func (d *dissector) start() {
 					ResolvedIPs:     datum.ResolvedIPs,
 				}
 
-				// send to writer channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
-				if len(analysisInput.TsList) > 3 {
+				// check if uconn has become a strobe
+				if analysisInput.ConnectionCount > d.connLimit {
+
+					// set to writer channel
 					d.dissectedCallback(analysisInput)
+
+				} else { // otherwise, parse timestamps and orig ip bytes
+
+					analysisInput.TsList = res.Ts
+					analysisInput.OrigBytesList = res.Bytes
+
+					// send to writer channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
+					if len(analysisInput.TsList) > 3 {
+						d.dissectedCallback(analysisInput)
+					}
+
 				}
 
 			}
