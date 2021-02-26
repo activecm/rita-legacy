@@ -87,8 +87,8 @@ type (
 		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
 	}
 
-	//BeaconStaticFQDNCfg is used to control the beaconing analysis module
-	BeaconStaticFQDNCfg struct {
+	//BeaconFQDNStaticCfg is used to control the beaconing analysis module
+	BeaconFQDNStaticCfg struct {
 		Enabled                 bool `yaml:"Enabled" default:"true"`
 		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
 	}

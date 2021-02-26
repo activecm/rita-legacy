@@ -898,7 +898,7 @@ func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input) {
 
 func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
 	// TODO : make separate config thingie for fqdn
-	if fs.res.Config.S.Beacon.Enabled {
+	if fs.res.Config.S.BeaconFQDN.Enabled {
 		if len(hostnameMap) > 0 {
 			beaconFQDNRepo := beaconfqdn.NewMongoRepository(fs.res)
 
