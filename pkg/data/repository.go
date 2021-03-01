@@ -42,8 +42,8 @@ type (
 
 	//UniqueIPPair binds a pair of UniqueIPs where direction matters.
 	UniqueIPPair struct {
-		UniqueSrcIP
-		UniqueDstIP
+		UniqueSrcIP `bson:",inline"`
+		UniqueDstIP `bson:",inline"`
 	}
 )
 
