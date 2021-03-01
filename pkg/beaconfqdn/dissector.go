@@ -67,6 +67,11 @@ func (d *dissector) start() {
 			// and individual lookups like this are really fast. This also ensures a unique
 			// set of timestamps for analysis.
 			uconnFindQuery := []bson.M{
+				// beacons strobe ignores any already flagged strobes, but we don't want to do
+				// that here. Beacons relies on the uconn table for having the updated connection info
+				// we do not have that, so the calculation must happen. We don't necessarily need to store
+				// the tslist or byte list, but I don't think that leaving it in will significantly impact
+				// performance on a few strobes.
 				{"$match": datum.Src},
 				{"$match": bson.M{"$or": datum.DstBSONList}},
 				{"$project": bson.M{
@@ -149,12 +154,10 @@ func (d *dissector) start() {
 					ConnectionCount: res.Count,
 					TotalBytes:      res.TBytes,
 					InvalidCertFlag: res.ICerts,
-					TsList:          res.Ts,
-					OrigBytesList:   res.Bytes,
 					ResolvedIPs:     datum.ResolvedIPs,
 				}
 
-				// check if uconn has become a strobe
+				// check if beacon has become a strobe
 				if analysisInput.ConnectionCount > d.connLimit {
 
 					// set to writer channel

@@ -63,26 +63,51 @@ func (a *analyzer) start() {
 
 		for res := range a.analysisChannel {
 
+			// set up beacon writer output
 			output := &update{}
 
-			// if uconn has turned into a strobe, we will not have any timestamps here,
+			// create selector pair object
+			selectorPair := uniqueSrcHostnamePair{
+				res.Src.SrcIP,
+				res.Src.SrcNetworkUUID,
+				res.FQDN,
+			}
+
+			// create query
+			query := bson.M{}
+
+			// if beacon has turned into a strobe, we will not have any timestamps here,
 			// and need to update uconn table with the strobeFQDN flag. This is being done
 			// here and not in uconns because uconns doesn't do reads, and doesn't know
 			// the updated conn count
 			if (res.TsList) == nil {
 
-				// TODO: Implement strobesFQDN
-				// output.uconn = updateInfo{
-				// 	// update hosts record
-				// 	query: bson.M{
-				// 		"$set": bson.M{"strobeFQDN": true},
-				// 	},
-				// 	// create selector for output
-				// 	selector: res.Hosts.BSONKey(),
-				// }
+				// set strobe info
+				query["$set"] = bson.M{
+					"strobeFQDN":       true,
+					"total_bytes":      res.TotalBytes,
+					"avg_bytes":        res.TotalBytes / res.ConnectionCount,
+					"connection_count": res.ConnectionCount,
+					"src_network_name": res.Src.SrcNetworkName,
+					"resolved_ips":     res.ResolvedIPs,
+					"cid":              a.chunk,
+				}
 
-				// // set to writer channel
-				// a.analyzedCallback(output)
+				// unset any beacon calculations since  this
+				// is now a strobe and those would be inaccurate
+				// (this will only apply to chunked imports)
+				query["$unset"] = bson.M{
+					"ts":    1,
+					"ds":    1,
+					"score": 1,
+				}
+
+				// create selector for output
+				output.beacon.query = query
+				output.beacon.selector = selectorPair.BSONKey()
+
+				// set to writer channel
+				a.analyzedCallback(output)
 
 			} else {
 				//store the diff slice length since we use it a lot
@@ -196,44 +221,38 @@ func (a *analyzer) start() {
 				dsScore := math.Ceil((dsSum/3.0)*1000) / 1000
 				score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
 
-				// create selector pair object
-				selectorPair := uniqueSrcHostnamePair{
-					res.Src.SrcIP,
-					res.Src.SrcNetworkUUID,
-					res.FQDN,
+				// update beacon query
+				query["$set"] = bson.M{
+					"connection_count":   res.ConnectionCount,
+					"avg_bytes":          res.TotalBytes / res.ConnectionCount,
+					"ts.range":           tsIntervalRange,
+					"ts.mode":            tsMode,
+					"ts.mode_count":      tsModeCount,
+					"ts.intervals":       intervals,
+					"ts.interval_counts": intervalCounts,
+					"ts.dispersion":      tsMadm,
+					"ts.skew":            tsSkew,
+					"ts.conns_score":     tsConnCountScore,
+					"ts.score":           tsScore,
+					"ds.range":           dsRange,
+					"ds.mode":            dsMode,
+					"ds.mode_count":      dsModeCount,
+					"ds.sizes":           dsSizes,
+					"ds.counts":          dsCounts,
+					"ds.dispersion":      dsMadm,
+					"ds.skew":            dsSkew,
+					"ds.score":           dsScore,
+					"score":              score,
+					"cid":                a.chunk,
+					"src_network_name":   res.Src.SrcNetworkName,
+					"resolved_ips":       res.ResolvedIPs,
 				}
 
-				// update beacon query
-				output.beacon = updateInfo{
-					query: bson.M{
-						"$set": bson.M{
-							"connection_count":   res.ConnectionCount,
-							"avg_bytes":          res.TotalBytes / res.ConnectionCount,
-							"ts.range":           tsIntervalRange,
-							"ts.mode":            tsMode,
-							"ts.mode_count":      tsModeCount,
-							"ts.intervals":       intervals,
-							"ts.interval_counts": intervalCounts,
-							"ts.dispersion":      tsMadm,
-							"ts.skew":            tsSkew,
-							"ts.conns_score":     tsConnCountScore,
-							"ts.score":           tsScore,
-							"ds.range":           dsRange,
-							"ds.mode":            dsMode,
-							"ds.mode_count":      dsModeCount,
-							"ds.sizes":           dsSizes,
-							"ds.counts":          dsCounts,
-							"ds.dispersion":      dsMadm,
-							"ds.skew":            dsSkew,
-							"ds.score":           dsScore,
-							"score":              score,
-							"cid":                a.chunk,
-							"src_network_name":   res.Src.SrcNetworkName,
-							"resolved_ips":       res.ResolvedIPs,
-						},
-					},
-					selector: selectorPair.BSONKey(),
-				}
+				// set query
+				output.beacon.query = query
+
+				// create selector for output
+				output.beacon.selector = selectorPair.BSONKey()
 
 				// updates source entry in hosts table to flag for invalid certificates
 				output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Src, res.FQDN)
