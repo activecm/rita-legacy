@@ -181,26 +181,17 @@ func (a *analyzer) start() {
 
 //shouldInsertNewRecord returns true if a host entry with the current CID does not exist in the database
 func (a *analyzer) shouldInsertNewHostRecord(ssn *mgo.Session, host data.UniqueIP) bool {
-	newRecordFlag := false
-	type hostRes struct {
+	var hostCIDs []struct {
 		CID int `bson:"cid"`
 	}
 
-	var res2 []hostRes
+	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(host.BSONKey()).All(&hostCIDs)
 
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(host.BSONKey()).All(&res2)
-
-	if !(len(res2) > 0) {
-		newRecordFlag = true
-		// fmt.Println("host no results", res2, datum.Host)
-	} else {
-
-		if res2[0].CID != a.chunk {
-			// fmt.Println("host existing", a.chunk, res2, datum.Host)
-			newRecordFlag = true
-		}
+	if len(hostCIDs) <= 0 || hostCIDs[0].CID != a.chunk {
+		// fmt.Println("host no results", len(hostCIDs), host.IP)
+		return true
 	}
-	return newRecordFlag
+	return false
 }
 
 //standardQuery ...
