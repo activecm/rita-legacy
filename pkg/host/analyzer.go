@@ -232,27 +232,27 @@ func (a *analyzer) writeExplodedDNSEntries(ssn *mgo.Session, host data.UniqueIP,
 // ])
 func maxDNSQueryCountQuery(host data.UniqueIP) []bson.M {
 	query := []bson.M{
-		bson.M{"$match": bson.M{
+		{"$match": bson.M{
 			"ip":           host.IP,
 			"network_uuid": host.NetworkUUID,
 		}},
-		bson.M{"$unwind": "$dat"},
-		bson.M{"$unwind": "$dat.exploded_dns"},
-		bson.M{"$project": bson.M{
+		{"$unwind": "$dat"},
+		{"$unwind": "$dat.exploded_dns"},
+		{"$project": bson.M{
 			"exploded_dns": "$dat.exploded_dns",
 		}},
-		bson.M{"$group": bson.M{
+		{"$group": bson.M{
 			"_id":   "$exploded_dns.query",
 			"query": bson.M{"$first": "$exploded_dns.query"},
 			"count": bson.M{"$sum": "$exploded_dns.count"},
 		}},
-		bson.M{"$project": bson.M{
+		{"$project": bson.M{
 			"_id":   0,
 			"query": 1,
 			"count": 1,
 		}},
-		bson.M{"$sort": bson.M{"count": -1}},
-		bson.M{"$limit": 1},
+		{"$sort": bson.M{"count": -1}},
+		{"$limit": 1},
 	}
 	return query
 }
@@ -276,11 +276,18 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 
 		query["$push"] = bson.M{
 			"dat": bson.M{
-				"count_src":           countSrc,
-				"count_dst":           countDst,
-				"max_dns_query_count": maxDNSQueryCount,
-				"upps_count":          untrustedACC,
-				"cid":                 chunk,
+				"$each": []bson.M{
+					{
+						"count_src":  countSrc,
+						"count_dst":  countDst,
+						"upps_count": untrustedACC,
+						"cid":        chunk,
+					},
+					{
+						"max_dns_query_count": maxDNSQueryCount,
+						"cid":                 chunk,
+					},
+				},
 			}}
 
 		// create selector for output ,
