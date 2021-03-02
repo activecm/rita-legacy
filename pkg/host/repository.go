@@ -34,3 +34,9 @@ type Input struct {
 	IP4                   bool
 	IP4Bin                int64
 }
+
+// explodedDNS is structure for host exploded dns results
+type explodedDNS struct {
+	Query string `bson:"query"`
+	Count int64  `bson:"count"`
+}

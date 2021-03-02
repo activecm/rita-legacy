@@ -28,12 +28,6 @@ type (
 		analysisWg       sync.WaitGroup       // wait for analysis to finish
 		res              *resources.Resources // resources for logger usage
 	}
-
-	// structure for host exploded dns results
-	explodedDNS struct {
-		Query string `bson:"query"`
-		Count int64  `bson:"count"`
-	}
 )
 
 //newAnalyzer creates a new collector for gathering data
@@ -88,7 +82,7 @@ func (a *analyzer) start() {
 				var maxDNSQueryRes explodedDNS
 				// If we have any dns queries for this host, push them to the database
 				// and retrieve the max dns query count object.
-				// If there aren't any explodedDNS results, max_dns_query_count will be set to
+				// If there aren't any explodedDNS results, max_dns will be set to
 				// {"query": "", count: 0}.
 				if len(datum.DNSQueryCount) > 0 {
 					// update the host record with the new exploded dns results
@@ -284,8 +278,8 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 						"cid":        chunk,
 					},
 					{
-						"max_dns_query_count": maxDNSQueryCount,
-						"cid":                 chunk,
+						"max_dns": maxDNSQueryCount,
+						"cid":     chunk,
 					},
 				},
 			}}
@@ -304,8 +298,8 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 
 		query["$push"] = bson.M{
 			"dat": bson.M{
-				"max_dns_query_count": maxDNSQueryCount,
-				"cid":                 chunk,
+				"max_dns": maxDNSQueryCount,
+				"cid":     chunk,
 			},
 		}
 
