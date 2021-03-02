@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -573,13 +574,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 							}
 
-							// increment txt query count for host in uconn
-							if queryTypeName == "TXT" {
-								// We don't filter out the src ips like we do with the conn
-								// section since a c2 channel running over dns could have an
-								// internal ip to internal ip connection and not having that ip
-								// in the host table is limiting
+							// We don't filter out the src ips like we do with the conn
+							// section since a c2 channel running over dns could have an
+							// internal ip to internal ip connection and not having that ip
+							// in the host table is limiting
 
+							// in some of these strings, the empty space will get counted as a domain,
+							// don't add host or increment dns query count if queried domain
+							// is blank or ends in 'in-addr.arpa'
+							if (domain != "") && (!strings.HasSuffix(domain, "in-addr.arpa")) {
 								// Check if host map value is set, because this record could
 								// come before a relevant conns record
 								if _, ok := hostMap[srcKey]; !ok {
@@ -593,9 +596,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										IP4Bin:  util.IPv4ToBinary(srcIP),
 									}
 								}
-								// increment txt query count
-								hostMap[srcKey].TXTQueryCount++
 
+								// if there are no entries in the dnsquerycount map for this
+								// srcKey, initialize map
+								if hostMap[srcKey].DNSQueryCount == nil {
+									hostMap[srcKey].DNSQueryCount = make(map[string]int64)
+								}
+
+								// increment the dns query count for this domain
+								hostMap[srcKey].DNSQueryCount[domain]++
 							}
 
 							mutex.Unlock()
