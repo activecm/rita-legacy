@@ -6,6 +6,7 @@ import (
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/resources"
 
+	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 
@@ -81,25 +82,8 @@ func (a *analyzer) start() {
 			// update src of connection in hosts table
 			if datum.IP4 {
 				var output update
-				newRecordFlag := false
-				type hostRes struct {
-					CID int `bson:"cid"`
-				}
 
-				var res2 []hostRes
-
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(datum.Host.BSONKey()).All(&res2)
-
-				if !(len(res2) > 0) {
-					newRecordFlag = true
-					// fmt.Println("host no results", res2, datum.Host)
-				} else {
-
-					if res2[0].CID != a.chunk {
-						// fmt.Println("host existing", a.chunk, res2, datum.Host)
-						newRecordFlag = true
-					}
-				}
+				newRecordFlag := a.shouldInsertNewHostRecord(ssn, datum.Host)
 
 				var maxDNSQueryRes explodedDNS
 				// if we have any dns queries for this host, push them to the database
@@ -193,6 +177,30 @@ func (a *analyzer) start() {
 		}
 		a.analysisWg.Done()
 	}()
+}
+
+//shouldInsertNewRecord returns true if a host entry with the current CID does not exist in the database
+func (a *analyzer) shouldInsertNewHostRecord(ssn *mgo.Session, host data.UniqueIP) bool {
+	newRecordFlag := false
+	type hostRes struct {
+		CID int `bson:"cid"`
+	}
+
+	var res2 []hostRes
+
+	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(host.BSONKey()).All(&res2)
+
+	if !(len(res2) > 0) {
+		newRecordFlag = true
+		// fmt.Println("host no results", res2, datum.Host)
+	} else {
+
+		if res2[0].CID != a.chunk {
+			// fmt.Println("host existing", a.chunk, res2, datum.Host)
+			newRecordFlag = true
+		}
+	}
+	return newRecordFlag
 }
 
 //standardQuery ...
