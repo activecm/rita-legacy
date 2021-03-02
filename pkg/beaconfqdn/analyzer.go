@@ -77,9 +77,7 @@ func (a *analyzer) start() {
 			query := bson.M{}
 
 			// if beacon has turned into a strobe, we will not have any timestamps here,
-			// and need to update uconn table with the strobeFQDN flag. This is being done
-			// here and not in uconns because uconns doesn't do reads, and doesn't know
-			// the updated conn count
+			// and need to update beaconFQDN table with the strobeFQDN flag.
 			if (res.TsList) == nil {
 
 				// set strobe info
