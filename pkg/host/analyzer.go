@@ -106,8 +106,8 @@ func (a *analyzer) start() {
 				// and retrieve the max dns query count object
 				if len(datum.DNSQueryCount) > 0 {
 					// make a new map to store the exploded dns query->count data
-					var explodedDnsMap map[string]int64
-					explodedDnsMap = make(map[string]int64)
+					var explodedDNSMap map[string]int64
+					explodedDNSMap = make(map[string]int64)
 					for domain, count := range datum.DNSQueryCount {
 						// split name on periods
 						split := strings.Split(domain, ".")
@@ -121,18 +121,18 @@ func (a *analyzer) start() {
 						for i := 1; i <= max; i++ {
 							// parse domain which will be the part we are on until the end of the string
 							entry := strings.Join(split[max-i:], ".")
-							explodedDnsMap[entry] += count
+							explodedDNSMap[entry] += count
 						}
 					}
 
 					// put exploded dns map into mongo format so that we can push the entire
 					// exploded dns map data into the database in one go
-					var explodedDns []explodedDNS
-					for domain, count := range explodedDnsMap {
-						var explodedDnsEntry explodedDNS
-						explodedDnsEntry.Query = domain
-						explodedDnsEntry.Count = count
-						explodedDns = append(explodedDns, explodedDnsEntry)
+					var explodedDNSEntries []explodedDNS
+					for domain, count := range explodedDNSMap {
+						var explodedDNSEntry explodedDNS
+						explodedDNSEntry.Query = domain
+						explodedDNSEntry.Count = count
+						explodedDNSEntries = append(explodedDNSEntries, explodedDNSEntry)
 					}
 
 					// push the host exploded dns results into this host's dat array
@@ -140,7 +140,7 @@ func (a *analyzer) start() {
 					query := bson.M{
 						"$push": bson.M{
 							"dat": bson.M{
-								"exploded_dns": explodedDns,
+								"exploded_dns": explodedDNSEntries,
 								"cid":          a.chunk,
 							},
 						},
