@@ -4,10 +4,10 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/resources"
 
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 
 	"strconv"
@@ -18,26 +18,26 @@ import (
 type (
 	//analyzer : structure for host analysis
 	analyzer struct {
-		chunk            int                  //current chunk (0 if not on rolling analysis)
-		chunkStr         string               //current chunk (0 if not on rolling analysis)
-		db               *database.DB         // provides access to MongoDB
-		conf             *config.Config       // contains details needed to access MongoDB
-		analyzedCallback func(update)         // called on each analyzed result
-		closedCallback   func()               // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *Input          // holds unanalyzed data
-		analysisWg       sync.WaitGroup       // wait for analysis to finish
-		res              *resources.Resources // resources for logger usage
+		chunk            int            //current chunk (0 if not on rolling analysis)
+		chunkStr         string         //current chunk (0 if not on rolling analysis)
+		conf             *config.Config // contains details needed to access MongoDB
+		db               *database.DB   // provides access to MongoDB
+		log              *logrus.Logger // logger for writing out errors and warnings
+		analyzedCallback func(update)   // called on each analyzed result
+		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *Input    // holds unanalyzed data
+		analysisWg       sync.WaitGroup // wait for analysis to finish
 	}
 )
 
 //newAnalyzer creates a new collector for gathering data
-func newAnalyzer(res *resources.Resources, chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, conf *config.Config, db *database.DB, log *logrus.Logger, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
-		res:              res,
 		chunk:            chunk,
 		chunkStr:         strconv.Itoa(chunk),
-		db:               db,
 		conf:             conf,
+		log:              log,
+		db:               db,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
 		analysisChannel:  make(chan *Input),
@@ -94,7 +94,7 @@ func (a *analyzer) start() {
 					err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Pipe(maxDNSQuery).AllowDiskUse().One(&maxDNSQueryRes)
 					// log erros
 					if err != nil {
-						a.res.Log.WithFields(log.Fields{
+						a.log.WithFields(log.Fields{
 							"Module": "host",
 							"Data":   maxDNSQuery,
 						}).Error(err)
@@ -192,7 +192,7 @@ func (a *analyzer) writeExplodedDNSEntries(ssn *mgo.Session, host data.UniqueIP,
 	// log errors
 	if err != nil ||
 		((info.Updated == 0) && (info.UpsertedId == nil)) {
-		a.res.Log.WithFields(log.Fields{
+		a.log.WithFields(log.Fields{
 			"Module": "host",
 			"Info":   info,
 			"Data":   input,
