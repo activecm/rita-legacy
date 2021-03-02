@@ -4,28 +4,41 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/resources"
+
 	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
+
 	"strconv"
+	"strings"
 	"sync"
 )
 
 type (
 	//analyzer : structure for host analysis
 	analyzer struct {
-		chunk            int            //current chunk (0 if not on rolling analysis)
-		chunkStr         string         //current chunk (0 if not on rolling analysis)
-		db               *database.DB   // provides access to MongoDB
-		conf             *config.Config // contains details needed to access MongoDB
-		analyzedCallback func(update)   // called on each analyzed result
-		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *Input    // holds unanalyzed data
-		analysisWg       sync.WaitGroup // wait for analysis to finish
+		chunk            int                  //current chunk (0 if not on rolling analysis)
+		chunkStr         string               //current chunk (0 if not on rolling analysis)
+		db               *database.DB         // provides access to MongoDB
+		conf             *config.Config       // contains details needed to access MongoDB
+		analyzedCallback func(update)         // called on each analyzed result
+		closedCallback   func()               // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *Input          // holds unanalyzed data
+		analysisWg       sync.WaitGroup       // wait for analysis to finish
+		res              *resources.Resources // resources for logger usage
+	}
+
+	// structure for host exploded dns results
+	explodedDNS struct {
+		Query string `bson:"query"`
+		Count int64  `bson:"count"`
 	}
 )
 
 //newAnalyzer creates a new collector for gathering data
-func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(res *resources.Resources, chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
+		res:              res,
 		chunk:            chunk,
 		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
@@ -65,19 +78,6 @@ func (a *analyzer) start() {
 				blacklisted = true
 			}
 
-			// find maximum dns query count in domain[count] map
-			// this represents the total count of dns queries made by the domain who
-			// was most queried by this host
-			var maxDNSQCount int64
-			maxDNSQCount = 0
-			if len(datum.MaxDNSQueryCount) > 0 {
-				for _, count := range datum.MaxDNSQueryCount {
-					if count > maxDNSQCount {
-						maxDNSQCount = count
-					}
-				}
-			}
-
 			// update src of connection in hosts table
 			if datum.IP4 {
 				var output update
@@ -101,7 +101,89 @@ func (a *analyzer) start() {
 					}
 				}
 
-				output = standardQuery(a.chunk, a.chunkStr, datum.Host, datum.IsLocal, datum.IP4, datum.IP4Bin, datum.MaxDuration, maxDNSQCount, datum.UntrustedAppConnCount, datum.CountSrc, datum.CountDst, blacklisted, newRecordFlag)
+				var maxDNSQueryRes explodedDNS
+				// if we have any dns queries for this host, push them to the database
+				// and retrieve the max dns query count object
+				if len(datum.DNSQueryCount) > 0 {
+					// make a new map to store the exploded dns query->count data
+					var explodedDnsMap map[string]int64
+					explodedDnsMap = make(map[string]int64)
+					for domain, count := range datum.DNSQueryCount {
+						// split name on periods
+						split := strings.Split(domain, ".")
+
+						// we will not count the very last item, because it will be either all or
+						// a part of the tlds. This means that something like ".co.uk" will still
+						// not be fully excluded, but it will greatly reduce the complexity for the
+						// most common tlds
+						max := len(split) - 1
+
+						for i := 1; i <= max; i++ {
+							// parse domain which will be the part we are on until the end of the string
+							entry := strings.Join(split[max-i:], ".")
+							explodedDnsMap[entry] += count
+						}
+					}
+
+					// put exploded dns map into mongo format so that we can push the entire
+					// exploded dns map data into the database in one go
+					var explodedDns []explodedDNS
+					for domain, count := range explodedDnsMap {
+						var explodedDnsEntry explodedDNS
+						explodedDnsEntry.Query = domain
+						explodedDnsEntry.Count = count
+						explodedDns = append(explodedDns, explodedDnsEntry)
+					}
+
+					// push the host exploded dns results into this host's dat array
+					var input update
+					query := bson.M{
+						"$push": bson.M{
+							"dat": bson.M{
+								"exploded_dns": explodedDns,
+								"cid":          a.chunk,
+							},
+						},
+					}
+					// create selectors for input
+					// if this is a new host, only use the host as the selector
+					if newRecordFlag {
+						input.selector = datum.Host.BSONKey()
+					} else {
+						// if this is an exisitng host, use the host & cid as the selectors
+						input.selector = datum.Host.BSONKey()
+						input.selector["dat.cid"] = a.chunk
+					}
+					input.query = query
+
+					// upsert these exploded dns entries
+					info, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Upsert(input.selector, input.query)
+
+					// log errors
+					if err != nil ||
+						((info.Updated == 0) && (info.UpsertedId == nil)) {
+						a.res.Log.WithFields(log.Fields{
+							"Module": "host",
+							"Info":   info,
+							"Data":   input,
+						}).Error(err)
+					}
+
+					// get max dns query count query
+					maxDNSQuery := maxDNSQueryCountQuery(datum.Host)
+
+					// execute max dns query count query
+					err = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Pipe(maxDNSQuery).AllowDiskUse().One(&maxDNSQueryRes)
+
+					// log erros
+					if err != nil {
+						a.res.Log.WithFields(log.Fields{
+							"Module": "host",
+							"Data":   input,
+						}).Error(err)
+					}
+				}
+				output = standardQuery(a.chunk, a.chunkStr, datum.Host, datum.IsLocal, datum.IP4, datum.IP4Bin, datum.MaxDuration, maxDNSQueryRes, datum.UntrustedAppConnCount, datum.CountSrc, datum.CountDst, blacklisted, newRecordFlag)
 
 				// set to writer channel
 				a.analyzedCallback(output)
@@ -114,7 +196,7 @@ func (a *analyzer) start() {
 }
 
 //standardQuery ...
-func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4 bool, ip4bin int64, maxdur float64, maxDNSQCount int64, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
+func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4 bool, ip4bin int64, maxdur float64, maxDNSQueryCount explodedDNS, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
 	var output update
 
 	// create query
@@ -132,11 +214,11 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 
 		query["$push"] = bson.M{
 			"dat": bson.M{
-				"count_src":       countSrc,
-				"count_dst":       countDst,
-				"max_dns_query_count": maxDNSQCount,
-				"upps_count":      untrustedACC,
-				"cid":             chunk,
+				"count_src":           countSrc,
+				"count_dst":           countDst,
+				"max_dns_query_count": maxDNSQueryCount,
+				"upps_count":          untrustedACC,
+				"cid":                 chunk,
 			}}
 
 		// create selector for output ,
@@ -146,10 +228,16 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 	} else {
 
 		query["$inc"] = bson.M{
-			"dat.$.count_src":       countSrc,
-			"dat.$.count_dst":       countDst,
-			"dat.$.max_dns_query_count": maxDNSQCount,
-			"dat.$.upps_count":      untrustedACC,
+			"dat.$.count_src":  countSrc,
+			"dat.$.count_dst":  countDst,
+			"dat.$.upps_count": untrustedACC,
+		}
+
+		query["$push"] = bson.M{
+			"dat": bson.M{
+				"max_dns_query_count": maxDNSQueryCount,
+				"cid":                 chunk,
+			},
 		}
 
 		// create selector for output
@@ -159,4 +247,55 @@ func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4
 	}
 
 	return output
+}
+
+// db.getCollection('host').aggregate([
+//     {"$match": {
+//         "ip": "HOST IP",
+//         "network_uuid": UUID(),
+//     }},
+//     {"$unwind": "$dat"},
+//     {"$unwind": "$dat.exploded_dns"},
+//
+//     {"$project": {
+//         "exploded_dns": "$dat.exploded_dns"
+//     }},
+//     {"$group": {
+//         "_id": "$exploded_dns.query",
+// 				 "query": {"$first": "$exploded_dns.query"}
+//         "count": {"$sum": "$exploded_dns.count"}
+//     }},
+//     {"$project": {
+//      	"_id": 0,
+// 	      "query": 1,
+// 	      "count": 1,
+//     }},
+//     {"$sort": {"count": -1}},
+//     {"$limit": 1}
+// ])
+func maxDNSQueryCountQuery(host data.UniqueIP) []bson.M {
+	query := []bson.M{
+		bson.M{"$match": bson.M{
+			"ip":           host.IP,
+			"network_uuid": host.NetworkUUID,
+		}},
+		bson.M{"$unwind": "$dat"},
+		bson.M{"$unwind": "$dat.exploded_dns"},
+		bson.M{"$project": bson.M{
+			"exploded_dns": "$dat.exploded_dns",
+		}},
+		bson.M{"$group": bson.M{
+			"_id":   "$exploded_dns.query",
+			"query": bson.M{"$first": "$exploded_dns.query"},
+			"count": bson.M{"$sum": "$exploded_dns.count"},
+		}},
+		bson.M{"$project": bson.M{
+			"_id":   0,
+			"query": 1,
+			"count": 1,
+		}},
+		bson.M{"$sort": bson.M{"count": -1}},
+		bson.M{"$limit": 1},
+	}
+	return query
 }

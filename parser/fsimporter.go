@@ -592,31 +592,17 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									}
 								}
 
-								// if there are no entries in the maxdnsquerycount map for this
+								// if there are no entries in the dnsquerycount map for this
 								// srcKey, initialize map
-								if hostMap[srcKey].MaxDNSQueryCount == nil {
-									hostMap[srcKey].MaxDNSQueryCount = make(map[string]int64)
+								if hostMap[srcKey].DNSQueryCount == nil {
+									hostMap[srcKey].DNSQueryCount = make(map[string]int64)
 								}
 
-								// split the domain string on periods
-								split := strings.Split(domain, ".")
-
-								// we will not count the very last item, because it will be either all or
-								// a part of the tlds. This means that something like ".co.uk" will still
-								// not be fully excluded, but it will greatly reduce the complexity for the
-								// most common tlds
-								max := len(split) - 1
-
-								for i := 1; i <= max; i++ {
-									// parse domain which will be the part we are on until the end of the string
-									entry := strings.Join(split[max-i:], ".")
-									// increment the dns query count for this exploded domain
-									hostMap[srcKey].MaxDNSQueryCount[entry]++
-								}
+								// increment the dns query count for this domain
+								hostMap[srcKey].DNSQueryCount[domain]++
 							}
 
-
-						mutex.Unlock()
+							mutex.Unlock()
 
 							/// *************************************************************///
 							///                             HTTP                             ///
