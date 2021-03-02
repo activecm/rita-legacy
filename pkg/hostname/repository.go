@@ -29,12 +29,12 @@ type (
 	FqdnInput struct {
 		FQDN            string           //A hostname
 		Src             data.UniqueSrcIP // Single src that connected to a hostname
-		DstBSONList     []interface{}    // set of resolved UniqueDstIPs since we need it in that format
 		ResolvedIPs     data.UniqueIPSet //Set of resolved UniqueIPs associated with a given hostname
 		InvalidCertFlag bool
 		ConnectionCount int64
 		TotalBytes      int64
 		TsList          []int64
 		OrigBytesList   []int64
+		DstBSONList     []bson.M // set of resolved UniqueDstIPs since we need it in that format
 	}
 )

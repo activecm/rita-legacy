@@ -133,7 +133,7 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		}
 
 		// create resolved dst array for match query
-		var dstList []interface{}
+		var dstList []bson.M
 		for _, dst := range entry.ResolvedIPs {
 			dstList = append(dstList, dst.DstBSONKey())
 		}

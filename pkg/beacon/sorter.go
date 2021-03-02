@@ -52,7 +52,7 @@ func (s *sorter) start() {
 		for data := range s.sortChannel {
 
 			if (data.TsList) != nil {
-				//sort the size and timestamps since they may have arrived out of order
+				//sort the size and timestamps to compute quantiles in the analyzer
 				sort.Sort(util.SortableInt64(data.TsList))
 				sort.Sort(util.SortableInt64(data.OrigBytesList))
 
@@ -63,28 +63,4 @@ func (s *sorter) start() {
 		}
 		s.sortWg.Done()
 	}()
-}
-
-//CountAndRemoveConsecutiveDuplicates removes consecutive
-//duplicates in an array of integers and counts how many
-//instances of each number exist in the array.
-//Similar to `uniq -c`, but counts all duplicates, not just
-//consecutive duplicates.
-func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64]int64) {
-	//Avoid some reallocations
-	result := make([]int64, 0, len(numberList)/2)
-	counts := make(map[int64]int64)
-
-	last := numberList[0]
-	result = append(result, last)
-	counts[last]++
-
-	for idx := 1; idx < len(numberList); idx++ {
-		if last != numberList[idx] {
-			result = append(result, numberList[idx])
-		}
-		last = numberList[idx]
-		counts[last]++
-	}
-	return result, counts
 }
