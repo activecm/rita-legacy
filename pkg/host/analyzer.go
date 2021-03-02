@@ -150,7 +150,7 @@ func (a *analyzer) start() {
 					if newRecordFlag {
 						input.selector = datum.Host.BSONKey()
 					} else {
-						// if this is an exisitng host, use the host & cid as the selectors
+						// if this is an existing host, use the host & cid as the selectors
 						input.selector = datum.Host.BSONKey()
 						input.selector["dat.cid"] = a.chunk
 					}
