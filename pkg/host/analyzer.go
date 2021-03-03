@@ -147,7 +147,7 @@ func buildExplodedDNSArray(dnsQueryCounts map[string]int64) []explodedDNS {
 		for i := 1; i <= max; i++ {
 			// parse domain which will be the part we are on until the end of the string
 			entry := strings.Join(split[max-i:], ".")
-			explodedDNSMap[entry] += 1
+			explodedDNSMap[entry]++
 		}
 	}
 
