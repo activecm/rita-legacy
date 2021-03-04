@@ -55,7 +55,7 @@ func (c *accumulator) start() {
 			// create resolved dst array for match query
 			var dstList []bson.M
 			for _, dst := range entry.ResolvedIPs {
-				dstList = append(dstList, dst.DstBSONKey())
+				dstList = append(dstList, dst.AsDst().BSONKey())
 			}
 
 			// create match query

@@ -229,8 +229,8 @@ func (a *analyzer) start() {
 					selector: res.Hosts.BSONKey(),
 				}
 
-				output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Hosts.Source(), res.Hosts.Destination())
-				output.hostBeacon = a.hostBeaconQuery(score, res.Hosts.Source(), res.Hosts.Destination())
+				output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Hosts.UniqueSrcIP.Unpair(), res.Hosts.UniqueDstIP.Unpair())
+				output.hostBeacon = a.hostBeaconQuery(score, res.Hosts.UniqueSrcIP.Unpair(), res.Hosts.UniqueDstIP.Unpair())
 
 				// set to writer channel
 				a.analyzedCallback(output)

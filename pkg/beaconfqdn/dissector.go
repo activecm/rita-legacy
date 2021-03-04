@@ -72,7 +72,7 @@ func (d *dissector) start() {
 				// we do not have that, so the calculation must happen. We don't necessarily need to store
 				// the tslist or byte list, but I don't think that leaving it in will significantly impact
 				// performance on a few strobes.
-				{"$match": entry.Src},
+				{"$match": entry.Src.BSONKey()},
 				{"$match": bson.M{"$or": entry.DstBSONList}},
 				{"$project": bson.M{
 					"src": 1,
