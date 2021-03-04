@@ -151,5 +151,5 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 	p.Wait()
 
 	// start the closing cascade (this will also close the other channels)
-	dissectorWorker.close()
+	accumulatorWorker.close()
 }
