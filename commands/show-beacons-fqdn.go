@@ -69,14 +69,14 @@ func showBeaconsFQDNHuman(data []beaconfqdn.Result, showNetNames bool) error {
 	var headerFields []string
 	if showNetNames {
 		headerFields = []string{
-			"Score", "Source Network", "Source IP", "FQDN", "Resolved IPs",
+			"Score", "Source Network", "Source IP", "FQDN",
 			"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
 			"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
 			"Size Skew", "Intvl Dispersion", "Size Dispersion",
 		}
 	} else {
 		headerFields = []string{
-			"Score", "Source IP", "FQDN", "Resolved IPs",
+			"Score", "Source IP", "FQDN",
 			"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
 			"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
 			"Size Skew", "Intvl Dispersion", "Size Dispersion",
