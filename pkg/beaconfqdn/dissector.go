@@ -34,15 +34,15 @@ func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissect
 }
 
 //collect sends a chunk of data to be analyzed
-func (d *dissector) collect(datum *hostname.FqdnInput) {
-	d.dissectChannel <- datum
+func (d *dissector) collect(entry *hostname.FqdnInput) {
+	d.dissectChannel <- entry
 }
 
 //close waits for the collector to finish
 func (d *dissector) close() {
 	close(d.dissectChannel)
 	d.dissectWg.Wait()
-	// d.closedCallback()
+	d.closedCallback()
 }
 
 //start kicks off a new analysis thread
@@ -52,7 +52,7 @@ func (d *dissector) start() {
 		ssn := d.db.Session.Copy()
 		defer ssn.Close()
 
-		for datum := range d.dissectChannel {
+		for entry := range d.dissectChannel {
 
 			// This will work for both updating and inserting completely new Beacons
 			// for every new hostnames record we have, we will check every entry in the
@@ -72,8 +72,8 @@ func (d *dissector) start() {
 				// we do not have that, so the calculation must happen. We don't necessarily need to store
 				// the tslist or byte list, but I don't think that leaving it in will significantly impact
 				// performance on a few strobes.
-				{"$match": datum.Src},
-				{"$match": bson.M{"$or": datum.DstBSONList}},
+				{"$match": entry.Src},
+				{"$match": bson.M{"$or": entry.DstBSONList}},
 				{"$project": bson.M{
 					"src": 1,
 					"ts": bson.M{
@@ -149,12 +149,12 @@ func (d *dissector) start() {
 			if res.Count > 0 {
 
 				analysisInput := &hostname.FqdnInput{
-					FQDN:            datum.FQDN,
-					Src:             datum.Src,
+					FQDN:            entry.FQDN,
+					Src:             entry.Src,
 					ConnectionCount: res.Count,
 					TotalBytes:      res.TBytes,
 					InvalidCertFlag: res.ICerts,
-					ResolvedIPs:     datum.ResolvedIPs,
+					ResolvedIPs:     entry.ResolvedIPs,
 				}
 
 				// check if beacon has become a strobe

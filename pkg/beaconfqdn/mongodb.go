@@ -4,12 +4,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
 )
@@ -70,7 +68,9 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 	session := r.res.DB.Session.Copy()
 	defer session.Close()
 
-	//Create the workers
+	// Create the workers
+
+	// stage 5 - write out results
 	writerWorker := newWriter(
 		r.res.Config.T.BeaconFQDN.BeaconFQDNTable,
 		r.res.DB,
@@ -78,6 +78,7 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		r.res.Log,
 	)
 
+	// stage 4 - perform the analysis
 	analyzerWorker := newAnalyzer(
 		r.min,
 		r.max,
@@ -88,6 +89,7 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		writerWorker.close,
 	)
 
+	// stage 3 - sort data
 	sorterWorker := newSorter(
 		r.res.DB,
 		r.res.Config,
@@ -95,6 +97,7 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		analyzerWorker.close,
 	)
 
+	// stage 2 - get and vet beacon details
 	dissectorWorker := newDissector(
 		int64(r.res.Config.S.Strobe.ConnectionLimit),
 		r.res.DB,
@@ -103,8 +106,18 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		sorterWorker.close,
 	)
 
+	// stage 1 - get all the sources that connected
+	// to a resolved FQDN
+	accumulatorWorker := newAccumulator(
+		r.res.DB,
+		r.res.Config,
+		dissectorWorker.collect,
+		dissectorWorker.close,
+	)
+
 	//kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		accumulatorWorker.start()
 		dissectorWorker.start()
 		sorterWorker.start()
 		analyzerWorker.start()
@@ -127,46 +140,8 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		start := time.Now()
 
 		// check to make sure hostname has resolved ips, skip otherwise
-		if len(entry.ResolvedIPs) <= 0 {
-			bar.IncrBy(1, time.Since(start))
-			continue
-		}
-
-		// create resolved dst array for match query
-		var dstList []bson.M
-		for _, dst := range entry.ResolvedIPs {
-			dstList = append(dstList, dst.DstBSONKey())
-		}
-
-		// create match query
-		srcMatchQuery := []bson.M{
-			{"$match": bson.M{
-				"$or": dstList,
-			}},
-			{"$project": bson.M{
-				"src":              1,
-				"src_network_uuid": 1,
-				"src_network_name": 1,
-			}},
-		}
-
-		// get all src ips that connected to the resolved ips
-		var srcRes []data.UniqueSrcIP
-
-		// execute query
-		_ = session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.UniqueConnTable).Pipe(srcMatchQuery).AllowDiskUse().All(&srcRes)
-
-		// for each src that connected to a resolved ip...
-		for _, src := range srcRes {
-
-			input := &hostname.FqdnInput{
-				Src:         src,
-				FQDN:        entry.Host,
-				DstBSONList: dstList,
-				ResolvedIPs: entry.ResolvedIPs,
-			}
-
-			dissectorWorker.collect(input)
+		if len(entry.ResolvedIPs) > 0 {
+			accumulatorWorker.collect(entry)
 		}
 
 		// progress bar increment

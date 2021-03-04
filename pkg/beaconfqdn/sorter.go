@@ -33,8 +33,8 @@ func newSorter(db *database.DB, conf *config.Config, sortedCallback func(*hostna
 }
 
 //collect sends a chunk of data to be analyzed
-func (s *sorter) collect(data *hostname.FqdnInput) {
-	s.sortChannel <- data
+func (s *sorter) collect(entry *hostname.FqdnInput) {
+	s.sortChannel <- entry
 }
 
 //close waits for the collector to finish
@@ -49,16 +49,16 @@ func (s *sorter) start() {
 	s.sortWg.Add(1)
 	go func() {
 
-		for data := range s.sortChannel {
+		for entry := range s.sortChannel {
 
-			if (data.TsList) != nil {
+			if (entry.TsList) != nil {
 				//sort the size and timestamps to compute quantiles in the analyzer
-				sort.Sort(util.SortableInt64(data.TsList))
-				sort.Sort(util.SortableInt64(data.OrigBytesList))
+				sort.Sort(util.SortableInt64(entry.TsList))
+				sort.Sort(util.SortableInt64(entry.OrigBytesList))
 
 			}
 
-			s.sortedCallback(data)
+			s.sortedCallback(entry)
 
 		}
 		s.sortWg.Done()

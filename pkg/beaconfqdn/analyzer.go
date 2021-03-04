@@ -61,16 +61,16 @@ func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
 
-		for res := range a.analysisChannel {
+		for entry := range a.analysisChannel {
 
 			// set up beacon writer output
 			output := &update{}
 
 			// create selector pair object
 			selectorPair := uniqueSrcHostnamePair{
-				res.Src.SrcIP,
-				res.Src.SrcNetworkUUID,
-				res.FQDN,
+				entry.Src.SrcIP,
+				entry.Src.SrcNetworkUUID,
+				entry.FQDN,
 			}
 
 			// create query
@@ -78,16 +78,16 @@ func (a *analyzer) start() {
 
 			// if beacon has turned into a strobe, we will not have any timestamps here,
 			// and need to update beaconFQDN table with the strobeFQDN flag.
-			if (res.TsList) == nil {
+			if (entry.TsList) == nil {
 
 				// set strobe info
 				query["$set"] = bson.M{
 					"strobeFQDN":       true,
-					"total_bytes":      res.TotalBytes,
-					"avg_bytes":        res.TotalBytes / res.ConnectionCount,
-					"connection_count": res.ConnectionCount,
-					"src_network_name": res.Src.SrcNetworkName,
-					"resolved_ips":     res.ResolvedIPs,
+					"total_bytes":      entry.TotalBytes,
+					"avg_bytes":        entry.TotalBytes / entry.ConnectionCount,
+					"connection_count": entry.ConnectionCount,
+					"src_network_name": entry.Src.SrcNetworkName,
+					"resolved_ips":     entry.ResolvedIPs,
 					"cid":              a.chunk,
 				}
 
@@ -111,13 +111,13 @@ func (a *analyzer) start() {
 				//store the diff slice length since we use it a lot
 				//for timestamps this is one less then the data slice length
 				//since we are calculating the times in between readings
-				tsLength := len(res.TsList) - 1
-				dsLength := len(res.OrigBytesList)
+				tsLength := len(entry.TsList) - 1
+				dsLength := len(entry.OrigBytesList)
 
 				//find the delta times between the timestamps
 				diff := make([]int64, tsLength)
 				for i := 0; i < tsLength; i++ {
-					diff[i] = res.TsList[i+1] - res.TsList[i]
+					diff[i] = entry.TsList[i+1] - entry.TsList[i]
 				}
 
 				//perfect beacons should have symmetric delta time and size distributions
@@ -134,9 +134,9 @@ func (a *analyzer) start() {
 				tsBowleyDen := tsHigh - tsLow
 
 				//we do the same for datasizes
-				dsLow := res.OrigBytesList[util.Round(.25*float64(dsLength-1))]
-				dsMid := res.OrigBytesList[util.Round(.5*float64(dsLength-1))]
-				dsHigh := res.OrigBytesList[util.Round(.75*float64(dsLength-1))]
+				dsLow := entry.OrigBytesList[util.Round(.25*float64(dsLength-1))]
+				dsMid := entry.OrigBytesList[util.Round(.5*float64(dsLength-1))]
+				dsHigh := entry.OrigBytesList[util.Round(.75*float64(dsLength-1))]
 				dsBowleyNum := dsLow + dsHigh - 2*dsMid
 				dsBowleyDen := dsHigh - dsLow
 
@@ -161,7 +161,7 @@ func (a *analyzer) start() {
 
 				dsDevs := make([]int64, dsLength)
 				for i := 0; i < dsLength; i++ {
-					dsDevs[i] = util.Abs(res.OrigBytesList[i] - dsMid)
+					dsDevs[i] = util.Abs(entry.OrigBytesList[i] - dsMid)
 				}
 
 				sort.Sort(util.SortableInt64(devs))
@@ -172,13 +172,13 @@ func (a *analyzer) start() {
 
 				//Store the range for human analysis
 				tsIntervalRange := diff[tsLength-1] - diff[0]
-				dsRange := res.OrigBytesList[dsLength-1] - res.OrigBytesList[0]
+				dsRange := entry.OrigBytesList[dsLength-1] - entry.OrigBytesList[0]
 
 				//get a list of the intervals found in the data,
 				//the number of times the interval was found,
 				//and the most occurring interval
 				intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
-				dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(res.OrigBytesList)
+				dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(entry.OrigBytesList)
 
 				//more skewed distributions receive a lower score
 				//less skewed distributions receive a higher score
@@ -205,7 +205,7 @@ func (a *analyzer) start() {
 
 				// connection count scoring
 				tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 10.0
-				tsConnCountScore := float64(res.ConnectionCount) / tsConnDiv
+				tsConnCountScore := float64(entry.ConnectionCount) / tsConnDiv
 				if tsConnCountScore > 1.0 {
 					tsConnCountScore = 1.0
 				}
@@ -221,8 +221,8 @@ func (a *analyzer) start() {
 
 				// update beacon query
 				query["$set"] = bson.M{
-					"connection_count":   res.ConnectionCount,
-					"avg_bytes":          res.TotalBytes / res.ConnectionCount,
+					"connection_count":   entry.ConnectionCount,
+					"avg_bytes":          entry.TotalBytes / entry.ConnectionCount,
 					"ts.range":           tsIntervalRange,
 					"ts.mode":            tsMode,
 					"ts.mode_count":      tsModeCount,
@@ -242,8 +242,8 @@ func (a *analyzer) start() {
 					"ds.score":           dsScore,
 					"score":              score,
 					"cid":                a.chunk,
-					"src_network_name":   res.Src.SrcNetworkName,
-					"resolved_ips":       res.ResolvedIPs,
+					"src_network_name":   entry.Src.SrcNetworkName,
+					"resolved_ips":       entry.ResolvedIPs,
 				}
 
 				// set query
@@ -253,10 +253,10 @@ func (a *analyzer) start() {
 				output.beacon.selector = selectorPair.BSONKey()
 
 				// updates source entry in hosts table to flag for invalid certificates
-				output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Src, res.FQDN)
+				output.hostIcert = a.hostIcertQuery(entry.InvalidCertFlag, entry.Src, entry.FQDN)
 
 				// updates max FQDN beacon score for the source entry in the hosts table
-				output.hostBeacon = a.hostBeaconQuery(score, res.Src, res.FQDN)
+				output.hostBeacon = a.hostBeaconQuery(score, entry.Src, entry.FQDN)
 
 				// set to writer channel
 				a.analyzedCallback(output)
