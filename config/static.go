@@ -25,6 +25,7 @@ type (
 		Bro          BroStaticCfg         `yaml:"Bro"` // kept in for MetaDB backwards compatibility
 		Filtering    FilteringStaticCfg   `yaml:"Filtering"`
 		Strobe       StrobeStaticCfg      `yaml:"Strobe"`
+		StrobeFQDN   StrobeFQDNStaticCfg  `yaml:"StrobeFQDN"`
 		Version      string
 		ExactVersion string
 	}
@@ -112,6 +113,11 @@ type (
 
 	//StrobeStaticCfg controls the maximum number of connections between any two given hosts
 	StrobeStaticCfg struct {
+		ConnectionLimit int `yaml:"ConnectionLimit" default:"250000"`
+	}
+
+	//StrobeFQDNStaticCfg controls the maximum number of connections between any source IP and FQDN resolved IPs
+	StrobeFQDNStaticCfg struct {
 		ConnectionLimit int `yaml:"ConnectionLimit" default:"250000"`
 	}
 )

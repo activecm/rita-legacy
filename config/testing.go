@@ -29,7 +29,11 @@ DNS:
     Enabled: true
 Beacon:
     DefaultConnectionThresh: 24
+BeaconFQDN:
+    DefaultConnectionThresh: 24
 Strobe:
+    ConnectionLimit: 250000
+StrobeFQDN:
     ConnectionLimit: 250000
 Filtering:
     AlwaysInclude: ["8.8.8.8/32"]

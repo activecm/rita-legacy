@@ -96,7 +96,7 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 	)
 
 	dissectorWorker := newDissector(
-		int64(r.res.Config.S.Strobe.ConnectionLimit),
+		int64(r.res.Config.S.StrobeFQDN.ConnectionLimit),
 		r.res.DB,
 		r.res.Config,
 		sorterWorker.collect,

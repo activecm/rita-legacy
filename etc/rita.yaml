@@ -153,3 +153,23 @@ Strobe:
   # The theoretical limit due to implementation limitations is ~1,048,573
   # but in practice timeouts have occurred at lower values.
   ConnectionLimit: 250000
+
+  StrobeFQDN:
+  # NOTE: THIS LIMIT SHOULD BE EQUAL TO OR LOWER THAN THE STROBE LIMIT ABOVE.
+  #       Strobes are filtered early on in UCONN analysis. So if this limit
+  #       is greater than the Strobe limit above, the IPs will have already
+  #       been filtered by the time that this is utilized and will lead to
+  #       incorrect data.
+  #
+  # This sets the maximum number of connections between any source IP and FQDN resolved IPs that are stored.
+  # Connections above this limit will be deleted and not used in other analysis modules. This will
+  # also trigger an entry in the strobe module. A lower value will reduce import & analysis time and
+  # hide more potential false positives from other modules. A higher value will increase import &
+  # analysis time, increase false positives, but reduce the risk of false negatives.
+  # Recommended values for this setting are:
+  #    86400 - One connection every second for 24 hours
+  #   250000 - (Default) Good middle of the road value
+  #   700000 - Safe max value that is unlikely to cause errors
+  # The theoretical limit due to implementation limitations is ~1,048,573
+  # but in practice timeouts have occurred at lower values.
+  ConnectionLimit: 250000
