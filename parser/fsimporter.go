@@ -14,10 +14,12 @@ import (
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
+	"github.com/activecm/rita/pkg/beaconfqdn"
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/explodeddns"
+
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/pkg/remover"
@@ -189,6 +191,9 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 
 		// build or update Beacons table
 		fs.buildBeacons(uconnMap)
+
+		// build or update the FQDN Beacons Table
+		fs.buildFQDNBeacons(hostnameMap)
 
 		// build or update UserAgent table
 		fs.buildUserAgent(useragentMap)
@@ -778,11 +783,10 @@ func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 		} else {
 			fmt.Println("\t[!] No DNS data to analyze")
 		}
-
 	}
 }
 
-//buildExplodedDNS .....
+//buildCertificates .....
 func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 	if len(certMap) > 0 {
@@ -799,7 +803,7 @@ func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 }
 
-//buildHostnames .....
+//removeAnalysisChunk .....
 func (fs *FSImporter) removeAnalysisChunk(cid int) error {
 
 	// Set up the remover
@@ -851,7 +855,6 @@ func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Input) {
 		fmt.Printf("\t\t[!!] No local network traffic found, please check ")
 		fmt.Println("InternalSubnets in your RITA config (/etc/rita/config.yaml)")
 	}
-
 }
 
 func (fs *FSImporter) buildHosts(hostMap map[string]*host.Input) {
@@ -897,6 +900,25 @@ func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input) {
 			beaconRepo.Upsert(uconnMap)
 		} else {
 			fmt.Println("\t[!] No Beacon data to analyze")
+		}
+	}
+
+}
+
+func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
+	if fs.res.Config.S.BeaconFQDN.Enabled {
+		if len(hostnameMap) > 0 {
+			beaconFQDNRepo := beaconfqdn.NewMongoRepository(fs.res)
+
+			err := beaconFQDNRepo.CreateIndexes()
+			if err != nil {
+				fs.res.Log.Error(err)
+			}
+
+			// send uconns to beacon analysis
+			beaconFQDNRepo.Upsert(hostnameMap)
+		} else {
+			fmt.Println("\t[!] No FQDN Beacon data to analyze")
 		}
 	}
 
