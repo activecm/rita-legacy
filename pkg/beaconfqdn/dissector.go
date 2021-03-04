@@ -102,8 +102,18 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$sum": "$tbytes"},
 					"icerts": bson.M{"$push": "$icerts"},
 				}},
-				{"$unwind": "$ts"},
-				{"$unwind": "$ts"},
+				{"$unwind": bson.M{
+					"path": "$ts",
+					// by default, $unwind does not output a document if the field value is null,
+					// missing, or an empty array. Since uconns stops storing ts and byte array
+					// results if a result is going to be guaranteed to be a beacon, we need this
+					// to not discard the result so we can update the fqdn beacon accurately
+					"preserveNullAndEmptyArrays": true,
+				}},
+				{"$unwind": bson.M{
+					"path":                       "$ts",
+					"preserveNullAndEmptyArrays": true,
+				}},
 				{"$group": bson.M{
 					"_id": "$_id",
 					// need to unique-ify timestamps or else results
@@ -114,8 +124,14 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$first": "$tbytes"},
 					"icerts": bson.M{"$first": "$icerts"},
 				}},
-				{"$unwind": "$bytes"},
-				{"$unwind": "$bytes"},
+				{"$unwind": bson.M{
+					"path":                       "$bytes",
+					"preserveNullAndEmptyArrays": true,
+				}},
+				{"$unwind": bson.M{
+					"path":                       "$bytes",
+					"preserveNullAndEmptyArrays": true,
+				}},
 				{"$group": bson.M{
 					"_id":    "$_id",
 					"ts":     bson.M{"$first": "$ts"},
