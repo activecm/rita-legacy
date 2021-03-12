@@ -7,16 +7,19 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
+	"github.com/activecm/rita/pkg/beaconfqdn"
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/explodeddns"
+
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/pkg/remover"
@@ -196,6 +199,9 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 
 		// build or update Beacons table
 		fs.buildBeacons(uconnMap)
+
+		// build or update the FQDN Beacons Table
+		fs.buildFQDNBeacons(hostnameMap)
 
 		// build or update UserAgent table
 		fs.buildUserAgent(useragentMap)
@@ -579,13 +585,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 							}
 
-							// increment txt query count for host in uconn
-							if queryTypeName == "TXT" {
-								// We don't filter out the src ips like we do with the conn
-								// section since a c2 channel running over dns could have an
-								// internal ip to internal ip connection and not having that ip
-								// in the host table is limiting
+							// We don't filter out the src ips like we do with the conn
+							// section since a c2 channel running over dns could have an
+							// internal ip to internal ip connection and not having that ip
+							// in the host table is limiting
 
+							// in some of these strings, the empty space will get counted as a domain,
+							// don't add host or increment dns query count if queried domain
+							// is blank or ends in 'in-addr.arpa'
+							if (domain != "") && (!strings.HasSuffix(domain, "in-addr.arpa")) {
 								// Check if host map value is set, because this record could
 								// come before a relevant conns record
 								if _, ok := hostMap[srcKey]; !ok {
@@ -599,9 +607,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										IP4Bin:  util.IPv4ToBinary(srcIP),
 									}
 								}
-								// increment txt query count
-								hostMap[srcKey].TXTQueryCount++
 
+								// if there are no entries in the dnsquerycount map for this
+								// srcKey, initialize map
+								if hostMap[srcKey].DNSQueryCount == nil {
+									hostMap[srcKey].DNSQueryCount = make(map[string]int64)
+								}
+
+								// increment the dns query count for this domain
+								hostMap[srcKey].DNSQueryCount[domain]++
 							}
 
 							mutex.Unlock()
@@ -780,11 +794,10 @@ func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 		} else {
 			fmt.Println("\t[!] No DNS data to analyze")
 		}
-
 	}
 }
 
-//buildExplodedDNS .....
+//buildCertificates .....
 func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 	if len(certMap) > 0 {
@@ -801,7 +814,7 @@ func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 }
 
-//buildHostnames .....
+//removeAnalysisChunk .....
 func (fs *FSImporter) removeAnalysisChunk(cid int) error {
 
 	// Set up the remover
@@ -853,7 +866,6 @@ func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Input) {
 		fmt.Printf("\t\t[!!] No local network traffic found, please check ")
 		fmt.Println("InternalSubnets in your RITA config (/etc/rita/config.yaml)")
 	}
-
 }
 
 func (fs *FSImporter) buildHosts(hostMap map[string]*host.Input) {
@@ -899,6 +911,25 @@ func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input) {
 			beaconRepo.Upsert(uconnMap)
 		} else {
 			fmt.Println("\t[!] No Beacon data to analyze")
+		}
+	}
+
+}
+
+func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
+	if fs.res.Config.S.BeaconFQDN.Enabled {
+		if len(hostnameMap) > 0 {
+			beaconFQDNRepo := beaconfqdn.NewMongoRepository(fs.res)
+
+			err := beaconFQDNRepo.CreateIndexes()
+			if err != nil {
+				fs.res.Log.Error(err)
+			}
+
+			// send uconns to beacon analysis
+			beaconFQDNRepo.Upsert(hostnameMap)
+		} else {
+			fmt.Println("\t[!] No FQDN Beacon data to analyze")
 		}
 	}
 

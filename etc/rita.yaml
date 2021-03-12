@@ -1,142 +1,155 @@
 # This section configures the connection to the MongoDB server and the database name to use
 MongoDB:
-    # See https://docs.mongodb.com/manual/reference/connection-string/
-    ConnectionString: mongodb://localhost:27017
-    # Example with authentication. Be sure to change the AuthenticationMechanism as well.
-    # ConnectionString: mongodb://username:password@localhost:27017
+  # See https://docs.mongodb.com/manual/reference/connection-string/
+  ConnectionString: mongodb://localhost:27017
+  # Example with authentication. Be sure to change the AuthenticationMechanism as well.
+  # ConnectionString: mongodb://username:password@localhost:27017
 
-    # Accepted Values: null, "SCRAM-SHA-1", "MONGODB-CR", "PLAIN"
-    # Since Mongo version 3.0 the default authentication mechanism is SCRAM-SHA-1
-    AuthenticationMechanism: null
+  # Accepted Values: null, "SCRAM-SHA-1", "MONGODB-CR", "PLAIN"
+  # Since Mongo version 3.0 the default authentication mechanism is SCRAM-SHA-1
+  AuthenticationMechanism: null
 
-    # The time in hours before RITA's connection to MongoDB times out. 0 waits indefinitely.
-    SocketTimeout: 2
+  # The time in hours before RITA's connection to MongoDB times out. 0 waits indefinitely.
+  SocketTimeout: 2
 
-    # For encrypting data on the wire between RITA and MongoDB
-    TLS:
-        Enable: false
-        #If set, RITA will verify the MongoDB certificate's hostname and validity
-        VerifyCertificate: false
-        #If set, RITA will use the provided CA file instead of the system's CA's
-        CAFile: null
+  # For encrypting data on the wire between RITA and MongoDB
+  TLS:
+    Enable: false
+    #If set, RITA will verify the MongoDB certificate's hostname and validity
+    VerifyCertificate: false
+    #If set, RITA will use the provided CA file instead of the system's CA's
+    CAFile: null
 
-    # This database holds information about the procesed files and databases.
-    MetaDB: MetaDatabase
+  # This database holds information about the procesed files and databases.
+  MetaDB: MetaDatabase
 
 Rolling:
-    # This is the default number of chunks to keep in rolling databases.
-    # This only is used if the --numchunks command argument isn't supplied.
-    DefaultChunks: 24
+  # This is the default number of chunks to keep in rolling databases.
+  # This only is used if the --numchunks command argument isn't supplied.
+  DefaultChunks: 24
 
 LogConfig:
-    # LogLevel
-    # 3 = debug
-    # 2 = info
-    # 1 = warn
-    # 0 = error
-    LogLevel: 2
+  # LogLevel
+  # 3 = debug
+  # 2 = info
+  # 1 = warn
+  # 0 = error
+  LogLevel: 2
 
-    # LogPath is the path for Rita's logs. Make sure permissions are set accordingly.
-    # Logs will only be written here if LogToFile is true
-    RitaLogPath: /var/lib/rita/logs
+  # LogPath is the path for Rita's logs. Make sure permissions are set accordingly.
+  # Logs will only be written here if LogToFile is true
+  RitaLogPath: /var/lib/rita/logs
 
-    LogToFile: true
-    LogToDB: true
+  LogToFile: true
+  LogToDB: true
 
 UserConfig:
-    # Number of days before checking for a new version of RITA.
-    # A value of zero here will disable checking.
-    UpdateCheckFrequency: 14
+  # Number of days before checking for a new version of RITA.
+  # A value of zero here will disable checking.
+  UpdateCheckFrequency: 14
 
 Filtering:
-    # These are filters that affect the import of connection logs. They
-    # currently do not apply to dns or http logs.
-    # A good reference for networks you may wish to consider is RFC 5735.
-    # https://tools.ietf.org/html/rfc5735#section-4
+  # These are filters that affect the import of connection logs. They
+  # currently do not apply to dns or http logs.
+  # A good reference for networks you may wish to consider is RFC 5735.
+  # https://tools.ietf.org/html/rfc5735#section-4
 
-    # Example: AlwaysInclude: ["192.168.1.2/32"]
-    # This functionality overrides the NeverInclude and InternalSubnets
-    # section, making sure that any connection records containing addresses from
-    # this range are kept and not filtered
-    AlwaysInclude: []
+  # Example: AlwaysInclude: ["192.168.1.2/32"]
+  # This functionality overrides the NeverInclude and InternalSubnets
+  # section, making sure that any connection records containing addresses from
+  # this range are kept and not filtered
+  AlwaysInclude: []
 
-    # Example: NeverInclude: ["255.255.255.255/32"]
-    # This functions as a whitelisting setting, and connections involving
-    # ranges entered into this section are filtered out at import time
-    NeverInclude:
-     - 0.0.0.0/32          # "This" Host           RFC 1122, Section 3.2.1.3
-     - 127.0.0.0/8         # Loopback              RFC 1122, Section 3.2.1.3
-     - 169.254.0.0/16      # Link Local            RFC 3927
-     - 224.0.0.0/4         # Multicast             RFC 3171
-     - 255.255.255.255/32  # Limited Broadcast     RFC 919, Section 7
-     - ::1/128             # Loopback              RFC 4291, Section 2.5.3
-     - fe80::/10           # Link local            RFC 4291, Section 2.5.6
-     - ff00::/8            # Multicast             RFC 4291, Section 2.7
+  # Example: NeverInclude: ["255.255.255.255/32"]
+  # This functions as a whitelisting setting, and connections involving
+  # ranges entered into this section are filtered out at import time
+  NeverInclude:
+    - 0.0.0.0/32 # "This" Host           RFC 1122, Section 3.2.1.3
+    - 127.0.0.0/8 # Loopback              RFC 1122, Section 3.2.1.3
+    - 169.254.0.0/16 # Link Local            RFC 3927
+    - 224.0.0.0/4 # Multicast             RFC 3171
+    - 255.255.255.255/32 # Limited Broadcast     RFC 919, Section 7
+    - ::1/128 # Loopback              RFC 4291, Section 2.5.3
+    - fe80::/10 # Link local            RFC 4291, Section 2.5.6
+    - ff00::/8 # Multicast             RFC 4291, Section 2.7
 
-    # Example: InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]
-    # This allows a user to identify their internal network, which will result
-    # in any internal to internal and external to external connections being
-    # filtered out at import time. Reasonable defaults are provided below
-    # but need to be manually verified against each installation before enabling.
-    InternalSubnets:
-     - 10.0.0.0/8          # Private-Use Networks  RFC 1918
-     - 172.16.0.0/12       # Private-Use Networks  RFC 1918
-     - 192.168.0.0/16      # Private-Use Networks  RFC 1918
+  # Example: InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]
+  # This allows a user to identify their internal network, which will result
+  # in any internal to internal and external to external connections being
+  # filtered out at import time. Reasonable defaults are provided below
+  # but need to be manually verified against each installation before enabling.
+  InternalSubnets:
+    - 10.0.0.0/8 # Private-Use Networks  RFC 1918
+    - 172.16.0.0/12 # Private-Use Networks  RFC 1918
+    - 192.168.0.0/16 # Private-Use Networks  RFC 1918
 
 BlackListed:
-    Enabled: true
-    # These are blacklists built into rita-blacklist. Set these to false
-    # to disable checks against them.
-    MalwareDomains.com: true
-    feodotracker.abuse.ch: true
+  Enabled: true
+  # These are blacklists built into rita-blacklist. Set these to false
+  # to disable checks against them.
+  MalwareDomains.com: true
+  feodotracker.abuse.ch: true
 
-    # This is the name of the database which will be created as a master list of
-    # blacklisted ips and hostnames by rita-blacklist
-    BlacklistDatabase: "rita-bl"
+  # This is the name of the database which will be created as a master list of
+  # blacklisted ips and hostnames by rita-blacklist
+  BlacklistDatabase: "rita-bl"
 
-    # These are custom blacklists that you may define. They are lists of either
-    # file paths or urls. These custom blacklists are expected to be simple,
-    # line separated text documents containing a list of blacklisted entries.
+  # These are custom blacklists that you may define. They are lists of either
+  # file paths or urls. These custom blacklists are expected to be simple,
+  # line separated text documents containing a list of blacklisted entries.
 
-    # Example: CustomIPBlacklists: ["$HOME/.rita/myIPBlacklist.txt"]
-    # myIPBlacklist.txt would look like this:
-    # 192.168.0.1
-    # 10.10.174.1
+  # Example: CustomIPBlacklists: ["$HOME/.rita/myIPBlacklist.txt"]
+  # myIPBlacklist.txt would look like this:
+  # 192.168.0.1
+  # 10.10.174.1
 
-    # Lists containing both IPv4 and IPv6 addresses are acceptable
-    CustomIPBlacklists: []
-    # Lists containing hostnames, domain names, and FQDNs are acceptable
-    CustomHostnameBlacklists: []
+  # Lists containing both IPv4 and IPv6 addresses are acceptable
+  CustomIPBlacklists: []
+  # Lists containing hostnames, domain names, and FQDNs are acceptable
+  CustomHostnameBlacklists: []
 
 Beacon:
-    Enabled: true
-    # The default minimum number of connections used for beacons analysis.
-    # Any two hosts connecting fewer than this number will not be analyzed.
-    # 20 was chosen as it is a little bit less than once per hour in a day,
-    # and allows for any packet loss that could occur.
+  Enabled: true
+  # The default minimum number of connections used for beacons analysis.
+  # Any two hosts connecting fewer than this number will not be analyzed.
+  # 20 was chosen as it is a little bit less than once per hour in a day,
+  # and allows for any packet loss that could occur.
 
-    # If you choose a lower value, this will significantly increase both
-    # the analysis time and the number of false positives. You can safely
-    # increase this value to improve performance if you are not concerned
-    # about slow beacons.
-    DefaultConnectionThresh: 20
+  # If you choose a lower value, this will significantly increase both
+  # the analysis time and the number of false positives. You can safely
+  # increase this value to improve performance if you are not concerned
+  # about slow beacons.
+  DefaultConnectionThresh: 20
+
+BeaconFQDN:
+  Enabled: true
+  # The default minimum number of connections used for beacons FQDN analysis.
+  # Any two hosts connecting fewer than this number will not be analyzed.
+  # 20 was chosen as it is a little bit less than once per hour in a day,
+  # and allows for any packet loss that could occur.
+
+  # If you choose a lower value, this will significantly increase both
+  # the analysis time and the number of false positives. You can safely
+  # increase this value to improve performance if you are not concerned
+  # about slow beacons.
+  DefaultConnectionThresh: 20
 
 DNS:
-    Enabled: true
+  Enabled: true
 
 UserAgent:
-    Enabled: true
+  Enabled: true
 
 Strobe:
-    # This sets the maximum number of connections between any two given hosts that are stored.
-    # Connections above this limit will be deleted and not used in other analysis modules. This will
-    # also trigger an entry in the strobe module. A lower value will reduce import & analysis time and
-    # hide more potential false positives from other modules. A higher value will increase import &
-    # analysis time, increase false positives, but reduce the risk of false negatives.
-    # Recommended values for this setting are:
-    #    86400 - One connection every second for 24 hours
-    #   250000 - (Default) Good middle of the road value
-    #   700000 - Safe max value that is unlikely to cause errors
-    # The theoretical limit due to implementation limitations is ~1,048,573
-    # but in practice timeouts have occurred at lower values.
-    ConnectionLimit: 250000
+  # This sets the maximum number of connections between any two given hosts that are stored.
+  # Connections above this limit will be deleted and not used in other analysis modules. This will
+  # also trigger an entry in the strobe module. A lower value will reduce import & analysis time and
+  # hide more potential false positives from other modules. A higher value will increase import &
+  # analysis time, increase false positives, but reduce the risk of false negatives.
+  # Recommended values for this setting are:
+  #    86400 - One connection every second for 24 hours
+  #   250000 - (Default) Good middle of the road value
+  #   700000 - Safe max value that is unlikely to cause errors
+  # The theoretical limit due to implementation limitations is ~1,048,573
+  # but in practice timeouts have occurred at lower values.
+  ConnectionLimit: 250000
