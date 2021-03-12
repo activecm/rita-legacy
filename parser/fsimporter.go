@@ -68,11 +68,18 @@ func NewFSImporter(res *resources.Resources,
 		neverIncluded:   util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
 	}
 }
-
+// These protocols are innocent until proven guilty
 var trustedAppReferenceList = [...]trustedAppTiplet{
-	{"tcp", 80, []string{"http"}},
+	{"tcp", 80, []string{"http", "ssl", "http,ssl"}},
 	{"tcp", 443, []string{"ssl"}},
+	{"tcp", 53, []string{"dns"}},
+	{"tcp", 22, []string{"ssh"}},
+	{"udp", 123, []string{"ntp", "-"}},
 	{"udp", 53, []string{"dns"}},
+	{"tcp", 445, []string{"smb"}},
+	{"tcp", 25, []string{"smtp", "ssl", "smtp,ssl"}},
+	{"tcp", 3306, []string{"mysql"}},
+	{"tcp", 143, []string{"imap", "ssl", "imap,ssl"}},
 }
 
 //GetInternalSubnets returns the internal subnets from the config file
@@ -467,7 +474,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 												if service != entry.service[i] {
 													hostMap[srcKey].UntrustedAppConnCount++
 													uconnMap[srcDstKey].UPPSFlag = true
-													break;
+													break; // make sure it only doesn't match once
 												}
 											}
 										}
