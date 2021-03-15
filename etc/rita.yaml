@@ -82,7 +82,24 @@ Filtering:
     - 10.0.0.0/8 # Private-Use Networks  RFC 1918
     - 172.16.0.0/12 # Private-Use Networks  RFC 1918
     - 192.168.0.0/16 # Private-Use Networks  RFC 1918
+  
+  # Example: AlwaysIncludeDomain: ["mydomain.com","*.mydomain.com"]
+  # This functionality overrides the NeverIncludeDomain 
+  # section, making sure that any connection records containing domains
+  # that match this list are kept and not filtered
+  # NOTE: When using wildcards, make sure the added entry is in quotes,
+  #       ie, '*.mydomain.com'. Only subdomain wildcarding 
+  #       (asterisk as the prefix) is supported
+  AlwaysIncludeDomain: []
 
+  # Example: NeverIncludeDomain: ["mydomain.com","*.mydomain.com"]
+  # This functions as a whitelisting setting, and connections involving
+  # ranges entered into this section are filtered out at import time
+  # NOTE: When using wildcards, make sure the added entry is in quotes,
+  #       ie, '*.mydomain.com'. Only subdomain wildcarding 
+  #       (asterisk as the prefix) is supported
+  NeverIncludeDomain: []
+  
 BlackListed:
   Enabled: true
   # These are blacklists built into rita-blacklist. Set these to false

@@ -15,6 +15,12 @@ type testCase struct {
 	msg string
 }
 
+type testCaseDomain struct {
+	domain string
+	out    bool
+	msg    string
+}
+
 func TestFilterConnPairWithInternalSubnets(t *testing.T) {
 
 	fsTest := &FSImporter{
@@ -103,6 +109,40 @@ func TestFilterConnPairWithoutInternalSubnets(t *testing.T) {
 
 	for _, test := range testCases {
 		output := fsTest.filterConnPair(net.ParseIP(test.src), net.ParseIP(test.dst))
+		assert.Equal(t, test.out, output, test.msg)
+	}
+}
+
+func TestFilterDomain(t *testing.T) {
+
+	fsTest := &FSImporter{
+		res:                  nil,
+		indexingThreads:      1,
+		parseThreads:         1,
+		internal:             util.ParseSubnets([]string{"10.0.0.0/8"}),
+		alwaysIncluded:       util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
+		neverIncluded:        util.ParseSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+		alwaysIncludedDomain: []string{"bad.com", "google.com", "*.myotherdomain.com"},
+		neverIncludedDomain:  []string{"good.com", "google.com", "*.mydomain.com"},
+	}
+
+	// all permutations of being on internal, always, and never lists
+	always := "bad.com"
+	never := "good.com"
+	alwaysNever := "google.com"
+	wildcardNever := "a.mydomain.com"
+	wildcardAlways := "a.myotherdomain.com"
+
+	testCases := []testCaseDomain{
+		testCaseDomain{always, false, "AlwaysIncludeDomain should keep this domain from being filtered"},
+		testCaseDomain{never, true, "NeverIncludeDomain should filter this domain"},
+		testCaseDomain{alwaysNever, false, "NeverIncludeDomain should be ovverriden by AlwaysIncludeDomain"},
+		testCaseDomain{wildcardNever, true, "NeverIncludeDomain wildcard should filter this domain"},
+		testCaseDomain{wildcardAlways, false, "AlwaysIncludeDomain wildcard should keep this domain from being filtered"},
+	}
+
+	for _, test := range testCases {
+		output := fsTest.filterDomain(test.domain)
 		assert.Equal(t, test.out, output, test.msg)
 	}
 }
