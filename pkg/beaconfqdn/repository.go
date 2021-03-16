@@ -61,7 +61,6 @@ type (
 		ResolvedIPs    []data.UniqueIP `bson:"resolved_ips"`
 	}
 
-	//TODO: Implement strobe for beacons FQDN
 	//StrobeResult represents a unique connection with a large amount
 	//of connections between the hosts
 	StrobeResult struct {

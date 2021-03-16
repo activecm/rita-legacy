@@ -182,7 +182,7 @@ func mapBroHeaderToParserType(header *fpt.BroHeader, broDataFactory func() pt.Br
 	for index, name := range header.Names {
 		lu, ok := fieldTypes[name]
 		if !ok {
-			//NOTE: an unmatched field which exists in the log but not the struct
+			//An unmatched field which exists in the log but not the struct
 			//is not a fatal error, so we report it and move on
 			logger.WithFields(log.Fields{
 				"error":         "unmatched field in log",
