@@ -34,17 +34,19 @@ import (
 type (
 	//FSImporter provides the ability to import bro files from the file system
 	FSImporter struct {
-		res             *resources.Resources
-		importFiles     []string
-		rolling         bool
-		totalChunks     int
-		currentChunk    int
-		indexingThreads int
-		parseThreads    int
-		batchSizeBytes  int64
-		internal        []*net.IPNet
-		alwaysIncluded  []*net.IPNet
-		neverIncluded   []*net.IPNet
+		res                  *resources.Resources
+		importFiles          []string
+		rolling              bool
+		totalChunks          int
+		currentChunk         int
+		indexingThreads      int
+		parseThreads         int
+		batchSizeBytes       int64
+		internal             []*net.IPNet
+		alwaysIncluded       []*net.IPNet
+		neverIncluded        []*net.IPNet
+		alwaysIncludedDomain []string
+		neverIncludedDomain  []string
 	}
 
 	trustedAppTiplet struct {
@@ -58,17 +60,19 @@ type (
 func NewFSImporter(res *resources.Resources,
 	indexingThreads int, parseThreads int, importFiles []string) *FSImporter {
 	return &FSImporter{
-		res:             res,
-		importFiles:     importFiles,
-		rolling:         res.Config.S.Rolling.Rolling,
-		totalChunks:     res.Config.S.Rolling.TotalChunks,
-		currentChunk:    res.Config.S.Rolling.CurrentChunk,
-		indexingThreads: indexingThreads,
-		parseThreads:    parseThreads,
-		batchSizeBytes:  2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
-		internal:        util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
-		alwaysIncluded:  util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
-		neverIncluded:   util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
+		res:                  res,
+		importFiles:          importFiles,
+		rolling:              res.Config.S.Rolling.Rolling,
+		totalChunks:          res.Config.S.Rolling.TotalChunks,
+		currentChunk:         res.Config.S.Rolling.CurrentChunk,
+		indexingThreads:      indexingThreads,
+		parseThreads:         parseThreads,
+		batchSizeBytes:       2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
+		internal:             util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
+		alwaysIncluded:       util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
+		neverIncluded:        util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
+		alwaysIncludedDomain: res.Config.S.Filtering.AlwaysIncludeDomain,
+		neverIncludedDomain:  res.Config.S.Filtering.NeverIncludeDomain,
 	}
 }
 
@@ -541,73 +545,80 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							domain := parseDNS.Query
 							queryTypeName := parseDNS.QTypeName
 
-							// Safely store the number of conns for this uconn
-							mutex.Lock()
+							// Run domain through filter to filter out certain domains
+							ignore := fs.filterDomain(domain)
 
-							// increment domain map count for exploded dns
-							explodeddnsMap[domain]++
+							// If domain is not subject to filtering, process
+							if !ignore {
 
-							// initialize the hostname input objects for new hostnames
-							if _, ok := hostnameMap[domain]; !ok {
-								hostnameMap[domain] = &hostname.Input{
-									Host: domain,
-								}
-							}
+								// Safely store the number of conns for this uconn
+								mutex.Lock()
 
-							// extract and store the dns client ip address
-							src := parseDNS.Source
-							srcIP := net.ParseIP(src)
-							srcUniqIP := data.NewUniqueIP(srcIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
-							srcKey := srcUniqIP.MapKey()
+								// increment domain map count for exploded dns
+								explodeddnsMap[domain]++
 
-							hostnameMap[domain].ClientIPs.Insert(srcUniqIP)
-
-							if queryTypeName == "A" {
-								answers := parseDNS.Answers
-								for _, answer := range answers {
-									answerIP := net.ParseIP(answer)
-									// Check if answer is an IP address and store it if it is
-									if answerIP != nil {
-										answerUniqIP := data.NewUniqueIP(answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
-										hostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
-									}
-								}
-							}
-
-							// We don't filter out the src ips like we do with the conn
-							// section since a c2 channel running over dns could have an
-							// internal ip to internal ip connection and not having that ip
-							// in the host table is limiting
-
-							// in some of these strings, the empty space will get counted as a domain,
-							// don't add host or increment dns query count if queried domain
-							// is blank or ends in 'in-addr.arpa'
-							if (domain != "") && (!strings.HasSuffix(domain, "in-addr.arpa")) {
-								// Check if host map value is set, because this record could
-								// come before a relevant conns record
-								if _, ok := hostMap[srcKey]; !ok {
-									// create new uconn record with src and dst
-									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
-									// we only need to do this once if the uconn record does not exist
-									hostMap[srcKey] = &host.Input{
-										Host:    srcUniqIP,
-										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
-										IP4:     util.IsIPv4(src),
-										IP4Bin:  util.IPv4ToBinary(srcIP),
+								// initialize the hostname input objects for new hostnames
+								if _, ok := hostnameMap[domain]; !ok {
+									hostnameMap[domain] = &hostname.Input{
+										Host: domain,
 									}
 								}
 
-								// if there are no entries in the dnsquerycount map for this
-								// srcKey, initialize map
-								if hostMap[srcKey].DNSQueryCount == nil {
-									hostMap[srcKey].DNSQueryCount = make(map[string]int64)
+								// extract and store the dns client ip address
+								src := parseDNS.Source
+								srcIP := net.ParseIP(src)
+								srcUniqIP := data.NewUniqueIP(srcIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
+								srcKey := srcUniqIP.MapKey()
+
+								hostnameMap[domain].ClientIPs.Insert(srcUniqIP)
+
+								if queryTypeName == "A" {
+									answers := parseDNS.Answers
+									for _, answer := range answers {
+										answerIP := net.ParseIP(answer)
+										// Check if answer is an IP address and store it if it is
+										if answerIP != nil {
+											answerUniqIP := data.NewUniqueIP(answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
+											hostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
+										}
+									}
 								}
 
-								// increment the dns query count for this domain
-								hostMap[srcKey].DNSQueryCount[domain]++
-							}
+								// We don't filter out the src ips like we do with the conn
+								// section since a c2 channel running over dns could have an
+								// internal ip to internal ip connection and not having that ip
+								// in the host table is limiting
 
-							mutex.Unlock()
+								// in some of these strings, the empty space will get counted as a domain,
+								// don't add host or increment dns query count if queried domain
+								// is blank or ends in 'in-addr.arpa'
+								if (domain != "") && (!strings.HasSuffix(domain, "in-addr.arpa")) {
+									// Check if host map value is set, because this record could
+									// come before a relevant conns record
+									if _, ok := hostMap[srcKey]; !ok {
+										// create new uconn record with src and dst
+										// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
+										// we only need to do this once if the uconn record does not exist
+										hostMap[srcKey] = &host.Input{
+											Host:    srcUniqIP,
+											IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+											IP4:     util.IsIPv4(src),
+											IP4Bin:  util.IPv4ToBinary(srcIP),
+										}
+									}
+
+									// if there are no entries in the dnsquerycount map for this
+									// srcKey, initialize map
+									if hostMap[srcKey].DNSQueryCount == nil {
+										hostMap[srcKey].DNSQueryCount = make(map[string]int64)
+									}
+
+									// increment the dns query count for this domain
+									hostMap[srcKey].DNSQueryCount[domain]++
+								}
+
+								mutex.Unlock()
+							}
 
 							/// *************************************************************///
 							///                             HTTP                             ///
