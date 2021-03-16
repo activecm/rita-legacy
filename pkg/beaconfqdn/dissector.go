@@ -102,6 +102,7 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$sum": "$tbytes"},
 					"icerts": bson.M{"$push": "$icerts"},
 				}},
+				{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.BeaconFQDN.DefaultConnectionThresh}}},
 				{"$unwind": bson.M{
 					"path": "$ts",
 					// by default, $unwind does not output a document if the field value is null,
