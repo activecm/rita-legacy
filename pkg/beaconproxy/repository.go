@@ -1,8 +1,9 @@
-package beaconfqdn
+package beaconproxy
 
 import (
+	"strings"
+
 	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/hostname"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -11,7 +12,7 @@ type (
 	// Repository for host collection
 	Repository interface {
 		CreateIndexes() error
-		Upsert(hostnameMap map[string]*hostname.Input)
+		Upsert(proxyHostnameMap map[string]*ProxyInput)
 	}
 
 	updateInfo struct {
@@ -53,6 +54,9 @@ type (
 		SrcIP          string          `bson:"src"`
 		SrcNetworkName string          `bson:"src_network_name"`
 		SrcNetworkUUID bson.Binary     `bson:"src_network_uuid"`
+		DstIP          string          `bson:"dst"`
+		DstNetworkName string          `bson:"dst_network_name"`
+		DstNetworkUUID bson.Binary     `bson:"dst_network_uuid"`
 		Connections    int64           `bson:"connection_count"`
 		AvgBytes       float64         `bson:"avg_bytes"`
 		Ts             TSData          `bson:"ts"`
@@ -61,6 +65,7 @@ type (
 		ResolvedIPs    []data.UniqueIP `bson:"resolved_ips"`
 	}
 
+	//TODO: Implement strobe for beacons FQDN
 	//StrobeResult represents a unique connection with a large amount
 	//of connections between the hosts
 	StrobeResult struct {
@@ -68,21 +73,67 @@ type (
 		ConnectionCount   int64 `bson:"connection_count"`
 	}
 
-	//uniqueSrcHostnamePair ...
-	uniqueSrcHostnamePair struct {
-		SrcIP          string      `bson:"src"`
-		SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
-		FQDN           string      `bson:"fqdn"`
+	//UniqueSrcHostnameTrio ...
+	UniqueSrcProxyHostnameTrio struct {
+		data.UniqueSrcIP `bson:",inline"`
+		data.UniqueDstIP `bson:",inline"`
+		FQDN             string `bson:"fqdn"`
+	}
+
+	//ProxyInput
+	ProxyInput struct {
+		Hosts           UniqueSrcProxyHostnameTrio
+		TsList          []int64
+		ConnectionCount int64
 	}
 )
+
+//NewUniqueSrcProxyHostnameTrio binds a pair of UniqueIPs where direction matters.
+func NewUniqueSrcProxyHostnameTrio(source data.UniqueIP, proxy data.UniqueIP, fqdn string) UniqueSrcProxyHostnameTrio {
+	return UniqueSrcProxyHostnameTrio{
+		UniqueSrcIP: data.UniqueSrcIP{
+			SrcIP:          source.IP,
+			SrcNetworkUUID: source.NetworkUUID,
+			SrcNetworkName: source.NetworkName,
+		},
+		UniqueDstIP: data.UniqueDstIP{
+			DstIP:          proxy.IP,
+			DstNetworkUUID: proxy.NetworkUUID,
+			DstNetworkName: proxy.NetworkName,
+		},
+		FQDN: fqdn,
+	}
+}
+
+//MapKey generates a string which may be used to index an ordered pair of UniqueIPs. Concatenates IPs and UUIDs.
+func (p UniqueSrcProxyHostnameTrio) MapKey() string {
+	var builder strings.Builder
+
+	srcUUIDLen := 1 + len(p.SrcNetworkUUID.Data)
+	proxyUUIDLen := 1 + len(p.DstNetworkUUID.Data)
+
+	builder.Grow(len(p.SrcIP) + srcUUIDLen + len(p.DstIP) + proxyUUIDLen)
+	builder.WriteString(p.SrcIP)
+	builder.WriteString(p.DstIP)
+	builder.WriteByte(p.SrcNetworkUUID.Kind)
+	builder.Write(p.SrcNetworkUUID.Data)
+	builder.WriteByte(p.DstNetworkUUID.Kind)
+	builder.Write(p.DstNetworkUUID.Data)
+
+	builder.WriteString(p.FQDN)
+
+	return builder.String()
+}
 
 //BSONKey generates a BSON map which may be used to index a given a unique src
 // fqdn pair
 //Includes IP and Network UUID.
-func (p uniqueSrcHostnamePair) BSONKey() bson.M {
+func (p UniqueSrcProxyHostnameTrio) BSONKey() bson.M {
 	key := bson.M{
 		"src":              p.SrcIP,
 		"src_network_uuid": p.SrcNetworkUUID,
+		"dst":              p.DstIP,
+		"dst_network_uuid": p.DstNetworkUUID,
 		"fqdn":             p.FQDN,
 	}
 	return key

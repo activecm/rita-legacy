@@ -83,6 +83,9 @@ Filtering:
     - 172.16.0.0/12 # Private-Use Networks  RFC 1918
     - 192.168.0.0/16 # Private-Use Networks  RFC 1918
   
+  # Example: ProxyServers: ["192.168.0.1"]
+  ProxyServers: []
+  
   # Example: AlwaysIncludeDomain: ["mydomain.com","*.mydomain.com"]
   # This functionality overrides the NeverIncludeDomain 
   # section, making sure that any connection records containing domains

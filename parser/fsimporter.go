@@ -15,6 +15,7 @@ import (
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/pkg/beaconfqdn"
+	"github.com/activecm/rita/pkg/beaconproxy"
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/data"
@@ -43,6 +44,7 @@ type (
 		parseThreads         int
 		batchSizeBytes       int64
 		internal             []*net.IPNet
+		proxyServers         []*net.IPNet
 		alwaysIncluded       []*net.IPNet
 		neverIncluded        []*net.IPNet
 		alwaysIncludedDomain []string
@@ -69,6 +71,7 @@ func NewFSImporter(res *resources.Resources,
 		parseThreads:         parseThreads,
 		batchSizeBytes:       2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
 		internal:             util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
+		proxyServers:         util.ParseSubnets(res.Config.S.Filtering.ProxyServers),
 		alwaysIncluded:       util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
 		neverIncluded:        util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
 		alwaysIncludedDomain: res.Config.S.Filtering.AlwaysIncludeDomain,
@@ -172,7 +175,7 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fmt.Printf("\t[-] Processing batch %d of %d\n", i+1, len(batchedIndexedFiles))
 
 		// parse in those files!
-		uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
+		uconnMap, hostMap, explodeddnsMap, hostnameMap, proxyHostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
 
 		// Set chunk before we continue so if process dies, we still verify with a delete if
 		// any data was written out.
@@ -198,6 +201,9 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 
 		// build or update the FQDN Beacons Table
 		fs.buildFQDNBeacons(hostnameMap)
+
+		// build or update the Proxy Beacons Table
+		fs.buildProxyBeacons(proxyHostnameMap)
 
 		// build or update UserAgent table
 		fs.buildUserAgent(useragentMap)
@@ -301,7 +307,7 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, logger *log.Logger) (
-	map[string]*uconn.Input, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
+	map[string]*uconn.Input, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*beaconproxy.ProxyInput, map[string]*useragent.Input, map[string]*certificate.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 
@@ -309,6 +315,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	explodeddnsMap := make(map[string]int)
 
 	hostnameMap := make(map[string]*hostname.Input)
+
+	proxyHostnameMap := make(map[string]*beaconproxy.ProxyInput)
 
 	useragentMap := make(map[string]*useragent.Input)
 
@@ -533,9 +541,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							}
 
-							/// *************************************************************///
-							///                             DNS                             ///
-							/// *************************************************************///
+						/// *************************************************************///
+						///                             DNS                              ///
+						/// *************************************************************///
 						case fs.res.Config.T.Structure.DNSTable:
 							parseDNS, ok := datum.(*parsetypes.DNS)
 							if !ok {
@@ -620,20 +628,74 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								mutex.Unlock()
 							}
 
-							/// *************************************************************///
-							///                             HTTP                             ///
-							/// *************************************************************///
+						/// *************************************************************///
+						///                             HTTP                             ///
+						/// *************************************************************///
 						case fs.res.Config.T.Structure.HTTPTable:
 							parseHTTP, ok := datum.(*parsetypes.HTTP)
 							if !ok {
 								continue
 							}
-							userAgentName := parseHTTP.UserAgent
-							src := parseHTTP.Source
-							srcIP := net.ParseIP(src)
-							srcUniqIP := data.NewUniqueIP(srcIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
-							host := parseHTTP.Host
 
+							// get source destination pair for connection record
+							src := parseHTTP.Source
+							dst := parseHTTP.Destination
+
+							// parse addresses into binary format
+							srcIP := net.ParseIP(src)
+							dstIP := net.ParseIP(dst)
+
+							// parse host
+							fqdn := parseHTTP.Host
+
+							// disambiguate addresses which are not publicly routable
+							srcUniqIP := data.NewUniqueIP(srcIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
+							dstUniqIP := data.NewUniqueIP(dstIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
+							srcProxyFQDNTrio := beaconproxy.NewUniqueSrcProxyHostnameTrio(srcUniqIP, dstUniqIP, fqdn)
+
+							// get aggregation keys for ip addresses and connection pair
+							srcProxyFQDNKey := srcProxyFQDNTrio.MapKey()
+
+							// check if destination is a proxy server
+							dstIsProxy := fs.checkIfProxyServer(dstIP)
+
+							// parse method type
+							method := parseHTTP.Method
+
+							// check if internal IP is requesting a connection
+							// through a proxy
+							if method == "CONNECT" && dstIsProxy {
+
+								// Safely store the number of conns for this uconn
+								mutex.Lock()
+
+								// add client (src) IP to hostname map
+
+								// Check if the map value is set
+								if _, ok := proxyHostnameMap[srcProxyFQDNKey]; !ok {
+									// create new host record with src and dst
+									proxyHostnameMap[srcProxyFQDNKey] = &beaconproxy.ProxyInput{
+										Hosts: srcProxyFQDNTrio,
+									}
+								}
+
+								// increment connection count
+								proxyHostnameMap[srcProxyFQDNKey].ConnectionCount++
+
+								// parse timestamp
+								ts := parseHTTP.TimeStamp
+
+								// add timestamp to unique timestamp list
+								if int64InSlice(ts, proxyHostnameMap[srcProxyFQDNKey].TsList) == false {
+									proxyHostnameMap[srcProxyFQDNKey].TsList = append(proxyHostnameMap[srcProxyFQDNKey].TsList, ts)
+								}
+
+								mutex.Unlock()
+
+							}
+
+							// parse out useragent info
+							userAgentName := parseHTTP.UserAgent
 							if userAgentName == "" {
 								userAgentName = "Empty user agent string"
 							}
@@ -646,7 +708,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								useragentMap[userAgentName] = &useragent.Input{
 									Name:     userAgentName,
 									Seen:     1,
-									Requests: []string{host},
+									Requests: []string{fqdn},
 								}
 								useragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
 							} else {
@@ -657,16 +719,16 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								useragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
 
 								// add request string to unique array
-								if stringInSlice(host, useragentMap[userAgentName].Requests) == false {
-									useragentMap[userAgentName].Requests = append(useragentMap[userAgentName].Requests, host)
+								if stringInSlice(fqdn, useragentMap[userAgentName].Requests) == false {
+									useragentMap[userAgentName].Requests = append(useragentMap[userAgentName].Requests, fqdn)
 								}
 							}
 
 							mutex.Unlock()
 
-							/// *************************************************************///
-							///                             SSL                             ///
-							/// *************************************************************///
+						/// *************************************************************///
+						///                             SSL                              ///
+						/// *************************************************************///
 						case fs.res.Config.T.Structure.SSLTable:
 							parseSSL, ok := datum.(*parsetypes.SSL)
 							if !ok {
@@ -776,7 +838,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	return uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap
+	return uconnMap, hostMap, explodeddnsMap, hostnameMap, proxyHostnameMap, useragentMap, certMap
 }
 
 //buildExplodedDNS .....
@@ -930,6 +992,25 @@ func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
 			beaconFQDNRepo.Upsert(hostnameMap)
 		} else {
 			fmt.Println("\t[!] No FQDN Beacon data to analyze")
+		}
+	}
+
+}
+
+func (fs *FSImporter) buildProxyBeacons(proxyHostnameMap map[string]*beaconproxy.ProxyInput) {
+	if fs.res.Config.S.BeaconProxy.Enabled {
+		if len(proxyHostnameMap) > 0 {
+			beaconProxyRepo := beaconproxy.NewMongoRepository(fs.res)
+
+			err := beaconProxyRepo.CreateIndexes()
+			if err != nil {
+				fs.res.Log.Error(err)
+			}
+
+			// send uconns to beacon analysis
+			beaconProxyRepo.Upsert(proxyHostnameMap)
+		} else {
+			fmt.Println("\t[!] No Proxy Beacon data to analyze")
 		}
 	}
 

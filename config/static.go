@@ -20,6 +20,7 @@ type (
 		Blacklisted  BlacklistedStaticCfg `yaml:"BlackListed"`
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
 		BeaconFQDN   BeaconFQDNStaticCfg  `yaml:"BeaconFQDN"`
+		BeaconProxy  BeaconProxyStaticCfg `yaml:"BeaconProxy"`
 		DNS          DNSStaticCfg         `yaml:"DNS"`
 		UserAgent    UserAgentStaticCfg   `yaml:"UserAgent"`
 		Bro          BroStaticCfg         `yaml:"Bro"` // kept in for MetaDB backwards compatibility
@@ -87,8 +88,14 @@ type (
 		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
 	}
 
-	//BeaconFQDNStaticCfg is used to control the beaconing analysis module
+	//BeaconFQDNStaticCfg is used to control the fqdn beaconing analysis module
 	BeaconFQDNStaticCfg struct {
+		Enabled                 bool `yaml:"Enabled" default:"true"`
+		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
+	}
+
+	//BeaconProxyStaticCfg is used to control the proxy beaconing analysis module
+	BeaconProxyStaticCfg struct {
 		Enabled                 bool `yaml:"Enabled" default:"true"`
 		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
 	}
@@ -108,6 +115,7 @@ type (
 		AlwaysInclude       []string `yaml:"AlwaysInclude" default:"[]"`
 		NeverInclude        []string `yaml:"NeverInclude" default:"[\"0.0.0.0/32\", \"127.0.0.0/8\", \"169.254.0.0/16\", \"224.0.0.0/4\", \"255.255.255.255/32\", \"::1/128\", \"fe80::/10\", \"ff00::/8\"]"`
 		InternalSubnets     []string `yaml:"InternalSubnets" default:"[\"10.0.0.0/8\", \"172.16.0.0/12\", \"192.168.0.0/16\"]"`
+		ProxyServers        []string `yaml:"ProxyServers" default:"[]"`
 		AlwaysIncludeDomain []string `yaml:"AlwaysIncludeDomain" default:"[]"`
 		NeverIncludeDomain  []string `yaml:"NeverIncludeDomain" default:"[]"`
 	}
