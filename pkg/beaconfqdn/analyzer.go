@@ -1,4 +1,4 @@
-package beacon
+package beaconfqdn
 
 import (
 	"math"
@@ -6,31 +6,30 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/activecm/rita/pkg/data"
-
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/pkg/uconn"
+	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo/bson"
 )
 
 type (
 	analyzer struct {
-		tsMin            int64             // min timestamp for the whole dataset
-		tsMax            int64             // max timestamp for the whole dataset
-		chunk            int               //current chunk (0 if not on rolling analysis)
-		chunkStr         string            //current chunk (0 if not on rolling analysis)
-		db               *database.DB      // provides access to MongoDB
-		conf             *config.Config    // contains details needed to access MongoDB
-		analyzedCallback func(*update)     // called on each analyzed result
-		closedCallback   func()            // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *uconn.Input // holds unanalyzed data
-		analysisWg       sync.WaitGroup    // wait for analysis to finish
+		tsMin            int64                    // min timestamp for the whole dataset
+		tsMax            int64                    // max timestamp for the whole dataset
+		chunk            int                      //current chunk (0 if not on rolling analysis)
+		chunkStr         string                   //current chunk (0 if not on rolling analysis)
+		db               *database.DB             // provides access to MongoDB
+		conf             *config.Config           // contains details needed to access MongoDB
+		analyzedCallback func(*update)            // called on each analyzed result
+		closedCallback   func()                   // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *hostname.FqdnInput // holds unanalyzed data
+		analysisWg       sync.WaitGroup           // wait for analysis to finish
 	}
 )
 
-//newAnalyzer creates a new collector for gathering data
+//newAnalyzer creates a new collector for gathering data //
 func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.Config, analyzedCallback func(*update), closedCallback func()) *analyzer {
 	return &analyzer{
 		tsMin:            min,
@@ -41,12 +40,12 @@ func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan *uconn.Input),
+		analysisChannel:  make(chan *hostname.FqdnInput),
 	}
 }
 
 //collect sends a chunk of data to be analyzed
-func (a *analyzer) collect(data *uconn.Input) {
+func (a *analyzer) collect(data *hostname.FqdnInput) {
 	a.analysisChannel <- data
 }
 
@@ -62,40 +61,63 @@ func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
 
-		for res := range a.analysisChannel {
+		for entry := range a.analysisChannel {
 
+			// set up beacon writer output
 			output := &update{}
 
-			// if uconn has turned into a strobe, we will not have any timestamps here,
-			// and need to update uconn table with the strobe flag. This is being done
-			// here and not in uconns because uconns doesn't do reads, and doesn't know
-			// the updated conn count
-			if (res.TsList) == nil {
+			// create selector pair object
+			selectorPair := uniqueSrcHostnamePair{
+				entry.Src.SrcIP,
+				entry.Src.SrcNetworkUUID,
+				entry.FQDN,
+			}
 
-				output.uconn = updateInfo{
-					// update hosts record
-					query: bson.M{
-						"$set": bson.M{"strobe": true},
-					},
-					// create selector for output
-					selector: res.Hosts.BSONKey(),
+			// create query
+			query := bson.M{}
+
+			// if beacon has turned into a strobe, we will not have any timestamps here,
+			// and need to update beaconFQDN table with the strobeFQDN flag.
+			if (entry.TsList) == nil {
+
+				// set strobe info
+				query["$set"] = bson.M{
+					"strobeFQDN":       true,
+					"total_bytes":      entry.TotalBytes,
+					"avg_bytes":        entry.TotalBytes / entry.ConnectionCount,
+					"connection_count": entry.ConnectionCount,
+					"src_network_name": entry.Src.SrcNetworkName,
+					"resolved_ips":     entry.ResolvedIPs,
+					"cid":              a.chunk,
 				}
+
+				// unset any beacon calculations since  this
+				// is now a strobe and those would be inaccurate
+				// (this will only apply to chunked imports)
+				query["$unset"] = bson.M{
+					"ts":    1,
+					"ds":    1,
+					"score": 1,
+				}
+
+				// create selector for output
+				output.beacon.query = query
+				output.beacon.selector = selectorPair.BSONKey()
 
 				// set to writer channel
 				a.analyzedCallback(output)
 
 			} else {
-
 				//store the diff slice length since we use it a lot
 				//for timestamps this is one less then the data slice length
 				//since we are calculating the times in between readings
-				tsLength := len(res.TsList) - 1
-				dsLength := len(res.OrigBytesList)
+				tsLength := len(entry.TsList) - 1
+				dsLength := len(entry.OrigBytesList)
 
 				//find the delta times between the timestamps
 				diff := make([]int64, tsLength)
 				for i := 0; i < tsLength; i++ {
-					diff[i] = res.TsList[i+1] - res.TsList[i]
+					diff[i] = entry.TsList[i+1] - entry.TsList[i]
 				}
 
 				//perfect beacons should have symmetric delta time and size distributions
@@ -112,9 +134,9 @@ func (a *analyzer) start() {
 				tsBowleyDen := tsHigh - tsLow
 
 				//we do the same for datasizes
-				dsLow := res.OrigBytesList[util.Round(.25*float64(dsLength-1))]
-				dsMid := res.OrigBytesList[util.Round(.5*float64(dsLength-1))]
-				dsHigh := res.OrigBytesList[util.Round(.75*float64(dsLength-1))]
+				dsLow := entry.OrigBytesList[util.Round(.25*float64(dsLength-1))]
+				dsMid := entry.OrigBytesList[util.Round(.5*float64(dsLength-1))]
+				dsHigh := entry.OrigBytesList[util.Round(.75*float64(dsLength-1))]
 				dsBowleyNum := dsLow + dsHigh - 2*dsMid
 				dsBowleyDen := dsHigh - dsLow
 
@@ -139,7 +161,7 @@ func (a *analyzer) start() {
 
 				dsDevs := make([]int64, dsLength)
 				for i := 0; i < dsLength; i++ {
-					dsDevs[i] = util.Abs(res.OrigBytesList[i] - dsMid)
+					dsDevs[i] = util.Abs(entry.OrigBytesList[i] - dsMid)
 				}
 
 				sort.Sort(util.SortableInt64(devs))
@@ -150,13 +172,13 @@ func (a *analyzer) start() {
 
 				//Store the range for human analysis
 				tsIntervalRange := diff[tsLength-1] - diff[0]
-				dsRange := res.OrigBytesList[dsLength-1] - res.OrigBytesList[0]
+				dsRange := entry.OrigBytesList[dsLength-1] - entry.OrigBytesList[0]
 
 				//get a list of the intervals found in the data,
 				//the number of times the interval was found,
 				//and the most occurring interval
 				intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
-				dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(res.OrigBytesList)
+				dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(entry.OrigBytesList)
 
 				//more skewed distributions receive a lower score
 				//less skewed distributions receive a higher score
@@ -183,7 +205,7 @@ func (a *analyzer) start() {
 
 				// connection count scoring
 				tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 10.0
-				tsConnCountScore := float64(res.ConnectionCount) / tsConnDiv
+				tsConnCountScore := float64(entry.ConnectionCount) / tsConnDiv
 				if tsConnCountScore > 1.0 {
 					tsConnCountScore = 1.0
 				}
@@ -198,46 +220,47 @@ func (a *analyzer) start() {
 				score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
 
 				// update beacon query
-				output.beacon = updateInfo{
-					query: bson.M{
-						"$set": bson.M{
-							"connection_count":   res.ConnectionCount,
-							"avg_bytes":          res.TotalBytes / res.ConnectionCount,
-							"total_bytes":        res.TotalBytes,
-							"ts.range":           tsIntervalRange,
-							"ts.mode":            tsMode,
-							"ts.mode_count":      tsModeCount,
-							"ts.intervals":       intervals,
-							"ts.interval_counts": intervalCounts,
-							"ts.dispersion":      tsMadm,
-							"ts.skew":            tsSkew,
-							"ts.conns_score":     tsConnCountScore,
-							"ts.score":           tsScore,
-							"ds.range":           dsRange,
-							"ds.mode":            dsMode,
-							"ds.mode_count":      dsModeCount,
-							"ds.sizes":           dsSizes,
-							"ds.counts":          dsCounts,
-							"ds.dispersion":      dsMadm,
-							"ds.skew":            dsSkew,
-							"ds.score":           dsScore,
-							"score":              score,
-							"cid":                a.chunk,
-							"src_network_name":   res.Hosts.SrcNetworkName,
-							"dst_network_name":   res.Hosts.DstNetworkName,
-						},
-					},
-					selector: res.Hosts.BSONKey(),
+				query["$set"] = bson.M{
+					"connection_count":   entry.ConnectionCount,
+					"avg_bytes":          entry.TotalBytes / entry.ConnectionCount,
+					"ts.range":           tsIntervalRange,
+					"ts.mode":            tsMode,
+					"ts.mode_count":      tsModeCount,
+					"ts.intervals":       intervals,
+					"ts.interval_counts": intervalCounts,
+					"ts.dispersion":      tsMadm,
+					"ts.skew":            tsSkew,
+					"ts.conns_score":     tsConnCountScore,
+					"ts.score":           tsScore,
+					"ds.range":           dsRange,
+					"ds.mode":            dsMode,
+					"ds.mode_count":      dsModeCount,
+					"ds.sizes":           dsSizes,
+					"ds.counts":          dsCounts,
+					"ds.dispersion":      dsMadm,
+					"ds.skew":            dsSkew,
+					"ds.score":           dsScore,
+					"score":              score,
+					"cid":                a.chunk,
+					"src_network_name":   entry.Src.SrcNetworkName,
+					"resolved_ips":       entry.ResolvedIPs,
 				}
 
-				output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Hosts.UniqueSrcIP.Unpair(), res.Hosts.UniqueDstIP.Unpair())
-				output.hostBeacon = a.hostBeaconQuery(score, res.Hosts.UniqueSrcIP.Unpair(), res.Hosts.UniqueDstIP.Unpair())
+				// set query
+				output.beacon.query = query
+
+				// create selector for output
+				output.beacon.selector = selectorPair.BSONKey()
+
+				// updates source entry in hosts table to flag for invalid certificates
+				output.hostIcert = a.hostIcertQuery(entry.InvalidCertFlag, entry.Src.Unpair(), entry.FQDN)
+
+				// updates max FQDN beacon score for the source entry in the hosts table
+				output.hostBeacon = a.hostBeaconQuery(score, entry.Src.Unpair(), entry.FQDN)
 
 				// set to writer channel
 				a.analyzedCallback(output)
-
 			}
-
 		}
 		a.analysisWg.Done()
 	}()
@@ -286,7 +309,7 @@ func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64
 	return result, counts
 }
 
-func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.UniqueIP) updateInfo {
+func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, fqdn string) updateInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -303,7 +326,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 		var resList []interface{}
 
 		hostSelector := src.BSONKey()
-		hostSelector["dat.icdst"] = dst.BSONKey()
+		hostSelector["dat.icfqdn"] = fqdn
 
 		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).All(&resList)
 
@@ -315,9 +338,9 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 
 			query["$push"] = bson.M{
 				"dat": bson.M{
-					"icdst": dst,
-					"icert": 1,
-					"cid":   a.chunk,
+					"icfqdn": fqdn,
+					"icert":  1,
+					"cid":    a.chunk,
 				}}
 
 			// create selector for output
@@ -340,7 +363,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 	return output
 }
 
-func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.UniqueIP) updateInfo {
+func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string) updateInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -356,16 +379,16 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 	var resListExactMatch []interface{}
 
 	maxBeaconMatchExactQuery := src.BSONKey()
-	maxBeaconMatchExactQuery["dat.mbdst"] = dst.BSONKey()
+	maxBeaconMatchExactQuery["dat.mbfqdn"] = fqdn
 
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
 
 	// if we have exact matches, update to new score and return
 	if len(resListExactMatch) > 0 {
 		query["$set"] = bson.M{
-			"dat.$.max_beacon_score": score,
-			"dat.$.mbdst":            dst,
-			"dat.$.cid":              a.chunk,
+			"dat.$.max_beacon_fqdn_score": score,
+			"dat.$.mbfqdn":                fqdn,
+			"dat.$.cid":                   a.chunk,
 		}
 
 		// create selector for output
@@ -389,8 +412,8 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 	maxBeaconMatchLowerQuery := src.BSONKey()
 	maxBeaconMatchLowerQuery["dat"] = bson.M{
 		"$elemMatch": bson.M{
-			"cid":              a.chunk,
-			"max_beacon_score": bson.M{"$lte": score},
+			"cid":                   a.chunk,
+			"max_beacon_fqdn_score": bson.M{"$lte": score},
 		},
 	}
 	// find matching lower chunks
@@ -404,8 +427,8 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 		maxBeaconMatchUpperQuery := src.BSONKey()
 		maxBeaconMatchUpperQuery["dat"] = bson.M{
 			"$elemMatch": bson.M{
-				"cid":              a.chunk,
-				"max_beacon_score": bson.M{"$gte": score},
+				"cid":                   a.chunk,
+				"max_beacon_fqdn_score": bson.M{"$gte": score},
 			},
 		}
 
@@ -429,9 +452,9 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 
 		query["$push"] = bson.M{
 			"dat": bson.M{
-				"max_beacon_score": score,
-				"mbdst":            dst,
-				"cid":              a.chunk,
+				"max_beacon_fqdn_score": score,
+				"mbfqdn":                fqdn,
+				"cid":                   a.chunk,
 			}}
 
 		// create selector for output
@@ -441,9 +464,9 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 	} else if updateFlag {
 
 		query["$set"] = bson.M{
-			"dat.$.max_beacon_score": score,
-			"dat.$.mbdst":            dst,
-			"dat.$.cid":              a.chunk,
+			"dat.$.max_beacon_fqdn_score": score,
+			"dat.$.mbfqdn":                fqdn,
+			"dat.$.cid":                   a.chunk,
 		}
 
 		// create selector for output

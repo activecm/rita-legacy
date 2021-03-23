@@ -54,8 +54,9 @@ func (r *repo) Upsert(hostMap map[string]*Input) {
 
 	analyzerWorker := newAnalyzer(
 		r.res.Config.S.Rolling.CurrentChunk,
-		r.res.DB,
 		r.res.Config,
+		r.res.DB,
+		r.res.Log,
 		writerWorker.collect,
 		writerWorker.close,
 	)

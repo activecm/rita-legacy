@@ -9,7 +9,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-// Entry point of ai-hunt
+// Entry point of ac-hunt
 func main() {
 	app := cli.NewApp()
 	app.Name = "rita"

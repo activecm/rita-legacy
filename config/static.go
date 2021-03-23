@@ -19,6 +19,7 @@ type (
 		Log          LogStaticCfg         `yaml:"LogConfig"`
 		Blacklisted  BlacklistedStaticCfg `yaml:"BlackListed"`
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
+		BeaconFQDN   BeaconFQDNStaticCfg  `yaml:"BeaconFQDN"`
 		DNS          DNSStaticCfg         `yaml:"DNS"`
 		UserAgent    UserAgentStaticCfg   `yaml:"UserAgent"`
 		Bro          BroStaticCfg         `yaml:"Bro"` // kept in for MetaDB backwards compatibility
@@ -86,6 +87,12 @@ type (
 		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
 	}
 
+	//BeaconFQDNStaticCfg is used to control the beaconing analysis module
+	BeaconFQDNStaticCfg struct {
+		Enabled                 bool `yaml:"Enabled" default:"true"`
+		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
+	}
+
 	//DNSStaticCfg is used to control the DNS analysis module
 	DNSStaticCfg struct {
 		Enabled bool `yaml:"Enabled" default:"true"`
@@ -98,9 +105,11 @@ type (
 
 	//FilteringStaticCfg controls address filtering
 	FilteringStaticCfg struct {
-		AlwaysInclude   []string `yaml:"AlwaysInclude" default:"[]"`
-		NeverInclude    []string `yaml:"NeverInclude" default:"[\"0.0.0.0/32\", \"127.0.0.0/8\", \"169.254.0.0/16\", \"224.0.0.0/4\", \"255.255.255.255/32\", \"::1/128\", \"fe80::/10\", \"ff00::/8\"]"`
-		InternalSubnets []string `yaml:"InternalSubnets" default:"[\"10.0.0.0/8\", \"172.16.0.0/12\", \"192.168.0.0/16\"]"`
+		AlwaysInclude       []string `yaml:"AlwaysInclude" default:"[]"`
+		NeverInclude        []string `yaml:"NeverInclude" default:"[\"0.0.0.0/32\", \"127.0.0.0/8\", \"169.254.0.0/16\", \"224.0.0.0/4\", \"255.255.255.255/32\", \"::1/128\", \"fe80::/10\", \"ff00::/8\"]"`
+		InternalSubnets     []string `yaml:"InternalSubnets" default:"[\"10.0.0.0/8\", \"172.16.0.0/12\", \"192.168.0.0/16\"]"`
+		AlwaysIncludeDomain []string `yaml:"AlwaysIncludeDomain" default:"[]"`
+		NeverIncludeDomain  []string `yaml:"NeverIncludeDomain" default:"[]"`
 	}
 
 	//StrobeStaticCfg controls the maximum number of connections between any two given hosts

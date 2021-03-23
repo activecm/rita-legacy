@@ -7,6 +7,7 @@ type (
 		DNS       DNSTableCfg
 		Structure StructureTableCfg
 		Beacon    BeaconTableCfg
+		BeaconFQDN    BeaconFQDNTableCfg
 		UserAgent UserAgentTableCfg
 		Cert      CertificateTableCfg
 		Meta      MetaTableCfg
@@ -36,6 +37,11 @@ type (
 	//BeaconTableCfg is used to control the beaconing analysis module
 	BeaconTableCfg struct {
 		BeaconTable string `default:"beacon"`
+	}
+
+	//BeaconFQDNTableCfg is used to control the beaconing analysis module
+	BeaconFQDNTableCfg struct {
+		BeaconFQDNTable string `default:"beaconFQDN"`
 	}
 
 	//UserAgentTableCfg is used to control the useragent analysis module

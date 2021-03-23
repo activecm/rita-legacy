@@ -77,43 +77,95 @@ func (u UniqueIP) BSONKey() bson.M {
 	return key
 }
 
-//UniqueIPPair binds a pair of UniqueIPs where direction matters.
-type UniqueIPPair struct {
+//UniqueSrcIP is a unique IP which acts as the source in an IP pair
+type UniqueSrcIP struct {
 	SrcIP          string      `bson:"src"`
 	SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
 	SrcNetworkName string      `bson:"src_network_name"`
+}
+
+//AsSrc returns the UniqueIP in the UniqueSrcIP format
+func (u UniqueIP) AsSrc() UniqueSrcIP {
+	return UniqueSrcIP{
+		SrcIP:          u.IP,
+		SrcNetworkUUID: u.NetworkUUID,
+		SrcNetworkName: u.NetworkName,
+	}
+}
+
+//Unpair returns a copy of the SrcUniqueIP in UniqueIP format
+func (u UniqueSrcIP) Unpair() UniqueIP {
+	return UniqueIP{
+		IP:          u.SrcIP,
+		NetworkUUID: u.SrcNetworkUUID,
+		NetworkName: u.SrcNetworkName,
+	}
+}
+
+//BSONKey generates a BSON map which may be used to index a the source of a UniqueIP pair.
+//Includes IP and Network UUID.
+func (u UniqueSrcIP) BSONKey() bson.M {
+	key := bson.M{
+		"src":              u.SrcIP,
+		"src_network_uuid": u.SrcNetworkUUID,
+	}
+	return key
+}
+
+//UniqueDstIP is a unique IP which acts as the destination in an IP Pair
+type UniqueDstIP struct {
 	DstIP          string      `bson:"dst"`
 	DstNetworkUUID bson.Binary `bson:"dst_network_uuid"`
 	DstNetworkName string      `bson:"dst_network_name"`
 }
 
+//AsDst returns the UniqueIP in the UniqueDstIP format
+func (u UniqueIP) AsDst() UniqueDstIP {
+	return UniqueDstIP{
+		DstIP:          u.IP,
+		DstNetworkUUID: u.NetworkUUID,
+		DstNetworkName: u.NetworkName,
+	}
+}
+
+//Unpair returns a copy of the DstUniqueIP in UniqueIP format
+func (u UniqueDstIP) Unpair() UniqueIP {
+	return UniqueIP{
+		IP:          u.DstIP,
+		NetworkUUID: u.DstNetworkUUID,
+		NetworkName: u.DstNetworkName,
+	}
+}
+
+//BSONKey generates a BSON map which may be used to index a the destination of a UniqueIP pair.
+//Includes IP and Network UUID.
+func (u UniqueDstIP) BSONKey() bson.M {
+	key := bson.M{
+		"dst":              u.DstIP,
+		"dst_network_uuid": u.DstNetworkUUID,
+	}
+	return key
+}
+
+//UniqueIPPair binds a pair of UniqueIPs where direction matters.
+type UniqueIPPair struct {
+	UniqueSrcIP `bson:",inline"`
+	UniqueDstIP `bson:",inline"`
+}
+
 //NewUniqueIPPair binds a pair of UniqueIPs where direction matters.
 func NewUniqueIPPair(source UniqueIP, destination UniqueIP) UniqueIPPair {
 	return UniqueIPPair{
-		SrcIP:          source.IP,
-		DstIP:          destination.IP,
-		SrcNetworkUUID: source.NetworkUUID,
-		DstNetworkUUID: destination.NetworkUUID,
-		SrcNetworkName: source.NetworkName,
-		DstNetworkName: destination.NetworkName,
-	}
-}
-
-//Source returns the source UniqueIP from the pair.
-func (p UniqueIPPair) Source() UniqueIP {
-	return UniqueIP{
-		IP:          p.SrcIP,
-		NetworkUUID: p.SrcNetworkUUID,
-		NetworkName: p.SrcNetworkName,
-	}
-}
-
-//Destination returns the destination UniqueIP from the pair.
-func (p UniqueIPPair) Destination() UniqueIP {
-	return UniqueIP{
-		IP:          p.DstIP,
-		NetworkUUID: p.DstNetworkUUID,
-		NetworkName: p.DstNetworkName,
+		UniqueSrcIP: UniqueSrcIP{
+			SrcIP:          source.IP,
+			SrcNetworkUUID: source.NetworkUUID,
+			SrcNetworkName: source.NetworkName,
+		},
+		UniqueDstIP: UniqueDstIP{
+			DstIP:          destination.IP,
+			DstNetworkUUID: destination.NetworkUUID,
+			DstNetworkName: destination.NetworkName,
+		},
 	}
 }
 

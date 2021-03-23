@@ -1,9 +1,10 @@
 package uconn
 
 import (
-	"github.com/activecm/rita/pkg/data"
 	"strconv"
 	"sync"
+
+	"github.com/activecm/rita/pkg/data"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -122,9 +123,9 @@ func (a *analyzer) start() {
 			// user in the file), we need to customize the query to update based on
 			// which ip in the connection was local.
 			if datum.IsLocalSrc {
-				output.hostMaxDur = a.hostMaxDurQuery(datum.MaxDuration, datum.Hosts.Source(), datum.Hosts.Destination())
+				output.hostMaxDur = a.hostMaxDurQuery(datum.MaxDuration, datum.Hosts.UniqueSrcIP.Unpair(), datum.Hosts.UniqueDstIP.Unpair())
 			} else if datum.IsLocalDst {
-				output.hostMaxDur = a.hostMaxDurQuery(datum.MaxDuration, datum.Hosts.Destination(), datum.Hosts.Source())
+				output.hostMaxDur = a.hostMaxDurQuery(datum.MaxDuration, datum.Hosts.UniqueDstIP.Unpair(), datum.Hosts.UniqueSrcIP.Unpair())
 			}
 
 			// set to writer channel

@@ -169,6 +169,11 @@ func writeDB(db string, wd string, showNetNames bool, res *resources.Resources) 
 		fmt.Println("[-] Error writing beacons page: " + err.Error())
 	}
 
+	err = printBeaconsFQDN(db, showNetNames, res)
+	if err != nil {
+		fmt.Println("[-] Error writing beaconsFQDN page: " + err.Error())
+	}
+
 	err = printStrobes(db, showNetNames, res)
 	if err != nil {
 		fmt.Println("[-] Error writing strobes page: " + err.Error())

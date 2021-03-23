@@ -7,16 +7,19 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
+	"github.com/activecm/rita/pkg/beaconfqdn"
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/explodeddns"
+
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/pkg/remover"
@@ -31,17 +34,19 @@ import (
 type (
 	//FSImporter provides the ability to import bro files from the file system
 	FSImporter struct {
-		res             *resources.Resources
-		importFiles     []string
-		rolling         bool
-		totalChunks     int
-		currentChunk    int
-		indexingThreads int
-		parseThreads    int
-		batchSizeBytes  int64
-		internal        []*net.IPNet
-		alwaysIncluded  []*net.IPNet
-		neverIncluded   []*net.IPNet
+		res                  *resources.Resources
+		importFiles          []string
+		rolling              bool
+		totalChunks          int
+		currentChunk         int
+		indexingThreads      int
+		parseThreads         int
+		batchSizeBytes       int64
+		internal             []*net.IPNet
+		alwaysIncluded       []*net.IPNet
+		neverIncluded        []*net.IPNet
+		alwaysIncludedDomain []string
+		neverIncludedDomain  []string
 	}
 
 	trustedAppTiplet struct {
@@ -55,17 +60,19 @@ type (
 func NewFSImporter(res *resources.Resources,
 	indexingThreads int, parseThreads int, importFiles []string) *FSImporter {
 	return &FSImporter{
-		res:             res,
-		importFiles:     importFiles,
-		rolling:         res.Config.S.Rolling.Rolling,
-		totalChunks:     res.Config.S.Rolling.TotalChunks,
-		currentChunk:    res.Config.S.Rolling.CurrentChunk,
-		indexingThreads: indexingThreads,
-		parseThreads:    parseThreads,
-		batchSizeBytes:  2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
-		internal:        util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
-		alwaysIncluded:  util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
-		neverIncluded:   util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
+		res:                  res,
+		importFiles:          importFiles,
+		rolling:              res.Config.S.Rolling.Rolling,
+		totalChunks:          res.Config.S.Rolling.TotalChunks,
+		currentChunk:         res.Config.S.Rolling.CurrentChunk,
+		indexingThreads:      indexingThreads,
+		parseThreads:         parseThreads,
+		batchSizeBytes:       2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
+		internal:             util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
+		alwaysIncluded:       util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
+		neverIncluded:        util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
+		alwaysIncludedDomain: res.Config.S.Filtering.AlwaysIncludeDomain,
+		neverIncludedDomain:  res.Config.S.Filtering.NeverIncludeDomain,
 	}
 }
 
@@ -188,6 +195,9 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 
 		// build or update Beacons table
 		fs.buildBeacons(uconnMap)
+
+		// build or update the FQDN Beacons Table
+		fs.buildFQDNBeacons(hostnameMap)
 
 		// build or update UserAgent table
 		fs.buildUserAgent(useragentMap)
@@ -535,49 +545,54 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							domain := parseDNS.Query
 							queryTypeName := parseDNS.QTypeName
 
-							// Safely store the number of conns for this uconn
-							mutex.Lock()
+							// Run domain through filter to filter out certain domains
+							ignore := fs.filterDomain(domain)
 
-							// increment domain map count for exploded dns
-							explodeddnsMap[domain]++
+							// If domain is not subject to filtering, process
+							if !ignore {
 
-							// initialize the hostname input objects for new hostnames
-							if _, ok := hostnameMap[domain]; !ok {
-								hostnameMap[domain] = &hostname.Input{
-									Host: domain,
-								}
-							}
+								// Safely store the number of conns for this uconn
+								mutex.Lock()
 
-							// extract and store the dns client ip address
-							src := parseDNS.Source
-							srcIP := net.ParseIP(src)
-							srcUniqIP := data.NewUniqueIP(srcIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
-							srcKey := srcUniqIP.MapKey()
+								// increment domain map count for exploded dns
+								explodeddnsMap[domain]++
 
-							hostnameMap[domain].ClientIPs.Insert(srcUniqIP)
-
-							if queryTypeName == "A" {
-								answers := parseDNS.Answers
-								for _, answer := range answers {
-									answerIP := net.ParseIP(answer)
-									// Check if answer is an IP address and store it if it is
-									if answerIP != nil {
-										answerUniqIP := data.NewUniqueIP(answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
-										hostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
+								// initialize the hostname input objects for new hostnames
+								if _, ok := hostnameMap[domain]; !ok {
+									hostnameMap[domain] = &hostname.Input{
+										Host: domain,
 									}
 								}
-							}
 
-							// increment txt query count for host in uconn
-							if queryTypeName == "TXT" {
-								// get destination for dns record
-								dst := parseDNS.Destination
-								dstIP := net.ParseIP(dst)
+								// extract and store the dns client ip address
+								src := parseDNS.Source
+								srcIP := net.ParseIP(src)
+								srcUniqIP := data.NewUniqueIP(srcIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
+								srcKey := srcUniqIP.MapKey()
 
-								// Run conn pair through filter to filter out certain connections
-								ignore := fs.filterConnPair(srcIP, dstIP)
-								if !ignore {
+								hostnameMap[domain].ClientIPs.Insert(srcUniqIP)
 
+								if queryTypeName == "A" {
+									answers := parseDNS.Answers
+									for _, answer := range answers {
+										answerIP := net.ParseIP(answer)
+										// Check if answer is an IP address and store it if it is
+										if answerIP != nil {
+											answerUniqIP := data.NewUniqueIP(answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
+											hostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
+										}
+									}
+								}
+
+								// We don't filter out the src ips like we do with the conn
+								// section since a c2 channel running over dns could have an
+								// internal ip to internal ip connection and not having that ip
+								// in the host table is limiting
+
+								// in some of these strings, the empty space will get counted as a domain,
+								// don't add host or increment dns query count if queried domain
+								// is blank or ends in 'in-addr.arpa'
+								if (domain != "") && (!strings.HasSuffix(domain, "in-addr.arpa")) {
 									// Check if host map value is set, because this record could
 									// come before a relevant conns record
 									if _, ok := hostMap[srcKey]; !ok {
@@ -591,13 +606,19 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 											IP4Bin:  util.IPv4ToBinary(srcIP),
 										}
 									}
-									// increment txt query count
-									hostMap[srcKey].TXTQueryCount++
+
+									// if there are no entries in the dnsquerycount map for this
+									// srcKey, initialize map
+									if hostMap[srcKey].DNSQueryCount == nil {
+										hostMap[srcKey].DNSQueryCount = make(map[string]int64)
+									}
+
+									// increment the dns query count for this domain
+									hostMap[srcKey].DNSQueryCount[domain]++
 								}
 
+								mutex.Unlock()
 							}
-
-							mutex.Unlock()
 
 							/// *************************************************************///
 							///                             HTTP                             ///
@@ -773,11 +794,10 @@ func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 		} else {
 			fmt.Println("\t[!] No DNS data to analyze")
 		}
-
 	}
 }
 
-//buildExplodedDNS .....
+//buildCertificates .....
 func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 	if len(certMap) > 0 {
@@ -794,7 +814,7 @@ func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 }
 
-//buildHostnames .....
+//removeAnalysisChunk .....
 func (fs *FSImporter) removeAnalysisChunk(cid int) error {
 
 	// Set up the remover
@@ -846,7 +866,6 @@ func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Input) {
 		fmt.Printf("\t\t[!!] No local network traffic found, please check ")
 		fmt.Println("InternalSubnets in your RITA config (/etc/rita/config.yaml)")
 	}
-
 }
 
 func (fs *FSImporter) buildHosts(hostMap map[string]*host.Input) {
@@ -892,6 +911,25 @@ func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input) {
 			beaconRepo.Upsert(uconnMap)
 		} else {
 			fmt.Println("\t[!] No Beacon data to analyze")
+		}
+	}
+
+}
+
+func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
+	if fs.res.Config.S.BeaconFQDN.Enabled {
+		if len(hostnameMap) > 0 {
+			beaconFQDNRepo := beaconfqdn.NewMongoRepository(fs.res)
+
+			err := beaconFQDNRepo.CreateIndexes()
+			if err != nil {
+				fs.res.Log.Error(err)
+			}
+
+			// send uconns to beacon analysis
+			beaconFQDNRepo.Upsert(hostnameMap)
+		} else {
+			fmt.Println("\t[!] No FQDN Beacon data to analyze")
 		}
 	}
 
