@@ -94,7 +94,8 @@ var BeaconsTempl = dbHeader + `
   <tr><th>Score</th><th>Source</th><th>Destination</th><th>Connections</th><th>Avg. Bytes</th><th>
 	Intvl. Range</th><th>Size Range</th><th>Intvl. Mode</th><th>Size Mode</th><th>Intvl. Mode Count</th>
 	<th>Size Mode Count</th><th>Intvl. Skew</th><th>Size Skew</th><th>Intvl. Dispersion</th><th>Size Dispersion
-	</th></tr>
+	</th><th>Total Bytes</th>
+	</tr>
       {{.Writer}}
   </table>
 </div>
@@ -108,7 +109,7 @@ var BeaconsNetNamesTempl = dbHeader + `
 	<th>Score</th><th>Source Network</th><th>Destination Network</th><th>Source</th><th>Destination</th>
 	<th>Connections</th><th>Avg. Bytes</th><th>Intvl. Range</th><th>Size Range</th><th>Intvl. Mode</th>
 	<th>Size Mode</th><th>Intvl. Mode Count</th><th>Size Mode Count</th><th>Intvl. Skew</th><th>Size Skew</th>
-	<th>Intvl. Dispersion</th><th>Size Dispersion</th>
+	<th>Intvl. Dispersion</th><th>Size Dispersion</th><th>Total Bytes</th>
   </tr>
 	{{.Writer}}
   </table>
