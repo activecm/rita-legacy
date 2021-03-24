@@ -165,7 +165,7 @@ func (d *dissector) start() {
 				// check if uconn has become a strobe
 				if analysisInput.ConnectionCount > d.connLimit {
 
-					// set to writer channel
+					// set to sorter channel
 					d.dissectedCallback(analysisInput)
 
 				} else { // otherwise, parse timestamps and orig ip bytes
@@ -173,7 +173,7 @@ func (d *dissector) start() {
 					analysisInput.TsList = res.Ts
 					analysisInput.OrigBytesList = res.Bytes
 
-					// send to writer channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
+					// send to sorter channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
 					if len(analysisInput.TsList) > 3 {
 						d.dissectedCallback(analysisInput)
 					}

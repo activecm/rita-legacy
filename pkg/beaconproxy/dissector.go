@@ -54,25 +54,24 @@ func (d *dissector) start() {
 
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results
-			if entry.ConnectionCount > 0 {
+			if entry.ConnectionCount > int64(d.conf.S.BeaconFQDN.DefaultConnectionThresh) {
 
-				// // check if strobe
-				// if analysisInput.ConnectionCount > d.connLimit {
+				// check if strobe
+				if entry.ConnectionCount > d.connLimit {
+					// Set TsList to nil. The analyzer channel will check if this entry is nil and,
+					// if so, will process it as a strobe
+					entry.TsList = nil
 
-				// 	// set to writer channel
-				// 	d.dissectedCallback(analysisInput)
-
-				// } else { // otherwise, parse timestamps and orig ip bytes
-
-				// send to writer channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
-				if len(entry.TsList) > 3 {
+					// set to writer channel
 					d.dissectedCallback(entry)
+
+				} else {
+					// send to sorter channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
+					if len(entry.TsList) > 3 {
+						d.dissectedCallback(entry)
+					}
 				}
-
-				// }
-
 			}
-
 		}
 		d.dissectWg.Done()
 	}()

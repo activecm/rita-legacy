@@ -71,140 +71,140 @@ func (a *analyzer) start() {
 			// create query
 			query := bson.M{}
 
-			// // if beacon has turned into a strobe, we will not have any timestamps here,
-			// // and need to update beaconFQDN table with the strobeFQDN flag.
-			// if (entry.TsList) == nil {
+			// if beacon has turned into a strobe, we will not have any timestamps here,
+			// and need to update beaconProxy table with the strobeFQDN flag.
+			if (entry.TsList) == nil {
 
-			// 	// set strobe info
-			// 	query["$set"] = bson.M{
-			// 		"strobeFQDN":       true,
-			// 		"total_bytes":      entry.TotalBytes,
-			// 		"avg_bytes":        entry.TotalBytes / entry.ConnectionCount,
-			// 		"connection_count": entry.ConnectionCount,
-			// 		"src_network_name": entry.Src.SrcNetworkName,
-			// 		"resolved_ips":     entry.ResolvedIPs,
-			// 		"cid":              a.chunk,
-			// 	}
+				// set strobe info
+				query["$set"] = bson.M{
+					"strobeFQDN":       true,
+					"connection_count": entry.ConnectionCount,
+					"dst_network_name": entry.Hosts.DstNetworkName,
+					"src_network_name": entry.Hosts.SrcNetworkName,
+					"cid":              a.chunk,
+				}
 
-			// 	// unset any beacon calculations since  this
-			// 	// is now a strobe and those would be inaccurate
-			// 	// (this will only apply to chunked imports)
-			// 	query["$unset"] = bson.M{
-			// 		"ts":    1,
-			// 		"ds":    1,
-			// 		"score": 1,
-			// 	}
+				// unset any beacon calculations since  this
+				// is now a strobe and those would be inaccurate
+				// (this will only apply to chunked imports)
+				query["$unset"] = bson.M{
+					"ts":    1,
+					"ds":    1,
+					"score": 1,
+				}
 
-			// 	// create selector for output
-			// 	output.beacon.query = query
-			// 	output.beacon.selector = selectorPair.BSONKey()
+				// create selector for output
+				output.beacon.query = query
+				output.beacon.selector = selectorPair.BSONKey()
 
-			// 	// set to writer channel
-			// 	a.analyzedCallback(output)
+				// set to writer channel
+				a.analyzedCallback(output)
 
-			// } else {
-			//store the diff slice length since we use it a lot
-			//for timestamps this is one less then the data slice length
-			//since we are calculating the times in between readings
-			tsLength := len(entry.TsList) - 1
+			} else {
+				//store the diff slice length since we use it a lot
+				//for timestamps this is one less then the data slice length
+				//since we are calculating the times in between readings
+				tsLength := len(entry.TsList) - 1
 
-			//find the delta times between the timestamps
-			diff := make([]int64, tsLength)
-			for i := 0; i < tsLength; i++ {
-				diff[i] = entry.TsList[i+1] - entry.TsList[i]
+				//find the delta times between the timestamps
+				diff := make([]int64, tsLength)
+				for i := 0; i < tsLength; i++ {
+					diff[i] = entry.TsList[i+1] - entry.TsList[i]
+				}
+
+				//perfect beacons should have symmetric delta time and size distributions
+				//Bowley's measure of skew is used to check symmetry
+				sort.Sort(util.SortableInt64(diff))
+				tsSkew := float64(0)
+
+				//tsLength -1 is used since diff is a zero based slice
+				tsLow := diff[util.Round(.25*float64(tsLength-1))]
+				tsMid := diff[util.Round(.5*float64(tsLength-1))]
+				tsHigh := diff[util.Round(.75*float64(tsLength-1))]
+				tsBowleyNum := tsLow + tsHigh - 2*tsMid
+				tsBowleyDen := tsHigh - tsLow
+
+				//tsSkew should equal zero if the denominator equals zero
+				//bowley skew is unreliable if Q2 = Q1 or Q2 = Q3
+				if tsBowleyDen != 0 && tsMid != tsLow && tsMid != tsHigh {
+					tsSkew = float64(tsBowleyNum) / float64(tsBowleyDen)
+				}
+
+				//perfect beacons should have very low dispersion around the
+				//median of their delta times
+				//Median Absolute Deviation About the Median
+				//is used to check dispersion
+				devs := make([]int64, tsLength)
+				for i := 0; i < tsLength; i++ {
+					devs[i] = util.Abs(diff[i] - tsMid)
+				}
+
+				sort.Sort(util.SortableInt64(devs))
+
+				tsMadm := devs[util.Round(.5*float64(tsLength-1))]
+
+				//Store the range for human analysis
+				tsIntervalRange := diff[tsLength-1] - diff[0]
+
+				//get a list of the intervals found in the data,
+				//the number of times the interval was found,
+				//and the most occurring interval
+				intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
+
+				//more skewed distributions receive a lower score
+				//less skewed distributions receive a higher score
+				tsSkewScore := 1.0 - math.Abs(tsSkew) //smush tsSkew
+
+				//lower dispersion is better, cutoff dispersion scores at 30 seconds
+				tsMadmScore := 1.0 - float64(tsMadm)/30.0
+				if tsMadmScore < 0 {
+					tsMadmScore = 0
+				}
+
+				// connection count scoring
+				tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 10.0
+				tsConnCountScore := float64(entry.ConnectionCount) / tsConnDiv
+				if tsConnCountScore > 1.0 {
+					tsConnCountScore = 1.0
+				}
+
+				//score numerators
+				tsSum := tsSkewScore + tsMadmScore + tsConnCountScore
+
+				//score averages
+				tsScore := math.Ceil((tsSum/3.0)*1000) / 1000
+				score := math.Ceil((tsSum/3.0)*1000) / 1000
+
+				// update beacon query
+				query["$set"] = bson.M{
+					"connection_count":   entry.ConnectionCount,
+					"dst_network_name":   entry.Hosts.DstNetworkName,
+					"src_network_name":   entry.Hosts.SrcNetworkName,
+					"ts.range":           tsIntervalRange,
+					"ts.mode":            tsMode,
+					"ts.mode_count":      tsModeCount,
+					"ts.intervals":       intervals,
+					"ts.interval_counts": intervalCounts,
+					"ts.dispersion":      tsMadm,
+					"ts.skew":            tsSkew,
+					"ts.conns_score":     tsConnCountScore,
+					"ts.score":           tsScore,
+					"score":              score,
+					"cid":                a.chunk,
+				}
+
+				// set query
+				output.beacon.query = query
+
+				// create selector for output
+				output.beacon.selector = selectorPair.BSONKey()
+
+				// updates max FQDN beacon score for the source entry in the hosts table
+				output.hostBeacon = a.hostBeaconQuery(score, entry.Hosts.UniqueSrcIP.Unpair(), entry.Hosts.FQDN)
+
+				// set to writer channel
+				a.analyzedCallback(output)
 			}
-
-			//perfect beacons should have symmetric delta time and size distributions
-			//Bowley's measure of skew is used to check symmetry
-			sort.Sort(util.SortableInt64(diff))
-			tsSkew := float64(0)
-
-			//tsLength -1 is used since diff is a zero based slice
-			tsLow := diff[util.Round(.25*float64(tsLength-1))]
-			tsMid := diff[util.Round(.5*float64(tsLength-1))]
-			tsHigh := diff[util.Round(.75*float64(tsLength-1))]
-			tsBowleyNum := tsLow + tsHigh - 2*tsMid
-			tsBowleyDen := tsHigh - tsLow
-
-			//tsSkew should equal zero if the denominator equals zero
-			//bowley skew is unreliable if Q2 = Q1 or Q2 = Q3
-			if tsBowleyDen != 0 && tsMid != tsLow && tsMid != tsHigh {
-				tsSkew = float64(tsBowleyNum) / float64(tsBowleyDen)
-			}
-
-			//perfect beacons should have very low dispersion around the
-			//median of their delta times
-			//Median Absolute Deviation About the Median
-			//is used to check dispersion
-			devs := make([]int64, tsLength)
-			for i := 0; i < tsLength; i++ {
-				devs[i] = util.Abs(diff[i] - tsMid)
-			}
-
-			sort.Sort(util.SortableInt64(devs))
-
-			tsMadm := devs[util.Round(.5*float64(tsLength-1))]
-
-			//Store the range for human analysis
-			tsIntervalRange := diff[tsLength-1] - diff[0]
-
-			//get a list of the intervals found in the data,
-			//the number of times the interval was found,
-			//and the most occurring interval
-			intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
-
-			//more skewed distributions receive a lower score
-			//less skewed distributions receive a higher score
-			tsSkewScore := 1.0 - math.Abs(tsSkew) //smush tsSkew
-
-			//lower dispersion is better, cutoff dispersion scores at 30 seconds
-			tsMadmScore := 1.0 - float64(tsMadm)/30.0
-			if tsMadmScore < 0 {
-				tsMadmScore = 0
-			}
-
-			// connection count scoring
-			tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 10.0
-			tsConnCountScore := float64(entry.ConnectionCount) / tsConnDiv
-			if tsConnCountScore > 1.0 {
-				tsConnCountScore = 1.0
-			}
-
-			//score numerators
-			tsSum := tsSkewScore + tsMadmScore + tsConnCountScore
-
-			//score averages
-			tsScore := math.Ceil((tsSum/3.0)*1000) / 1000
-			score := math.Ceil((tsSum/3.0)*1000) / 1000
-
-			// update beacon query
-			query["$set"] = bson.M{
-				"connection_count":   entry.ConnectionCount,
-				"ts.range":           tsIntervalRange,
-				"ts.mode":            tsMode,
-				"ts.mode_count":      tsModeCount,
-				"ts.intervals":       intervals,
-				"ts.interval_counts": intervalCounts,
-				"ts.dispersion":      tsMadm,
-				"ts.skew":            tsSkew,
-				"ts.conns_score":     tsConnCountScore,
-				"ts.score":           tsScore,
-				"score":              score,
-				"cid":                a.chunk,
-			}
-
-			// set query
-			output.beacon.query = query
-
-			// create selector for output
-			output.beacon.selector = selectorPair.BSONKey()
-
-			// updates max FQDN beacon score for the source entry in the hosts table
-			// output.hostBeacon = a.hostBeaconQuery(score, entry.Src.Unpair(), entry.FQDN)
-
-			// set to writer channel
-			a.analyzedCallback(output)
-			// }
 		}
 		a.analysisWg.Done()
 	}()
@@ -323,16 +323,16 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 	var resListExactMatch []interface{}
 
 	maxBeaconMatchExactQuery := src.BSONKey()
-	maxBeaconMatchExactQuery["dat.mbfqdn"] = fqdn
+	maxBeaconMatchExactQuery["dat.mbproxy"] = fqdn
 
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
 
 	// if we have exact matches, update to new score and return
 	if len(resListExactMatch) > 0 {
 		query["$set"] = bson.M{
-			"dat.$.max_beacon_fqdn_score": score,
-			"dat.$.mbfqdn":                fqdn,
-			"dat.$.cid":                   a.chunk,
+			"dat.$.max_beacon_proxy_score": score,
+			"dat.$.mbproxy":                fqdn,
+			"dat.$.cid":                    a.chunk,
 		}
 
 		// create selector for output
@@ -356,8 +356,8 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 	maxBeaconMatchLowerQuery := src.BSONKey()
 	maxBeaconMatchLowerQuery["dat"] = bson.M{
 		"$elemMatch": bson.M{
-			"cid":                   a.chunk,
-			"max_beacon_fqdn_score": bson.M{"$lte": score},
+			"cid":                    a.chunk,
+			"max_beacon_proxy_score": bson.M{"$lte": score},
 		},
 	}
 	// find matching lower chunks
@@ -371,8 +371,8 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 		maxBeaconMatchUpperQuery := src.BSONKey()
 		maxBeaconMatchUpperQuery["dat"] = bson.M{
 			"$elemMatch": bson.M{
-				"cid":                   a.chunk,
-				"max_beacon_fqdn_score": bson.M{"$gte": score},
+				"cid":                    a.chunk,
+				"max_beacon_proxy_score": bson.M{"$gte": score},
 			},
 		}
 
@@ -396,9 +396,9 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 
 		query["$push"] = bson.M{
 			"dat": bson.M{
-				"max_beacon_fqdn_score": score,
-				"mbfqdn":                fqdn,
-				"cid":                   a.chunk,
+				"max_beacon_proxy_score": score,
+				"mbproxy":                fqdn,
+				"cid":                    a.chunk,
 			}}
 
 		// create selector for output
@@ -408,9 +408,9 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 	} else if updateFlag {
 
 		query["$set"] = bson.M{
-			"dat.$.max_beacon_fqdn_score": score,
-			"dat.$.mbfqdn":                fqdn,
-			"dat.$.cid":                   a.chunk,
+			"dat.$.max_beacon_proxy_score": score,
+			"dat.$.mbproxy":                fqdn,
+			"dat.$.cid":                    a.chunk,
 		}
 
 		// create selector for output

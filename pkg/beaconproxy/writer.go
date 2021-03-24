@@ -63,21 +63,20 @@ func (w *writer) start() {
 					}).Error(err)
 				}
 
-				// // update hosts table with max beacon updates
-				// if data.hostBeacon.query != nil {
+				// update hosts table with max beacon updates
+				if data.hostBeacon.query != nil {
+					// update hosts table
+					info, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.hostBeacon.selector, data.hostBeacon.query)
 
-				// 	// update hosts table
-				// 	info, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.hostBeacon.selector, data.hostBeacon.query)
-
-				// 	if err != nil ||
-				// 		((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
-				// 		w.log.WithFields(log.Fields{
-				// 			"Module": "beaconsProxy",
-				// 			"Info":   info,
-				// 			"Data":   data,
-				// 		}).Error(err)
-				// 	}
-				// }
+					if err != nil ||
+						((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
+						w.log.WithFields(log.Fields{
+							"Module": "beaconsProxy",
+							"Info":   info,
+							"Data":   data,
+						}).Error(err)
+					}
+				}
 			}
 		}
 		w.writeWg.Done()
