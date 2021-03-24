@@ -78,7 +78,7 @@ func LongConnCumulativeResults(res *resources.Resources) ([]LongConnResult, erro
 			"dst":              1,
 			"dst_network_uuid": 1,
 			"dst_network_name": 1,
-			"maxdur":           "$dat.maxdur",
+			"maxdur":           "$dat.tdur",
 			"tuples":           bson.M{"$ifNull": []interface{}{"$dat.tuples", []interface{}{}}},
 		}},
 		bson.M{"$unwind": "$maxdur"},
@@ -86,7 +86,7 @@ func LongConnCumulativeResults(res *resources.Resources) ([]LongConnResult, erro
 		bson.M{"$unwind": "$tuples"}, // not an error, must be done twice
 		bson.M{"$group": bson.M{
 			"_id":              "$_id",
-			"maxdur":           bson.M{"$sum": "$maxdur"},
+			"maxdur":           bson.M{"$max": "$maxdur"},
 			"src":              bson.M{"$first": "$src"},
 			"src_network_uuid": bson.M{"$first": "$src_network_uuid"},
 			"src_network_name": bson.M{"$first": "$src_network_name"},
@@ -111,5 +111,4 @@ func LongConnCumulativeResults(res *resources.Resources) ([]LongConnResult, erro
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(longConnQuery).AllowDiskUse().All(&longConnResults)
 
 	return longConnResults, err
-
 }
