@@ -34,38 +34,23 @@ type (
 		ModeCount  int64   `bson:"mode_count"`
 		Skew       float64 `bson:"skew"`
 		Dispersion int64   `bson:"dispersion"`
-		Duration   float64 `bson:"duration"`
 	}
 
-	//DSData ...
-	DSData struct {
-		Skew       float64 `bson:"skew"`
-		Dispersion int64   `bson:"dispersion"`
-		Range      int64   `bson:"range"`
-		Mode       int64   `bson:"mode"`
-		ModeCount  int64   `bson:"mode_count"`
-	}
-
-	//Result represents a beacon FQDN between a source IP and
-	// an FQDN. An FQDN can be comprised of one or more destination IPs.
-	// Contains information on connection delta times and the amount of data transferred
+	//Result represents a beacon proxy between a source IP and
+	// an proxy.
 	Result struct {
-		FQDN           string          `bson:"fqdn"`
-		SrcIP          string          `bson:"src"`
-		SrcNetworkName string          `bson:"src_network_name"`
-		SrcNetworkUUID bson.Binary     `bson:"src_network_uuid"`
-		DstIP          string          `bson:"dst"`
-		DstNetworkName string          `bson:"dst_network_name"`
-		DstNetworkUUID bson.Binary     `bson:"dst_network_uuid"`
-		Connections    int64           `bson:"connection_count"`
-		AvgBytes       float64         `bson:"avg_bytes"`
-		Ts             TSData          `bson:"ts"`
-		Ds             DSData          `bson:"ds"`
-		Score          float64         `bson:"score"`
-		ResolvedIPs    []data.UniqueIP `bson:"resolved_ips"`
+		FQDN           string      `bson:"fqdn"`
+		SrcIP          string      `bson:"src"`
+		SrcNetworkName string      `bson:"src_network_name"`
+		SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
+		DstIP          string      `bson:"dst"`
+		DstNetworkName string      `bson:"dst_network_name"`
+		DstNetworkUUID bson.Binary `bson:"dst_network_uuid"`
+		Connections    int64       `bson:"connection_count"`
+		Ts             TSData      `bson:"ts"`
+		Score          float64     `bson:"score"`
 	}
 
-	//TODO: Implement strobe for beacons FQDN
 	//StrobeResult represents a unique connection with a large amount
 	//of connections between the hosts
 	StrobeResult struct {
