@@ -189,6 +189,7 @@ func (a *analyzer) start() {
 					"ts.skew":            tsSkew,
 					"ts.conns_score":     tsConnCountScore,
 					"ts.score":           tsScore,
+					"tslist":             entry.TsList,
 					"score":              score,
 					"cid":                a.chunk,
 				}
