@@ -21,7 +21,6 @@ func init() {
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			forceFlag,
-			configFlag,
 			allFlag,
 			matchFlag,
 			regexFlag,
@@ -35,7 +34,7 @@ func init() {
 
 //deleteDatabase deletes a target database
 func deleteDatabase(c *cli.Context) error {
-	res := resources.InitResources(c.String("config"))
+	res := resources.InitResources(c.GlobalString("config"))
 
 	// Different command flags
 	tgt := c.Args().Get(0)

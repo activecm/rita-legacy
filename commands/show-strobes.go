@@ -23,7 +23,6 @@ func init() {
 				Name:  "connection-count, l",
 				Usage: "Sort the strobes by largest connection count.",
 			},
-			configFlag,
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
@@ -35,7 +34,7 @@ func init() {
 				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := resources.InitResources(c.String("config"))
+			res := resources.InitResources(c.GlobalString("config"))
 			res.DB.SelectDB(db)
 
 			sortDirection := -1

@@ -21,7 +21,6 @@ func init() {
 			humanFlag,
 			blConnFlag,
 			blSortFlag,
-			configFlag,
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
@@ -38,7 +37,6 @@ func init() {
 			humanFlag,
 			blConnFlag,
 			blSortFlag,
-			configFlag,
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
@@ -71,7 +69,7 @@ func printBLSourceIPs(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	res := resources.InitResources(c.String("config"))
+	res := resources.InitResources(c.GlobalString("config"))
 	res.DB.SelectDB(db)
 
 	data, err := blacklist.SrcIPResults(res, sort, c.Int("limit"), c.Bool("no-limit"))
@@ -105,7 +103,7 @@ func printBLDestIPs(c *cli.Context) error {
 		return err
 	}
 
-	res := resources.InitResources(c.String("config"))
+	res := resources.InitResources(c.GlobalString("config"))
 	res.DB.SelectDB(db)
 
 	data, err := blacklist.DstIPResults(res, sort, c.Int("limit"), c.Bool("no-limit"))

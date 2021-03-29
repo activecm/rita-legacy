@@ -20,7 +20,6 @@ func init() {
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			configFlag,
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
@@ -31,7 +30,7 @@ func init() {
 				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := resources.InitResources(c.String("config"))
+			res := resources.InitResources(c.GlobalString("config"))
 			res.DB.SelectDB(db)
 
 			data, err := explodeddns.Results(res, c.Int("limit"), c.Bool("no-limit"))

@@ -18,7 +18,6 @@ func init() {
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			configFlag,
 			delimFlag,
 			netNamesFlag,
 		},
@@ -33,7 +32,7 @@ func showBeaconsFQDN(c *cli.Context) error {
 	if db == "" {
 		return cli.NewExitError("Specify a database", -1)
 	}
-	res := resources.InitResources(c.String("config"))
+	res := resources.InitResources(c.GlobalString("config"))
 	res.DB.SelectDB(db)
 
 	data, err := beaconfqdn.Results(res, 0)

@@ -13,13 +13,6 @@ var (
 
 	// below are some prebuilt flags that get used often in various commands
 
-	// configFlag allows users to specify an alternate config file to use
-	configFlag = cli.StringFlag{
-		Name:  "config, c",
-		Usage: "Use a given `CONFIG_FILE` when running this command",
-		Value: "",
-	}
-
 	// forceFlag allows users to bypass prompts
 	forceFlag = cli.BoolFlag{
 		Name:  "force, f",
@@ -130,7 +123,7 @@ func bootstrapCommands(commands ...cli.Command) {
 	for _, command := range commands {
 		command.Before = func(c *cli.Context) error {
 			//Get access to the logger
-			configFile := c.String("config")
+			configFile := c.GlobalString("config")
 			res := resources.InitResources(configFile)
 			//Display args in logs
 			fields := log.Fields{

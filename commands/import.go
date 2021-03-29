@@ -23,7 +23,6 @@ func init() {
 			" named <database name>.",
 		Flags: []cli.Flag{
 			threadFlag,
-			configFlag,
 			deleteFlag,
 			rollingFlag,
 			totalChunksFlag,
@@ -32,7 +31,7 @@ func init() {
 		Action: func(c *cli.Context) error {
 			importer := NewImporter(c)
 			err := importer.run()
-			fmt.Println(updateCheck(c.String("config")))
+			fmt.Println(updateCheck(c.GlobalString("config")))
 			return err
 		},
 	}
@@ -59,7 +58,7 @@ type (
 //NewImporter ....
 func NewImporter(c *cli.Context) *Importer {
 	return &Importer{
-		configFile:      c.String("config"),
+		configFile:      c.GlobalString("config"),
 		args:            c.Args(),
 		deleteOldData:   c.Bool("delete"),
 		userRolling:     c.Bool("rolling"),

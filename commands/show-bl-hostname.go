@@ -20,7 +20,6 @@ func init() {
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			configFlag,
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
@@ -40,7 +39,7 @@ func printBLHostnames(c *cli.Context) error {
 		return cli.NewExitError("Specify a database", -1)
 	}
 
-	res := resources.InitResources(c.String("config"))
+	res := resources.InitResources(c.GlobalString("config"))
 	res.DB.SelectDB(db)
 
 	data, err := blacklist.HostnameResults(res, "conn_count", c.Int("limit"), c.Bool("no-limit"))
