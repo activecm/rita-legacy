@@ -16,6 +16,7 @@ func init() {
 		Flags: []cli.Flag{
 			configFlag,
 			netNamesFlag,
+			noBrowserFlag,
 		},
 		Action: func(c *cli.Context) error {
 			res := resources.InitResources(c.String("config"))
@@ -26,7 +27,7 @@ func init() {
 			} else {
 				databases = res.MetaDB.GetAnalyzedDatabases()
 			}
-			err := reporting.PrintHTML(databases, c.Bool("network-names"), res)
+			err := reporting.PrintHTML(databases, c.Bool("network-names"), c.Bool("no-browser"), res)
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}

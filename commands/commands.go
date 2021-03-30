@@ -123,6 +123,11 @@ var (
 		Name:  "network-names, nn",
 		Usage: "Show network names associated with IP addresses. Helps when private IPs are reused across multiple physical networks.",
 	}
+
+	noBrowserFlag = cli.BoolFlag{
+		Name:  "no-browser, nb",
+		Usage: "Prevent auto-launching of default browser.",
+	}
 )
 
 // bootstrapCommands simply adds a given command to the allCommands array
