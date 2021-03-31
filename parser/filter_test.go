@@ -21,6 +21,46 @@ type testCaseDomain struct {
 	msg    string
 }
 
+type testCaseIsProxyIp struct {
+	ip  string
+	out bool
+	msg string
+}
+
+type testCaseSingleIp struct {
+	ip  string
+	out bool
+	msg string
+}
+
+func TestCheckIfProxyServer(t *testing.T) {
+
+	fsTest := &FSImporter{
+		res:             nil,
+		indexingThreads: 1,
+		parseThreads:    1,
+		proxyServers:    util.ParseSubnets([]string{"1.1.1.1", "1.1.1.2/32", "1.2.0.0/16"}),
+	}
+
+	// all permutations for possible IP matches/non-matches
+	singleIpNoCidrFiltered := "1.1.1.1"
+	singleIpCidrFiltered := "1.1.1.2"
+	cidrRangeFiltered := "1.2.1.1"
+	singleIpNotFiltered := "1.3.1.1"
+
+	testCases := []testCaseIsProxyIp{
+		testCaseIsProxyIp{singleIpNoCidrFiltered, true, "IP should match single, non-CIDR notation Proxy IP entry"},
+		testCaseIsProxyIp{singleIpCidrFiltered, true, "IP should match CIDR notation (/32) for single Proxy IP entry"},
+		testCaseIsProxyIp{cidrRangeFiltered, true, "IP should match CIDR notation (/16) for Proxy IP range entry"},
+		testCaseIsProxyIp{singleIpNotFiltered, false, "IP should not match any Proxy IP entries"},
+	}
+
+	for _, test := range testCases {
+		output := fsTest.checkIfProxyServer(net.ParseIP(test.ip))
+		assert.Equal(t, test.out, output, test.msg)
+	}
+}
+
 func TestFilterConnPairWithInternalSubnets(t *testing.T) {
 
 	fsTest := &FSImporter{
@@ -143,6 +183,35 @@ func TestFilterDomain(t *testing.T) {
 
 	for _, test := range testCases {
 		output := fsTest.filterDomain(test.domain)
+		assert.Equal(t, test.out, output, test.msg)
+	}
+}
+
+func TestFilterSingleIP(t *testing.T) {
+
+	fsTest := &FSImporter{
+		res:             nil,
+		indexingThreads: 1,
+		parseThreads:    1,
+		// purposely omitting internal subnet definition
+		alwaysIncluded: util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
+		neverIncluded:  util.ParseSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+	}
+
+	// all possibilities for filtering single IP
+	always := "10.0.0.1"
+	never := "10.0.0.2"
+	alwaysNever := "10.0.0.3"
+
+	testCases := []testCaseSingleIp{
+		testCaseSingleIp{always, false, "AlwaysInclude IP should not be filtered"},
+		// still apply the NeverInclude filter
+		testCaseSingleIp{never, true, "NeverInclude IP should be filtered"},
+		testCaseSingleIp{alwaysNever, false, "AlwaysInclude should take precedence over NeverInclude"},
+	}
+
+	for _, test := range testCases {
+		output := fsTest.filterSingleIP(net.ParseIP(test.ip))
 		assert.Equal(t, test.out, output, test.msg)
 	}
 }

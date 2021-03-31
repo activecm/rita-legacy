@@ -553,8 +553,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							domain := parseDNS.Query
 							queryTypeName := parseDNS.QTypeName
 
+							// extract and store the dns client ip address
+							src := parseDNS.Source
+							srcIP := net.ParseIP(src)
+
 							// Run domain through filter to filter out certain domains
-							ignore := fs.filterDomain(domain)
+							ignore := (fs.filterDomain(domain) || fs.filterSingleIP(srcIP))
 
 							// If domain is not subject to filtering, process
 							if !ignore {
@@ -572,9 +576,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									}
 								}
 
-								// extract and store the dns client ip address
-								src := parseDNS.Source
-								srcIP := net.ParseIP(src)
 								srcUniqIP := data.NewUniqueIP(srcIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
 								srcKey := srcUniqIP.MapKey()
 
@@ -648,7 +649,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// parse host
 							fqdn := parseHTTP.Host
 
-							if fs.filterDomain(fqdn) {
+							if fs.filterDomain(fqdn) || fs.filterConnPair(srcIP, dstIP) {
 								continue
 							}
 

@@ -29,12 +29,21 @@ DNS:
     Enabled: true
 Beacon:
     DefaultConnectionThresh: 24
+BeaconFQDN:
+    Enabled: true
+    DefaultConnectionThresh: 24
+BeaconProxy:
+    Enabled: true
+    DefaultConnectionThresh: 24
 Strobe:
     ConnectionLimit: 250000
 Filtering:
     AlwaysInclude: ["8.8.8.8/32"]
     NeverInclude: ["8.8.4.4/32"]
     InternalSubnets: ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]
+    ProxyServers: ["1.1.1.1", "1.1.1.2/32", "1.2.0.0/16"]
+    AlwaysIncludeDomain: ["bad.com", "google.com", "*.myotherdomain.com"]
+    NeverIncludeDomain: ["good.com", "google.com", "*.mydomain.com"]
 `
 
 // LoadTestingConfig loads the hard coded testing config
