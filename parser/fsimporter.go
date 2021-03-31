@@ -648,6 +648,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// parse host
 							fqdn := parseHTTP.Host
 
+							if fs.filterDomain(fqdn) {
+								continue
+							}
+
 							// disambiguate addresses which are not publicly routable
 							srcUniqIP := data.NewUniqueIP(srcIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
 							dstUniqIP := data.NewUniqueIP(dstIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
