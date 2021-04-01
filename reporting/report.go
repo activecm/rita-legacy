@@ -20,7 +20,7 @@ import (
 // a directory named after the selected dataset, or `rita-html-report` if
 // mupltiple were selected, within the current working directory,
 // mongodb must be running to call this command, will exit on any writing error
-func PrintHTML(dbsIn []string, showNetNames bool, res *resources.Resources) error {
+func PrintHTML(dbsIn []string, showNetNames bool, noBrowser bool, res *resources.Resources) error {
 	if len(dbsIn) == 0 {
 		return errors.New("no analyzed databases to report on")
 	}
@@ -80,8 +80,10 @@ func PrintHTML(dbsIn []string, showNetNames bool, res *resources.Resources) erro
 	}
 
 	fmt.Println("[-] Wrote outputs, check " + wd + " for files")
-	os.Chdir("..")
-	open.Run("./" + outFolderString + "/index.html")
+	if !noBrowser {
+		os.Chdir("..")
+		open.Run("./" + outFolderString + "/index.html")
+	}
 	// End db iteration
 	return nil
 }
