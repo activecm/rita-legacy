@@ -93,14 +93,14 @@ func showBeaconsHuman(data []beacon.Result, showNetNames bool) error {
 				d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
-				i(d.Ts.Dispersion), i(d.Ds.Dispersion), i(d.TotBytes),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion), i(d.TotalBytes),
 			}
 		} else {
 			row = []string{
 				f(d.Score), d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
-				i(d.Ts.Dispersion), i(d.Ds.Dispersion), i(d.TotBytes),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion), i(d.TotalBytes),
 			}
 		}
 		table.Append(row)
@@ -138,14 +138,14 @@ func showBeaconsDelim(data []beacon.Result, delim string, showNetNames bool) err
 				d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
-				i(d.Ts.Dispersion), i(d.Ds.Dispersion), i(d.TotBytes),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion), i(d.TotalBytes),
 			}
 		} else {
 			row = []string{
 				f(d.Score), d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
-				i(d.Ts.Dispersion), i(d.Ds.Dispersion), i(d.TotBytes),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion), i(d.TotalBytes),
 			}
 		}
 
