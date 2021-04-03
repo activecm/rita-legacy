@@ -15,6 +15,7 @@ func init() {
 			"If no database is specified, a report will be created for every database.",
 		Flags: []cli.Flag{
 			netNamesFlag,
+			noBrowserFlag,
 		},
 		Action: func(c *cli.Context) error {
 			res := resources.InitResources(c.GlobalString("config"))
@@ -25,7 +26,7 @@ func init() {
 			} else {
 				databases = res.MetaDB.GetAnalyzedDatabases()
 			}
-			err := reporting.PrintHTML(databases, c.Bool("network-names"), res)
+			err := reporting.PrintHTML(databases, c.Bool("network-names"), c.Bool("no-browser"), res)
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
