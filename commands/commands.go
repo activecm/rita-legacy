@@ -13,7 +13,7 @@ var (
 
 	// below are some prebuilt flags that get used often in various commands
 
-	// configFlag allows users to specify an alternate config file to use
+	// ConfigFlag allows users to specify an alternate config file to use
 	ConfigFlag = cli.StringFlag{
 		Name:  "config, c",
 		Usage: "Use a given `CONFIG_FILE` when running this command",
