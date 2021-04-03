@@ -14,14 +14,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "rita"
 	app.Usage = "Look for evil needles in big haystacks."
-
-	// configFlag allows users to specify an alternate config file to use
-	configFlag := cli.StringFlag{
-		Name:  "config, c",
-		Usage: "Use a given `CONFIG_FILE` when running this command",
-		Value: "",
-	}
-	app.Flags = []cli.Flag{configFlag}
+	app.Flags = []cli.Flag{commands.ConfigFlag}
 
 	cli.VersionPrinter = commands.GetVersionPrinter()
 
@@ -32,6 +25,7 @@ func main() {
 
 	// Define commands used with this application
 	app.Commands = commands.Commands()
+	app.Before = commands.SetConfigFilePath
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	app.Run(os.Args)

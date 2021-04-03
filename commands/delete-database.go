@@ -20,6 +20,7 @@ func init() {
 		Usage:     "Delete imported database(s)",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
+			ConfigFlag,
 			forceFlag,
 			allFlag,
 			matchFlag,
@@ -34,7 +35,7 @@ func init() {
 
 //deleteDatabase deletes a target database
 func deleteDatabase(c *cli.Context) error {
-	res := resources.InitResources(c.GlobalString("config"))
+	res := resources.InitResources(getConfigFilePath(c))
 
 	// Different command flags
 	tgt := c.Args().Get(0)

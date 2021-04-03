@@ -22,6 +22,7 @@ func init() {
 			"Logs directly in <import directory> will be imported into a database" +
 			" named <database name>.",
 		Flags: []cli.Flag{
+			ConfigFlag,
 			threadFlag,
 			deleteFlag,
 			rollingFlag,
@@ -31,7 +32,7 @@ func init() {
 		Action: func(c *cli.Context) error {
 			importer := NewImporter(c)
 			err := importer.run()
-			fmt.Println(updateCheck(c.GlobalString("config")))
+			fmt.Println(updateCheck(getConfigFilePath(c)))
 			return err
 		},
 	}
@@ -58,7 +59,7 @@ type (
 //NewImporter ....
 func NewImporter(c *cli.Context) *Importer {
 	return &Importer{
-		configFile:      c.GlobalString("config"),
+		configFile:      getConfigFilePath(c),
 		args:            c.Args(),
 		deleteOldData:   c.Bool("delete"),
 		userRolling:     c.Bool("rolling"),
