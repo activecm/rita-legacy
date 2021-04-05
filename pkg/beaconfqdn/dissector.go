@@ -92,7 +92,6 @@ func (d *dissector) start() {
 					},
 					"count":  bson.M{"$sum": "$dat.count"},
 					"tbytes": bson.M{"$sum": "$dat.tbytes"},
-					"icerts": bson.M{"$anyElementTrue": []interface{}{"$dat.icerts"}},
 				}},
 				{"$group": bson.M{
 					"_id":    "$src",
@@ -100,7 +99,6 @@ func (d *dissector) start() {
 					"bytes":  bson.M{"$push": "$bytes"},
 					"count":  bson.M{"$sum": "$count"},
 					"tbytes": bson.M{"$sum": "$tbytes"},
-					"icerts": bson.M{"$push": "$icerts"},
 				}},
 				{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.BeaconFQDN.DefaultConnectionThresh}}},
 				{"$unwind": bson.M{
@@ -123,7 +121,6 @@ func (d *dissector) start() {
 					"bytes":  bson.M{"$first": "$bytes"},
 					"count":  bson.M{"$first": "$count"},
 					"tbytes": bson.M{"$first": "$tbytes"},
-					"icerts": bson.M{"$first": "$icerts"},
 				}},
 				{"$unwind": bson.M{
 					"path":                       "$bytes",
@@ -139,7 +136,6 @@ func (d *dissector) start() {
 					"bytes":  bson.M{"$push": "$bytes"},
 					"count":  bson.M{"$first": "$count"},
 					"tbytes": bson.M{"$first": "$tbytes"},
-					"icerts": bson.M{"$first": "$icerts"},
 				}},
 				{"$project": bson.M{
 					"_id":    0,
@@ -147,7 +143,6 @@ func (d *dissector) start() {
 					"bytes":  1,
 					"count":  1,
 					"tbytes": 1,
-					"icerts": bson.M{"$anyElementTrue": []interface{}{"$icerts"}},
 				}},
 			}
 
@@ -156,7 +151,6 @@ func (d *dissector) start() {
 				Ts     []int64 `bson:"ts"`
 				Bytes  []int64 `bson:"bytes"`
 				TBytes int64   `bson:"tbytes"`
-				ICerts bool    `bson:"icerts"`
 			}
 
 			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnTable).Pipe(uconnFindQuery).AllowDiskUse().One(&res)
@@ -170,7 +164,6 @@ func (d *dissector) start() {
 					Src:             entry.Src,
 					ConnectionCount: res.Count,
 					TotalBytes:      res.TBytes,
-					InvalidCertFlag: res.ICerts,
 					ResolvedIPs:     entry.ResolvedIPs,
 				}
 

@@ -252,9 +252,6 @@ func (a *analyzer) start() {
 				// create selector for output
 				output.beacon.selector = selectorPair.BSONKey()
 
-				// updates source entry in hosts table to flag for invalid certificates
-				output.hostIcert = a.hostIcertQuery(entry.InvalidCertFlag, entry.Src.Unpair(), entry.FQDN)
-
 				// updates max FQDN beacon score for the source entry in the hosts table
 				output.hostBeacon = a.hostBeaconQuery(score, entry.Src.Unpair(), entry.FQDN)
 
@@ -307,60 +304,6 @@ func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64
 		counts[last]++
 	}
 	return result, counts
-}
-
-func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, fqdn string) updateInfo {
-	ssn := a.db.Session.Copy()
-	defer ssn.Close()
-
-	var output updateInfo
-
-	// create query
-	query := bson.M{}
-
-	// update host table if there is an invalid cert record between pair
-	if icert == true {
-
-		newFlag := false
-
-		var resList []interface{}
-
-		hostSelector := src.BSONKey()
-		hostSelector["dat.icfqdn"] = fqdn
-
-		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).All(&resList)
-
-		if len(resList) <= 0 {
-			newFlag = true
-		}
-
-		if newFlag {
-
-			query["$push"] = bson.M{
-				"dat": bson.M{
-					"icfqdn": fqdn,
-					"icert":  1,
-					"cid":    a.chunk,
-				}}
-
-			// create selector for output
-			output.query = query
-			output.selector = src.BSONKey()
-
-		} else {
-
-			query["$set"] = bson.M{
-				"dat.$.icert": 1,
-				"dat.$.cid":   a.chunk,
-			}
-
-			// create selector for output
-			output.query = query
-			output.selector = hostSelector
-		}
-	}
-
-	return output
 }
 
 func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string) updateInfo {
