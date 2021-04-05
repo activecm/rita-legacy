@@ -203,6 +203,7 @@ func (a *analyzer) start() {
 						"$set": bson.M{
 							"connection_count":   res.ConnectionCount,
 							"avg_bytes":          res.TotalBytes / res.ConnectionCount,
+							"total_bytes":        res.TotalBytes,
 							"ts.range":           tsIntervalRange,
 							"ts.mode":            tsMode,
 							"ts.mode_count":      tsModeCount,
