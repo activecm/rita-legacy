@@ -7,6 +7,7 @@ import (
 
 // Repository for blacklist results in host collection
 type Repository interface {
+	CreateIndexes() error
 	Upsert()
 }
 
