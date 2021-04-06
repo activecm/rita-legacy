@@ -23,7 +23,6 @@ type (
 	//update ....
 	update struct {
 		beacon     updateInfo
-		hostIcert  updateInfo
 		hostBeacon updateInfo
 	}
 
