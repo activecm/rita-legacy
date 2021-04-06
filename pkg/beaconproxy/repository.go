@@ -57,14 +57,14 @@ type (
 		ConnectionCount   int64 `bson:"connection_count"`
 	}
 
-	//UniqueSrcHostnameTrio ...
+	//UniqueSrcProxyHostnameTrio ...
 	UniqueSrcProxyHostnameTrio struct {
 		data.UniqueSrcIP `bson:",inline"`
 		data.UniqueDstIP `bson:",inline"`
 		FQDN             string `bson:"fqdn"`
 	}
 
-	//ProxyInput
+	//ProxyInput ...
 	ProxyInput struct {
 		Hosts           UniqueSrcProxyHostnameTrio
 		TsList          []int64

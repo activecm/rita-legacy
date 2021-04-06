@@ -48,7 +48,10 @@ func printBeaconsProxy(db string, showNetNames bool, res *resources.Resources) e
 }
 
 func getBeaconProxyWriter(beaconsProxy []beaconproxy.Result, showNetNames bool) (string, error) {
-	tmpl := "<tr><td>{{printf \"%.3f\" .Score}}</td>"
+	tmpl := "<tr>"
+
+	tmpl += "<td>{{printf \"%.3f\" .Score}}</td>"
+
 	if showNetNames {
 		tmpl += "<td>{{.SrcNetworkName}}</td>"
 	}

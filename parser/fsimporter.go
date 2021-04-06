@@ -89,6 +89,7 @@ func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
 	return fs.internal
 }
 
+//CollectFileDetails reads and hashes the files
 func (fs *FSImporter) CollectFileDetails() []*fpt.IndexedFile {
 	// find all of the potential bro log paths
 	files := readFiles(fs.importFiles, fs.res.Log)
@@ -477,7 +478,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// an unexpected port - proto - service Tuple
 								// we only want to increment the count once per unique destination,
 								// not once per connection, hence the flag and the check
-								if uconnMap[srcDstKey].UPPSFlag == false {
+								if !uconnMap[srcDstKey].UPPSFlag {
 									for _, entry := range trustedAppReferenceList {
 										if (protocol == entry.protocol) && (dstPort == entry.port) {
 											if service != entry.service {
@@ -489,7 +490,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 
 								// increment unique dst port: proto : service tuple list for host
-								if stringInSlice(tuple, uconnMap[srcDstKey].Tuples) == false {
+								if !stringInSlice(tuple, uconnMap[srcDstKey].Tuples) {
 									uconnMap[srcDstKey].Tuples = append(uconnMap[srcDstKey].Tuples, tuple)
 								}
 
@@ -497,7 +498,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// record, we'll need to update it with the tuples.
 								if _, ok := certMap[dstKey]; ok {
 									// add tuple to invlaid cert list
-									if stringInSlice(tuple, certMap[dstKey].Tuples) == false {
+									if !stringInSlice(tuple, certMap[dstKey].Tuples) {
 										certMap[dstKey].Tuples = append(certMap[dstKey].Tuples, tuple)
 									}
 								}
@@ -508,7 +509,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								hostMap[dstKey].ConnectionCount++
 
 								// Only append unique timestamps to tslist
-								if int64InSlice(ts, uconnMap[srcDstKey].TsList) == false {
+								if !int64InSlice(ts, uconnMap[srcDstKey].TsList) {
 									uconnMap[srcDstKey].TsList = append(uconnMap[srcDstKey].TsList, ts)
 								}
 
@@ -691,7 +692,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								ts := parseHTTP.TimeStamp
 
 								// add timestamp to unique timestamp list
-								if int64InSlice(ts, proxyHostnameMap[srcProxyFQDNKey].TsList) == false {
+								if !int64InSlice(ts, proxyHostnameMap[srcProxyFQDNKey].TsList) {
 									proxyHostnameMap[srcProxyFQDNKey].TsList = append(proxyHostnameMap[srcProxyFQDNKey].TsList, ts)
 								}
 
@@ -724,7 +725,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								useragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
 
 								// add request string to unique array
-								if stringInSlice(fqdn, useragentMap[userAgentName].Requests) == false {
+								if !stringInSlice(fqdn, useragentMap[userAgentName].Requests) {
 									useragentMap[userAgentName].Requests = append(useragentMap[userAgentName].Requests, fqdn)
 								}
 							}
@@ -779,7 +780,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								useragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
 
 								// add request string to unique array
-								if stringInSlice(host, useragentMap[ja3Hash].Requests) == false {
+								if !stringInSlice(host, useragentMap[ja3Hash].Requests) {
 									useragentMap[ja3Hash].Requests = append(useragentMap[ja3Hash].Requests, host)
 								}
 							}
@@ -816,12 +817,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 									for _, tuple := range uconnMap[srcDstKey].Tuples {
 										// mark as having invalid cert
-										if stringInSlice(tuple, certMap[dstKey].Tuples) == false {
+										if !stringInSlice(tuple, certMap[dstKey].Tuples) {
 											certMap[dstKey].Tuples = append(certMap[dstKey].Tuples, tuple)
 										}
 									}
 									// mark as having invalid cert
-									if stringInSlice(certStatus, certMap[dstKey].InvalidCerts) == false {
+									if !stringInSlice(certStatus, certMap[dstKey].InvalidCerts) {
 										certMap[dstKey].InvalidCerts = append(certMap[dstKey].InvalidCerts, certStatus)
 									}
 									// add src of ssl request to unique array
@@ -1064,11 +1065,11 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// Build query for aggregation
 	timestampMinQuery := []bson.M{
-		bson.M{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
-		bson.M{"$unwind": "$ts"},
-		bson.M{"$unwind": "$ts"}, // Not an error, must unwind it twice
-		bson.M{"$sort": bson.M{"ts": 1}},
-		bson.M{"$limit": 1},
+		{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
+		{"$unwind": "$ts"},
+		{"$unwind": "$ts"}, // Not an error, must unwind it twice
+		{"$sort": bson.M{"ts": 1}},
+		{"$limit": 1},
 	}
 
 	var resultMin struct {
@@ -1088,11 +1089,11 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// Build query for aggregation
 	timestampMaxQuery := []bson.M{
-		bson.M{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
-		bson.M{"$unwind": "$ts"},
-		bson.M{"$unwind": "$ts"}, // Not an error, must unwind it twice
-		bson.M{"$sort": bson.M{"ts": -1}},
-		bson.M{"$limit": 1},
+		{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
+		{"$unwind": "$ts"},
+		{"$unwind": "$ts"}, // Not an error, must unwind it twice
+		{"$sort": bson.M{"ts": -1}},
+		{"$limit": 1},
 	}
 
 	var resultMax struct {

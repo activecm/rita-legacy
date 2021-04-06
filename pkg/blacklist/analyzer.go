@@ -191,12 +191,12 @@ func (a *analyzer) getUniqueConnsforBLDestination(blDestinationIP data.UniqueIP)
 	var blIPs []connectionPeer
 
 	blIPQuery := []bson.M{
-		bson.M{"$match": bson.M{
+		{"$match": bson.M{
 			"dst":              blDestinationIP.IP,
 			"dst_network_uuid": blDestinationIP.NetworkUUID,
 		}},
-		bson.M{"$unwind": "$dat"},
-		bson.M{"$group": bson.M{
+		{"$unwind": "$dat"},
+		{"$group": bson.M{
 			"_id": bson.M{
 				"ip":           "$src",
 				"network_uuid": "$src_network_uuid",
@@ -220,12 +220,12 @@ func (a *analyzer) getUniqueConnsforBLSource(blSourceIP data.UniqueIP) []connect
 	var blIPs []connectionPeer
 
 	blIPQuery := []bson.M{
-		bson.M{"$match": bson.M{
+		{"$match": bson.M{
 			"src":              blSourceIP.IP,
 			"src_network_uuid": blSourceIP.NetworkUUID,
 		}},
-		bson.M{"$unwind": "$dat"},
-		bson.M{"$group": bson.M{
+		{"$unwind": "$dat"},
+		{"$group": bson.M{
 			"_id": bson.M{
 				"ip":           "$dst",
 				"network_uuid": "$dst_network_uuid",

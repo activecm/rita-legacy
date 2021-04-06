@@ -79,7 +79,7 @@ func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile
 	}
 	if broDataFactory == nil {
 		fileHandle.Close()
-		return toReturn, errors.New("Could not map file header to parse type")
+		return toReturn, errors.New("could not map file header to parse type")
 	}
 	toReturn.SetBroDataFactory(broDataFactory)
 
@@ -98,13 +98,13 @@ func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile
 	line := parseLine(scanner.Text(), header, fieldMap, broDataFactory, toReturn.IsJSON(), res.Log)
 	if line == nil {
 		fileHandle.Close()
-		return toReturn, errors.New("Could not parse first line of file")
+		return toReturn, errors.New("could not parse first line of file")
 	}
 
 	toReturn.TargetCollection = line.TargetCollection(&res.Config.T.Structure)
 	if toReturn.TargetCollection == "" {
 		fileHandle.Close()
-		return toReturn, errors.New("Could not find a target collection for file")
+		return toReturn, errors.New("could not find a target collection for file")
 	}
 
 	toReturn.TargetDatabase = res.DB.GetSelectedDB()

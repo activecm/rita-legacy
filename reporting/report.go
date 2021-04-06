@@ -26,9 +26,9 @@ func PrintHTML(dbsIn []string, showNetNames bool, noBrowser bool, res *resources
 	}
 
 	var dbs []string
-	for _, db := range dbsIn {
-		dbs = append(dbs, db)
-	}
+
+	dbs = append(dbs, dbsIn...)
+
 	if len(dbs) == 0 {
 		return errors.New("none of the selected databases have been analyzed")
 	}

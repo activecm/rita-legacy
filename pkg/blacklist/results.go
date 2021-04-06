@@ -5,7 +5,7 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
-//HostnameReults finds blacklisted hostnames in the database and the IPs of the
+//HostnameResults finds blacklisted hostnames in the database and the IPs of the
 //hosts which connected to the blacklisted hostnames. The results will be sorted in
 //descending order keyed on of {uconn_count, conn_count, total_bytes} depending on the value
 //of sort. limit and noLimit control how many results are returned.
@@ -15,25 +15,25 @@ func HostnameResults(res *resources.Resources, sort string, limit int, noLimit b
 
 	blHostsQuery := []bson.M{
 		// find blacklisted hostnames and the IPs associated with them
-		bson.M{"$match": bson.M{"blacklisted": true}},
-		bson.M{"$project": bson.M{
+		{"$match": bson.M{"blacklisted": true}},
+		{"$project": bson.M{
 			"host":    1,
 			"dat.ips": 1,
 		}},
 		// aggregate over time/ chunks
-		bson.M{"$unwind": "$dat"},
+		{"$unwind": "$dat"},
 		// remove duplicate ips associated with each hostname
-		bson.M{"$unwind": "$dat.ips"},
+		{"$unwind": "$dat.ips"},
 		// remove network_name as it may not be consistent with
 		// network_uuid and we don't need to display it
-		bson.M{"$project": bson.M{"dat.ips.network_name": 0}},
-		bson.M{"$group": bson.M{
+		{"$project": bson.M{"dat.ips.network_name": 0}},
+		{"$group": bson.M{
 			"_id": "$host",
 			"ips": bson.M{"$addToSet": "$dat.ips"},
 		}},
-		bson.M{"$unwind": "$ips"},
+		{"$unwind": "$ips"},
 		// find out which IPs connected to each hostname via uconn
-		bson.M{"$lookup": bson.M{
+		{"$lookup": bson.M{
 			"from": "uconn",
 			"let":  bson.M{"ip": "$ips.ip", "network_uuid": "$ips.network_uuid"},
 			"pipeline": []bson.M{{"$match": bson.M{"$expr": bson.M{
@@ -44,9 +44,9 @@ func HostnameResults(res *resources.Resources, sort string, limit int, noLimit b
 			}}}},
 			"as": "uconn",
 		}},
-		bson.M{"$unwind": "$uconn"},
-		bson.M{"$unwind": "$uconn.dat"},
-		bson.M{"$project": bson.M{
+		{"$unwind": "$uconn"},
+		{"$unwind": "$uconn.dat"},
+		{"$project": bson.M{
 			"host":             1,
 			"src_ip":           "$uconn.src",
 			"src_network_uuid": "$uconn.src_network_uuid",
@@ -58,7 +58,7 @@ func HostnameResults(res *resources.Resources, sort string, limit int, noLimit b
 		// and connections per blacklisted hostname.
 		// we have to do this in parts because network_name
 		// may be different between IPs with the same network_uuid
-		bson.M{"$group": bson.M{
+		{"$group": bson.M{
 			"_id": bson.M{
 				"host":             "$_id",
 				"src_ip":           "$src_ip",
@@ -68,7 +68,7 @@ func HostnameResults(res *resources.Resources, sort string, limit int, noLimit b
 			"conns":            bson.M{"$sum": "$conns"},
 			"tbytes":           bson.M{"$sum": "$tbytes"},
 		}},
-		bson.M{"$project": bson.M{
+		{"$project": bson.M{
 			"_id":    0,
 			"host":   "$_id.host",
 			"conns":  1,
@@ -80,13 +80,13 @@ func HostnameResults(res *resources.Resources, sort string, limit int, noLimit b
 			},
 		}},
 
-		bson.M{"$group": bson.M{
+		{"$group": bson.M{
 			"_id":     "$host",
 			"conns":   bson.M{"$sum": "$conns"},
 			"tbytes":  bson.M{"$sum": "$tbytes"},
 			"sources": bson.M{"$addToSet": "$src"},
 		}},
-		bson.M{"$project": bson.M{
+		{"$project": bson.M{
 			"_id":         0,
 			"host":        "$_id",
 			"uconn_count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$sources", []interface{}{}}}},
@@ -94,7 +94,7 @@ func HostnameResults(res *resources.Resources, sort string, limit int, noLimit b
 			"total_bytes": "$tbytes",
 			"sources":     1,
 		}},
-		bson.M{"$sort": bson.M{sort: -1}},
+		{"$sort": bson.M{sort: -1}},
 	}
 
 	if !noLimit {
@@ -140,16 +140,16 @@ func ipResults(res *resources.Resources, sort string, limit int, noLimit bool, s
 		blPeerField = "dst"
 		hostMatch = bson.M{
 			"$and": []bson.M{
-				bson.M{"blacklisted": true},
-				bson.M{"dat.count_src": bson.M{"$gt": 0}},
+				{"blacklisted": true},
+				{"dat.count_src": bson.M{"$gt": 0}},
 			}}
 	} else { // find blacklisted destination IPs
 		blHostField = "dst"
 		blPeerField = "src"
 		hostMatch = bson.M{
 			"$and": []bson.M{
-				bson.M{"blacklisted": true},
-				bson.M{"dat.count_dst": bson.M{"$gt": 0}},
+				{"blacklisted": true},
+				{"dat.count_dst": bson.M{"$gt": 0}},
 			}}
 	}
 
@@ -157,15 +157,15 @@ func ipResults(res *resources.Resources, sort string, limit int, noLimit bool, s
 
 	blIPQuery := []bson.M{
 		// find blacklisted source/ destination hosts
-		bson.M{"$match": hostMatch},
+		{"$match": hostMatch},
 		// only select ip info from hosts collection
-		bson.M{"$project": bson.M{
+		{"$project": bson.M{
 			"ip":           1,
 			"network_uuid": 1,
 			"network_name": 1,
 		}},
 		// join on both src/dst and src/dst_network_uuid
-		bson.M{"$lookup": bson.M{
+		{"$lookup": bson.M{
 			"from": "uconn",
 			"let":  bson.M{"ip": "$ip", "network_uuid": "$network_uuid"},
 			"pipeline": []bson.M{{"$match": bson.M{"$expr": bson.M{
@@ -177,11 +177,11 @@ func ipResults(res *resources.Resources, sort string, limit int, noLimit bool, s
 			"as": "uconn",
 		}},
 		// convert lookup array to separate records
-		bson.M{"$unwind": "$uconn"},
+		{"$unwind": "$uconn"},
 		// start aggregation across chunks/ time
-		bson.M{"$unwind": "$uconn.dat"},
+		{"$unwind": "$uconn.dat"},
 		// simplify names/ drop unused data
-		bson.M{"$project": bson.M{
+		{"$project": bson.M{
 			"ip":                1,
 			"network_uuid":      1,
 			"network_name":      1,
@@ -198,7 +198,7 @@ func ipResults(res *resources.Resources, sort string, limit int, noLimit bool, s
 		// to get around this, we pick one of the names associated with a
 		// given peer uuid and throw away the rest.
 		// aggregate uconn data through time (over chunks)
-		bson.M{"$group": bson.M{
+		{"$group": bson.M{
 			"_id": bson.M{
 				// group within each blacklisted host
 				"ip":           "$ip",
@@ -218,7 +218,7 @@ func ipResults(res *resources.Resources, sort string, limit int, noLimit bool, s
 			"tbytes": bson.M{"$sum": "$tbytes"},
 		}},
 		// gather the peer fields so we can use addToSet
-		bson.M{"$project": bson.M{
+		{"$project": bson.M{
 			"_id":          0, //move the id fields back out
 			"ip":           "$_id.ip",
 			"network_uuid": "$_id.network_uuid",
@@ -244,7 +244,7 @@ func ipResults(res *resources.Resources, sort string, limit int, noLimit bool, s
 			"tbytes": bson.M{"$sum": "$tbytes"},
 		}},
 		// move the id fields back out and add uconn_count
-		bson.M{"$project": bson.M{
+		{"$project": bson.M{
 			"_id":          0,
 			"ip":           "$_id.ip",
 			"network_uuid": "$_id.network_uuid",
@@ -254,7 +254,7 @@ func ipResults(res *resources.Resources, sort string, limit int, noLimit bool, s
 			"uconn_count":  bson.M{"$size": bson.M{"$ifNull": []interface{}{"$peers", []interface{}{}}}},
 			"total_bytes":  "$tbytes",
 		}},
-		bson.M{"$sort": bson.M{sort: -1}},
+		{"$sort": bson.M{sort: -1}},
 	}
 
 	if !noLimit {

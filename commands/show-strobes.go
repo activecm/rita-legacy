@@ -39,7 +39,7 @@ func init() {
 			res.DB.SelectDB(db)
 
 			sortDirection := -1
-			if c.Bool("connection-count") == false {
+			if !c.Bool("connection-count") {
 				sortDirection = 1
 			}
 
