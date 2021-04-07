@@ -93,6 +93,7 @@ func (r *remover) removeOutdatedCIDs(cid int) error {
 	// documents due to to the special case in how that data is updated and stored.
 	modules := []string{
 		r.res.Config.T.Beacon.BeaconTable,
+		r.res.Config.T.BeaconFQDN.BeaconFQDNTable,
 		r.res.Config.T.Structure.HostTable,
 		r.res.Config.T.Structure.UniqueConnTable,
 		r.res.Config.T.DNS.ExplodedDNSTable,
