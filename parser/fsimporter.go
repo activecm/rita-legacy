@@ -892,6 +892,11 @@ func (fs *FSImporter) markBlacklistedPeers(hostMap map[string]*host.Input) {
 	if len(hostMap) > 0 {
 		blacklistRepo := blacklist.NewMongoRepository(fs.res)
 
+		err := blacklistRepo.CreateIndexes()
+		if err != nil {
+			fs.res.Log.Error(err)
+		}
+
 		// send uconns to host analysis
 		blacklistRepo.Upsert()
 	}
