@@ -1,10 +1,13 @@
 package beaconfqdn
 
 import (
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/globalsign/mgo/bson"
 )
@@ -18,6 +21,10 @@ type (
 		closedCallback    func()                    // called when .close() is called and no more calls to analyzedCallback will be made
 		dissectChannel    chan *hostname.FqdnInput  // holds unanalyzed data
 		dissectWg         sync.WaitGroup            // wait for analysis to finish
+		mu                sync.Mutex                // guards balanc
+		totalTime         float64
+		totAccum          int
+		totThreads        int
 	}
 )
 
@@ -46,14 +53,104 @@ func (d *dissector) close() {
 }
 
 //start kicks off a new analysis thread
+/*
+db.getCollection('uconn').aggregate([{"$match": {
+					"$and": [{"$or": [{"src":"10.55.100.103"},{"src":"10.55.100.106"}]}, {"$or": [{"dst":"172.217.4.226"}]}]}},
+				{"$project": {
+					"src": 1,
+                                        "src_network_uuid":1,
+                                        "src_network_name":1,
+					"ts": {
+						"$reduce": {
+							"input":        "$dat.ts",
+							"initialValue": [],
+							"in":           {"$concatArrays": ["$$value", "$$this"]},
+						},
+					},
+					"bytes": {
+						"$reduce": {
+							"input":        "$dat.bytes",
+							"initialValue": [],
+							"in":           {"$concatArrays": ["$$value", "$$this"]},
+						},
+					},
+					"count":  {"$sum": "$dat.count"},
+					"tbytes": {"$sum": "$dat.tbytes"},
+					"icerts": {"$anyElementTrue": ["$dat.icerts"]},
+				}},
+				{"$group": {
+					"_id":    "$src",
+                                        "src_network_uuid": {"$first":"$src_network_uuid"},
+                                        "src_network_name":{"$first":"$src_network_name"},
+					"ts":     {"$push": "$ts"},
+					"bytes":  {"$push": "$bytes"},
+					"count":  {"$sum": "$count"},
+					"tbytes": {"$sum": "$tbytes"},
+					"icerts": {"$push": "$icerts"},
+				}},
+                                {"$unwind": {
+					"path": "$ts",
+					// by default, $unwind does not output a document if the field value is null,
+					// missing, or an empty array. Since uconns stops storing ts and byte array
+					// results if a result is going to be guaranteed to be a beacon, we need this
+					// to not discard the result so we can update the fqdn beacon accurately
+					"preserveNullAndEmptyArrays": true,
+				}},
+// 				{"$unwind": {
+// 					"path":                       "$ts",
+// 					"preserveNullAndEmptyArrays": true,
+// 				}},
+// 				{"$group": {
+// 					"_id": "$id",
+// 					// need to unique-ify timestamps or else results
+// 					// will be skewed by "0 distant" data points
+// 					"ts":     {"$addToSet": "$ts"},
+// 					"bytes":  {"$first": "$bytes"},
+// 					"count":  {"$first": "$count"},
+// 					"tbytes": {"$first": "$tbytes"},
+// 					"icerts": {"$first": "$icerts"},
+// 				}},
+				{"$unwind": {
+					"path":                       "$bytes",
+					"preserveNullAndEmptyArrays": true,
+				}},
+// 				{"$unwind": {
+// 					"path":                       "$bytes",
+// 					"preserveNullAndEmptyArrays": true,
+// 				}},
+// 				{"$group": {
+// 					"_id":    "$src",
+// 					"ts":     {"$first": "$ts"},
+// 					"bytes":  {"$push": "$bytes"},
+// 					"count":  {"$first": "$count"},
+// 					"tbytes": {"$first": "$tbytes"},
+// 					"icerts": {"$first": "$icerts"},
+// 				}},
+				{"$project": {
+					"_id":    1,
+                                        "src_network_uuid":1,
+                                        "src_network_name":1,
+                                    // "src":    1,
+					"ts":     1,
+					"bytes":  1,
+					"count":  1,
+					"tbytes": 1,
+					"icerts": {"$anyElementTrue": ["$icerts"]},
+				}},
+
+                                ])
+*/
 func (d *dissector) start() {
 	d.dissectWg.Add(1)
+	d.mu.Lock()
+	d.totThreads += 1
+	d.mu.Unlock()
 	go func() {
 		ssn := d.db.Session.Copy()
 		defer ssn.Close()
-
+		avgRuns := 0.0
 		for entry := range d.dissectChannel {
-
+			start := time.Now()
 			// This will work for both updating and inserting completely new Beacons
 			// for every new hostnames record we have, we will check every entry in the
 			// uconn table where the source IP from the hostnames record connected to one
@@ -72,10 +169,13 @@ func (d *dissector) start() {
 				// we do not have that, so the calculation must happen. We don't necessarily need to store
 				// the tslist or byte list, but I don't think that leaving it in will significantly impact
 				// performance on a few strobes.
-				{"$match": entry.Src.BSONKey()},
-				{"$match": bson.M{"$or": entry.DstBSONList}},
+
+				{"$match": bson.M{
+					"$and": []bson.M{bson.M{"$or": entry.SrcBSONList}, bson.M{"$or": entry.DstBSONList}}}},
 				{"$project": bson.M{
-					"src": 1,
+					"src":              1,
+					"src_network_uuid": 1,
+					"src_network_name": 1,
 					"ts": bson.M{
 						"$reduce": bson.M{
 							"input":        "$dat.ts",
@@ -95,14 +195,16 @@ func (d *dissector) start() {
 					"icerts": bson.M{"$anyElementTrue": []interface{}{"$dat.icerts"}},
 				}},
 				{"$group": bson.M{
-					"_id":    "$src",
-					"ts":     bson.M{"$push": "$ts"},
-					"bytes":  bson.M{"$push": "$bytes"},
-					"count":  bson.M{"$sum": "$count"},
-					"tbytes": bson.M{"$sum": "$tbytes"},
-					"icerts": bson.M{"$push": "$icerts"},
+					"_id":              "$src",
+					"src_network_uuid": bson.M{"$first": "$src_network_uuid"},
+					"src_network_name": bson.M{"$first": "$src_network_name"},
+					"ts":               bson.M{"$push": "$ts"},
+					"bytes":            bson.M{"$push": "$bytes"},
+					"count":            bson.M{"$sum": "$count"},
+					"tbytes":           bson.M{"$sum": "$tbytes"},
+					"icerts":           bson.M{"$push": "$icerts"},
 				}},
-				{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.BeaconFQDN.DefaultConnectionThresh}}},
+				//{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.BeaconFQDN.DefaultConnectionThresh}}},
 				{"$unwind": bson.M{
 					"path": "$ts",
 					// by default, $unwind does not output a document if the field value is null,
@@ -111,63 +213,74 @@ func (d *dissector) start() {
 					// to not discard the result so we can update the fqdn beacon accurately
 					"preserveNullAndEmptyArrays": true,
 				}},
-				{"$unwind": bson.M{
-					"path":                       "$ts",
-					"preserveNullAndEmptyArrays": true,
-				}},
-				{"$group": bson.M{
-					"_id": "$_id",
-					// need to unique-ify timestamps or else results
-					// will be skewed by "0 distant" data points
-					"ts":     bson.M{"$addToSet": "$ts"},
-					"bytes":  bson.M{"$first": "$bytes"},
-					"count":  bson.M{"$first": "$count"},
-					"tbytes": bson.M{"$first": "$tbytes"},
-					"icerts": bson.M{"$first": "$icerts"},
-				}},
-				{"$unwind": bson.M{
-					"path":                       "$bytes",
-					"preserveNullAndEmptyArrays": true,
-				}},
+				// {"$unwind": bson.M{
+				// 	"path":                       "$ts",
+				// 	"preserveNullAndEmptyArrays": true,
+				// }},
+				// {"$group": bson.M{
+				// 	"_id": "$_id",
+				// 	// need to unique-ify timestamps or else results
+				// 	// will be skewed by "0 distant" data points
+				// 	"ts":     bson.M{"$addToSet": "$ts"},
+				// 	"bytes":  bson.M{"$first": "$bytes"},
+				// 	"count":  bson.M{"$first": "$count"},
+				// 	"tbytes": bson.M{"$first": "$tbytes"},
+				// 	"icerts": bson.M{"$first": "$icerts"},
+				// }},
 				{"$unwind": bson.M{
 					"path":                       "$bytes",
 					"preserveNullAndEmptyArrays": true,
 				}},
-				{"$group": bson.M{
-					"_id":    "$_id",
-					"ts":     bson.M{"$first": "$ts"},
-					"bytes":  bson.M{"$push": "$bytes"},
-					"count":  bson.M{"$first": "$count"},
-					"tbytes": bson.M{"$first": "$tbytes"},
-					"icerts": bson.M{"$first": "$icerts"},
-				}},
+				// {"$unwind": bson.M{
+				// 	"path":                       "$bytes",
+				// 	"preserveNullAndEmptyArrays": true,
+				// }},
+				// {"$group": bson.M{
+				// 	"_id":    "$_id",
+				// 	"ts":     bson.M{"$first": "$ts"},
+				// 	"bytes":  bson.M{"$push": "$bytes"},
+				// 	"count":  bson.M{"$first": "$count"},
+				// 	"tbytes": bson.M{"$first": "$tbytes"},
+				// 	"icerts": bson.M{"$first": "$icerts"},
+				// }},
 				{"$project": bson.M{
-					"_id":    0,
-					"ts":     1,
-					"bytes":  1,
-					"count":  1,
-					"tbytes": 1,
-					"icerts": bson.M{"$anyElementTrue": []interface{}{"$icerts"}},
+					"_id":              1,
+					"src_network_uuid": 1,
+					"src_network_name": 1,
+					"ts":               1,
+					"bytes":            1,
+					"count":            1,
+					"tbytes":           1,
+					"icerts":           bson.M{"$anyElementTrue": []interface{}{"$icerts"}},
 				}},
 			}
 
-			var res struct {
-				Count  int64   `bson:"count"`
-				Ts     []int64 `bson:"ts"`
-				Bytes  []int64 `bson:"bytes"`
-				TBytes int64   `bson:"tbytes"`
-				ICerts bool    `bson:"icerts"`
-			}
+			type (
+				indvidualRes struct {
+					Src            string      `bson:"_id"`
+					SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
+					SrcNetworkName string      `bson:"src_network_name"`
+					Count          int64       `bson:"count"`
+					Ts             []int64     `bson:"ts"`
+					Bytes          []int64     `bson:"bytes"`
+					TBytes         int64       `bson:"tbytes"`
+					ICerts         bool        `bson:"icerts"`
+				}
+			)
 
-			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnTable).Pipe(uconnFindQuery).AllowDiskUse().One(&res)
+			var allResults []indvidualRes
 
+			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnTable).Pipe(uconnFindQuery).AllowDiskUse().All(&allResults)
+			avgRuns += float64(time.Since(start).Seconds())
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results
-			if res.Count > 0 {
 
+			for _, res := range allResults {
+
+				srcCurr := data.UniqueSrcIP{res.Src, res.SrcNetworkUUID, res.SrcNetworkName}
 				analysisInput := &hostname.FqdnInput{
 					FQDN:            entry.FQDN,
-					Src:             entry.Src,
+					Src:             srcCurr,
 					ConnectionCount: res.Count,
 					TotalBytes:      res.TBytes,
 					InvalidCertFlag: res.ICerts,
@@ -195,6 +308,14 @@ func (d *dissector) start() {
 			}
 
 		}
+		d.mu.Lock()
+		d.totalTime += avgRuns
+		d.totAccum += 1
+		if d.totAccum >= d.totThreads {
+			fmt.Println("Total for dissector: ", float64(avgRuns))
+		}
+		d.mu.Unlock()
+
 		d.dissectWg.Done()
 	}()
 }

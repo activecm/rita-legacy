@@ -36,5 +36,6 @@ type (
 		TsList          []int64
 		OrigBytesList   []int64
 		DstBSONList     []bson.M // set of resolved UniqueDstIPs since we need it in that format
+		SrcBSONList     []bson.M
 	}
 )

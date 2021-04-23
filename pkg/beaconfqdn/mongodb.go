@@ -1,6 +1,7 @@
 package beaconfqdn
 
 import (
+	"fmt"
 	"runtime"
 	"time"
 
@@ -133,7 +134,7 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		),
 		mpb.AppendDecorators(decor.Percentage()),
 	)
-
+	totTime := time.Now()
 	// loop over map entries (each hostname)
 	for _, entry := range hostnameMap {
 
@@ -152,4 +153,6 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 
 	// start the closing cascade (this will also close the other channels)
 	accumulatorWorker.close()
+
+	fmt.Println("Total time fqdn:", time.Since(totTime).Seconds())
 }

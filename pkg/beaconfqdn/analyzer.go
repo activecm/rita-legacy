@@ -1,10 +1,12 @@
 package beaconfqdn
 
 import (
+	"fmt"
 	"math"
 	"sort"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -26,6 +28,10 @@ type (
 		closedCallback   func()                   // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan *hostname.FqdnInput // holds unanalyzed data
 		analysisWg       sync.WaitGroup           // wait for analysis to finish
+		mu               sync.Mutex               // guards balanc
+		totalTime        float64
+		totAccum         int
+		totThreads       int
 	}
 )
 
@@ -59,10 +65,13 @@ func (a *analyzer) close() {
 //start kicks off a new analysis thread
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
+	a.mu.Lock()
+	a.totThreads += 1
+	a.mu.Unlock()
 	go func() {
-
+		avgRuns := 0.0
 		for entry := range a.analysisChannel {
-
+			start := time.Now()
 			// set up beacon writer output
 			output := &update{}
 
@@ -103,7 +112,7 @@ func (a *analyzer) start() {
 				// create selector for output
 				output.beacon.query = query
 				output.beacon.selector = selectorPair.BSONKey()
-
+				avgRuns += float64(time.Since(start).Seconds())
 				// set to writer channel
 				a.analyzedCallback(output)
 
@@ -257,11 +266,19 @@ func (a *analyzer) start() {
 
 				// updates max FQDN beacon score for the source entry in the hosts table
 				output.hostBeacon = a.hostBeaconQuery(score, entry.Src.Unpair(), entry.FQDN)
-
+				avgRuns += float64(time.Since(start).Seconds())
 				// set to writer channel
 				a.analyzedCallback(output)
 			}
+
 		}
+		a.mu.Lock()
+		a.totalTime += avgRuns
+		a.totAccum += 1
+		if a.totAccum >= a.totThreads {
+			fmt.Println("Total for analyzer: ", float64(avgRuns))
+		}
+		a.mu.Unlock()
 		a.analysisWg.Done()
 	}()
 }

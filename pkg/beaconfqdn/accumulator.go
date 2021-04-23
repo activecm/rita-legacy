@@ -1,7 +1,9 @@
 package beaconfqdn
 
 import (
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -18,6 +20,10 @@ type (
 		closedCallback      func()                    // called when .close() is called and no more calls to analyzedCallback will be made
 		accumulateChannel   chan *hostname.Input      // holds unanalyzed data
 		accumulateWg        sync.WaitGroup            // wait for analysis to finish
+		mu                  sync.Mutex                // guards balanc
+		totalTime           float64
+		totAccum            int
+		totThreads          int
 	}
 )
 
@@ -47,11 +53,15 @@ func (c *accumulator) close() {
 //start kicks off a new analysis thread
 func (c *accumulator) start() {
 	c.accumulateWg.Add(1)
+	c.mu.Lock()
+	c.totThreads += 1
+	c.mu.Unlock()
 	go func() {
 		ssn := c.db.Session.Copy()
 		defer ssn.Close()
-
+		avgRuns := 0.0
 		for entry := range c.accumulateChannel {
+			start := time.Now()
 			// create resolved dst array for match query
 			var dstList []bson.M
 			for _, dst := range entry.ResolvedIPs {
@@ -75,21 +85,34 @@ func (c *accumulator) start() {
 
 			// execute query
 			_ = ssn.DB(c.db.GetSelectedDB()).C(c.conf.T.Structure.UniqueConnTable).Pipe(srcMatchQuery).AllowDiskUse().All(&srcRes)
-
+			avgRuns += float64(time.Since(start).Seconds())
 			// for each src that connected to a resolved ip...
+			var srcList []bson.M
+			var tmpSrc data.UniqueSrcIP
 			for _, src := range srcRes {
+				tmpSrc = src
+				srcList = append(srcList, src.Unpair().AsSrc().BSONKey())
 
-				input := &hostname.FqdnInput{
-					Src:         src,
-					FQDN:        entry.Host,
-					DstBSONList: dstList,
-					ResolvedIPs: entry.ResolvedIPs,
-				}
-
-				c.accumulatedCallback(input)
 			}
 
+			input := &hostname.FqdnInput{
+				Src:         tmpSrc,
+				FQDN:        entry.Host,
+				DstBSONList: dstList,
+				ResolvedIPs: entry.ResolvedIPs,
+				SrcBSONList: srcList,
+			}
+
+			c.accumulatedCallback(input)
+
 		}
+		c.mu.Lock()
+		c.totalTime += avgRuns
+		c.totAccum += 1
+		if c.totAccum >= c.totThreads {
+			fmt.Println("Total for Accumulator: ", float64(avgRuns))
+		}
+		c.mu.Unlock()
 		c.accumulateWg.Done()
 	}()
 }
