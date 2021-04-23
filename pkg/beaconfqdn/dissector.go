@@ -170,8 +170,7 @@ func (d *dissector) start() {
 				// the tslist or byte list, but I don't think that leaving it in will significantly impact
 				// performance on a few strobes.
 
-				{"$match": bson.M{
-					"$and": []bson.M{bson.M{"$or": entry.SrcBSONList}, bson.M{"$or": entry.DstBSONList}}}},
+				{"$match": bson.M{"$or": entry.DstBSONList}},
 				{"$project": bson.M{
 					"src":              1,
 					"src_network_uuid": 1,
@@ -195,16 +194,14 @@ func (d *dissector) start() {
 					"icerts": bson.M{"$anyElementTrue": []interface{}{"$dat.icerts"}},
 				}},
 				{"$group": bson.M{
-					"_id":              "$src",
-					"src_network_uuid": bson.M{"$first": "$src_network_uuid"},
-					"src_network_name": bson.M{"$first": "$src_network_name"},
-					"ts":               bson.M{"$push": "$ts"},
-					"bytes":            bson.M{"$push": "$bytes"},
-					"count":            bson.M{"$sum": "$count"},
-					"tbytes":           bson.M{"$sum": "$tbytes"},
-					"icerts":           bson.M{"$push": "$icerts"},
+					"_id":    bson.M{"src": "$src", "uuid": "$src_network_uuid", "network": "$src_network_name"},
+					"ts":     bson.M{"$push": "$ts"},
+					"bytes":  bson.M{"$push": "$bytes"},
+					"count":  bson.M{"$sum": "$count"},
+					"tbytes": bson.M{"$sum": "$tbytes"},
+					"icerts": bson.M{"$push": "$icerts"},
 				}},
-				//{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.BeaconFQDN.DefaultConnectionThresh}}},
+				{"$match": bson.M{"count": bson.M{"$gt": 20}}},
 				{"$unwind": bson.M{
 					"path": "$ts",
 					// by default, $unwind does not output a document if the field value is null,
@@ -213,40 +210,41 @@ func (d *dissector) start() {
 					// to not discard the result so we can update the fqdn beacon accurately
 					"preserveNullAndEmptyArrays": true,
 				}},
-				// {"$unwind": bson.M{
-				// 	"path":                       "$ts",
-				// 	"preserveNullAndEmptyArrays": true,
-				// }},
-				// {"$group": bson.M{
-				// 	"_id": "$_id",
-				// 	// need to unique-ify timestamps or else results
-				// 	// will be skewed by "0 distant" data points
-				// 	"ts":     bson.M{"$addToSet": "$ts"},
-				// 	"bytes":  bson.M{"$first": "$bytes"},
-				// 	"count":  bson.M{"$first": "$count"},
-				// 	"tbytes": bson.M{"$first": "$tbytes"},
-				// 	"icerts": bson.M{"$first": "$icerts"},
-				// }},
+				{"$unwind": bson.M{
+					"path":                       "$ts",
+					"preserveNullAndEmptyArrays": true,
+				}},
+				{"$group": bson.M{
+					"_id": "$_id",
+					// need to unique-ify timestamps or else results
+					// will be skewed by "0 distant" data points
+					"ts":     bson.M{"$addToSet": "$ts"},
+					"bytes":  bson.M{"$first": "$bytes"},
+					"count":  bson.M{"$first": "$count"},
+					"tbytes": bson.M{"$first": "$tbytes"},
+					"icerts": bson.M{"$first": "$icerts"},
+				}},
 				{"$unwind": bson.M{
 					"path":                       "$bytes",
 					"preserveNullAndEmptyArrays": true,
 				}},
-				// {"$unwind": bson.M{
-				// 	"path":                       "$bytes",
-				// 	"preserveNullAndEmptyArrays": true,
-				// }},
-				// {"$group": bson.M{
-				// 	"_id":    "$_id",
-				// 	"ts":     bson.M{"$first": "$ts"},
-				// 	"bytes":  bson.M{"$push": "$bytes"},
-				// 	"count":  bson.M{"$first": "$count"},
-				// 	"tbytes": bson.M{"$first": "$tbytes"},
-				// 	"icerts": bson.M{"$first": "$icerts"},
-				// }},
+				{"$unwind": bson.M{
+					"path":                       "$bytes",
+					"preserveNullAndEmptyArrays": true,
+				}},
+				{"$group": bson.M{
+					"_id":    "$_id",
+					"ts":     bson.M{"$first": "$ts"},
+					"bytes":  bson.M{"$push": "$bytes"},
+					"count":  bson.M{"$first": "$count"},
+					"tbytes": bson.M{"$first": "$tbytes"},
+					"icerts": bson.M{"$first": "$icerts"},
+				}},
 				{"$project": bson.M{
-					"_id":              1,
-					"src_network_uuid": 1,
-					"src_network_name": 1,
+					"_id":              0,
+					"src":              "$_id.src",
+					"src_network_uuid": "$_id.uuid",
+					"src_network_name": "$_id.network",
 					"ts":               1,
 					"bytes":            1,
 					"count":            1,
@@ -277,7 +275,7 @@ func (d *dissector) start() {
 
 			for _, res := range allResults {
 
-				srcCurr := data.UniqueSrcIP{res.Src, res.SrcNetworkUUID, res.SrcNetworkName}
+				srcCurr := data.UniqueSrcIP{SrcIP: res.Src, SrcNetworkUUID: res.SrcNetworkUUID, SrcNetworkName: res.SrcNetworkName}
 				analysisInput := &hostname.FqdnInput{
 					FQDN:            entry.FQDN,
 					Src:             srcCurr,

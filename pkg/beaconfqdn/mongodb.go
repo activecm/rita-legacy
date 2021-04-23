@@ -9,6 +9,7 @@ import (
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
 )
@@ -107,18 +108,8 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		sorterWorker.close,
 	)
 
-	// stage 1 - get all the sources that connected
-	// to a resolved FQDN
-	accumulatorWorker := newAccumulator(
-		r.res.DB,
-		r.res.Config,
-		dissectorWorker.collect,
-		dissectorWorker.close,
-	)
-
 	//kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
-		accumulatorWorker.start()
 		dissectorWorker.start()
 		sorterWorker.start()
 		analyzerWorker.start()
@@ -142,7 +133,19 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 
 		// check to make sure hostname has resolved ips, skip otherwise
 		if len(entry.ResolvedIPs) > 0 {
-			accumulatorWorker.collect(entry)
+
+			var dstList []bson.M
+			for _, dst := range entry.ResolvedIPs {
+				dstList = append(dstList, dst.AsDst().BSONKey())
+			}
+
+			input := &hostname.FqdnInput{
+				FQDN:        entry.Host,
+				DstBSONList: dstList,
+				ResolvedIPs: entry.ResolvedIPs,
+			}
+
+			dissectorWorker.collect(input)
 		}
 
 		// progress bar increment
@@ -152,7 +155,7 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 	p.Wait()
 
 	// start the closing cascade (this will also close the other channels)
-	accumulatorWorker.close()
+	dissectorWorker.close()
 
 	fmt.Println("Total time fqdn:", time.Since(totTime).Seconds())
 }
