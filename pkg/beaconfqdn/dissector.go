@@ -255,7 +255,7 @@ func (d *dissector) start() {
 
 			type (
 				indvidualRes struct {
-					Src            string      `bson:"_id"`
+					Src            string      `bson:"src"`
 					SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
 					SrcNetworkName string      `bson:"src_network_name"`
 					Count          int64       `bson:"count"`
