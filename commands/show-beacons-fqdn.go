@@ -17,8 +17,8 @@ func init() {
 		Usage:     "Print hosts which show signs of C2 software (FQDN Analysis)",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
+			ConfigFlag,
 			humanFlag,
-			configFlag,
 			delimFlag,
 			netNamesFlag,
 		},
@@ -33,7 +33,7 @@ func showBeaconsFQDN(c *cli.Context) error {
 	if db == "" {
 		return cli.NewExitError("Specify a database", -1)
 	}
-	res := resources.InitResources(c.String("config"))
+	res := resources.InitResources(getConfigFilePath(c))
 	res.DB.SelectDB(db)
 
 	data, err := beaconfqdn.Results(res, 0)

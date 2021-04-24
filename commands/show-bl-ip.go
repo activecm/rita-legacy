@@ -18,10 +18,10 @@ func init() {
 		Name:      "show-bl-source-ips",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
+			ConfigFlag,
 			humanFlag,
 			blConnFlag,
 			blSortFlag,
-			configFlag,
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
@@ -35,10 +35,10 @@ func init() {
 		Name:      "show-bl-dest-ips",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
+			ConfigFlag,
 			humanFlag,
 			blConnFlag,
 			blSortFlag,
-			configFlag,
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
@@ -71,7 +71,7 @@ func printBLSourceIPs(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	res := resources.InitResources(c.String("config"))
+	res := resources.InitResources(getConfigFilePath(c))
 	res.DB.SelectDB(db)
 
 	data, err := blacklist.SrcIPResults(res, sort, c.Int("limit"), c.Bool("no-limit"))
@@ -105,7 +105,7 @@ func printBLDestIPs(c *cli.Context) error {
 		return err
 	}
 
-	res := resources.InitResources(c.String("config"))
+	res := resources.InitResources(getConfigFilePath(c))
 	res.DB.SelectDB(db)
 
 	data, err := blacklist.DstIPResults(res, sort, c.Int("limit"), c.Bool("no-limit"))
