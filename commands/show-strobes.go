@@ -18,7 +18,7 @@ func init() {
 		Usage:     "Print strobe information",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			configFlag,
+			ConfigFlag,
 			humanFlag,
 			cli.BoolFlag{
 				Name:  "connection-count, l",

@@ -18,7 +18,7 @@ func init() {
 		Name:      "show-bl-source-ips",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			configFlag,
+			ConfigFlag,
 			humanFlag,
 			blConnFlag,
 			blSortFlag,
@@ -35,7 +35,7 @@ func init() {
 		Name:      "show-bl-dest-ips",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			configFlag,
+			ConfigFlag,
 			humanFlag,
 			blConnFlag,
 			blSortFlag,

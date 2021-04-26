@@ -11,8 +11,8 @@ import (
 var (
 	allCommands []cli.Command
 
-	// configFlag specifies an alternate config file
-	configFlag = cli.StringFlag{
+	// ConfigFlag specifies an alternate config file (Capitalized due to being exported)
+	ConfigFlag = cli.StringFlag{
 		Name:  "config, c",
 		Usage: "Use a specific `CONFIG_FILE` when running this command",
 	}

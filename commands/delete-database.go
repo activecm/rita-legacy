@@ -20,7 +20,7 @@ func init() {
 		Usage:     "Delete imported database(s)",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			configFlag,
+			ConfigFlag,
 			forceFlag,
 			allFlag,
 			matchFlag,

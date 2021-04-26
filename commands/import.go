@@ -22,7 +22,7 @@ func init() {
 			"Logs directly in <import directory> will be imported into a database" +
 			" named <database name>.",
 		Flags: []cli.Flag{
-			configFlag,
+			ConfigFlag,
 			threadFlag,
 			deleteFlag,
 			rollingFlag,

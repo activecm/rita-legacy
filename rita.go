@@ -14,7 +14,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "rita"
 	app.Usage = "Look for evil needles in big haystacks."
-	app.Flags = []cli.Flag{commands.configFlag}
+	app.Flags = []cli.Flag{commands.ConfigFlag}
 
 	cli.VersionPrinter = commands.GetVersionPrinter()
 

@@ -17,7 +17,7 @@ func init() {
 		Usage:     "Print hosts which show signs of C2 software (FQDN Analysis)",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			configFlag,
+			ConfigFlag,
 			humanFlag,
 			delimFlag,
 			netNamesFlag,

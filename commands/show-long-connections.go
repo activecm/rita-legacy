@@ -19,7 +19,7 @@ func init() {
 		Usage:     "Print long connections and relevant information",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			configFlag,
+			ConfigFlag,
 			humanFlag,
 			limitFlag,
 			noLimitFlag,

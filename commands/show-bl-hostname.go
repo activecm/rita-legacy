@@ -19,7 +19,7 @@ func init() {
 		Name:      "show-bl-hostnames",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			configFlag,
+			ConfigFlag,
 			humanFlag,
 			limitFlag,
 			noLimitFlag,

@@ -19,7 +19,7 @@ func init() {
 		Usage:     "Print dns analysis. Exposes covert dns channels",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			configFlag,
+			ConfigFlag,
 			humanFlag,
 			limitFlag,
 			noLimitFlag,

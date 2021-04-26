@@ -18,7 +18,7 @@ func init() {
 		Usage:     "Print user agent information",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			configFlag,
+			ConfigFlag,
 			humanFlag,
 			cli.BoolFlag{
 				Name:  "least-used, l",

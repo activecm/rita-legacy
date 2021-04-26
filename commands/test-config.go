@@ -13,7 +13,7 @@ import (
 
 func init() {
 	command := cli.Command{
-		Flags:  []cli.Flag{configFlag},
+		Flags:  []cli.Flag{ConfigFlag},
 		Name:   "test-config",
 		Usage:  "Check the configuration file for validity",
 		Before: SetConfigFilePath,
