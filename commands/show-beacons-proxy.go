@@ -18,7 +18,6 @@ func init() {
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			humanFlag,
-			configFlag,
 			delimFlag,
 			netNamesFlag,
 		},
