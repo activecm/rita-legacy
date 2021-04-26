@@ -13,15 +13,10 @@ import (
 
 func init() {
 	command := cli.Command{
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  "config, c",
-				Usage: "specify a config file to be used",
-				Value: "",
-			},
-		},
+		Flags:  []cli.Flag{configFlag},
 		Name:   "test-config",
 		Usage:  "Check the configuration file for validity",
+		Before: SetConfigFilePath,
 		Action: testConfiguration,
 	}
 
@@ -31,7 +26,7 @@ func init() {
 // testConfiguration prints out the result of parsing the config file
 func testConfiguration(c *cli.Context) error {
 	// First, print out the config as it was parsed
-	conf, err := config.LoadConfig(c.String("config"))
+	conf, err := config.LoadConfig(getConfigFilePath(c))
 	if err != nil {
 		fmt.Fprintf(os.Stdout, "Failed to config: %s\n", err.Error())
 		os.Exit(-1)
@@ -51,7 +46,7 @@ func testConfiguration(c *cli.Context) error {
 	fmt.Fprintf(os.Stdout, "\n%s\n", string(tableConfig))
 
 	// Then test initializing external resources like db connection and file handles
-	resources.InitResources(c.String("config"))
+	resources.InitResources(getConfigFilePath(c))
 
 	return nil
 }

@@ -127,13 +127,34 @@ var (
 	}
 )
 
+// SetConfigFilePath reads config file path from cli context and stores it in app metadata
+// to make it available to all subcommands. The root command and all subcommands use this.
+// If --config flag is supplied for both root command and a subcommand, the value of the
+// subcommand is used.
+func SetConfigFilePath(c *cli.Context) error {
+	if configFilePath := c.String("config"); configFilePath != "" {
+		c.App.Metadata["config"] = configFilePath
+	}
+	return nil
+}
+
+// getConfigFilePath returns config file path from app metadata
+func getConfigFilePath(c *cli.Context) string {
+	switch cfg := c.App.Metadata["config"].(type) {
+	case string:
+		return cfg
+	default:
+		return ""
+	}
+}
+
 // bootstrapCommands simply adds a given command to the allCommands array
 func bootstrapCommands(commands ...cli.Command) {
 	for _, command := range commands {
 		command.Before = func(c *cli.Context) error {
 			//Get access to the logger
-			configFile := c.String("config")
-			res := resources.InitResources(configFile)
+			SetConfigFilePath(c)
+			res := resources.InitResources(getConfigFilePath(c))
 			//Display args in logs
 			fields := log.Fields{
 				"Arguments": c.Args(),

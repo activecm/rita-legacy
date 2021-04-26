@@ -18,9 +18,9 @@ func init() {
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			configFlag,
-			// humanFlag,
-			// delimFlag,
-			// netNamesFlag,
+			humanFlag,
+			delimFlag,
+			netNamesFlag,
 		},
 		Action: showBeaconsProxy,
 	}

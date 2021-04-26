@@ -14,6 +14,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "rita"
 	app.Usage = "Look for evil needles in big haystacks."
+	app.Flags = []cli.Flag{commands.configFlag}
 
 	cli.VersionPrinter = commands.GetVersionPrinter()
 
@@ -24,6 +25,7 @@ func main() {
 
 	// Define commands used with this application
 	app.Commands = commands.Commands()
+	app.Before = commands.SetConfigFilePath
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	app.Run(os.Args)

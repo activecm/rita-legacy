@@ -19,8 +19,8 @@ func init() {
 		Usage:     "Print dns analysis. Exposes covert dns channels",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			humanFlag,
 			configFlag,
+			humanFlag,
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
@@ -31,7 +31,7 @@ func init() {
 				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := resources.InitResources(c.String("config"))
+			res := resources.InitResources(getConfigFilePath(c))
 			res.DB.SelectDB(db)
 
 			data, err := explodeddns.Results(res, c.Int("limit"), c.Bool("no-limit"))

@@ -19,8 +19,8 @@ func init() {
 		Usage:     "Print long connections and relevant information",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			humanFlag,
 			configFlag,
+			humanFlag,
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
@@ -32,7 +32,7 @@ func init() {
 				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := resources.InitResources(c.String("config"))
+			res := resources.InitResources(getConfigFilePath(c))
 			res.DB.SelectDB(db)
 
 			thresh := 60 // 1 minute

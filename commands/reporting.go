@@ -19,7 +19,7 @@ func init() {
 			noBrowserFlag,
 		},
 		Action: func(c *cli.Context) error {
-			res := resources.InitResources(c.String("config"))
+			res := resources.InitResources(getConfigFilePath(c))
 			databaseName := c.Args().Get(0)
 			var databases []string
 			if databaseName != "" {

@@ -22,7 +22,7 @@ var versions = []string{"Major", "Minor", "Patch"}
 func GetVersionPrinter() func(*cli.Context) {
 	return func(c *cli.Context) {
 		fmt.Printf("%s version %s\n", c.App.Name, c.App.Version)
-		fmt.Println(updateCheck(c.String("config")))
+		fmt.Println(updateCheck(getConfigFilePath(c)))
 	}
 }
 

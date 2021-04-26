@@ -17,7 +17,7 @@ func init() {
 			configFlag,
 		},
 		Action: func(c *cli.Context) error {
-			res := resources.InitResources(c.String("config"))
+			res := resources.InitResources(getConfigFilePath(c))
 
 			if res != nil {
 				for _, name := range res.MetaDB.GetDatabases() {
