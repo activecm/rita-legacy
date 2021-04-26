@@ -1,10 +1,8 @@
 package beaconfqdn
 
 import (
-	"fmt"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -20,10 +18,6 @@ type (
 		closedCallback func()                    // called when .close() is called and no more calls to analyzedCallback will be made
 		sortChannel    chan *hostname.FqdnInput  // holds unanalyzed data
 		sortWg         sync.WaitGroup            // wait for analysis to finish
-		mu             sync.Mutex                // guards balanc
-		totalTime      float64
-		totAccum       int
-		totThreads     int
 	}
 )
 
@@ -53,30 +47,18 @@ func (s *sorter) close() {
 //start kicks off a new analysis thread
 func (s *sorter) start() {
 	s.sortWg.Add(1)
-	s.mu.Lock()
-	s.totThreads += 1
-	s.mu.Unlock()
+
 	go func() {
-		avgRuns := 0.0
 		for entry := range s.sortChannel {
-			start := time.Now()
 			if (entry.TsList) != nil {
 				//sort the size and timestamps to compute quantiles in the analyzer
 				sort.Sort(util.SortableInt64(entry.TsList))
 				sort.Sort(util.SortableInt64(entry.OrigBytesList))
 
 			}
-			avgRuns += float64(time.Since(start).Seconds())
-			s.sortedCallback(entry)
 
+			s.sortedCallback(entry)
 		}
-		s.mu.Lock()
-		s.totalTime += avgRuns
-		s.totAccum += 1
-		if s.totAccum >= s.totThreads {
-			fmt.Println("Total for Sorter: ", float64(avgRuns))
-		}
-		s.mu.Unlock()
 		s.sortWg.Done()
 	}()
 }

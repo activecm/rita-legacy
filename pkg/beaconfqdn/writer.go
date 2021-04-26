@@ -1,9 +1,7 @@
 package beaconfqdn
 
 import (
-	"fmt"
 	"sync"
-	"time"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -18,10 +16,6 @@ type (
 		log              *log.Logger    // main logger for RITA
 		writeChannel     chan *update   // holds analyzed data
 		writeWg          sync.WaitGroup // wait for writing to finish
-		mu               sync.Mutex     // guards balanc
-		totalTime        float64
-		totAccum         int
-		totThreads       int
 	}
 )
 
@@ -50,15 +44,13 @@ func (w *writer) close() {
 //start kicks off a new write thread
 func (w *writer) start() {
 	w.writeWg.Add(1)
-	w.mu.Lock()
-	w.totThreads += 1
-	w.mu.Unlock()
+
 	go func() {
 		ssn := w.db.Session.Copy()
 		defer ssn.Close()
-		avgRuns := 0.0
+
 		for data := range w.writeChannel {
-			start := time.Now()
+
 			if data.beacon.query != nil {
 				// update beacons table
 				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.beacon.selector, data.beacon.query)
@@ -103,15 +95,8 @@ func (w *writer) start() {
 					}
 				}
 			}
-			avgRuns += float64(time.Since(start).Seconds())
 		}
-		w.mu.Lock()
-		w.totalTime += avgRuns
-		w.totAccum += 1
-		if w.totAccum >= w.totThreads {
-			fmt.Println("Total for Writer: ", float64(avgRuns))
-		}
-		w.mu.Unlock()
+
 		w.writeWg.Done()
 	}()
 }
