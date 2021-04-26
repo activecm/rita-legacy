@@ -20,6 +20,7 @@ func init() {
 			humanFlag,
 			delimFlag,
 			netNamesFlag,
+			configFlag,
 		},
 		Action: showBeaconsProxy,
 	}
