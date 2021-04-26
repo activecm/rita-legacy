@@ -11,13 +11,10 @@ import (
 var (
 	allCommands []cli.Command
 
-	// below are some prebuilt flags that get used often in various commands
-
-	// configFlag allows users to specify an alternate config file to use
+	// configFlag specifies an alternate config file
 	configFlag = cli.StringFlag{
 		Name:  "config, c",
-		Usage: "Use a given `CONFIG_FILE` when running this command",
-		Value: "",
+		Usage: "Use a specific `CONFIG_FILE` when running this command",
 	}
 
 	// forceFlag allows users to bypass prompts

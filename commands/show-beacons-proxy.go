@@ -17,10 +17,10 @@ func init() {
 		Usage:     "Print hosts which show signs of C2 software (internal -> Proxy)",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
-			humanFlag,
-			delimFlag,
-			netNamesFlag,
 			configFlag,
+			// humanFlag,
+			// delimFlag,
+			// netNamesFlag,
 		},
 		Action: showBeaconsProxy,
 	}
