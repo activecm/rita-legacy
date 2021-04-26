@@ -33,6 +33,7 @@ BlackListed:
 DNS:
     Enabled: true
 Beacon:
+    Enabled: true
     DefaultConnectionThresh: 24
 BeaconFQDN:
     Enabled: true

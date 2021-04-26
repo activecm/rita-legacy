@@ -19,6 +19,8 @@ LogConfig:
     RitaLogPath: null
     LogToFile: false
     LogToDB: true
+UserConfig:
+    UpdateCheckFrequency: 14
 BlackListed:
     myIP.ms: false
     MalwareDomains.com: false
@@ -28,6 +30,7 @@ BlackListed:
 DNS:
     Enabled: true
 Beacon:
+    Enabled: true
     DefaultConnectionThresh: 24
 BeaconFQDN:
     Enabled: true
