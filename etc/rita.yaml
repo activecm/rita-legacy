@@ -126,7 +126,7 @@ BlackListed:
   # Lists containing both IPv4 and IPv6 addresses are acceptable
   CustomIPBlacklists: []
   # Lists containing hostnames, domain names, and FQDNs are acceptable
-  CustomHostnameBlacklists: ["/etc/AI-Hunter/blacklist/ips.txt"]
+  CustomHostnameBlacklists: []
 
 Beacon:
   Enabled: true
