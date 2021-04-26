@@ -308,7 +308,7 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, logger *log.Logger) (
-	map[string]*uconn.Input, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*beaconproxy.ProxyInput, map[string]*useragent.Input, map[string]*certificate.Input) {
+	map[string]*uconn.Input, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*beaconproxy.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 
@@ -317,7 +317,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 	hostnameMap := make(map[string]*hostname.Input)
 
-	proxyHostnameMap := make(map[string]*beaconproxy.ProxyInput)
+	proxyHostnameMap := make(map[string]*beaconproxy.Input)
 
 	useragentMap := make(map[string]*useragent.Input)
 
@@ -680,7 +680,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Check if the map value is set
 								if _, ok := proxyHostnameMap[srcProxyFQDNKey]; !ok {
 									// create new host record with src and dst
-									proxyHostnameMap[srcProxyFQDNKey] = &beaconproxy.ProxyInput{
+									proxyHostnameMap[srcProxyFQDNKey] = &beaconproxy.Input{
 										Hosts: srcProxyFQDNTrio,
 									}
 								}
@@ -1003,7 +1003,7 @@ func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
 
 }
 
-func (fs *FSImporter) buildProxyBeacons(proxyHostnameMap map[string]*beaconproxy.ProxyInput) {
+func (fs *FSImporter) buildProxyBeacons(proxyHostnameMap map[string]*beaconproxy.Input) {
 	if fs.res.Config.S.BeaconProxy.Enabled {
 		if len(proxyHostnameMap) > 0 {
 			beaconProxyRepo := beaconproxy.NewMongoRepository(fs.res)

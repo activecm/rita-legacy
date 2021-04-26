@@ -12,7 +12,7 @@ type (
 	// Repository for host collection
 	Repository interface {
 		CreateIndexes() error
-		Upsert(proxyHostnameMap map[string]*ProxyInput)
+		Upsert(proxyHostnameMap map[string]*Input)
 	}
 
 	updateInfo struct {
@@ -64,8 +64,8 @@ type (
 		FQDN             string `bson:"fqdn"`
 	}
 
-	//ProxyInput ...
-	ProxyInput struct {
+	//Proxy ...
+	Input struct {
 		Hosts           UniqueSrcProxyHostnameTrio
 		TsList          []int64
 		ConnectionCount int64

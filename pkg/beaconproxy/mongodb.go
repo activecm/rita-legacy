@@ -62,7 +62,7 @@ func (r *repo) CreateIndexes() error {
 }
 
 //Upsert loops through every new fqdn requested from a proxy ....
-func (r *repo) Upsert(proxyHostnameMap map[string]*ProxyInput) {
+func (r *repo) Upsert(proxyHostnameMap map[string]*Input) {
 
 	session := r.res.DB.Session.Copy()
 	defer session.Close()
