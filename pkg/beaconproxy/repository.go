@@ -66,7 +66,7 @@ type (
 		FQDN             string `bson:"fqdn"`
 	}
 
-	//Input stucture for sending data
+	//Input structure for sending data
 	//to the analyzer. Contains a tuple of
 	// Src IP/UUID/Name, Dst IP/UUID/Name (intermediary proxy server)
 	// and the FQDN to which the Src was attempting to connect. Contains
