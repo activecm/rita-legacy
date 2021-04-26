@@ -57,14 +57,21 @@ type (
 		ConnectionCount   int64 `bson:"connection_count"`
 	}
 
-	//UniqueSrcProxyHostnameTrio ...
+	//UniqueSrcProxyHostnameTrio is used to make a tuple of
+	// Src IP/UUID/Name, proxy server IP/UUID/Name (UniqueDstIP), and an FQDN
+	// to which the Src IP was attempting to communicate
 	UniqueSrcProxyHostnameTrio struct {
 		data.UniqueSrcIP `bson:",inline"`
 		data.UniqueDstIP `bson:",inline"`
 		FQDN             string `bson:"fqdn"`
 	}
 
-	//Proxy ...
+	//Input stucture for sending data
+	//to the analyzer. Contains a tuple of
+	// Src IP/UUID/Name, Dst IP/UUID/Name (intermediary proxy server)
+	// and the FQDN to which the Src was attempting to connect. Contains
+	// a list of unique time stamps for the connections out from the Src to
+	// the FQDN via the proxy server and a count of the connections.
 	Input struct {
 		Hosts           UniqueSrcProxyHostnameTrio
 		TsList          []int64
