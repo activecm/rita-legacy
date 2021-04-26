@@ -83,8 +83,8 @@ Filtering:
     - 172.16.0.0/12 # Private-Use Networks  RFC 1918
     - 192.168.0.0/16 # Private-Use Networks  RFC 1918
   
-  # Example: ProxyServers: ["192.168.0.1"]
-  # If the environment uses one or more proxy servers, list those IP
+  # Example: HTTPProxyServers: ["192.168.0.1"]
+  # If the environment uses one or more HTTP proxy servers, list those IP
   # addresses here. In some cases, we can perform additional analysis
   # when internal systems are contacting external systems with
   # a proxy server as an intermediary. The additional processing allows
@@ -95,7 +95,7 @@ Filtering:
   # systems beaconing to an external system. Note that the efficacy
   # of the analysis depends on the proxy server configuration, network
   # topology, and deployment network sensors
-  ProxyServers: []
+  HTTPProxyServers: []
   
   # Example: AlwaysIncludeDomain: ["mydomain.com","*.mydomain.com"]
   # This functionality overrides the NeverIncludeDomain 

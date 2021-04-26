@@ -44,7 +44,7 @@ type (
 		parseThreads         int
 		batchSizeBytes       int64
 		internal             []*net.IPNet
-		proxyServers         []*net.IPNet
+		httpProxyServers     []*net.IPNet
 		alwaysIncluded       []*net.IPNet
 		neverIncluded        []*net.IPNet
 		alwaysIncludedDomain []string
@@ -71,7 +71,7 @@ func NewFSImporter(res *resources.Resources,
 		parseThreads:         parseThreads,
 		batchSizeBytes:       2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
 		internal:             util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
-		proxyServers:         util.ParseSubnets(res.Config.S.Filtering.ProxyServers),
+		httpProxyServers:     util.ParseSubnets(res.Config.S.Filtering.HTTPProxyServers),
 		alwaysIncluded:       util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
 		neverIncluded:        util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
 		alwaysIncludedDomain: res.Config.S.Filtering.AlwaysIncludeDomain,

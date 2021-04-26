@@ -36,10 +36,10 @@ type testCaseSingleIP struct {
 func TestCheckIfProxyServer(t *testing.T) {
 
 	fsTest := &FSImporter{
-		res:             nil,
-		indexingThreads: 1,
-		parseThreads:    1,
-		proxyServers:    util.ParseSubnets([]string{"1.1.1.1", "1.1.1.2/32", "1.2.0.0/16"}),
+		res:              nil,
+		indexingThreads:  1,
+		parseThreads:     1,
+		httpProxyServers: util.ParseSubnets([]string{"1.1.1.1", "1.1.1.2/32", "1.2.0.0/16"}),
 	}
 
 	// all permutations for possible IP matches/non-matches

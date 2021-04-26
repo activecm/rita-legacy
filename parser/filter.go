@@ -103,5 +103,5 @@ func (fs *FSImporter) filterDomain(domain string) bool {
 }
 
 func (fs *FSImporter) checkIfProxyServer(host net.IP) bool {
-	return util.ContainsIP(fs.proxyServers, host)
+	return util.ContainsIP(fs.httpProxyServers, host)
 }
