@@ -103,7 +103,7 @@ func (p UniqueSrcProxyHostnameTrio) MapKey() string {
 	srcUUIDLen := 1 + len(p.SrcNetworkUUID.Data)
 	proxyUUIDLen := 1 + len(p.DstNetworkUUID.Data)
 
-	builder.Grow(len(p.SrcIP) + srcUUIDLen + len(p.DstIP) + proxyUUIDLen)
+	builder.Grow(len(p.SrcIP) + srcUUIDLen + len(p.DstIP) + len(p.FQDN) + proxyUUIDLen)
 	builder.WriteString(p.SrcIP)
 	builder.WriteString(p.DstIP)
 	builder.WriteByte(p.SrcNetworkUUID.Kind)
