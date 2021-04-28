@@ -22,7 +22,7 @@ var versions = []string{"Major", "Minor", "Patch"}
 func GetVersionPrinter() func(*cli.Context) {
 	return func(c *cli.Context) {
 		fmt.Printf("%s version %s\n", c.App.Name, c.App.Version)
-		fmt.Println(updateCheck(c.String("config")))
+		fmt.Println(updateCheck(getConfigFilePath(c)))
 	}
 }
 
@@ -43,7 +43,7 @@ func updateCheck(configFile string) string {
 	m := res.MetaDB
 	timestamp, newVersion = m.LastCheck()
 
-	days := time.Now().Sub(timestamp).Hours() / 24
+	days := time.Since(timestamp).Hours() / 24
 
 	if days > float64(delta) {
 		newVersion, err = getRemoteVersion()

@@ -25,6 +25,7 @@ var dbHeader = `
   <li><a href="index.html">Viewing: {{.DB}}</a></li>
   <li><a href="beacons.html">Beacons</a></li>
   <li><a href="beaconsfqdn.html">Beacons FQDN</a></li>
+    <li><a href="beaconsproxy.html">Beacons Proxy</a></li>
 	<li><a href="strobes.html">Strobes</a></li>
 	<li><a href="dns.html">DNS</a></li>
   <li><a href="bl-source-ips.html">BL Source IPs</a></li>
@@ -139,6 +140,32 @@ var BeaconsFQDNNetNamesTempl = dbHeader + `
 	<th>Connections</th><th>Avg. Bytes</th><th>Intvl. Range</th><th>Size Range</th><th>Intvl. Mode</th>
 	<th>Size Mode</th><th>Intvl. Mode Count</th><th>Size Mode Count</th><th>Intvl. Skew</th><th>Size Skew</th>
 	<th>Intvl. Dispersion</th><th>Size Dispersion</th>
+  </tr>
+	{{.Writer}}
+  </table>
+</div>
+`
+
+// BeaconsProxyTempl is our beaconsProxy html template
+var BeaconsProxyTempl = dbHeader + `
+<div class="container">
+  <table>
+  <tr><th>Score</th><th>Source</th><th>FQDN</th><th>Proxy IP</th><th>Connections</th>
+  <th>Intvl. Range</th><th>Intvl. Mode</th><th>Intvl. Mode Count</th>
+	<th>Intvl. Skew</th><th>Intvl. Dispersion</th></tr>
+      {{.Writer}}
+  </table>
+</div>
+`
+
+// BeaconsProxyNetNamesTempl is our beacons html template with network names
+var BeaconsProxyNetNamesTempl = dbHeader + `
+<div class="container">
+  <table>
+  <tr>
+  <tr><th>Score</th><th>Source Network</th><th>Source</th><th>FQDN</th><th>Proxy Network</th><th>Proxy IP</th>
+  <th>Connections</th><th>Intvl. Range</th><th>Intvl. Mode</th><th>Intvl. Mode Count</th>
+	<th>Intvl. Skew</th><th>Intvl. Dispersion</th></tr>
   </tr>
 	{{.Writer}}
   </table>

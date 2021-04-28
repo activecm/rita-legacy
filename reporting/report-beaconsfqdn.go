@@ -48,7 +48,10 @@ func printBeaconsFQDN(db string, showNetNames bool, res *resources.Resources) er
 }
 
 func getBeaconFQDNWriter(beaconsFQDN []beaconfqdn.Result, showNetNames bool) (string, error) {
-	tmpl := "<tr><td>{{printf \"%.3f\" .Score}}</td>"
+	tmpl := "<tr>"
+
+	tmpl += "<td>{{printf \"%.3f\" .Score}}</td>"
+
 	if showNetNames {
 		tmpl += "<td>{{.SrcNetworkName}}</td><td>{{.SrcIP}}</td><td>{{.FQDN}}</td>"
 	} else {

@@ -56,6 +56,26 @@ func (fs *FSImporter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 	return false
 }
 
+// filterSingleIP returns true if an IP is filtered/excluded.
+// This is determined by the following rules, in order:
+//   1. Not filtered IP is on the AlwaysInclude list
+//   2. Filtered IP is on the NeverInclude list
+//   3. Not filtered in all other cases
+func (fs *FSImporter) filterSingleIP(IP net.IP) bool {
+	// check if on always included list
+	if util.ContainsIP(fs.alwaysIncluded, IP) {
+		return false
+	}
+
+	// check if on never included list
+	if util.ContainsIP(fs.neverIncluded, IP) {
+		return true
+	}
+
+	// default to not filter the IP address
+	return false
+}
+
 // filterDomain returns true if a domain is filtered/excluded.
 // This is determined by the following rules, in order:
 //   1. Not filtered if domain is on the AlwaysInclude list
@@ -80,4 +100,8 @@ func (fs *FSImporter) filterDomain(domain string) bool {
 
 	// default to not filter the connection pair
 	return false
+}
+
+func (fs *FSImporter) checkIfProxyServer(host net.IP) bool {
+	return util.ContainsIP(fs.httpProxyServers, host)
 }

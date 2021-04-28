@@ -14,12 +14,12 @@ func init() {
 		UsageText: "rita html-report [command-options] [database]\n\n" +
 			"If no database is specified, a report will be created for every database.",
 		Flags: []cli.Flag{
-			configFlag,
+			ConfigFlag,
 			netNamesFlag,
 			noBrowserFlag,
 		},
 		Action: func(c *cli.Context) error {
-			res := resources.InitResources(c.String("config"))
+			res := resources.InitResources(getConfigFilePath(c))
 			databaseName := c.Args().Get(0)
 			var databases []string
 			if databaseName != "" {

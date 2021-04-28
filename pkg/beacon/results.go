@@ -29,9 +29,9 @@ func StrobeResults(res *resources.Resources, sortDir, limit int, noLimit bool) (
 	var strobes []StrobeResult
 
 	strobeQuery := []bson.M{
-		bson.M{"$match": bson.M{"strobe": true}},
-		bson.M{"$unwind": "$dat"},
-		bson.M{"$project": bson.M{
+		{"$match": bson.M{"strobe": true}},
+		{"$unwind": "$dat"},
+		{"$project": bson.M{
 			"src":              1,
 			"src_network_uuid": 1,
 			"src_network_name": 1,
@@ -40,7 +40,7 @@ func StrobeResults(res *resources.Resources, sortDir, limit int, noLimit bool) (
 			"dst_network_name": 1,
 			"conns":            "$dat.count",
 		}},
-		bson.M{"$group": bson.M{
+		{"$group": bson.M{
 			"_id":              "$_id",
 			"src":              bson.M{"$first": "$src"},
 			"src_network_uuid": bson.M{"$first": "$src_network_uuid"},
@@ -50,7 +50,7 @@ func StrobeResults(res *resources.Resources, sortDir, limit int, noLimit bool) (
 			"dst_network_name": bson.M{"$first": "$dst_network_name"},
 			"connection_count": bson.M{"$sum": "$conns"},
 		}},
-		bson.M{"$sort": bson.M{"connection_count": sortDir}},
+		{"$sort": bson.M{"connection_count": sortDir}},
 	}
 
 	if !noLimit {

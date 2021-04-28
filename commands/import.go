@@ -22,8 +22,8 @@ func init() {
 			"Logs directly in <import directory> will be imported into a database" +
 			" named <database name>.",
 		Flags: []cli.Flag{
+			ConfigFlag,
 			threadFlag,
-			configFlag,
 			deleteFlag,
 			rollingFlag,
 			totalChunksFlag,
@@ -32,7 +32,7 @@ func init() {
 		Action: func(c *cli.Context) error {
 			importer := NewImporter(c)
 			err := importer.run()
-			fmt.Println(updateCheck(c.String("config")))
+			fmt.Println(updateCheck(getConfigFilePath(c)))
 			return err
 		},
 	}
@@ -59,7 +59,7 @@ type (
 //NewImporter ....
 func NewImporter(c *cli.Context) *Importer {
 	return &Importer{
-		configFile:      c.String("config"),
+		configFile:      getConfigFilePath(c),
 		args:            c.Args(),
 		deleteOldData:   c.Bool("delete"),
 		userRolling:     c.Bool("rolling"),
@@ -125,7 +125,7 @@ func parseFlags(dbExists bool, dbIsRolling bool, dbCurrChunk int, dbTotalChunks 
 	if !deleteOldData && (dbExists && !dbIsRolling) && !userIsRolling {
 		return cfg, errors.New(
 			"\t[!] New data cannot be imported into a non-rolling database. " +
-				"Run with --rolling to convert this database into a rolling database.",
+				"Run with --rolling to convert this database into a rolling database",
 		)
 	}
 
@@ -246,7 +246,7 @@ func (i *Importer) run() error {
 	if i.deleteOldData {
 		err := i.handleDeleteOldData()
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("Error deleting old data: %v", err.Error()), -1)
+			return cli.NewExitError(fmt.Errorf("error deleting old data: %v", err.Error()), -1)
 		}
 	}
 

@@ -3,14 +3,15 @@ package config
 type (
 	//TableCfg is the container for other table config sections
 	TableCfg struct {
-		Log       LogTableCfg
-		DNS       DNSTableCfg
-		Structure StructureTableCfg
-		Beacon    BeaconTableCfg
-		BeaconFQDN    BeaconFQDNTableCfg
-		UserAgent UserAgentTableCfg
-		Cert      CertificateTableCfg
-		Meta      MetaTableCfg
+		Log         LogTableCfg
+		DNS         DNSTableCfg
+		Structure   StructureTableCfg
+		Beacon      BeaconTableCfg
+		BeaconFQDN  BeaconFQDNTableCfg
+		BeaconProxy BeaconProxyTableCfg
+		UserAgent   UserAgentTableCfg
+		Cert        CertificateTableCfg
+		Meta        MetaTableCfg
 	}
 
 	//LogTableCfg contains the configuration for logging
@@ -42,6 +43,11 @@ type (
 	//BeaconFQDNTableCfg is used to control the beaconing analysis module
 	BeaconFQDNTableCfg struct {
 		BeaconFQDNTable string `default:"beaconFQDN"`
+	}
+
+	//BeaconProxyTableCfg is used to control the beaconing analysis module
+	BeaconProxyTableCfg struct {
+		BeaconProxyTable string `default:"beaconProxy"`
 	}
 
 	//UserAgentTableCfg is used to control the useragent analysis module

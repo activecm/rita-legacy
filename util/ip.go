@@ -110,10 +110,7 @@ func ContainsDomain(domains []string, host string) bool {
 
 // IsIP returns true if string is a valid IP address
 func IsIP(ip string) bool {
-	if net.ParseIP(ip) != nil {
-		return true
-	}
-	return false
+	return net.ParseIP(ip) != nil
 }
 
 //IsIPv4 checks if an ip is ipv4
@@ -135,8 +132,10 @@ var PublicNetworkUUID bson.Binary = bson.Binary{
 	},
 }
 
+//PublicNetworkName is the name bound to publicly routable UniqueIP addresses
 const PublicNetworkName string = "Public"
 
+//UnknownPrivateNetworkUUID ...
 var UnknownPrivateNetworkUUID bson.Binary = bson.Binary{
 	Kind: bson.BinaryUUID,
 	Data: []byte{
@@ -145,4 +144,5 @@ var UnknownPrivateNetworkUUID bson.Binary = bson.Binary{
 	},
 }
 
+//UnknownPrivateNetworkName ...
 const UnknownPrivateNetworkName string = "Unknown Private"

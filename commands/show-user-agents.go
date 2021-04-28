@@ -18,12 +18,12 @@ func init() {
 		Usage:     "Print user agent information",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
+			ConfigFlag,
 			humanFlag,
 			cli.BoolFlag{
 				Name:  "least-used, l",
 				Usage: "Sort the user agents from least used to most used.",
 			},
-			configFlag,
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
@@ -34,11 +34,11 @@ func init() {
 				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := resources.InitResources(c.String("config"))
+			res := resources.InitResources(getConfigFilePath(c))
 			res.DB.SelectDB(db)
 
 			sortDirection := 1
-			if c.Bool("least-used") == false {
+			if !c.Bool("least-used") {
 				sortDirection = -1
 			}
 

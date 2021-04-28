@@ -7,6 +7,7 @@ import (
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
+	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -19,6 +20,28 @@ func NewMongoRepository(res *resources.Resources) Repository {
 	return &repo{
 		res: res,
 	}
+}
+
+//CreateIndexes sets up the indices needed to find hosts which contacted blacklisted hosts
+func (r *repo) CreateIndexes() error {
+	session := r.res.DB.Session.Copy()
+	defer session.Close()
+
+	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.HostTable)
+
+	// create hosts collection
+	// Desired indexes
+	indexes := []mgo.Index{
+		{Key: []string{"dat.bl.ip", "dat.bl.network_uuid"}},
+	}
+
+	for _, index := range indexes {
+		err := coll.EnsureIndex(index)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 //Upsert loops through every domain ....
