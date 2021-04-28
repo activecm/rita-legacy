@@ -763,7 +763,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// Safely store ja3 information
 							mutex.Lock()
 
-							// create record if it doesn't exist
+							// create useragent record if it doesn't exist
 							if _, ok := useragentMap[ja3Hash]; !ok {
 								useragentMap[ja3Hash] = &useragent.Input{
 									Name:     ja3Hash,
@@ -785,22 +785,25 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 							}
 
-							//if there's any problem in the certificate, mark it invalid
-							if certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " " {
-								// Run conn pair through filter to filter out certain connections
-								ignore := fs.filterConnPair(srcIP, dstIP)
-								if !ignore {
+							// create uconn and cert records
+							// Run conn pair through filter to filter out certain connections
+							ignore := fs.filterConnPair(srcIP, dstIP)
+							if !ignore {
 
-									// Check if uconn map value is set, because this record could
-									// come before a relevant uconns record
-									if _, ok := uconnMap[srcDstKey]; !ok {
-										// create new uconn record if it does not exist
-										uconnMap[srcDstKey] = &uconn.Input{
-											Hosts:      srcDstPair,
-											IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
-											IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
-										}
+								// Check if uconn map value is set, because this record could
+								// come before a relevant uconns record (or may be the only source
+								// for the uconns record)
+								if _, ok := uconnMap[srcDstKey]; !ok {
+									// create new uconn record if it does not exist
+									uconnMap[srcDstKey] = &uconn.Input{
+										Hosts:      srcDstPair,
+										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
 									}
+								}
+
+								//if there's any problem in the certificate, mark it invalid
+								if certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " " {
 									// mark as having invalid cert
 									uconnMap[srcDstKey].InvalidCertFlag = true
 
@@ -829,6 +832,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									certMap[dstKey].OrigIps.Insert(srcUniqIP)
 								}
 							}
+
 							mutex.Unlock()
 						}
 					}
@@ -877,7 +881,7 @@ func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 		}
 		certificateRepo.Upsert(certMap)
 	} else {
-		fmt.Println("\t[!] No certificate data to analyze")
+		fmt.Println("\t[!] No invalid certificate data to analyze")
 	}
 
 }

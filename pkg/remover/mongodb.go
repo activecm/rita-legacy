@@ -98,6 +98,7 @@ func (r *remover) removeOutdatedCIDs(cid int) error {
 		r.res.Config.T.Structure.UniqueConnTable,
 		r.res.Config.T.DNS.ExplodedDNSTable,
 		r.res.Config.T.DNS.HostnamesTable,
+		r.res.Config.T.Cert.CertificateTable,
 		r.res.Config.T.UserAgent.UserAgentTable,
 	}
 
