@@ -90,7 +90,6 @@ func buildBlacklistReferenceCollection(res *resources.Resources) {
 	//update the lists
 	ritaBL.Update()
 
-	return
 }
 
 //getSourceLists gathers the blacklists to check against

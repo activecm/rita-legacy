@@ -28,13 +28,10 @@ func initLogger(logConfig *config.LogStaticCfg) *log.Logger {
 	switch logConfig.LogLevel {
 	case 3:
 		logs.Level = log.DebugLevel
-		break
 	case 2:
 		logs.Level = log.InfoLevel
-		break
 	case 1:
 		logs.Level = log.WarnLevel
-		break
 	case 0:
 		logs.Level = log.ErrorLevel
 	}

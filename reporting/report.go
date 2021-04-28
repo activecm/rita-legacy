@@ -26,9 +26,9 @@ func PrintHTML(dbsIn []string, showNetNames bool, noBrowser bool, res *resources
 	}
 
 	var dbs []string
-	for _, db := range dbsIn {
-		dbs = append(dbs, db)
-	}
+
+	dbs = append(dbs, dbsIn...)
+
 	if len(dbs) == 0 {
 		return errors.New("none of the selected databases have been analyzed")
 	}
@@ -174,6 +174,11 @@ func writeDB(db string, wd string, showNetNames bool, res *resources.Resources) 
 	err = printBeaconsFQDN(db, showNetNames, res)
 	if err != nil {
 		fmt.Println("[-] Error writing beaconsFQDN page: " + err.Error())
+	}
+
+	err = printBeaconsProxy(db, showNetNames, res)
+	if err != nil {
+		fmt.Println("[-] Error writing beaconsProxy page: " + err.Error())
 	}
 
 	err = printStrobes(db, showNetNames, res)

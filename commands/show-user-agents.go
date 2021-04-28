@@ -38,7 +38,7 @@ func init() {
 			res.DB.SelectDB(db)
 
 			sortDirection := 1
-			if c.Bool("least-used") == false {
+			if !c.Bool("least-used") {
 				sortDirection = -1
 			}
 

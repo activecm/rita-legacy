@@ -44,12 +44,12 @@ type IndexedFile struct {
 //IndexedFile as if it were public. The fields are private so they don't get
 //marshalled into MongoDB
 
-//IsJson returns whether the file is a json file
+//IsJSON returns whether the file is a json file
 func (i *IndexedFile) IsJSON() bool {
 	return i.json
 }
 
-//SetJson sets the json flag
+//SetJSON sets the json flag
 func (i *IndexedFile) SetJSON() {
 	i.json = true
 }
