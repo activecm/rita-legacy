@@ -14,10 +14,10 @@ func init() {
 		Aliases: []string{"show-databases"},
 		Usage:   "Print the databases currently stored",
 		Flags: []cli.Flag{
-			configFlag,
+			ConfigFlag,
 		},
 		Action: func(c *cli.Context) error {
-			res := resources.InitResources(c.String("config"))
+			res := resources.InitResources(getConfigFilePath(c))
 
 			if res != nil {
 				for _, name := range res.MetaDB.GetDatabases() {
