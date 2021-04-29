@@ -43,7 +43,7 @@ func updateCheck(configFile string) string {
 	m := res.MetaDB
 	timestamp, newVersion = m.LastCheck()
 
-	days := time.Now().Sub(timestamp).Hours() / 24
+	days := time.Since(timestamp).Hours() / 24
 
 	if days > float64(delta) {
 		newVersion, err = getRemoteVersion()

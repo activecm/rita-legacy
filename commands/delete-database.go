@@ -138,21 +138,21 @@ func deleteSingleDatabase(res *resources.Resources, db string, dryRun bool) erro
 		// delete database if it exists
 		if dbExists {
 			if res.DB.Session.DB(db).DropDatabase() != nil {
-				return errors.New("Failed to delete database")
+				return errors.New("failed to delete database")
 			}
 		}
 
 		// remove metadatabase record if it exists
 		if mDBExists {
 			if res.MetaDB.DeleteDB(db) != nil {
-				return errors.New("Failed to update metadb")
+				return errors.New("failed to update metadb")
 			}
 		}
 	}
 
 	// check if we have anything to delete
 	if !dbExists && !mDBExists {
-		return errors.New("No records for database found")
+		return errors.New("no records for database found")
 	}
 
 	// if it got here, deleting was a success!
@@ -182,12 +182,12 @@ func confirmAction(confimationMessage string) bool {
 func checkCommandFlags(match, regex, bulk bool, tgt string) error {
 	// All fields empty, if we have the all flag set, don't need a database name
 	if tgt == "" && !bulk {
-		return errors.New("Please provide a database or string parameter or invoke with `--help` or `-h` for usage")
+		return errors.New("please provide a database or string parameter or invoke with `--help` or `-h` for usage")
 	}
 
 	// Flags
 	if !checkFlagsExclusive(bulk, match, regex) {
-		return errors.New("Invalid combination of flags, invoke with `--help` or `-h` for usage")
+		return errors.New("invalid combination of flags, invoke with `--help` or `-h` for usage")
 	}
 
 	return nil

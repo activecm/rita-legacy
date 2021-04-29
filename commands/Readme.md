@@ -1,12 +1,12 @@
 # RITA Commands
 
 ## A note on philosophy
+
 As RITA is written in Go and targeted towards Unix based systems, we believe that RITA too should follow the Unix Philosophy.
 
 As such RITA commands should implement this philosophy by default.
 
-For example, the human readable output from `show-beacons` or `show-blacklisted` is easy to read, but the default action is to print an unformatted comma
-separated list. This "ugly" format is much easier to parse and process with tools such as `sed`, `awk`, and `cut`.
+For example, the human readable output from `show-beacons` or `show-blacklisted` is easy to read, but the default action is to print an unformatted comma separated list. This "ugly" format is much easier to parse and process with tools such as `sed`, `awk`, and `cut`.
 
 These tools are great at processing the results that come out of RITA, and we believe that RITA should do its best to support them.
 
@@ -48,7 +48,7 @@ func init() {
 				Usage: "set test flag",
 				Value: 29,
 			},
-			configFlag,
+			ConfigFlag,
 		},
 		Name: "name-of-other-command",
 		Usage: "how to use the other command",

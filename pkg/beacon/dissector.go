@@ -75,17 +75,17 @@ func (d *dissector) start() {
 			// and individual lookups like this are really fast. This also ensures a unique
 			// set of timestamps for analysis.
 			uconnFindQuery := []bson.M{
-				bson.M{"$match": matchNoStrobeKey},
-				bson.M{"$limit": 1},
-				bson.M{"$project": bson.M{
+				{"$match": matchNoStrobeKey},
+				{"$limit": 1},
+				{"$project": bson.M{
 					"ts":     "$dat.ts",
 					"bytes":  "$dat.bytes",
 					"count":  "$dat.count",
 					"tbytes": "$dat.tbytes",
 					"icerts": "$dat.icerts",
 				}},
-				bson.M{"$unwind": "$count"},
-				bson.M{"$group": bson.M{
+				{"$unwind": "$count"},
+				{"$group": bson.M{
 					"_id":    "$_id",
 					"ts":     bson.M{"$first": "$ts"},
 					"bytes":  bson.M{"$first": "$bytes"},
@@ -93,9 +93,9 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$first": "$tbytes"},
 					"icerts": bson.M{"$first": "$icerts"},
 				}},
-				bson.M{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.Beacon.DefaultConnectionThresh}}},
-				bson.M{"$unwind": "$tbytes"},
-				bson.M{"$group": bson.M{
+				{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.Beacon.DefaultConnectionThresh}}},
+				{"$unwind": "$tbytes"},
+				{"$group": bson.M{
 					"_id":    "$_id",
 					"ts":     bson.M{"$first": "$ts"},
 					"bytes":  bson.M{"$first": "$bytes"},
@@ -103,9 +103,9 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$sum": "$tbytes"},
 					"icerts": bson.M{"$first": "$icerts"},
 				}},
-				bson.M{"$unwind": "$ts"},
-				bson.M{"$unwind": "$ts"},
-				bson.M{"$group": bson.M{
+				{"$unwind": "$ts"},
+				{"$unwind": "$ts"},
+				{"$group": bson.M{
 					"_id":    "$_id",
 					"ts":     bson.M{"$addToSet": "$ts"},
 					"bytes":  bson.M{"$first": "$bytes"},
@@ -113,9 +113,9 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$first": "$tbytes"},
 					"icerts": bson.M{"$first": "$icerts"},
 				}},
-				bson.M{"$unwind": "$bytes"},
-				bson.M{"$unwind": "$bytes"},
-				bson.M{"$group": bson.M{
+				{"$unwind": "$bytes"},
+				{"$unwind": "$bytes"},
+				{"$group": bson.M{
 					"_id":    "$_id",
 					"ts":     bson.M{"$first": "$ts"},
 					"bytes":  bson.M{"$push": "$bytes"},
@@ -123,8 +123,8 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$first": "$tbytes"},
 					"icerts": bson.M{"$first": "$icerts"},
 				}},
-				bson.M{"$unwind": "$icerts"},
-				bson.M{"$group": bson.M{
+				{"$unwind": "$icerts"},
+				{"$group": bson.M{
 					"_id":    "$_id",
 					"ts":     bson.M{"$first": "$ts"},
 					"bytes":  bson.M{"$first": "$bytes"},
@@ -132,7 +132,7 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$first": "$tbytes"},
 					"icerts": bson.M{"$push": "$icerts"},
 				}},
-				bson.M{"$project": bson.M{
+				{"$project": bson.M{
 					"_id":    "$_id",
 					"ts":     1,
 					"bytes":  1,
@@ -165,7 +165,7 @@ func (d *dissector) start() {
 				// check if uconn has become a strobe
 				if analysisInput.ConnectionCount > d.connLimit {
 
-					// set to writer channel
+					// set to sorter channel
 					d.dissectedCallback(analysisInput)
 
 				} else { // otherwise, parse timestamps and orig ip bytes
@@ -173,7 +173,7 @@ func (d *dissector) start() {
 					analysisInput.TsList = res.Ts
 					analysisInput.OrigBytesList = res.Bytes
 
-					// send to writer channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
+					// send to sorter channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
 					if len(analysisInput.TsList) > 3 {
 						d.dissectedCallback(analysisInput)
 					}

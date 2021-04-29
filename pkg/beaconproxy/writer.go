@@ -1,4 +1,4 @@
-package beaconfqdn
+package beaconproxy
 
 import (
 	"sync"
@@ -44,7 +44,6 @@ func (w *writer) close() {
 //start kicks off a new write thread
 func (w *writer) start() {
 	w.writeWg.Add(1)
-
 	go func() {
 		ssn := w.db.Session.Copy()
 		defer ssn.Close()
@@ -58,7 +57,7 @@ func (w *writer) start() {
 				if err != nil ||
 					((info.Updated == 0) && (info.UpsertedId == nil)) {
 					w.log.WithFields(log.Fields{
-						"Module": "beaconsFQDN",
+						"Module": "beaconsProxy",
 						"Info":   info,
 						"Data":   data,
 					}).Error(err)
@@ -66,14 +65,13 @@ func (w *writer) start() {
 
 				// update hosts table with max beacon updates
 				if data.hostBeacon.query != nil {
-
 					// update hosts table
 					info, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.hostBeacon.selector, data.hostBeacon.query)
 
 					if err != nil ||
 						((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
 						w.log.WithFields(log.Fields{
-							"Module": "beaconsFQDN",
+							"Module": "beaconsProxy",
 							"Info":   info,
 							"Data":   data,
 						}).Error(err)
@@ -81,7 +79,6 @@ func (w *writer) start() {
 				}
 			}
 		}
-
 		w.writeWg.Done()
 	}()
 }

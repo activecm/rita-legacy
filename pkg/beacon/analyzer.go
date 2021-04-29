@@ -296,7 +296,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 	query := bson.M{}
 
 	// update host table if there is an invalid cert record between pair
-	if icert == true {
+	if icert {
 
 		newFlag := false
 

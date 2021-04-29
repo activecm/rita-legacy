@@ -72,7 +72,6 @@ db.getCollection('uconn').aggregate([
         },
         "count":  {"$sum": "$dat.count"},
         "tbytes": {"$sum": "$dat.tbytes"},
-        "icerts": {"$anyElementTrue": ["$dat.icerts"]},
     }},
     {"$group": {
         "_id":              {"src": "$src", "uuid": "$src_network_uuid", "network": "$src_network_name"},
@@ -80,7 +79,6 @@ db.getCollection('uconn').aggregate([
         "bytes":            {"$push": "$bytes"},
         "count":            {"$sum": "$count"},
         "tbytes":           {"$sum": "$tbytes"},
-        "icerts":           {"$push": "$icerts"},
     }},
     {"$match": {"count": {"$gt": 20}}},
     {"$unwind": {
@@ -103,7 +101,6 @@ db.getCollection('uconn').aggregate([
         "bytes":  {"$first": "$bytes"},
         "count":  {"$first": "$count"},
         "tbytes": {"$first": "$tbytes"},
-        "icerts": {"$first": "$icerts"},
     }},
     {"$unwind": {
         "path":                       "$bytes",
@@ -119,7 +116,6 @@ db.getCollection('uconn').aggregate([
         "bytes":  {"$push": "$bytes"},
         "count":  {"$first": "$count"},
         "tbytes": {"$first": "$tbytes"},
-        "icerts": {"$first": "$icerts"},
     }},
     {"$project": {
         "_id":              0,
@@ -130,7 +126,6 @@ db.getCollection('uconn').aggregate([
         "bytes":            1,
         "count":            1,
         "tbytes":           1,
-        "icerts":           {"$anyElementTrue": ["$icerts"]},
     }},
 ])
 */
@@ -188,7 +183,6 @@ func (d *dissector) start() {
 					},
 					"count":  bson.M{"$sum": "$dat.count"},
 					"tbytes": bson.M{"$sum": "$dat.tbytes"},
-					"icerts": bson.M{"$anyElementTrue": []interface{}{"$dat.icerts"}},
 				}},
 				{"$group": bson.M{
 					"_id":    bson.M{"src": "$src", "uuid": "$src_network_uuid", "network": "$src_network_name"},
@@ -196,7 +190,6 @@ func (d *dissector) start() {
 					"bytes":  bson.M{"$push": "$bytes"},
 					"count":  bson.M{"$sum": "$count"},
 					"tbytes": bson.M{"$sum": "$tbytes"},
-					"icerts": bson.M{"$push": "$icerts"},
 				}},
 				{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.BeaconFQDN.DefaultConnectionThresh}}},
 				{"$unwind": bson.M{
@@ -219,7 +212,6 @@ func (d *dissector) start() {
 					"bytes":  bson.M{"$first": "$bytes"},
 					"count":  bson.M{"$first": "$count"},
 					"tbytes": bson.M{"$first": "$tbytes"},
-					"icerts": bson.M{"$first": "$icerts"},
 				}},
 				{"$unwind": bson.M{
 					"path":                       "$bytes",
@@ -235,7 +227,6 @@ func (d *dissector) start() {
 					"bytes":  bson.M{"$push": "$bytes"},
 					"count":  bson.M{"$first": "$count"},
 					"tbytes": bson.M{"$first": "$tbytes"},
-					"icerts": bson.M{"$first": "$icerts"},
 				}},
 				{"$project": bson.M{
 					"_id":              0,
@@ -246,7 +237,6 @@ func (d *dissector) start() {
 					"bytes":            1,
 					"count":            1,
 					"tbytes":           1,
-					"icerts":           bson.M{"$anyElementTrue": []interface{}{"$icerts"}},
 				}},
 			}
 
@@ -259,7 +249,6 @@ func (d *dissector) start() {
 					Ts             []int64     `bson:"ts"`
 					Bytes          []int64     `bson:"bytes"`
 					TBytes         int64       `bson:"tbytes"`
-					ICerts         bool        `bson:"icerts"`
 				}
 			)
 
@@ -277,14 +266,13 @@ func (d *dissector) start() {
 					Src:             srcCurr,
 					ConnectionCount: res.Count,
 					TotalBytes:      res.TBytes,
-					InvalidCertFlag: res.ICerts,
 					ResolvedIPs:     entry.ResolvedIPs,
 				}
 
 				// check if beacon has become a strobe
 				if analysisInput.ConnectionCount > d.connLimit {
 
-					// set to writer channel
+					// set to sorter channel
 					d.dissectedCallback(analysisInput)
 
 				} else { // otherwise, parse timestamps and orig ip bytes
@@ -292,7 +280,7 @@ func (d *dissector) start() {
 					analysisInput.TsList = res.Ts
 					analysisInput.OrigBytesList = res.Bytes
 
-					// send to writer channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
+					// send to sorter channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
 					if len(analysisInput.TsList) > 3 {
 						d.dissectedCallback(analysisInput)
 					}
