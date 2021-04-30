@@ -37,7 +37,9 @@ type Input struct {
 	Tuples          []string
 	// InvalidCerts    []string
 	InvalidCertFlag bool
-	UPPSFlag        bool
+
+	// UPPSFlag stands for unexpected port - proto - service flag
+	UPPSFlag bool
 }
 
 //LongConnResult represents a pair of hosts that communicated and

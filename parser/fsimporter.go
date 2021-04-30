@@ -176,44 +176,46 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fmt.Printf("\t[-] Processing batch %d of %d\n", i+1, len(batchedIndexedFiles))
 
 		// parse in those files!
-		uconnMap, hostMap, explodeddnsMap, hostnameMap, proxyHostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
+		startParse := time.Now()
+		parseResults := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
+		fmt.Printf("\t[-] Parsing took: %s\n", time.Since(startParse).String())
 
 		// Set chunk before we continue so if process dies, we still verify with a delete if
 		// any data was written out.
 		fs.res.MetaDB.SetChunk(fs.currentChunk, fs.res.DB.GetSelectedDB(), true)
 
 		// build Hosts table.
-		fs.buildHosts(hostMap)
+		fs.buildHosts(parseResults.HostMap)
 
 		// build Uconns table. Must go before beacons.
-		fs.buildUconns(uconnMap)
+		fs.buildUconns(parseResults.UniqueConnMap)
 
 		// update ts range for dataset (needs to be run before beacons)
 		fs.updateTimestampRange()
 
 		// build or update the exploded DNS table. Must go before hostnames
-		fs.buildExplodedDNS(explodeddnsMap)
+		fs.buildExplodedDNS(parseResults.ExplodedDNSMap)
 
 		// build or update the exploded DNS table
-		fs.buildHostnames(hostnameMap)
+		fs.buildHostnames(parseResults.HostnameMap)
 
 		// build or update Beacons table
-		fs.buildBeacons(uconnMap)
+		fs.buildBeacons(parseResults.UniqueConnMap)
 
 		// build or update the FQDN Beacons Table
-		fs.buildFQDNBeacons(hostnameMap)
+		fs.buildFQDNBeacons(parseResults.HostnameMap)
 
 		// build or update the Proxy Beacons Table
-		fs.buildProxyBeacons(proxyHostnameMap)
+		fs.buildProxyBeacons(parseResults.ProxyUniqueConnMap)
 
 		// build or update UserAgent table
-		fs.buildUserAgent(useragentMap)
+		fs.buildUserAgent(parseResults.UseragentMap)
 
 		// build or update Certificate table
-		fs.buildCertificates(certMap)
+		fs.buildCertificates(parseResults.CertificateMap)
 
 		// update blacklisted peers in hosts collection
-		fs.markBlacklistedPeers(hostMap)
+		fs.markBlacklistedPeers(parseResults.HostMap)
 
 		// record file+database name hash in metadabase to prevent duplicate content
 		fmt.Println("\t[-] Indexing log entries ... ")
@@ -307,33 +309,16 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 //threads to use to parse the files, whether or not to sort data by date,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
-func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, logger *log.Logger) (
-	map[string]*uconn.Input, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*beaconproxy.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
+func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, logger *log.Logger) ParseResults {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 
 	// create log parsing maps
-	explodeddnsMap := make(map[string]int)
-
-	hostnameMap := make(map[string]*hostname.Input)
-
-	proxyHostnameMap := make(map[string]*beaconproxy.Input)
-
-	useragentMap := make(map[string]*useragent.Input)
-
-	certMap := make(map[string]*certificate.Input)
-
-	// Counts the number of uconns per source-destination pair
-	uconnMap := make(map[string]*uconn.Input)
-
-	hostMap := make(map[string]*host.Input)
+	retVals := newParseResults()
 
 	//set up parallel parsing
 	n := len(indexedFiles)
 	parsingWG := new(sync.WaitGroup)
-
-	// Creates a mutex for locking map keys during read-write operations
-	var mutex = &sync.Mutex{}
 
 	for i := 0; i < parsingThreads; i++ {
 		parsingWG.Add(1)
@@ -435,111 +420,158 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 
 								// Safely store the number of conns for this uconn
-								mutex.Lock()
-
+								retVals.HostLock.Lock()
 								// Check if the map value is set
-								if _, ok := hostMap[srcKey]; !ok {
+								if _, ok := retVals.HostMap[srcKey]; !ok {
 									// create new host record with src and dst
-									hostMap[srcKey] = &host.Input{
+									retVals.HostMap[srcKey] = &host.Input{
 										Host:    srcUniqIP,
 										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
 										IP4:     util.IsIPv4(src),
 										IP4Bin:  util.IPv4ToBinary(srcIP),
 									}
 								}
+								retVals.HostLock.Unlock()
 
+								retVals.HostLock.Lock()
 								// Check if the map value is set
-								if _, ok := hostMap[dstKey]; !ok {
+								if _, ok := retVals.HostMap[dstKey]; !ok {
 									// create new host record with src and dst
-									hostMap[dstKey] = &host.Input{
+									retVals.HostMap[dstKey] = &host.Input{
 										Host:    dstUniqIP,
 										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
 										IP4:     util.IsIPv4(dst),
 										IP4Bin:  util.IPv4ToBinary(dstIP),
 									}
 								}
+								retVals.HostLock.Unlock()
 
+								retVals.UniqueConnLock.Lock()
 								// Check if the map value is set
-								if _, ok := uconnMap[srcDstKey]; !ok {
+								var uconnExists bool
+								if _, uconnExists = retVals.UniqueConnMap[srcDstKey]; !uconnExists {
 									// create new uconn record with src and dst
 									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
 									// we only need to do this once if the uconn record does not exist
-									uconnMap[srcDstKey] = &uconn.Input{
+									retVals.UniqueConnMap[srcDstKey] = &uconn.Input{
 										Hosts:      srcDstPair,
 										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
 										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
 									}
 
-									hostMap[srcKey].CountSrc++
-									hostMap[dstKey].CountDst++
+									retVals.HostLock.Lock()
+									retVals.HostMap[srcKey].CountSrc++
+									retVals.HostMap[dstKey].CountDst++
+									retVals.HostLock.Unlock()
 								}
+								retVals.UniqueConnLock.Unlock()
 
 								// this is to keep track of how many times a host connected to
 								// an unexpected port - proto - service Tuple
 								// we only want to increment the count once per unique destination,
 								// not once per connection, hence the flag and the check
-								if !uconnMap[srcDstKey].UPPSFlag {
+								retVals.UniqueConnLock.Lock()
+								if !retVals.UniqueConnMap[srcDstKey].UPPSFlag {
 									for _, entry := range trustedAppReferenceList {
-										if (protocol == entry.protocol) && (dstPort == entry.port) {
-											if service != entry.service {
-												hostMap[srcKey].UntrustedAppConnCount++
-												uconnMap[srcDstKey].UPPSFlag = true
-											}
+										if (protocol == entry.protocol) && (dstPort == entry.port) &&
+											(service != entry.service) {
+
+											retVals.HostLock.Lock()
+											retVals.HostMap[srcKey].UntrustedAppConnCount++
+											retVals.HostLock.Unlock()
+
+											retVals.UniqueConnMap[srcDstKey].UPPSFlag = true
 										}
 									}
 								}
+								retVals.UniqueConnLock.Unlock()
 
 								// increment unique dst port: proto : service tuple list for host
-								if !stringInSlice(tuple, uconnMap[srcDstKey].Tuples) {
-									uconnMap[srcDstKey].Tuples = append(uconnMap[srcDstKey].Tuples, tuple)
+								retVals.UniqueConnLock.Lock()
+								if !stringInSlice(tuple, retVals.UniqueConnMap[srcDstKey].Tuples) {
+									retVals.UniqueConnMap[srcDstKey].Tuples = append(
+										retVals.UniqueConnMap[srcDstKey].Tuples, tuple,
+									)
 								}
+								retVals.UniqueConnLock.Unlock()
 
 								// Check if invalid cert record was written before the uconns
 								// record, we'll need to update it with the tuples.
-								if _, ok := certMap[dstKey]; ok {
+								retVals.CertificateLock.Lock()
+								if _, ok := retVals.CertificateMap[dstKey]; ok {
 									// add tuple to invlaid cert list
-									if !stringInSlice(tuple, certMap[dstKey].Tuples) {
-										certMap[dstKey].Tuples = append(certMap[dstKey].Tuples, tuple)
+									if !stringInSlice(tuple, retVals.CertificateMap[dstKey].Tuples) {
+										retVals.CertificateMap[dstKey].Tuples = append(
+											retVals.CertificateMap[dstKey].Tuples, tuple,
+										)
 									}
 								}
+								retVals.CertificateLock.Unlock()
 
 								// Increment the connection count for the src-dst pair
-								uconnMap[srcDstKey].ConnectionCount++
-								hostMap[srcKey].ConnectionCount++
-								hostMap[dstKey].ConnectionCount++
+								retVals.UniqueConnLock.Lock()
+								retVals.UniqueConnMap[srcDstKey].ConnectionCount++
+								retVals.UniqueConnLock.Unlock()
+
+								retVals.HostLock.Lock()
+								retVals.HostMap[srcKey].ConnectionCount++
+								retVals.HostMap[dstKey].ConnectionCount++
+								retVals.HostLock.Unlock()
 
 								// Only append unique timestamps to tslist
-								if !int64InSlice(ts, uconnMap[srcDstKey].TsList) {
-									uconnMap[srcDstKey].TsList = append(uconnMap[srcDstKey].TsList, ts)
+								retVals.UniqueConnLock.Lock()
+								if !int64InSlice(ts, retVals.UniqueConnMap[srcDstKey].TsList) {
+									retVals.UniqueConnMap[srcDstKey].TsList = append(
+										retVals.UniqueConnMap[srcDstKey].TsList, ts,
+									)
 								}
+								retVals.UniqueConnLock.Unlock()
 
 								// Append all origIPBytes to origBytesList
-								uconnMap[srcDstKey].OrigBytesList = append(uconnMap[srcDstKey].OrigBytesList, origIPBytes)
+								retVals.UniqueConnLock.Lock()
+								retVals.UniqueConnMap[srcDstKey].OrigBytesList = append(
+									retVals.UniqueConnMap[srcDstKey].OrigBytesList, origIPBytes,
+								)
+								retVals.UniqueConnLock.Unlock()
 
 								// Calculate and store the total number of bytes exchanged by the uconn pair
-								uconnMap[srcDstKey].TotalBytes += bytes
-								hostMap[srcKey].TotalBytes += bytes
-								hostMap[dstKey].TotalBytes += bytes
+								retVals.UniqueConnLock.Lock()
+								retVals.UniqueConnMap[srcDstKey].TotalBytes += bytes
+								retVals.UniqueConnLock.Unlock()
+
+								retVals.HostLock.Lock()
+								retVals.HostMap[srcKey].TotalBytes += bytes
+								retVals.HostMap[dstKey].TotalBytes += bytes
+								retVals.HostLock.Unlock()
 
 								// Calculate and store the total duration
-								uconnMap[srcDstKey].TotalDuration += duration
-								hostMap[srcKey].TotalDuration += duration
-								hostMap[dstKey].TotalDuration += duration
+								retVals.UniqueConnLock.Lock()
+								retVals.UniqueConnMap[srcDstKey].TotalDuration += duration
+								retVals.UniqueConnLock.Unlock()
 
+								retVals.HostLock.Lock()
+								retVals.HostMap[srcKey].TotalDuration += duration
+								retVals.HostMap[dstKey].TotalDuration += duration
+								retVals.HostLock.Unlock()
+
+								retVals.UniqueConnLock.Lock()
 								// Replace existing duration if current duration is higher
-								if duration > uconnMap[srcDstKey].MaxDuration {
-									uconnMap[srcDstKey].MaxDuration = duration
+								if duration > retVals.UniqueConnMap[srcDstKey].MaxDuration {
+									retVals.UniqueConnMap[srcDstKey].MaxDuration = duration
 								}
+								retVals.UniqueConnLock.Unlock()
 
-								if duration > hostMap[srcKey].MaxDuration {
-									hostMap[srcKey].MaxDuration = duration
+								retVals.HostLock.Lock()
+								if duration > retVals.HostMap[srcKey].MaxDuration {
+									retVals.HostMap[srcKey].MaxDuration = duration
 								}
-								if duration > hostMap[dstKey].MaxDuration {
-									hostMap[dstKey].MaxDuration = duration
+								retVals.HostLock.Unlock()
+
+								retVals.HostLock.Lock()
+								if duration > retVals.HostMap[dstKey].MaxDuration {
+									retVals.HostMap[dstKey].MaxDuration = duration
 								}
-
-								mutex.Unlock()
-
+								retVals.HostLock.Unlock()
 							}
 
 						/// *************************************************************///
@@ -563,24 +595,26 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// If domain is not subject to filtering, process
 							if !ignore {
-
-								// Safely store the number of conns for this uconn
-								mutex.Lock()
-
 								// increment domain map count for exploded dns
-								explodeddnsMap[domain]++
+								retVals.ExplodedDNSLock.Lock()
+								retVals.ExplodedDNSMap[domain]++
+								retVals.ExplodedDNSLock.Unlock()
 
 								// initialize the hostname input objects for new hostnames
-								if _, ok := hostnameMap[domain]; !ok {
-									hostnameMap[domain] = &hostname.Input{
+								retVals.HostnameLock.Lock()
+								if _, ok := retVals.HostnameMap[domain]; !ok {
+									retVals.HostnameMap[domain] = &hostname.Input{
 										Host: domain,
 									}
 								}
+								retVals.HostnameLock.Unlock()
 
 								srcUniqIP := data.NewUniqueIP(srcIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
 								srcKey := srcUniqIP.MapKey()
 
-								hostnameMap[domain].ClientIPs.Insert(srcUniqIP)
+								retVals.HostnameLock.Lock()
+								retVals.HostnameMap[domain].ClientIPs.Insert(srcUniqIP)
+								retVals.HostnameLock.Unlock()
 
 								if queryTypeName == "A" {
 									answers := parseDNS.Answers
@@ -589,7 +623,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										// Check if answer is an IP address and store it if it is
 										if answerIP != nil {
 											answerUniqIP := data.NewUniqueIP(answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
-											hostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
+											retVals.HostnameLock.Lock()
+											retVals.HostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
+											retVals.HostnameLock.Unlock()
 										}
 									}
 								}
@@ -605,29 +641,32 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								if (domain != "") && (!strings.HasSuffix(domain, "in-addr.arpa")) {
 									// Check if host map value is set, because this record could
 									// come before a relevant conns record
-									if _, ok := hostMap[srcKey]; !ok {
+
+									retVals.HostLock.Lock()
+									if _, ok := retVals.HostMap[srcKey]; !ok {
 										// create new uconn record with src and dst
 										// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
 										// we only need to do this once if the uconn record does not exist
-										hostMap[srcKey] = &host.Input{
+										retVals.HostMap[srcKey] = &host.Input{
 											Host:    srcUniqIP,
 											IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
 											IP4:     util.IsIPv4(src),
 											IP4Bin:  util.IPv4ToBinary(srcIP),
 										}
 									}
+									retVals.HostLock.Unlock()
 
 									// if there are no entries in the dnsquerycount map for this
 									// srcKey, initialize map
-									if hostMap[srcKey].DNSQueryCount == nil {
-										hostMap[srcKey].DNSQueryCount = make(map[string]int64)
+									retVals.HostLock.Lock()
+									if retVals.HostMap[srcKey].DNSQueryCount == nil {
+										retVals.HostMap[srcKey].DNSQueryCount = make(map[string]int64)
 									}
 
 									// increment the dns query count for this domain
-									hostMap[srcKey].DNSQueryCount[domain]++
+									retVals.HostMap[srcKey].DNSQueryCount[domain]++
+									retVals.HostLock.Unlock()
 								}
-
-								mutex.Unlock()
 							}
 
 						/// *************************************************************///
@@ -672,32 +711,32 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// through a proxy
 							if method == "CONNECT" && dstIsProxy {
 
-								// Safely store the number of conns for this uconn
-								mutex.Lock()
-
 								// add client (src) IP to hostname map
 
 								// Check if the map value is set
-								if _, ok := proxyHostnameMap[srcProxyFQDNKey]; !ok {
+								retVals.ProxyUniqueConnLock.Lock()
+								if _, ok := retVals.ProxyUniqueConnMap[srcProxyFQDNKey]; !ok {
 									// create new host record with src and dst
-									proxyHostnameMap[srcProxyFQDNKey] = &beaconproxy.Input{
+									retVals.ProxyUniqueConnMap[srcProxyFQDNKey] = &beaconproxy.Input{
 										Hosts: srcProxyFQDNTrio,
 									}
 								}
+								retVals.ProxyUniqueConnLock.Unlock()
 
 								// increment connection count
-								proxyHostnameMap[srcProxyFQDNKey].ConnectionCount++
+								retVals.ProxyUniqueConnLock.Lock()
+								retVals.ProxyUniqueConnMap[srcProxyFQDNKey].ConnectionCount++
+								retVals.ProxyUniqueConnLock.Unlock()
 
 								// parse timestamp
 								ts := parseHTTP.TimeStamp
 
 								// add timestamp to unique timestamp list
-								if !int64InSlice(ts, proxyHostnameMap[srcProxyFQDNKey].TsList) {
-									proxyHostnameMap[srcProxyFQDNKey].TsList = append(proxyHostnameMap[srcProxyFQDNKey].TsList, ts)
+								retVals.ProxyUniqueConnLock.Lock()
+								if !int64InSlice(ts, retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList) {
+									retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList = append(retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList, ts)
 								}
-
-								mutex.Unlock()
-
+								retVals.ProxyUniqueConnLock.Unlock()
 							}
 
 							// parse out useragent info
@@ -706,31 +745,28 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								userAgentName = "Empty user agent string"
 							}
 
-							// Safely store useragent information
-							mutex.Lock()
-
 							// create record if it doesn't exist
-							if _, ok := useragentMap[userAgentName]; !ok {
-								useragentMap[userAgentName] = &useragent.Input{
+							retVals.UseragentLock.Lock()
+							if _, ok := retVals.UseragentMap[userAgentName]; !ok {
+								retVals.UseragentMap[userAgentName] = &useragent.Input{
 									Name:     userAgentName,
 									Seen:     1,
 									Requests: []string{fqdn},
 								}
-								useragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
+								retVals.UseragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
 							} else {
 								// increment times seen count
-								useragentMap[userAgentName].Seen++
+								retVals.UseragentMap[userAgentName].Seen++
 
 								// add src of useragent request to unique array
-								useragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
+								retVals.UseragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
 
 								// add request string to unique array
-								if !stringInSlice(fqdn, useragentMap[userAgentName].Requests) {
-									useragentMap[userAgentName].Requests = append(useragentMap[userAgentName].Requests, fqdn)
+								if !stringInSlice(fqdn, retVals.UseragentMap[userAgentName].Requests) {
+									retVals.UseragentMap[userAgentName].Requests = append(retVals.UseragentMap[userAgentName].Requests, fqdn)
 								}
 							}
-
-							mutex.Unlock()
+							retVals.UseragentLock.Unlock()
 
 						/// *************************************************************///
 						///                             SSL                              ///
@@ -761,29 +797,30 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							}
 
 							// Safely store ja3 information
-							mutex.Lock()
 
 							// create useragent record if it doesn't exist
-							if _, ok := useragentMap[ja3Hash]; !ok {
-								useragentMap[ja3Hash] = &useragent.Input{
+							retVals.UseragentLock.Lock()
+							if _, ok := retVals.UseragentMap[ja3Hash]; !ok {
+								retVals.UseragentMap[ja3Hash] = &useragent.Input{
 									Name:     ja3Hash,
 									Seen:     1,
 									Requests: []string{host},
 									JA3:      true,
 								}
-								useragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
+								retVals.UseragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
 							} else {
 								// increment times seen count
-								useragentMap[ja3Hash].Seen++
+								retVals.UseragentMap[ja3Hash].Seen++
 
 								// add src of ssl request to unique array
-								useragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
+								retVals.UseragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
 
 								// add request string to unique array
-								if !stringInSlice(host, useragentMap[ja3Hash].Requests) {
-									useragentMap[ja3Hash].Requests = append(useragentMap[ja3Hash].Requests, host)
+								if !stringInSlice(host, retVals.UseragentMap[ja3Hash].Requests) {
+									retVals.UseragentMap[ja3Hash].Requests = append(retVals.UseragentMap[ja3Hash].Requests, host)
 								}
 							}
+							retVals.UseragentLock.Unlock()
 
 							// create uconn and cert records
 							// Run conn pair through filter to filter out certain connections
@@ -793,47 +830,63 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Check if uconn map value is set, because this record could
 								// come before a relevant uconns record (or may be the only source
 								// for the uconns record)
-								if _, ok := uconnMap[srcDstKey]; !ok {
+								retVals.UniqueConnLock.Lock()
+								if _, ok := retVals.UniqueConnMap[srcDstKey]; !ok {
 									// create new uconn record if it does not exist
-									uconnMap[srcDstKey] = &uconn.Input{
+									retVals.UniqueConnMap[srcDstKey] = &uconn.Input{
 										Hosts:      srcDstPair,
 										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
 										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
 									}
 								}
+								retVals.UniqueConnLock.Unlock()
 
 								//if there's any problem in the certificate, mark it invalid
 								if certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " " {
 									// mark as having invalid cert
-									uconnMap[srcDstKey].InvalidCertFlag = true
+									retVals.UniqueConnLock.Lock()
+									retVals.UniqueConnMap[srcDstKey].InvalidCertFlag = true
+									retVals.UniqueConnLock.Unlock()
 
 									// update relevant cert record
-									if _, ok := certMap[dstKey]; !ok {
+									retVals.CertificateLock.Lock()
+									if _, ok := retVals.CertificateMap[dstKey]; !ok {
 										// create new uconn record if it does not exist
-										certMap[dstKey] = &certificate.Input{
+										retVals.CertificateMap[dstKey] = &certificate.Input{
 											Host: dstUniqIP,
 											Seen: 1,
 										}
 									} else {
-										certMap[dstKey].Seen++
+										retVals.CertificateMap[dstKey].Seen++
 									}
+									retVals.CertificateLock.Unlock()
 
-									for _, tuple := range uconnMap[srcDstKey].Tuples {
-										// mark as having invalid cert
-										if !stringInSlice(tuple, certMap[dstKey].Tuples) {
-											certMap[dstKey].Tuples = append(certMap[dstKey].Tuples, tuple)
+									// add uconn entry service tuples to certificate entry tuples
+									retVals.UniqueConnLock.Lock()
+									for _, tuple := range retVals.UniqueConnMap[srcDstKey].Tuples {
+										retVals.CertificateLock.Lock()
+										if !stringInSlice(tuple, retVals.CertificateMap[dstKey].Tuples) {
+											retVals.CertificateMap[dstKey].Tuples = append(
+												retVals.CertificateMap[dstKey].Tuples, tuple,
+											)
 										}
+										retVals.CertificateLock.Unlock()
 									}
+									retVals.UniqueConnLock.Unlock()
+
 									// mark as having invalid cert
-									if !stringInSlice(certStatus, certMap[dstKey].InvalidCerts) {
-										certMap[dstKey].InvalidCerts = append(certMap[dstKey].InvalidCerts, certStatus)
+									retVals.CertificateLock.Lock()
+									if !stringInSlice(certStatus, retVals.CertificateMap[dstKey].InvalidCerts) {
+										retVals.CertificateMap[dstKey].InvalidCerts = append(retVals.CertificateMap[dstKey].InvalidCerts, certStatus)
 									}
+									retVals.CertificateLock.Unlock()
+
 									// add src of ssl request to unique array
-									certMap[dstKey].OrigIps.Insert(srcUniqIP)
+									retVals.CertificateLock.Lock()
+									retVals.CertificateMap[dstKey].OrigIps.Insert(srcUniqIP)
+									retVals.CertificateLock.Unlock()
 								}
 							}
-
-							mutex.Unlock()
 						}
 					}
 				}
@@ -848,7 +901,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	return uconnMap, hostMap, explodeddnsMap, hostnameMap, proxyHostnameMap, useragentMap, certMap
+	return retVals
 }
 
 //buildExplodedDNS .....
