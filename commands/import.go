@@ -233,7 +233,7 @@ func (i *Importer) run() error {
 	i.res.Config.S.Rolling = rollingCfg
 
 	importer := parser.NewFSImporter(i.res)
-	if len(importer.GetInternalSubnets()) == 0 {
+	if len(i.res.Config.S.Filtering.InternalSubnets) == 0 {
 		return cli.NewExitError("Internal subnets are not defined. Please set the InternalSubnets section of the config file.", -1)
 	}
 

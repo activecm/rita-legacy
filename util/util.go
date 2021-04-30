@@ -88,3 +88,13 @@ func StringInSlice(value string, list []string) bool {
 	}
 	return false
 }
+
+//Int64InSlice returns true if the int64 is an element of the array
+func Int64InSlice(value int64, list []int64) bool {
+	for _, entry := range list {
+		if entry == value {
+			return true
+		}
+	}
+	return false
+}

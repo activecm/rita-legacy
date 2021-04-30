@@ -37,20 +37,14 @@ import (
 type (
 	//FSImporter provides the ability to import bro files from the file system
 	FSImporter struct {
+		filter
+
 		log      *log.Logger
 		config   *config.Config
 		database *database.DB
 		metaDB   *database.MetaDB
 
 		batchSizeBytes int64
-
-		internal         []*net.IPNet
-		httpProxyServers []*net.IPNet
-		alwaysIncluded   []*net.IPNet
-		neverIncluded    []*net.IPNet
-
-		alwaysIncludedDomain []string
-		neverIncludedDomain  []string
 	}
 
 	trustedAppTiplet struct {
@@ -63,28 +57,18 @@ type (
 //NewFSImporter creates a new file system importer
 func NewFSImporter(res *resources.Resources) *FSImporter {
 	return &FSImporter{
-		log:                  res.Log,
-		config:               res.Config,
-		database:             res.DB,
-		metaDB:               res.MetaDB,
-		batchSizeBytes:       2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
-		internal:             util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
-		httpProxyServers:     util.ParseSubnets(res.Config.S.Filtering.HTTPProxyServers),
-		alwaysIncluded:       util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
-		neverIncluded:        util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
-		alwaysIncludedDomain: res.Config.S.Filtering.AlwaysIncludeDomain,
-		neverIncludedDomain:  res.Config.S.Filtering.NeverIncludeDomain,
+		filter:         newFilter(res.Config),
+		log:            res.Log,
+		config:         res.Config,
+		database:       res.DB,
+		metaDB:         res.MetaDB,
+		batchSizeBytes: 2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
 	}
 }
 
 var trustedAppReferenceList = [...]trustedAppTiplet{
 	{"tcp", 80, "http"},
 	{"tcp", 443, "ssl"},
-}
-
-//GetInternalSubnets returns the internal subnets from the config file
-func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
-	return fs.internal
 }
 
 //CollectFileDetails reads and hashes the files
@@ -139,7 +123,9 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 	}
 
 	if fs.config.S.Rolling.Rolling {
-		err := fs.metaDB.SetRollingSettings(fs.database.GetSelectedDB(), fs.config.S.Rolling.CurrentChunk, fs.config.S.Rolling.TotalChunks)
+		err := fs.metaDB.SetRollingSettings(
+			fs.database.GetSelectedDB(), fs.config.S.Rolling.CurrentChunk, fs.config.S.Rolling.TotalChunks,
+		)
 		if err != nil {
 			fs.log.WithFields(log.Fields{
 				"err":      err,
@@ -177,7 +163,7 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 
 		// parse in those files!
 		startParse := time.Now()
-		parseResults := fs.parseFiles(indexedFileBatch, threads, fs.log)
+		parseResults := fs.parseFiles(indexedFileBatch, threads)
 		fmt.Printf("\t[-] Parsing took: %s\n", time.Since(startParse).String())
 
 		// Set chunk before we continue so if process dies, we still verify with a delete if
@@ -312,7 +298,7 @@ func batchFilesBySize(indexedFiles []*files.IndexedFile, size int64) [][]*files.
 //threads to use to parse the files, whether or not to sort data by date,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
-func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThreads int, logger *log.Logger) ParseResults {
+func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThreads int) ParseResults {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.database.GetSelectedDB() + " ... ")
 
@@ -436,7 +422,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 									// create new host record with src and dst
 									retVals.HostMap[srcKey] = &host.Input{
 										Host:    srcUniqIP,
-										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+										IsLocal: fs.checkIfInternal(srcIP),
 										IP4:     util.IsIPv4(src),
 										IP4Bin:  util.IPv4ToBinary(srcIP),
 									}
@@ -449,7 +435,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 									// create new host record with src and dst
 									retVals.HostMap[dstKey] = &host.Input{
 										Host:    dstUniqIP,
-										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+										IsLocal: fs.checkIfInternal(dstIP),
 										IP4:     util.IsIPv4(dst),
 										IP4Bin:  util.IPv4ToBinary(dstIP),
 									}
@@ -465,8 +451,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 									// we only need to do this once if the uconn record does not exist
 									retVals.UniqueConnMap[srcDstKey] = &uconn.Input{
 										Hosts:      srcDstPair,
-										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
-										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+										IsLocalSrc: fs.checkIfInternal(srcIP),
+										IsLocalDst: fs.checkIfInternal(dstIP),
 									}
 
 									retVals.HostLock.Lock()
@@ -498,7 +484,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 
 								// increment unique dst port: proto : service tuple list for host
 								retVals.UniqueConnLock.Lock()
-								if !stringInSlice(tuple, retVals.UniqueConnMap[srcDstKey].Tuples) {
+								if !util.StringInSlice(tuple, retVals.UniqueConnMap[srcDstKey].Tuples) {
 									retVals.UniqueConnMap[srcDstKey].Tuples = append(
 										retVals.UniqueConnMap[srcDstKey].Tuples, tuple,
 									)
@@ -510,7 +496,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 								retVals.CertificateLock.Lock()
 								if _, ok := retVals.CertificateMap[dstKey]; ok {
 									// add tuple to invlaid cert list
-									if !stringInSlice(tuple, retVals.CertificateMap[dstKey].Tuples) {
+									if !util.StringInSlice(tuple, retVals.CertificateMap[dstKey].Tuples) {
 										retVals.CertificateMap[dstKey].Tuples = append(
 											retVals.CertificateMap[dstKey].Tuples, tuple,
 										)
@@ -530,7 +516,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 
 								// Only append unique timestamps to tslist
 								retVals.UniqueConnLock.Lock()
-								if !int64InSlice(ts, retVals.UniqueConnMap[srcDstKey].TsList) {
+								if !util.Int64InSlice(ts, retVals.UniqueConnMap[srcDstKey].TsList) {
 									retVals.UniqueConnMap[srcDstKey].TsList = append(
 										retVals.UniqueConnMap[srcDstKey].TsList, ts,
 									)
@@ -632,7 +618,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 										answerIP := net.ParseIP(answer)
 										// Check if answer is an IP address and store it if it is
 										if answerIP != nil {
-											answerUniqIP := data.NewUniqueIP(answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
+											answerUniqIP := data.NewUniqueIP(
+												answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname,
+											)
 											retVals.HostnameLock.Lock()
 											retVals.HostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
 											retVals.HostnameLock.Unlock()
@@ -659,7 +647,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 										// we only need to do this once if the uconn record does not exist
 										retVals.HostMap[srcKey] = &host.Input{
 											Host:    srcUniqIP,
-											IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+											IsLocal: fs.checkIfInternal(srcIP),
 											IP4:     util.IsIPv4(src),
 											IP4Bin:  util.IPv4ToBinary(srcIP),
 										}
@@ -743,8 +731,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 
 								// add timestamp to unique timestamp list
 								retVals.ProxyUniqueConnLock.Lock()
-								if !int64InSlice(ts, retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList) {
-									retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList = append(retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList, ts)
+								if !util.Int64InSlice(ts, retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList) {
+									retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList = append(
+										retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList, ts,
+									)
 								}
 								retVals.ProxyUniqueConnLock.Unlock()
 							}
@@ -772,7 +762,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 								retVals.UseragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
 
 								// add request string to unique array
-								if !stringInSlice(fqdn, retVals.UseragentMap[userAgentName].Requests) {
+								if !util.StringInSlice(fqdn, retVals.UseragentMap[userAgentName].Requests) {
 									retVals.UseragentMap[userAgentName].Requests = append(retVals.UseragentMap[userAgentName].Requests, fqdn)
 								}
 							}
@@ -826,7 +816,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 								retVals.UseragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
 
 								// add request string to unique array
-								if !stringInSlice(host, retVals.UseragentMap[ja3Hash].Requests) {
+								if !util.StringInSlice(host, retVals.UseragentMap[ja3Hash].Requests) {
 									retVals.UseragentMap[ja3Hash].Requests = append(retVals.UseragentMap[ja3Hash].Requests, host)
 								}
 							}
@@ -845,8 +835,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 									// create new uconn record if it does not exist
 									retVals.UniqueConnMap[srcDstKey] = &uconn.Input{
 										Hosts:      srcDstPair,
-										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
-										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+										IsLocalSrc: fs.checkIfInternal(srcIP),
+										IsLocalDst: fs.checkIfInternal(dstIP),
 									}
 								}
 								retVals.UniqueConnLock.Unlock()
@@ -875,7 +865,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 									retVals.UniqueConnLock.Lock()
 									for _, tuple := range retVals.UniqueConnMap[srcDstKey].Tuples {
 										retVals.CertificateLock.Lock()
-										if !stringInSlice(tuple, retVals.CertificateMap[dstKey].Tuples) {
+										if !util.StringInSlice(tuple, retVals.CertificateMap[dstKey].Tuples) {
 											retVals.CertificateMap[dstKey].Tuples = append(
 												retVals.CertificateMap[dstKey].Tuples, tuple,
 											)
@@ -886,7 +876,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 
 									// mark as having invalid cert
 									retVals.CertificateLock.Lock()
-									if !stringInSlice(certStatus, retVals.CertificateMap[dstKey].InvalidCerts) {
+									if !util.StringInSlice(certStatus, retVals.CertificateMap[dstKey].InvalidCerts) {
 										retVals.CertificateMap[dstKey].InvalidCerts = append(retVals.CertificateMap[dstKey].InvalidCerts, certStatus)
 									}
 									retVals.CertificateLock.Unlock()
@@ -907,7 +897,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 				}).Info("Finished parsing file")
 			}
 			wg.Done()
-		}(indexedFiles, logger, parsingWG, i, parsingThreads, n)
+		}(indexedFiles, fs.log, parsingWG, i, parsingThreads, n)
 	}
 	parsingWG.Wait()
 
@@ -1192,24 +1182,4 @@ func (fs *FSImporter) updateTimestampRange() (int64, int64) {
 		return 0, 0
 	}
 	return resultMin.Timestamp, resultMax.Timestamp
-}
-
-//stringInSlice ...
-func stringInSlice(a string, list []string) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-	return false
-}
-
-//int64InSlice ...
-func int64InSlice(a int64, list []int64) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-	return false
 }
