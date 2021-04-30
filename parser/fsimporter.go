@@ -338,15 +338,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 						break
 					}
 
-					var datum parsetypes.BroData
+					var entry parsetypes.BroData
 					if indexedFiles[j].IsJSON() {
-						datum = files.ParseJSONLine(
+						entry = files.ParseJSONLine(
 							fileScanner.Text(),
 							indexedFiles[j].GetBroDataFactory(),
 							logger,
 						)
 					} else {
-						datum = files.ParseTSVLine(
+						entry = files.ParseTSVLine(
 							fileScanner.Text(),
 							indexedFiles[j].GetHeader(),
 							indexedFiles[j].GetFieldMap(),
@@ -355,57 +355,21 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 						)
 					}
 
-					if datum != nil {
-						//figure out which collection (dns, http, or conn) this line is heading for
-						targetCollection := indexedFiles[j].TargetCollection
+					if entry == nil {
+						continue
+					}
 
-						switch targetCollection {
-
-						/// *************************************************************///
-						///                           CONNS                              ///
-						/// *************************************************************///
-						case fs.config.T.Structure.ConnTable:
-
-							parseConn, ok := datum.(*parsetypes.Conn)
-							if !ok {
-								continue
-							}
-
-							parseConnEntry(parseConn, fs.filter, retVals)
-
-						/// *************************************************************///
-						///                             DNS                              ///
-						/// *************************************************************///
-						case fs.config.T.Structure.DNSTable:
-							parseDNS, ok := datum.(*parsetypes.DNS)
-							if !ok {
-								continue
-							}
-
-							parseDNSEntry(parseDNS, fs.filter, retVals)
-
-						/// *************************************************************///
-						///                             HTTP                             ///
-						/// *************************************************************///
-						case fs.config.T.Structure.HTTPTable:
-							parseHTTP, ok := datum.(*parsetypes.HTTP)
-							if !ok {
-								continue
-							}
-
-							parseHTTPEntry(parseHTTP, fs.filter, retVals)
-
-						/// *************************************************************///
-						///                             SSL                              ///
-						/// *************************************************************///
-						case fs.config.T.Structure.SSLTable:
-							parseSSL, ok := datum.(*parsetypes.SSL)
-							if !ok {
-								continue
-							}
-
-							parseSSLEntry(parseSSL, fs.filter, retVals)
-						}
+					switch typedEntry := entry.(type) {
+					case *parsetypes.Conn:
+						parseConnEntry(typedEntry, fs.filter, retVals)
+					case *parsetypes.DNS:
+						parseDNSEntry(typedEntry, fs.filter, retVals)
+					case *parsetypes.HTTP:
+						parseHTTPEntry(typedEntry, fs.filter, retVals)
+					case *parsetypes.SSL:
+						parseSSLEntry(typedEntry, fs.filter, retVals)
+					default:
+						continue
 					}
 				}
 				indexedFiles[j].ParseTime = time.Now()
@@ -422,7 +386,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 	return retVals
 }
 
-//buildExplodedDNS .....
 func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 
 	if fs.config.S.DNS.Enabled {
@@ -440,7 +403,6 @@ func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 	}
 }
 
-//buildCertificates .....
 func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 	if len(certMap) > 0 {
@@ -457,7 +419,6 @@ func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 }
 
-//removeAnalysisChunk .....
 func (fs *FSImporter) removeAnalysisChunk(cid int) error {
 
 	// Set up the remover
@@ -474,7 +435,6 @@ func (fs *FSImporter) removeAnalysisChunk(cid int) error {
 
 }
 
-//buildHostnames .....
 func (fs *FSImporter) buildHostnames(hostnameMap map[string]*hostname.Input) {
 	// non-optional module
 	if len(hostnameMap) > 0 {
@@ -602,7 +562,6 @@ func (fs *FSImporter) buildProxyBeacons(proxyHostnameMap map[string]*beaconproxy
 
 }
 
-//buildUserAgent .....
 func (fs *FSImporter) buildUserAgent(useragentMap map[string]*useragent.Input) {
 
 	if fs.config.S.UserAgent.Enabled {
