@@ -12,7 +12,7 @@ type (
 	// Repository for host collection
 	Repository interface {
 		CreateIndexes() error
-		Upsert(proxyHostnameMap map[string]*Input)
+		Upsert(proxyHostnameMap map[string]*Input, minTimestamp, maxTimestamp int64)
 	}
 
 	updateInfo struct {

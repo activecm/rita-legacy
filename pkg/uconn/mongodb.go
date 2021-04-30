@@ -4,34 +4,42 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/util"
+
 	"github.com/globalsign/mgo"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type repo struct {
-	res *resources.Resources
+	database *database.DB
+	config   *config.Config
+	log      *log.Logger
 }
 
 //NewMongoRepository create new repository
-func NewMongoRepository(res *resources.Resources) Repository {
+func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
-		res: res,
+		database: db,
+		config:   conf,
+		log:      logger,
 	}
 }
 
 func (r *repo) CreateIndexes() error {
 
-	session := r.res.DB.Session.Copy()
+	session := r.database.Session.Copy()
 	defer session.Close()
 
 	// set collection name
-	collectionName := r.res.Config.T.Structure.UniqueConnTable
+	collectionName := r.config.T.Structure.UniqueConnTable
 
 	// check if collection already exists
-	names, _ := session.DB(r.res.DB.GetSelectedDB()).CollectionNames()
+	names, _ := session.DB(r.database.GetSelectedDB()).CollectionNames()
 
 	// if collection exists, we don't need to do anything else
 	for _, name := range names {
@@ -48,7 +56,7 @@ func (r *repo) CreateIndexes() error {
 	}
 
 	// create collection
-	err := r.res.DB.CreateCollection(collectionName, indexes)
+	err := r.database.CreateCollection(collectionName, indexes)
 	if err != nil {
 		return err
 	}
@@ -60,13 +68,13 @@ func (r *repo) CreateIndexes() error {
 func (r *repo) Upsert(uconnMap map[string]*Input) {
 
 	//Create the workers
-	writerWorker := newWriter(r.res.Config.T.Structure.UniqueConnTable, r.res.DB, r.res.Config, r.res.Log)
+	writerWorker := newWriter(r.config.T.Structure.UniqueConnTable, r.database, r.config, r.log)
 
 	analyzerWorker := newAnalyzer(
-		r.res.Config.S.Rolling.CurrentChunk,
-		int64(r.res.Config.S.Strobe.ConnectionLimit),
-		r.res.DB,
-		r.res.Config,
+		r.config.S.Rolling.CurrentChunk,
+		int64(r.config.S.Strobe.ConnectionLimit),
+		r.database,
+		r.config,
 		writerWorker.collect,
 		writerWorker.close,
 	)

@@ -4,38 +4,41 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/util"
+
 	"github.com/globalsign/mgo"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type repo struct {
-	res *resources.Resources
-	min int64
-	max int64
+	database *database.DB
+	config   *config.Config
+	log      *log.Logger
 }
 
 //NewMongoRepository create new repository
-func NewMongoRepository(res *resources.Resources) Repository {
-	min, max, _ := res.MetaDB.GetTSRange(res.DB.GetSelectedDB())
+func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
-		res: res,
-		min: min,
-		max: max,
+		database: db,
+		config:   conf,
+		log:      logger,
 	}
 }
 
 func (r *repo) CreateIndexes() error {
-	session := r.res.DB.Session.Copy()
+	session := r.database.Session.Copy()
 	defer session.Close()
 
 	// set collection name
-	collectionName := r.res.Config.T.BeaconProxy.BeaconProxyTable
+	collectionName := r.config.T.BeaconProxy.BeaconProxyTable
 
 	// check if collection already exists
-	names, _ := session.DB(r.res.DB.GetSelectedDB()).CollectionNames()
+	names, _ := session.DB(r.database.GetSelectedDB()).CollectionNames()
 
 	// if collection exists, we don't need to do anything else
 	for _, name := range names {
@@ -54,7 +57,7 @@ func (r *repo) CreateIndexes() error {
 	}
 
 	// create collection
-	err := r.res.DB.CreateCollection(collectionName, indexes)
+	err := r.database.CreateCollection(collectionName, indexes)
 	if err != nil {
 		return err
 	}
@@ -63,45 +66,45 @@ func (r *repo) CreateIndexes() error {
 }
 
 //Upsert loops through every new fqdn requested from a proxy ....
-func (r *repo) Upsert(proxyHostnameMap map[string]*Input) {
+func (r *repo) Upsert(proxyHostnameMap map[string]*Input, minTimestamp, maxTimestamp int64) {
 
-	session := r.res.DB.Session.Copy()
+	session := r.database.Session.Copy()
 	defer session.Close()
 
 	// Create the workers
 
 	// stage 5 - write out results
 	writerWorker := newWriter(
-		r.res.Config.T.BeaconProxy.BeaconProxyTable,
-		r.res.DB,
-		r.res.Config,
-		r.res.Log,
+		r.config.T.BeaconProxy.BeaconProxyTable,
+		r.database,
+		r.config,
+		r.log,
 	)
 
 	// stage 4 - perform the analysis
 	analyzerWorker := newAnalyzer(
-		r.min,
-		r.max,
-		r.res.Config.S.Rolling.CurrentChunk,
-		r.res.DB,
-		r.res.Config,
+		minTimestamp,
+		maxTimestamp,
+		r.config.S.Rolling.CurrentChunk,
+		r.database,
+		r.config,
 		writerWorker.collect,
 		writerWorker.close,
 	)
 
 	// stage 3 - sort data
 	sorterWorker := newSorter(
-		r.res.DB,
-		r.res.Config,
+		r.database,
+		r.config,
 		analyzerWorker.collect,
 		analyzerWorker.close,
 	)
 
 	// stage 2 - get and vet beacon details
 	dissectorWorker := newDissector(
-		int64(r.res.Config.S.Strobe.ConnectionLimit),
-		r.res.DB,
-		r.res.Config,
+		int64(r.config.S.Strobe.ConnectionLimit),
+		r.database,
+		r.config,
 		sorterWorker.collect,
 		sorterWorker.close,
 	)
