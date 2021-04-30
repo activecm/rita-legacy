@@ -1,4 +1,4 @@
-package parser
+package files
 
 import (
 	"bufio"
@@ -13,14 +13,33 @@ import (
 	"strings"
 	"time"
 
-	fpt "github.com/activecm/rita/parser/fileparsetypes"
 	pt "github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/util"
 	log "github.com/sirupsen/logrus"
 )
 
-// readDir reads the directory looking for log and .gz files
-func readDir(cpath string, logger *log.Logger) []string {
+// GatherLogFiles reads the files and directories looking for log and gz files
+func GatherLogFiles(paths []string, logger *log.Logger) []string {
+	var toReturn []string
+
+	for _, path := range paths {
+		if util.IsDir(path) {
+			toReturn = append(toReturn, gatherDir(path, logger)...)
+		} else if strings.HasSuffix(path, ".gz") ||
+			strings.HasSuffix(path, ".log") {
+			toReturn = append(toReturn, path)
+		} else {
+			logger.WithFields(log.Fields{
+				"path": path,
+			}).Warn("Ignoring non .log or .gz file")
+		}
+	}
+
+	return toReturn
+}
+
+// gatherDir reads the directory looking for log and .gz files
+func gatherDir(cpath string, logger *log.Logger) []string {
 	var toReturn []string
 	files, err := ioutil.ReadDir(cpath)
 	if err != nil {
@@ -45,28 +64,8 @@ func readDir(cpath string, logger *log.Logger) []string {
 	return toReturn
 }
 
-// readFiles reads the files and directories looking for log and gz files
-func readFiles(paths []string, logger *log.Logger) []string {
-	var toReturn []string
-
-	for _, path := range paths {
-		if util.IsDir(path) {
-			toReturn = append(toReturn, readDir(path, logger)...)
-		} else if strings.HasSuffix(path, ".gz") ||
-			strings.HasSuffix(path, ".log") {
-			toReturn = append(toReturn, path)
-		} else {
-			logger.WithFields(log.Fields{
-				"path": path,
-			}).Warn("Ignoring non .log or .gz file")
-		}
-	}
-
-	return toReturn
-}
-
-// getFileScanner returns a buffered file scanner for a bro log file
-func getFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
+// GetFileScanner returns a buffered file scanner for a bro log file
+func GetFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
 	ftype := fileHandle.Name()[len(fileHandle.Name())-3:]
 	if ftype != ".gz" && ftype != "log" {
 		return nil, errors.New("filetype not recognized")
@@ -91,8 +90,8 @@ func getFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
 // BroHeader object containing the information. NOTE: This has the side
 // effect of advancing the fileScanner so that fileScanner.Text() will
 // return the first log entry in the file.
-func scanTSVHeader(fileScanner *bufio.Scanner) (*fpt.BroHeader, error) {
-	toReturn := new(fpt.BroHeader)
+func scanTSVHeader(fileScanner *bufio.Scanner) (*BroHeader, error) {
+	toReturn := new(BroHeader)
 	for fileScanner.Scan() {
 		if fileScanner.Err() != nil {
 			break
@@ -138,8 +137,8 @@ func scanTSVHeader(fileScanner *bufio.Scanner) (*fpt.BroHeader, error) {
 //mapBroHeaderToParserType checks a parsed BroHeader against
 //a BroData struct and returns a mapping from bro field names in the
 //bro header to the indexes of the respective fields in the BroData struct
-func mapBroHeaderToParserType(header *fpt.BroHeader, broDataFactory func() pt.BroData,
-	logger *log.Logger) (fpt.BroHeaderIndexMap, error) {
+func mapBroHeaderToParserType(header *BroHeader, broDataFactory func() pt.BroData,
+	logger *log.Logger) (BroHeaderIndexMap, error) {
 	// The lookup struct gives us a way to walk the data structure only once
 	type lookup struct {
 		broType string
@@ -205,19 +204,7 @@ func mapBroHeaderToParserType(header *fpt.BroHeader, broDataFactory func() pt.Br
 	return toReturn, nil
 }
 
-//parseLine parses a line of a bro log into
-//the BroData created by the broDataFactory
-func parseLine(lineString string, header *fpt.BroHeader,
-	fieldMap fpt.BroHeaderIndexMap, broDataFactory func() pt.BroData,
-	isJSON bool, logger *log.Logger) pt.BroData {
-
-	if isJSON {
-		return parseJSONLine(lineString, broDataFactory, logger)
-	}
-	return parseTSVLine(lineString, header, fieldMap, broDataFactory, logger)
-}
-
-func parseJSONLine(lineString string, broDataFactory func() pt.BroData,
+func ParseJSONLine(lineString string, broDataFactory func() pt.BroData,
 	logger *log.Logger) pt.BroData {
 
 	dat := broDataFactory()
@@ -231,8 +218,8 @@ func parseJSONLine(lineString string, broDataFactory func() pt.BroData,
 	return dat
 }
 
-func parseTSVLine(lineString string, header *fpt.BroHeader,
-	fieldMap fpt.BroHeaderIndexMap, broDataFactory func() pt.BroData,
+func ParseTSVLine(lineString string, header *BroHeader,
+	fieldMap BroHeaderIndexMap, broDataFactory func() pt.BroData,
 	logger *log.Logger) pt.BroData {
 
 	dat := broDataFactory()

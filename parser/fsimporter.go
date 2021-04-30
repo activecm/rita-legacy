@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	"github.com/activecm/rita/parser/files"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/pkg/beaconfqdn"
@@ -90,22 +90,24 @@ func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
 }
 
 //CollectFileDetails reads and hashes the files
-func (fs *FSImporter) CollectFileDetails() []*fpt.IndexedFile {
+func (fs *FSImporter) CollectFileDetails() []*files.IndexedFile {
 	// find all of the potential bro log paths
-	files := readFiles(fs.importFiles, fs.res.Log)
+	logFiles := files.GatherLogFiles(fs.importFiles, fs.res.Log)
 
 	// hash the files and get their stats
-	return indexFiles(files, fs.indexingThreads, fs.res)
+	return files.IndexFiles(
+		logFiles, fs.indexingThreads, fs.res.DB.GetSelectedDB(), fs.currentChunk, fs.res.Log, fs.res.Config,
+	)
 }
 
 //Run starts the importing
-func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
+func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile) {
 	start := time.Now()
 
 	fmt.Println("\t[-] Verifying log files have not been previously parsed into the target dataset ... ")
 	// check list of files against metadatabase records to ensure that the a file
 	// won't be imported into the same database twice.
-	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log, fs.res.DB.GetSelectedDB())
+	indexedFiles = fs.res.MetaDB.FilterOutPreviouslyIndexedFiles(indexedFiles, fs.res.DB.GetSelectedDB())
 
 	// if all files were removed because they've already been imported, handle error
 	if !(len(indexedFiles) > 0) {
@@ -219,7 +221,10 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 
 		// record file+database name hash in metadabase to prevent duplicate content
 		fmt.Println("\t[-] Indexing log entries ... ")
-		updateFilesIndex(indexedFileBatch, fs.res.MetaDB, fs.res.Log)
+		err := fs.res.MetaDB.AddNewFilesToIndex(indexedFileBatch)
+		if err != nil {
+			fs.res.Log.Error("Could not update the list of parsed files")
+		}
 	}
 
 	// mark results as imported and analyzed
@@ -247,24 +252,24 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 
 // batchFilesBySize takes in an slice of indexedFiles and splits the array into
 // subgroups of indexedFiles such that each group has a total size in bytes less than size
-func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.IndexedFile {
+func batchFilesBySize(indexedFiles []*files.IndexedFile, size int64) [][]*files.IndexedFile {
 	// sort the indexed files so we process them in order
 	sort.Slice(indexedFiles, func(i, j int) bool {
 		return indexedFiles[i].Path < indexedFiles[j].Path
 	})
 
 	//group by target collection
-	fileTypeMap := make(map[string][]*fpt.IndexedFile)
+	fileTypeMap := make(map[string][]*files.IndexedFile)
 	for _, file := range indexedFiles {
 		if _, ok := fileTypeMap[file.TargetCollection]; !ok {
-			fileTypeMap[file.TargetCollection] = make([]*fpt.IndexedFile, 0)
+			fileTypeMap[file.TargetCollection] = make([]*files.IndexedFile, 0)
 		}
 		fileTypeMap[file.TargetCollection] = append(fileTypeMap[file.TargetCollection], file)
 	}
 
 	// Take n files in each target collection group until the size limit is exceeded, then start a new batch
-	batches := make([][]*fpt.IndexedFile, 0)
-	currBatch := make([]*fpt.IndexedFile, 0)
+	batches := make([][]*files.IndexedFile, 0)
+	currBatch := make([]*files.IndexedFile, 0)
 	currAggBytes := int64(0)
 	iterators := make(map[string]int)
 	for fileType := range fileTypeMap {
@@ -273,7 +278,7 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 
 	for len(iterators) != 0 { // while there is data to iterate through
 
-		maybeBatch := make([]*fpt.IndexedFile, 0)
+		maybeBatch := make([]*files.IndexedFile, 0)
 		maybeAggBytes := int64(0)
 		for fileType := range fileTypeMap { // grab a file for each target collection.
 			if _, ok := iterators[fileType]; ok { // if we haven't ran through all the files for the target collection
@@ -294,7 +299,7 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 		// small enough batch sizes. We just try our best and process 1 file for each target collection at a time.
 		if len(currBatch) != 0 && currAggBytes+maybeAggBytes >= size {
 			batches = append(batches, currBatch)
-			currBatch = make([]*fpt.IndexedFile, 0)
+			currBatch = make([]*files.IndexedFile, 0)
 			currAggBytes = 0
 		}
 
@@ -309,7 +314,7 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 //threads to use to parse the files, whether or not to sort data by date,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
-func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, logger *log.Logger) ParseResults {
+func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThreads int, logger *log.Logger) ParseResults {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 
@@ -323,7 +328,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	for i := 0; i < parsingThreads; i++ {
 		parsingWG.Add(1)
 
-		go func(indexedFiles []*fpt.IndexedFile, logger *log.Logger,
+		go func(indexedFiles []*files.IndexedFile, logger *log.Logger,
 			wg *sync.WaitGroup, start int, jump int, length int) {
 			//comb over array
 			for j := start; j < length; j += jump {
@@ -338,7 +343,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 				}
 
 				// read the file
-				fileScanner, err := getFileScanner(fileHandle)
+				fileScanner, err := files.GetFileScanner(fileHandle)
 				if err != nil {
 					logger.WithFields(log.Fields{
 						"file":  indexedFiles[j].Path,
@@ -354,15 +359,22 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						break
 					}
 
-					//parse the line
-					datum := parseLine(
-						fileScanner.Text(),
-						indexedFiles[j].GetHeader(),
-						indexedFiles[j].GetFieldMap(),
-						indexedFiles[j].GetBroDataFactory(),
-						indexedFiles[j].IsJSON(),
-						logger,
-					)
+					var datum parsetypes.BroData
+					if indexedFiles[j].IsJSON() {
+						datum = files.ParseJSONLine(
+							fileScanner.Text(),
+							indexedFiles[j].GetBroDataFactory(),
+							logger,
+						)
+					} else {
+						datum = files.ParseTSVLine(
+							fileScanner.Text(),
+							indexedFiles[j].GetHeader(),
+							indexedFiles[j].GetFieldMap(),
+							indexedFiles[j].GetBroDataFactory(),
+							logger,
+						)
+					}
 
 					if datum != nil {
 						//figure out which collection (dns, http, or conn) this line is heading for

@@ -1,4 +1,4 @@
-package fileparsetypes
+package files
 
 import (
 	"time"
