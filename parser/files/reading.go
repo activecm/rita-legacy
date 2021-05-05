@@ -319,34 +319,46 @@ func ParseTSVLine(lineString string, header *BroHeader,
 	fieldMap BroHeaderIndexMap, broDataFactory func() pt.BroData,
 	logger *log.Logger) pt.BroData {
 
-	dat := broDataFactory()
-	//NOTE: strings.Split was found to be around 50% faster than bytes.Split, (somewhat-counterintuitively)
-	//Hence, this function takes in a lineString string rather than a lineBuffer []byte
-	line := strings.Split(lineString, header.Separator)
-	if len(line) < len(header.Names) {
-		return nil
-	}
-	if strings.Contains(line[0], "#") {
+	if strings.HasPrefix(lineString, "#") {
 		return nil
 	}
 
+	dat := broDataFactory()
 	data := reflect.ValueOf(dat).Elem()
 
-	for idx, val := range header.Names {
-		if line[idx] == header.Empty ||
-			line[idx] == header.Unset {
-			continue
-		}
-
+	tokenEndIdx := strings.Index(lineString, header.Separator)
+	tokenCounter := 0
+	for tokenEndIdx != -1 {
 		//fields not in the struct will not be parsed
-		fieldOffset, ok := fieldMap[val]
-		if !ok {
-			continue
+		if lineString[:tokenEndIdx] != header.Empty && lineString[:tokenEndIdx] != header.Unset {
+			fieldOffset, ok := fieldMap[header.Names[tokenCounter]]
+			if ok {
+				parseTSVField(
+					lineString[:tokenEndIdx],
+					header.Types[tokenCounter],
+					data.Field(fieldOffset),
+					logger,
+				)
+			}
 		}
 
-		parseTSVField(
-			line[idx], header.Types[idx], data.Field(fieldOffset), logger,
-		)
+		// chomp off the portion we just parsed
+		lineString = lineString[tokenEndIdx+len(header.Separator):]
+		tokenEndIdx = strings.Index(lineString, header.Separator)
+		tokenCounter++
+	}
+
+	//handle last field
+	if lineString != header.Empty && lineString != header.Unset {
+		fieldOffset, ok := fieldMap[header.Names[tokenCounter]]
+		if ok {
+			parseTSVField(
+				lineString,
+				header.Types[tokenCounter],
+				data.Field(fieldOffset),
+				logger,
+			)
+		}
 	}
 
 	return dat
