@@ -55,7 +55,7 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 		tuple = strconv.Itoa(dstPort) + ":" + protocol + ":" + service
 	}
 
-	// Safely store the number of conns for this uconn
+	// ///// CREATE HOST ENTRIES /////
 	retVals.HostLock.Lock()
 	// Check if the map value is set
 	if _, ok := retVals.HostMap[srcKey]; !ok {
@@ -82,6 +82,8 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 	}
 	retVals.HostLock.Unlock()
 
+	// ///// CREATE UNIQUE CONNECTION ENTRY /////
+
 	retVals.UniqueConnLock.Lock()
 	// Check if the map value is set
 	var uconnExists bool
@@ -95,6 +97,8 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 			IsLocalDst: filter.checkIfInternal(dstIP),
 		}
 
+		// ///// INCREMENT SOURCE / DESTINATION COUNTERS FOR HOSTS /////
+		// We only want to do this once for each unique connection entry
 		retVals.HostLock.Lock()
 		retVals.HostMap[srcKey].CountSrc++
 		retVals.HostMap[dstKey].CountDst++
@@ -102,27 +106,34 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 	}
 	retVals.UniqueConnLock.Unlock()
 
+	// ///// SET UNEXPECTED (PORT PROTOCOL SERVICE) FLAG /////
 	// this is to keep track of how many times a host connected to
 	// an unexpected port - proto - service Tuple
 	// we only want to increment the count once per unique destination,
 	// not once per connection, hence the flag and the check
 	retVals.UniqueConnLock.Lock()
+	setUPPSFlag := false
 	if !retVals.UniqueConnMap[srcDstKey].UPPSFlag {
 		for _, entry := range trustedAppReferenceList {
 			if (protocol == entry.protocol) && (dstPort == entry.port) &&
 				(service != entry.service) {
-
-				retVals.HostLock.Lock()
-				retVals.HostMap[srcKey].UntrustedAppConnCount++
-				retVals.HostLock.Unlock()
-
 				retVals.UniqueConnMap[srcDstKey].UPPSFlag = true
+				setUPPSFlag = true
+				break
 			}
 		}
 	}
 	retVals.UniqueConnLock.Unlock()
 
-	// increment unique dst port: proto : service tuple list for host
+	// ///// INCREMENT HOST UNEXPECTED (PORT PROTOCOL SERVICE) COUNTER /////
+	// only do this once per unique connection
+	if setUPPSFlag {
+		retVals.HostLock.Lock()
+		retVals.HostMap[srcKey].UntrustedAppConnCount++
+		retVals.HostLock.Unlock()
+	}
+
+	// ///// UNION (PORT PROTOCOL SERVICE) TUPLE INTO SET FOR UNIQUE CONNECTION /////
 	retVals.UniqueConnLock.Lock()
 	if !util.StringInSlice(tuple, retVals.UniqueConnMap[srcDstKey].Tuples) {
 		retVals.UniqueConnMap[srcDstKey].Tuples = append(
@@ -131,6 +142,7 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 	}
 	retVals.UniqueConnLock.Unlock()
 
+	// ///// UNION (PORT PROTOCOL SERVICE) TUPLE INTO SET FOR DESTINATION IN CERTIFICATE DATA /////
 	// Check if invalid cert record was written before the uconns
 	// record, we'll need to update it with the tuples.
 	retVals.CertificateLock.Lock()
@@ -144,17 +156,18 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 	}
 	retVals.CertificateLock.Unlock()
 
-	// Increment the connection count for the src-dst pair
+	// ///// INCREMENT THE CONNECTION COUNT FOR THE UNIQUE CONNECTION /////
 	retVals.UniqueConnLock.Lock()
 	retVals.UniqueConnMap[srcDstKey].ConnectionCount++
 	retVals.UniqueConnLock.Unlock()
 
+	// ///// INCREMENT THE CONNECTION COUNTS FOR THE HOSTS
 	retVals.HostLock.Lock()
 	retVals.HostMap[srcKey].ConnectionCount++
 	retVals.HostMap[dstKey].ConnectionCount++
 	retVals.HostLock.Unlock()
 
-	// Only append unique timestamps to tslist
+	// ///// UNION TIMESTAMP WITH UNIQUE CONNECTION TIMESTAMP SET /////
 	retVals.UniqueConnLock.Lock()
 	if !util.Int64InSlice(ts, retVals.UniqueConnMap[srcDstKey].TsList) {
 		retVals.UniqueConnMap[srcDstKey].TsList = append(
@@ -163,33 +176,37 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 	}
 	retVals.UniqueConnLock.Unlock()
 
-	// Append all origIPBytes to origBytesList
+	// ///// APPEND IP BYTES TO UNIQUE CONNECTION BYTES LIST /////
 	retVals.UniqueConnLock.Lock()
 	retVals.UniqueConnMap[srcDstKey].OrigBytesList = append(
 		retVals.UniqueConnMap[srcDstKey].OrigBytesList, origIPBytes,
 	)
 	retVals.UniqueConnLock.Unlock()
 
+	// ///// ADD ORIG BYTES AND RESP BYTES TO UNIQUE CONNECTION TOTAL BYTES COUNTER /////
 	// Calculate and store the total number of bytes exchanged by the uconn pair
 	retVals.UniqueConnLock.Lock()
 	retVals.UniqueConnMap[srcDstKey].TotalBytes += bytes
 	retVals.UniqueConnLock.Unlock()
 
+	// ///// ADD ORIG BYTES AND RESP BYTES TO EACH HOST'S TOTAL BYTES COUNTER /////
 	retVals.HostLock.Lock()
 	retVals.HostMap[srcKey].TotalBytes += bytes
 	retVals.HostMap[dstKey].TotalBytes += bytes
 	retVals.HostLock.Unlock()
 
-	// Calculate and store the total duration
+	// ///// ADD CONNECTION DURATION TO UNIQUE CONNECTION'S TOTAL DURATION COUNTER /////
 	retVals.UniqueConnLock.Lock()
 	retVals.UniqueConnMap[srcDstKey].TotalDuration += duration
 	retVals.UniqueConnLock.Unlock()
 
+	// ///// ADD CONNECTION DURATION TO EACH HOST'S TOTAL DURATION COUNTER /////
 	retVals.HostLock.Lock()
 	retVals.HostMap[srcKey].TotalDuration += duration
 	retVals.HostMap[dstKey].TotalDuration += duration
 	retVals.HostLock.Unlock()
 
+	// ///// DETERMINE THE LONGEST DURATION SEEN FOR THIS UNIQUE CONNECTION /////
 	retVals.UniqueConnLock.Lock()
 	// Replace existing duration if current duration is higher
 	if duration > retVals.UniqueConnMap[srcDstKey].MaxDuration {
@@ -197,12 +214,14 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 	}
 	retVals.UniqueConnLock.Unlock()
 
+	// ///// DETERMINE THE LONGEST DURATION SEEN FOR THE SOURCE HOST /////
 	retVals.HostLock.Lock()
 	if duration > retVals.HostMap[srcKey].MaxDuration {
 		retVals.HostMap[srcKey].MaxDuration = duration
 	}
 	retVals.HostLock.Unlock()
 
+	// ///// DETERMINE THE LONGEST DURATION SEEN FOR THE DESTINATION HOST /////
 	retVals.HostLock.Lock()
 	if duration > retVals.HostMap[dstKey].MaxDuration {
 		retVals.HostMap[dstKey].MaxDuration = duration
