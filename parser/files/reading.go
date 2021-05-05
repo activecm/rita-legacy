@@ -219,6 +219,101 @@ func ParseJSONLine(lineBuffer []byte, broDataFactory func() pt.BroData,
 	return dat
 }
 
+func parseTSVField(fieldText string, fieldType string, targetField reflect.Value, logger *log.Logger) {
+	switch fieldType {
+	case pt.Time:
+		secs := strings.Split(fieldText, ".")
+		s, err := strconv.ParseInt(secs[0], 10, 64)
+		if err != nil {
+			logger.WithFields(log.Fields{
+				"error": err.Error(),
+				"value": fieldText,
+			}).Error("Couldn't convert unix ts")
+			targetField.SetInt(-1)
+			return
+		}
+
+		nanos, err := strconv.ParseInt(secs[1], 10, 64)
+		if err != nil {
+			logger.WithFields(log.Fields{
+				"error": err.Error(),
+				"value": fieldText,
+			}).Error("Couldn't convert unix ts")
+			targetField.SetInt(-1)
+			return
+		}
+
+		ttim := time.Unix(s, nanos)
+		tval := ttim.Unix()
+		targetField.SetInt(tval)
+	case pt.String:
+		fallthrough
+	case pt.Enum:
+		fallthrough
+	case pt.Addr:
+		targetField.SetString(fieldText)
+	case pt.Port:
+		fallthrough
+	case pt.Count:
+		intValue, err := strconv.ParseInt(fieldText, 10, 32)
+		if err != nil {
+			logger.WithFields(log.Fields{
+				"error": err.Error(),
+				"value": fieldText,
+			}).Error("Couldn't convert port number/ count")
+			targetField.SetInt(-1)
+			return
+		}
+		targetField.SetInt(intValue)
+	case pt.Interval:
+		flt, err := strconv.ParseFloat(fieldText, 64)
+		if err != nil {
+			logger.WithFields(log.Fields{
+				"error": err.Error(),
+				"value": fieldText,
+			}).Error("Couldn't convert float")
+			targetField.SetFloat(-1.0)
+			return
+		}
+		targetField.SetFloat(flt)
+	case pt.Bool:
+		if fieldText == "T" {
+			targetField.SetBool(true)
+		} else {
+			targetField.SetBool(false)
+		}
+	case pt.StringSet:
+		fallthrough
+	case pt.EnumSet:
+		fallthrough
+	case pt.StringVector:
+		tokens := strings.Split(fieldText, ",")
+		tVal := reflect.ValueOf(tokens)
+		targetField.Set(tVal)
+	case pt.IntervalVector:
+		tokens := strings.Split(fieldText, ",")
+		floats := make([]float64, len(tokens))
+		for i, val := range tokens {
+			var err error
+			floats[i], err = strconv.ParseFloat(val, 64)
+			if err != nil {
+				logger.WithFields(log.Fields{
+					"error": err.Error(),
+					"value": val,
+				}).Error("Couldn't convert float")
+				return
+			}
+		}
+		fVal := reflect.ValueOf(floats)
+		targetField.Set(fVal)
+	default:
+		logger.WithFields(log.Fields{
+			"error": "Unhandled type",
+			"value": fieldType,
+		}).Error("Encountered unhandled type in log")
+	}
+}
+
 //ParseTSVLine creates a new BroData from a line of a Zeek TSV log.
 func ParseTSVLine(lineString string, header *BroHeader,
 	fieldMap BroHeaderIndexMap, broDataFactory func() pt.BroData,
@@ -249,111 +344,9 @@ func ParseTSVLine(lineString string, header *BroHeader,
 			continue
 		}
 
-		switch header.Types[idx] {
-		case pt.Time:
-			secs := strings.Split(line[idx], ".")
-			s, err := strconv.ParseInt(secs[0], 10, 64)
-			if err != nil {
-				logger.WithFields(log.Fields{
-					"error": err.Error(),
-					"value": line[idx],
-				}).Error("Couldn't convert unix ts")
-				data.Field(fieldOffset).SetInt(-1)
-				break
-			}
-
-			n, err := strconv.ParseInt(secs[1], 10, 64)
-			if err != nil {
-				logger.WithFields(log.Fields{
-					"error": err.Error(),
-					"value": line[idx],
-				}).Error("Couldn't convert unix ts")
-				data.Field(fieldOffset).SetInt(-1)
-				break
-			}
-
-			ttim := time.Unix(s, n)
-			tval := ttim.Unix()
-			data.Field(fieldOffset).SetInt(tval)
-		case pt.String:
-			data.Field(fieldOffset).SetString(line[idx])
-		case pt.Addr:
-			data.Field(fieldOffset).SetString(line[idx])
-		case pt.Port:
-			pval, err := strconv.ParseInt(line[idx], 10, 32)
-			if err != nil {
-				logger.WithFields(log.Fields{
-					"error": err.Error(),
-					"value": line[idx],
-				}).Error("Couldn't convert port number")
-				data.Field(fieldOffset).SetInt(-1)
-				break
-			}
-			data.Field(fieldOffset).SetInt(pval)
-		case pt.Enum:
-			data.Field(fieldOffset).SetString(line[idx])
-		case pt.Interval:
-			flt, err := strconv.ParseFloat(line[idx], 64)
-			if err != nil {
-				logger.WithFields(log.Fields{
-					"error": err.Error(),
-					"value": line[idx],
-				}).Error("Couldn't convert float")
-				data.Field(fieldOffset).SetFloat(-1.0)
-				break
-			}
-			data.Field(fieldOffset).SetFloat(flt)
-		case pt.Count:
-			cnt, err := strconv.ParseInt(line[idx], 10, 64)
-			if err != nil {
-				logger.WithFields(log.Fields{
-					"error": err.Error(),
-					"value": line[idx],
-				}).Error("Couldn't convert count")
-				data.Field(fieldOffset).SetInt(-1)
-				break
-			}
-			data.Field(fieldOffset).SetInt(cnt)
-		case pt.Bool:
-			if line[idx] == "T" {
-				data.Field(fieldOffset).SetBool(true)
-				break
-			}
-			data.Field(fieldOffset).SetBool(false)
-		case pt.StringSet:
-			tokens := strings.Split(line[idx], ",")
-			tVal := reflect.ValueOf(tokens)
-			data.Field(fieldOffset).Set(tVal)
-		case pt.EnumSet:
-			tokens := strings.Split(line[idx], ",")
-			tVal := reflect.ValueOf(tokens)
-			data.Field(fieldOffset).Set(tVal)
-		case pt.StringVector:
-			tokens := strings.Split(line[idx], ",")
-			tVal := reflect.ValueOf(tokens)
-			data.Field(fieldOffset).Set(tVal)
-		case pt.IntervalVector:
-			tokens := strings.Split(line[idx], ",")
-			floats := make([]float64, len(tokens))
-			for i, val := range tokens {
-				var err error
-				floats[i], err = strconv.ParseFloat(val, 64)
-				if err != nil {
-					logger.WithFields(log.Fields{
-						"error": err.Error(),
-						"value": val,
-					}).Error("Couldn't convert float")
-					break
-				}
-			}
-			fVal := reflect.ValueOf(floats)
-			data.Field(fieldOffset).Set(fVal)
-		default:
-			logger.WithFields(log.Fields{
-				"error": "Unhandled type",
-				"value": header.Types[idx],
-			}).Error("Encountered unhandled type in log")
-		}
+		parseTSVField(
+			line[idx], header.Types[idx], data.Field(fieldOffset), logger,
+		)
 	}
 
 	return dat
