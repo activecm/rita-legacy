@@ -341,7 +341,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 					var entry parsetypes.BroData
 					if indexedFiles[j].IsJSON() {
 						entry = files.ParseJSONLine(
-							fileScanner.Text(),
+							fileScanner.Bytes(),
 							indexedFiles[j].GetBroDataFactory(),
 							logger,
 						)

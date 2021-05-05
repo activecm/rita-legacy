@@ -62,7 +62,7 @@ func newIndexedFile(filePath string, targetDB string, targetCID int,
 	if header.ObjType != "" {
 		// TSV log files have the type in a header
 		broDataFactory = pt.NewBroDataFactory(header.ObjType)
-	} else if scanner.Err() == nil && len(scanner.Text()) > 0 && // no error and there is text
+	} else if scanner.Err() == nil && len(scanner.Bytes()) > 0 && // no error and there is text
 		json.Valid(scanner.Bytes()) {
 		toReturn.SetJSON()
 		// check if "_path" is provided in the JSON data
@@ -98,7 +98,7 @@ func newIndexedFile(filePath string, targetDB string, targetCID int,
 	//parse first line
 	var line parsetypes.BroData
 	if toReturn.IsJSON() {
-		line = ParseJSONLine(scanner.Text(), broDataFactory, logger)
+		line = ParseJSONLine(scanner.Bytes(), broDataFactory, logger)
 	} else {
 		line = ParseTSVLine(scanner.Text(), header, fieldMap, broDataFactory, logger)
 	}

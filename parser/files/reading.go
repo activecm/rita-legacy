@@ -96,11 +96,11 @@ func scanTSVHeader(fileScanner *bufio.Scanner) (*BroHeader, error) {
 		if fileScanner.Err() != nil {
 			break
 		}
-		if len(fileScanner.Text()) < 1 {
+		if len(fileScanner.Bytes()) < 1 {
 			continue
 		}
 		//On the comment lines
-		if fileScanner.Text()[0] == '#' {
+		if fileScanner.Bytes()[0] == '#' {
 			line := strings.Fields(fileScanner.Text())
 			switch line[0][1:] {
 			case "separator":
@@ -204,11 +204,12 @@ func mapBroHeaderToParserType(header *BroHeader, broDataFactory func() pt.BroDat
 	return toReturn, nil
 }
 
-func ParseJSONLine(lineString string, broDataFactory func() pt.BroData,
+//ParseJSONLine creates a new BroData from a line of a Zeek JSON log.
+func ParseJSONLine(lineBuffer []byte, broDataFactory func() pt.BroData,
 	logger *log.Logger) pt.BroData {
 
 	dat := broDataFactory()
-	err := json.Unmarshal([]byte(lineString), dat)
+	err := json.Unmarshal(lineBuffer, dat)
 	if err != nil {
 		logger.WithFields(log.Fields{
 			"error": err.Error(),
@@ -218,11 +219,14 @@ func ParseJSONLine(lineString string, broDataFactory func() pt.BroData,
 	return dat
 }
 
+//ParseTSVLine creates a new BroData from a line of a Zeek TSV log.
 func ParseTSVLine(lineString string, header *BroHeader,
 	fieldMap BroHeaderIndexMap, broDataFactory func() pt.BroData,
 	logger *log.Logger) pt.BroData {
 
 	dat := broDataFactory()
+	//NOTE: strings.Split was found to be around 50% faster than bytes.Split, (somewhat-counterintuitively)
+	//Hence, this function takes in a lineString string rather than a lineBuffer []byte
 	line := strings.Split(lineString, header.Separator)
 	if len(line) < len(header.Names) {
 		return nil
