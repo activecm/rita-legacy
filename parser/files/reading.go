@@ -330,7 +330,7 @@ func ParseTSVLine(lineString string, header *BroHeader,
 
 	tokenEndIdx := strings.Index(lineString, header.Separator)
 	tokenCounter := 0
-	for tokenEndIdx != -1 {
+	for tokenEndIdx != -1 && tokenCounter < len(header.Names) {
 		//fields not in the struct will not be parsed
 		if lineString[:tokenEndIdx] != header.Empty && lineString[:tokenEndIdx] != header.Unset {
 			fieldOffset, ok := fieldMap[header.Names[tokenCounter]]
