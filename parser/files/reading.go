@@ -315,6 +315,8 @@ func parseTSVField(fieldText string, fieldType string, targetField reflect.Value
 }
 
 //ParseTSVLine creates a new BroData from a line of a Zeek TSV log.
+//String matching is generally faster than byte matching in Golang for some reason, so we take use a string
+//rather than bytes here.
 func ParseTSVLine(lineString string, header *BroHeader,
 	fieldMap BroHeaderIndexMap, broDataFactory func() pt.BroData,
 	logger *log.Logger) pt.BroData {
