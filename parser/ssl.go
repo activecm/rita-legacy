@@ -61,66 +61,67 @@ func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults
 	// create uconn and cert records
 	// Run conn pair through filter to filter out certain connections
 	ignore := filter.filterConnPair(srcIP, dstIP)
-	if !ignore {
+	if ignore {
+		return
+	}
 
-		// Check if uconn map value is set, because this record could
-		// come before a relevant uconns record (or may be the only source
-		// for the uconns record)
+	// Check if uconn map value is set, because this record could
+	// come before a relevant uconns record (or may be the only source
+	// for the uconns record)
+	retVals.UniqueConnLock.Lock()
+	if _, ok := retVals.UniqueConnMap[srcDstKey]; !ok {
+		// create new uconn record if it does not exist
+		retVals.UniqueConnMap[srcDstKey] = &uconn.Input{
+			Hosts:      srcDstPair,
+			IsLocalSrc: filter.checkIfInternal(srcIP),
+			IsLocalDst: filter.checkIfInternal(dstIP),
+		}
+	}
+	retVals.UniqueConnLock.Unlock()
+
+	//if there's any problem in the certificate, mark it invalid
+	if certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " " {
+		// mark as having invalid cert
 		retVals.UniqueConnLock.Lock()
-		if _, ok := retVals.UniqueConnMap[srcDstKey]; !ok {
+		retVals.UniqueConnMap[srcDstKey].InvalidCertFlag = true
+		retVals.UniqueConnLock.Unlock()
+
+		// update relevant cert record
+		retVals.CertificateLock.Lock()
+		if _, ok := retVals.CertificateMap[dstKey]; !ok {
 			// create new uconn record if it does not exist
-			retVals.UniqueConnMap[srcDstKey] = &uconn.Input{
-				Hosts:      srcDstPair,
-				IsLocalSrc: filter.checkIfInternal(srcIP),
-				IsLocalDst: filter.checkIfInternal(dstIP),
+			retVals.CertificateMap[dstKey] = &certificate.Input{
+				Host: dstUniqIP,
+				Seen: 1,
 			}
+		} else {
+			retVals.CertificateMap[dstKey].Seen++
+		}
+		retVals.CertificateLock.Unlock()
+
+		// add uconn entry service tuples to certificate entry tuples
+		retVals.UniqueConnLock.Lock()
+		for _, tuple := range retVals.UniqueConnMap[srcDstKey].Tuples {
+			retVals.CertificateLock.Lock()
+			if !util.StringInSlice(tuple, retVals.CertificateMap[dstKey].Tuples) {
+				retVals.CertificateMap[dstKey].Tuples = append(
+					retVals.CertificateMap[dstKey].Tuples, tuple,
+				)
+			}
+			retVals.CertificateLock.Unlock()
 		}
 		retVals.UniqueConnLock.Unlock()
 
-		//if there's any problem in the certificate, mark it invalid
-		if certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " " {
-			// mark as having invalid cert
-			retVals.UniqueConnLock.Lock()
-			retVals.UniqueConnMap[srcDstKey].InvalidCertFlag = true
-			retVals.UniqueConnLock.Unlock()
-
-			// update relevant cert record
-			retVals.CertificateLock.Lock()
-			if _, ok := retVals.CertificateMap[dstKey]; !ok {
-				// create new uconn record if it does not exist
-				retVals.CertificateMap[dstKey] = &certificate.Input{
-					Host: dstUniqIP,
-					Seen: 1,
-				}
-			} else {
-				retVals.CertificateMap[dstKey].Seen++
-			}
-			retVals.CertificateLock.Unlock()
-
-			// add uconn entry service tuples to certificate entry tuples
-			retVals.UniqueConnLock.Lock()
-			for _, tuple := range retVals.UniqueConnMap[srcDstKey].Tuples {
-				retVals.CertificateLock.Lock()
-				if !util.StringInSlice(tuple, retVals.CertificateMap[dstKey].Tuples) {
-					retVals.CertificateMap[dstKey].Tuples = append(
-						retVals.CertificateMap[dstKey].Tuples, tuple,
-					)
-				}
-				retVals.CertificateLock.Unlock()
-			}
-			retVals.UniqueConnLock.Unlock()
-
-			// mark as having invalid cert
-			retVals.CertificateLock.Lock()
-			if !util.StringInSlice(certStatus, retVals.CertificateMap[dstKey].InvalidCerts) {
-				retVals.CertificateMap[dstKey].InvalidCerts = append(retVals.CertificateMap[dstKey].InvalidCerts, certStatus)
-			}
-			retVals.CertificateLock.Unlock()
-
-			// add src of ssl request to unique array
-			retVals.CertificateLock.Lock()
-			retVals.CertificateMap[dstKey].OrigIps.Insert(srcUniqIP)
-			retVals.CertificateLock.Unlock()
+		// mark as having invalid cert
+		retVals.CertificateLock.Lock()
+		if !util.StringInSlice(certStatus, retVals.CertificateMap[dstKey].InvalidCerts) {
+			retVals.CertificateMap[dstKey].InvalidCerts = append(retVals.CertificateMap[dstKey].InvalidCerts, certStatus)
 		}
+		retVals.CertificateLock.Unlock()
+
+		// add src of ssl request to unique array
+		retVals.CertificateLock.Lock()
+		retVals.CertificateMap[dstKey].OrigIps.Insert(srcUniqIP)
+		retVals.CertificateLock.Unlock()
 	}
 }
