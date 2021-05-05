@@ -21,6 +21,14 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 	srcIP := net.ParseIP(src)
 	dstIP := net.ParseIP(dst)
 
+	// Run conn pair through filter to filter out certain connections
+	ignore := filter.filterConnPair(srcIP, dstIP)
+
+	// If connection pair is not subject to filtering, process
+	if ignore {
+		return
+	}
+
 	// disambiguate addresses which are not publicly routable
 	srcUniqIP := data.NewUniqueIP(srcIP, parseConn.AgentUUID, parseConn.AgentHostname)
 	dstUniqIP := data.NewUniqueIP(dstIP, parseConn.AgentUUID, parseConn.AgentHostname)
@@ -30,14 +38,6 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 	srcKey := srcUniqIP.MapKey()
 	dstKey := dstUniqIP.MapKey()
 	srcDstKey := srcDstPair.MapKey()
-
-	// Run conn pair through filter to filter out certain connections
-	ignore := filter.filterConnPair(srcIP, dstIP)
-
-	// If connection pair is not subject to filtering, process
-	if ignore {
-		return
-	}
 
 	ts := parseConn.TimeStamp
 	origIPBytes := parseConn.OrigIPBytes
