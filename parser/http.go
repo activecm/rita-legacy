@@ -31,81 +31,68 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 	dstUniqIP := data.NewUniqueIP(dstIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
 	srcProxyFQDNTrio := beaconproxy.NewUniqueSrcProxyHostnameTrio(srcUniqIP, dstUniqIP, fqdn)
 
+	// get aggregation keys for ip addresses and connection pair
+	srcProxyFQDNKey := srcProxyFQDNTrio.MapKey()
+
+	updateUseragentsByHTTP(srcUniqIP, parseHTTP, retVals)
+
+	// check if internal IP is requesting a connection through a proxy
+	if parseHTTP.Method == "CONNECT" && filter.checkIfProxyServer(dstIP) {
+		updateProxiedUniqueConnectionsByHTTP(srcProxyFQDNTrio, srcProxyFQDNKey, parseHTTP, retVals)
+	}
+}
+
+func updateUseragentsByHTTP(srcUniqIP data.UniqueIP, parseHTTP *parsetypes.HTTP, retVals ParseResults) {
+
+	retVals.UseragentLock.Lock()
+	defer retVals.UseragentLock.Unlock()
+
 	// parse out useragent info
 	userAgentName := parseHTTP.UserAgent
 	if userAgentName == "" {
 		userAgentName = "Empty user agent string"
 	}
 
-	// get aggregation keys for ip addresses and connection pair
-	srcProxyFQDNKey := srcProxyFQDNTrio.MapKey()
-
-	// check if destination is a proxy server
-	dstIsProxy := filter.checkIfProxyServer(dstIP)
-
-	// parse method type
-	method := parseHTTP.Method
-
-	// check if internal IP is requesting a connection
-	// through a proxy
-	isProxyRequest := method == "CONNECT" && dstIsProxy
-
-	// ///////////////////////// CREATE USERAGENT ENTRY /////////////////////////
-	{
-		retVals.UseragentLock.Lock()
-		if _, ok := retVals.UseragentMap[userAgentName]; !ok {
-			retVals.UseragentMap[userAgentName] = &useragent.Input{
-				Name: userAgentName,
-			}
+	if _, ok := retVals.UseragentMap[userAgentName]; !ok {
+		retVals.UseragentMap[userAgentName] = &useragent.Input{
+			Name: userAgentName,
 		}
-		retVals.UseragentLock.Unlock()
 	}
 
-	// ///////////////////////// CREATE PROXIED UNIQUE CONNECTION ENTRY /////////////////////////
-	if isProxyRequest {
-		// Check if the map value is set
-		retVals.ProxyUniqueConnLock.Lock()
-		if _, ok := retVals.ProxyUniqueConnMap[srcProxyFQDNKey]; !ok {
-			// create new host record with src and dst
-			retVals.ProxyUniqueConnMap[srcProxyFQDNKey] = &beaconproxy.Input{
-				Hosts: srcProxyFQDNTrio,
-			}
+	// ///// INCREMENT USERAGENT COUNTER /////
+	retVals.UseragentMap[userAgentName].Seen++
+
+	// ///// UNION SOURCE HOST INTO USERAGENT ORIGINATING HOSTS /////
+	retVals.UseragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
+
+	// ///// UNION DESTINATION HOSTNAME INTO USERAGENT DESTINATIONS /////
+	if !util.StringInSlice(parseHTTP.Host, retVals.UseragentMap[userAgentName].Requests) {
+		retVals.UseragentMap[userAgentName].Requests = append(
+			retVals.UseragentMap[userAgentName].Requests, parseHTTP.Host,
+		)
+	}
+}
+
+func updateProxiedUniqueConnectionsByHTTP(srcProxyFQDNTrio beaconproxy.UniqueSrcProxyHostnameTrio, srcProxyFQDNKey string, parseHTTP *parsetypes.HTTP, retVals ParseResults) {
+
+	retVals.ProxyUniqueConnLock.Lock()
+	defer retVals.ProxyUniqueConnLock.Unlock()
+
+	if _, ok := retVals.ProxyUniqueConnMap[srcProxyFQDNKey]; !ok {
+		// create new host record with src and dst
+		retVals.ProxyUniqueConnMap[srcProxyFQDNKey] = &beaconproxy.Input{
+			Hosts: srcProxyFQDNTrio,
 		}
-		retVals.ProxyUniqueConnLock.Unlock()
 	}
 
-	// ///////////////////////// USERAGENT UPDATES /////////////////////////
-	{
-		retVals.UseragentLock.Lock()
+	// ///// INCREMENT THE CONNECTION COUNT FOR THE PROXIED UNIQUE CONNECTION ///////
+	retVals.ProxyUniqueConnMap[srcProxyFQDNKey].ConnectionCount++
 
-		// ///// INCREMENT USERAGENT COUNTER /////
-		retVals.UseragentMap[userAgentName].Seen++
-
-		// ///// UNION SOURCE HOST INTO USERAGENT ORIGINATING HOSTS /////
-		retVals.UseragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
-
-		// ///// UNION DESTINATION HOSTNAME INTO USERAGENT DESTINATIONS /////
-		if !util.StringInSlice(fqdn, retVals.UseragentMap[userAgentName].Requests) {
-			retVals.UseragentMap[userAgentName].Requests = append(retVals.UseragentMap[userAgentName].Requests, fqdn)
-		}
-		retVals.UseragentLock.Unlock()
+	// ///// UNION TIMESTAMP WITH PROXIED UNIQUE CONNECTION TIMESTAMP SET /////
+	ts := parseHTTP.TimeStamp
+	if !util.Int64InSlice(ts, retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList) {
+		retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList = append(
+			retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList, ts,
+		)
 	}
-
-	// ///////////////////////// PROXIED UNIQUE CONNECTION UPDATES /////////////////////////
-	if isProxyRequest {
-		retVals.ProxyUniqueConnLock.Lock()
-
-		// ///// INCREMENT THE CONNECTION COUNT FOR THE PROXIED UNIQUE CONNECTION ///////
-		retVals.ProxyUniqueConnMap[srcProxyFQDNKey].ConnectionCount++
-
-		// ///// UNION TIMESTAMP WITH PROXIED UNIQUE CONNECTION TIMESTAMP SET /////
-		ts := parseHTTP.TimeStamp
-		if !util.Int64InSlice(ts, retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList) {
-			retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList = append(
-				retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList, ts,
-			)
-		}
-		retVals.ProxyUniqueConnLock.Unlock()
-	}
-
 }
