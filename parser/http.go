@@ -48,27 +48,26 @@ func updateUseragentsByHTTP(srcUniqIP data.UniqueIP, parseHTTP *parsetypes.HTTP,
 	defer retVals.UseragentLock.Unlock()
 
 	// parse out useragent info
-	userAgentName := parseHTTP.UserAgent
-	if userAgentName == "" {
-		userAgentName = "Empty user agent string"
+	if parseHTTP.UserAgent == "" {
+		parseHTTP.UserAgent = "Empty user agent string"
 	}
 
-	if _, ok := retVals.UseragentMap[userAgentName]; !ok {
-		retVals.UseragentMap[userAgentName] = &useragent.Input{
-			Name: userAgentName,
+	if _, ok := retVals.UseragentMap[parseHTTP.UserAgent]; !ok {
+		retVals.UseragentMap[parseHTTP.UserAgent] = &useragent.Input{
+			Name: parseHTTP.UserAgent,
 		}
 	}
 
 	// ///// INCREMENT USERAGENT COUNTER /////
-	retVals.UseragentMap[userAgentName].Seen++
+	retVals.UseragentMap[parseHTTP.UserAgent].Seen++
 
 	// ///// UNION SOURCE HOST INTO USERAGENT ORIGINATING HOSTS /////
-	retVals.UseragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
+	retVals.UseragentMap[parseHTTP.UserAgent].OrigIps.Insert(srcUniqIP)
 
 	// ///// UNION DESTINATION HOSTNAME INTO USERAGENT DESTINATIONS /////
-	if !util.StringInSlice(parseHTTP.Host, retVals.UseragentMap[userAgentName].Requests) {
-		retVals.UseragentMap[userAgentName].Requests = append(
-			retVals.UseragentMap[userAgentName].Requests, parseHTTP.Host,
+	if !util.StringInSlice(parseHTTP.Host, retVals.UseragentMap[parseHTTP.UserAgent].Requests) {
+		retVals.UseragentMap[parseHTTP.UserAgent].Requests = append(
+			retVals.UseragentMap[parseHTTP.UserAgent].Requests, parseHTTP.Host,
 		)
 	}
 }
@@ -85,7 +84,7 @@ func updateProxiedUniqueConnectionsByHTTP(srcProxyFQDNTrio beaconproxy.UniqueSrc
 		}
 	}
 
-	// ///// INCREMENT THE CONNECTION COUNT FOR THE PROXIED UNIQUE CONNECTION ///////
+	// ///// INCREMENT THE CONNECTION COUNT FOR THE PROXIED UNIQUE CONNECTION /////
 	retVals.ProxyUniqueConnMap[srcProxyFQDNKey].ConnectionCount++
 
 	// ///// UNION TIMESTAMP WITH PROXIED UNIQUE CONNECTION TIMESTAMP SET /////

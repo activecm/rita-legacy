@@ -48,7 +48,6 @@ func updateExplodedDNSbyDNS(parseDNS *parsetypes.DNS, retVals ParseResults) {
 	retVals.ExplodedDNSLock.Lock()
 	defer retVals.ExplodedDNSLock.Unlock()
 
-	// ///////////////////////// CREATE EXPLODED DNS ENTRY /////////////////////////
 	retVals.ExplodedDNSMap[parseDNS.Query]++
 }
 
@@ -72,9 +71,7 @@ func updateHostnamesByDNS(srcUniqIP data.UniqueIP, parseDNS *parsetypes.DNS, ret
 			answerIP := net.ParseIP(answer)
 			// Check if answer is an IP address and store it if it is
 			if answerIP != nil {
-				answerUniqIP := data.NewUniqueIP(
-					answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname,
-				)
+				answerUniqIP := data.NewUniqueIP(answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
 				retVals.HostnameMap[parseDNS.Query].ResolvedIPs.Insert(answerUniqIP)
 			}
 		}

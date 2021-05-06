@@ -39,7 +39,6 @@ func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults
 
 	updateUniqueConnectionsBySSL(srcIP, dstIP, srcDstPair, srcDstKey, certificateIsInvalid, parseSSL, filter, retVals)
 
-	// ///////////////////////// CREATE CERTIFICATE ENTRY /////////////////////////
 	if certificateIsInvalid {
 		updateCertificatesBySSL(srcUniqIP, dstUniqIP, dstKey, certStatus, retVals)
 		// the unique connection record may have been created before the certificate record was seen
