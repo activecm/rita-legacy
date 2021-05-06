@@ -32,31 +32,33 @@ func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults
 		ja3Hash = "No JA3 hash generated"
 	}
 
-	// Safely store ja3 information
+	certificateIsInvalid := certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " "
 
-	// create useragent record if it doesn't exist
-	retVals.UseragentLock.Lock()
-	if _, ok := retVals.UseragentMap[ja3Hash]; !ok {
+	// ///////////////////////// CREATE USERAGENT ENTRY /////////////////////////
+	{
+		retVals.UseragentLock.Lock()
 		retVals.UseragentMap[ja3Hash] = &useragent.Input{
-			Name:     ja3Hash,
-			Seen:     1,
-			Requests: []string{host},
-			JA3:      true,
+			Name: ja3Hash,
+			JA3:  true,
 		}
-		retVals.UseragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
-	} else {
-		// increment times seen count
+		retVals.UseragentLock.Unlock()
+	}
+
+	// ///////////////////////// USERAGENT UPDATES /////////////////////////
+	{
+		retVals.UseragentLock.Lock()
+		// ///// INCREMENT USERAGENT COUNTER /////
 		retVals.UseragentMap[ja3Hash].Seen++
 
-		// add src of ssl request to unique array
+		// ///// UNION SOURCE HOST INTO USERAGENT ORIGINATING HOSTS /////
 		retVals.UseragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
 
-		// add request string to unique array
+		// ///// UNION DESTINATION HOSTNAME INTO USERAGENT DESTINATIONS /////
 		if !util.StringInSlice(host, retVals.UseragentMap[ja3Hash].Requests) {
 			retVals.UseragentMap[ja3Hash].Requests = append(retVals.UseragentMap[ja3Hash].Requests, host)
 		}
+		retVals.UseragentLock.Unlock()
 	}
-	retVals.UseragentLock.Unlock()
 
 	// create uconn and cert records
 	// Run conn pair through filter to filter out certain connections
@@ -65,63 +67,77 @@ func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults
 		return
 	}
 
-	// Check if uconn map value is set, because this record could
-	// come before a relevant uconns record (or may be the only source
-	// for the uconns record)
-	retVals.UniqueConnLock.Lock()
-	if _, ok := retVals.UniqueConnMap[srcDstKey]; !ok {
-		// create new uconn record if it does not exist
-		retVals.UniqueConnMap[srcDstKey] = &uconn.Input{
-			Hosts:      srcDstPair,
-			IsLocalSrc: filter.checkIfInternal(srcIP),
-			IsLocalDst: filter.checkIfInternal(dstIP),
-		}
-	}
-	retVals.UniqueConnLock.Unlock()
-
-	//if there's any problem in the certificate, mark it invalid
-	if certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " " {
-		// mark as having invalid cert
+	// ///////////////////////// CREATE UNIQUE CONNECTION ENTRY /////////////////////////
+	{
 		retVals.UniqueConnLock.Lock()
-		retVals.UniqueConnMap[srcDstKey].InvalidCertFlag = true
+		// Check if uconn map value is set, because this record could
+		// come before a relevant uconns record (or may be the only source
+		// for the uconns record)
+		if _, ok := retVals.UniqueConnMap[srcDstKey]; !ok {
+			// create new uconn record if it does not exist
+			retVals.UniqueConnMap[srcDstKey] = &uconn.Input{
+				Hosts:      srcDstPair,
+				IsLocalSrc: filter.checkIfInternal(srcIP),
+				IsLocalDst: filter.checkIfInternal(dstIP),
+			}
+		}
 		retVals.UniqueConnLock.Unlock()
+	}
 
+	// ///////////////////////// CREATE CERTIFICATE ENTRY /////////////////////////
+	if certificateIsInvalid {
 		// update relevant cert record
 		retVals.CertificateLock.Lock()
 		if _, ok := retVals.CertificateMap[dstKey]; !ok {
 			// create new uconn record if it does not exist
 			retVals.CertificateMap[dstKey] = &certificate.Input{
 				Host: dstUniqIP,
-				Seen: 1,
 			}
-		} else {
-			retVals.CertificateMap[dstKey].Seen++
 		}
 		retVals.CertificateLock.Unlock()
+	}
 
+	// ///////////////////////// UNIQUE CONNECTION UPDATES /////////////////////////
+	if certificateIsInvalid {
+		retVals.UniqueConnLock.Lock()
+		// ///// SET INVALID CERTIFICATE FLAG FOR UNIQUE CONNECTION /////
+		retVals.UniqueConnMap[srcDstKey].InvalidCertFlag = true
+		retVals.UniqueConnLock.Unlock()
+	}
+
+	// ///////////////////////// CERTIFICATE UPDATES /////////////////////////
+	if certificateIsInvalid {
+		retVals.CertificateLock.Lock()
+		// ///// INCREMENT CONNECTION COUNTER FOR DESTINATION WITH INVALID CERTIFICATE /////
+		retVals.CertificateMap[dstKey].Seen++
+
+		// ///// UNION CERTIFICATE STATUS INTO SET OF CERTIFICATE STATUSES FOR DESTINATINO HOST /////
+		if !util.StringInSlice(certStatus, retVals.CertificateMap[dstKey].InvalidCerts) {
+			retVals.CertificateMap[dstKey].InvalidCerts = append(retVals.CertificateMap[dstKey].InvalidCerts, certStatus)
+		}
+
+		// ///// UNION SOURCE HOST INTO SET OF HOSTS WHICH FETCHED THE DESTINATION'S INVALID CERTIFICATE /////
+		retVals.CertificateMap[dstKey].OrigIps.Insert(srcUniqIP)
+
+		retVals.CertificateLock.Unlock()
+	}
+
+	// ///////////////////////// COPY UNIQUE CONNECTION DATA TO CERTIFICATE ENTRY /////////////////////////
+	if certificateIsInvalid {
 		// add uconn entry service tuples to certificate entry tuples
 		retVals.UniqueConnLock.Lock()
+		retVals.CertificateLock.Lock()
+
+		// ///// UNION (PORT PROTOCOL SERVICE) TUPLES FROM UNIQUE CONNECTIONS ENTRY INTO CERTIFICATE ENTRY /////
 		for _, tuple := range retVals.UniqueConnMap[srcDstKey].Tuples {
-			retVals.CertificateLock.Lock()
 			if !util.StringInSlice(tuple, retVals.CertificateMap[dstKey].Tuples) {
 				retVals.CertificateMap[dstKey].Tuples = append(
 					retVals.CertificateMap[dstKey].Tuples, tuple,
 				)
 			}
-			retVals.CertificateLock.Unlock()
 		}
+
+		retVals.CertificateLock.Unlock()
 		retVals.UniqueConnLock.Unlock()
-
-		// mark as having invalid cert
-		retVals.CertificateLock.Lock()
-		if !util.StringInSlice(certStatus, retVals.CertificateMap[dstKey].InvalidCerts) {
-			retVals.CertificateMap[dstKey].InvalidCerts = append(retVals.CertificateMap[dstKey].InvalidCerts, certStatus)
-		}
-		retVals.CertificateLock.Unlock()
-
-		// add src of ssl request to unique array
-		retVals.CertificateLock.Lock()
-		retVals.CertificateMap[dstKey].OrigIps.Insert(srcUniqIP)
-		retVals.CertificateLock.Unlock()
 	}
 }
