@@ -31,6 +31,12 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 	dstUniqIP := data.NewUniqueIP(dstIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
 	srcProxyFQDNTrio := beaconproxy.NewUniqueSrcProxyHostnameTrio(srcUniqIP, dstUniqIP, fqdn)
 
+	// parse out useragent info
+	userAgentName := parseHTTP.UserAgent
+	if userAgentName == "" {
+		userAgentName = "Empty user agent string"
+	}
+
 	// get aggregation keys for ip addresses and connection pair
 	srcProxyFQDNKey := srcProxyFQDNTrio.MapKey()
 
@@ -42,10 +48,21 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 
 	// check if internal IP is requesting a connection
 	// through a proxy
-	if method == "CONNECT" && dstIsProxy {
+	isProxyRequest := method == "CONNECT" && dstIsProxy
 
-		// add client (src) IP to hostname map
+	// ///////////////////////// CREATE USERAGENT ENTRY /////////////////////////
+	{
+		retVals.UseragentLock.Lock()
+		if _, ok := retVals.UseragentMap[userAgentName]; !ok {
+			retVals.UseragentMap[userAgentName] = &useragent.Input{
+				Name: userAgentName,
+			}
+		}
+		retVals.UseragentLock.Unlock()
+	}
 
+	// ///////////////////////// CREATE PROXIED UNIQUE CONNECTION ENTRY /////////////////////////
+	if isProxyRequest {
 		// Check if the map value is set
 		retVals.ProxyUniqueConnLock.Lock()
 		if _, ok := retVals.ProxyUniqueConnMap[srcProxyFQDNKey]; !ok {
@@ -55,17 +72,34 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 			}
 		}
 		retVals.ProxyUniqueConnLock.Unlock()
+	}
 
-		// increment connection count
+	// ///////////////////////// USERAGENT UPDATES /////////////////////////
+	{
+		retVals.UseragentLock.Lock()
+
+		// ///// INCREMENT USERAGENT COUNTER /////
+		retVals.UseragentMap[userAgentName].Seen++
+
+		// ///// UNION SOURCE HOST INTO USERAGENT ORIGINATING HOSTS /////
+		retVals.UseragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
+
+		// ///// UNION DESTINATION HOSTNAME INTO USERAGENT DESTINATIONS /////
+		if !util.StringInSlice(fqdn, retVals.UseragentMap[userAgentName].Requests) {
+			retVals.UseragentMap[userAgentName].Requests = append(retVals.UseragentMap[userAgentName].Requests, fqdn)
+		}
+		retVals.UseragentLock.Unlock()
+	}
+
+	// ///////////////////////// PROXIED UNIQUE CONNECTION UPDATES /////////////////////////
+	if isProxyRequest {
 		retVals.ProxyUniqueConnLock.Lock()
+
+		// ///// INCREMENT THE CONNECTION COUNT FOR THE PROXIED UNIQUE CONNECTION ///////
 		retVals.ProxyUniqueConnMap[srcProxyFQDNKey].ConnectionCount++
-		retVals.ProxyUniqueConnLock.Unlock()
 
-		// parse timestamp
+		// ///// UNION TIMESTAMP WITH PROXIED UNIQUE CONNECTION TIMESTAMP SET /////
 		ts := parseHTTP.TimeStamp
-
-		// add timestamp to unique timestamp list
-		retVals.ProxyUniqueConnLock.Lock()
 		if !util.Int64InSlice(ts, retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList) {
 			retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList = append(
 				retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList, ts,
@@ -74,32 +108,4 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 		retVals.ProxyUniqueConnLock.Unlock()
 	}
 
-	// parse out useragent info
-	userAgentName := parseHTTP.UserAgent
-	if userAgentName == "" {
-		userAgentName = "Empty user agent string"
-	}
-
-	// create record if it doesn't exist
-	retVals.UseragentLock.Lock()
-	if _, ok := retVals.UseragentMap[userAgentName]; !ok {
-		retVals.UseragentMap[userAgentName] = &useragent.Input{
-			Name:     userAgentName,
-			Seen:     1,
-			Requests: []string{fqdn},
-		}
-		retVals.UseragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
-	} else {
-		// increment times seen count
-		retVals.UseragentMap[userAgentName].Seen++
-
-		// add src of useragent request to unique array
-		retVals.UseragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
-
-		// add request string to unique array
-		if !util.StringInSlice(fqdn, retVals.UseragentMap[userAgentName].Requests) {
-			retVals.UseragentMap[userAgentName].Requests = append(retVals.UseragentMap[userAgentName].Requests, fqdn)
-		}
-	}
-	retVals.UseragentLock.Unlock()
 }

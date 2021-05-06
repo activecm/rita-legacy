@@ -107,8 +107,6 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 		retVals.UniqueConnLock.Unlock()
 	}
 
-	////////////////////////////// TODO: reorganize below this line //////////////////////////////
-
 	// ///////////////////////// UNIQUE CONNECTION UPDATES /////////////////////////
 	setUPPSFlag := false // shared variable between unique connection and host updates
 	{
