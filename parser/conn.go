@@ -49,19 +49,19 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 		tuple = strconv.Itoa(parseConn.DestinationPort) + ":" + parseConn.Proto + ":" + parseConn.Service
 	}
 
-	newUniqueConnection, setUPPSFlag := updateUniqueConnections(
+	newUniqueConnection, setUPPSFlag := updateUniqueConnectionsByConn(
 		srcIP, dstIP, srcDstPair, srcDstKey, roundedDuration, twoWayIPBytes, tuple, parseConn, filter, retVals,
 	)
 
-	updateHosts(
+	updateHostsByConn(
 		srcIP, dstIP, srcUniqIP, dstUniqIP, srcKey, dstKey, newUniqueConnection, setUPPSFlag,
 		roundedDuration, twoWayIPBytes, tuple, parseConn, filter, retVals,
 	)
 
-	updateCertificates(dstKey, tuple, retVals)
+	updateCertificatesByConn(dstKey, tuple, retVals)
 }
 
-func updateUniqueConnections(srcIP, dstIP net.IP, srcDstPair data.UniqueIPPair, srcDstKey string,
+func updateUniqueConnectionsByConn(srcIP, dstIP net.IP, srcDstPair data.UniqueIPPair, srcDstKey string,
 	roundedDuration float64, twoWayIPBytes int64, tuple string,
 	parseConn *parsetypes.Conn, filter filter, retVals ParseResults) (newEntry bool, setUPPSFlag bool) {
 
@@ -139,7 +139,7 @@ func updateUniqueConnections(srcIP, dstIP net.IP, srcDstPair data.UniqueIPPair, 
 	return
 }
 
-func updateHosts(srcIP, dstIP net.IP, srcUniqIP, dstUniqIP data.UniqueIP, srcKey, dstKey string,
+func updateHostsByConn(srcIP, dstIP net.IP, srcUniqIP, dstUniqIP data.UniqueIP, srcKey, dstKey string,
 	newUniqueConnection, setUPPSFlag bool, roundedDuration float64, twoWayIPBytes int64, tuple string,
 	parseConn *parsetypes.Conn, filter filter, retVals ParseResults) {
 
@@ -203,7 +203,8 @@ func updateHosts(srcIP, dstIP net.IP, srcUniqIP, dstUniqIP data.UniqueIP, srcKey
 	}
 }
 
-func updateCertificates(dstKey string, tuple string, retVals ParseResults) {
+func updateCertificatesByConn(dstKey string, tuple string, retVals ParseResults) {
+
 	retVals.CertificateLock.Lock()
 	defer retVals.CertificateLock.Unlock()
 
