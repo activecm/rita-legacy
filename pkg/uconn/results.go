@@ -67,3 +67,56 @@ func LongConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 	return longConnResults, err
 
 }
+
+//OpenConnResults returns open connections. The results will be sorted, descending by duration.
+//limit and noLimit control how many results are returned.
+func OpenConnResults(res *resources.Resources, thresh int, limit int, noLimit bool) ([]OpenConnResult, error) {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	var openConnResults []OpenConnResult
+
+	openConnQuery := []bson.M{
+		{"$match": bson.M{}},
+		{"$project": bson.M{
+			"dst":              1,
+			"dst_network_name": 1,
+			"dst_network_uuid": 1,
+			"src":              1,
+			"src_network_name": 1,
+			"src_network_uuid": 1,
+			// Store temp variable that we can use to match only entries with open connections
+			"isOpen":     bson.M{"$gt": []interface{}{bson.M{"$size": bson.M{"$objectToArray": "$open_conns"}}, 0}},
+			"open_conns": bson.M{"$objectToArray": "$open_conns"},
+		}},
+		{"$match": bson.M{"isOpen": true}},
+		{"$unwind": "$open_conns"},
+		{"$sort": bson.M{"maxdur": -1}},
+		{"$project": bson.M{
+			"_id":              0,
+			"dst":              1,
+			"dst_network_name": 1,
+			"dst_network_uuid": 1,
+			"src":              1,
+			"src_network_name": 1,
+			"src_network_uuid": 1,
+			// we have to use the .v. here because the objectToArray operator creates a k and v fields
+			// that hold the object's key (which was the UID in this case)
+			// and the object's values, respectively
+			"bytes":    "$open_conns.v.bytes",
+			"duration": "$open_conns.v.duration",
+			"tuple":    "$open_conns.v.tuple",
+			"uid":      "$open_conns.k",
+		}},
+		{"$sort": bson.M{"duration": -1}},
+	}
+
+	if !noLimit {
+		openConnQuery = append(openConnQuery, bson.M{"$limit": limit})
+	}
+
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.Structure.UniqueConnTable).Pipe(openConnQuery).AllowDiskUse().All(&openConnResults)
+
+	return openConnResults, err
+
+}

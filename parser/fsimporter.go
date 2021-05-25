@@ -518,7 +518,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// entry and set the Open state accordingly
 									uconnMap[srcDstKey].ConnStateList[uid] = &uconn.ConnState{
 										Bytes:    bytes,
-										DstPort:  dstPort,
+										Tuple:    tuple,
 										Duration: duration,
 										Open:     !connClosed,
 									}
