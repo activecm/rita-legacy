@@ -506,11 +506,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 										if duration > uconnMap[srcDstKey].ConnStateList[uid].Duration {
 											uconnMap[srcDstKey].ConnStateList[uid].Duration = duration
-										}
-										// really, if duration is longer then we can probably just assume
-										// bytes is the same or larger than the previous Bytes value...
-										// but it's good to check anyways, for extra sanity
-										if bytes > uconnMap[srcDstKey].ConnStateList[uid].Bytes {
+
+											// If current duration is longer than previous duration, we can
+											// also assume that current bytes is /at least/ as big as the
+											// stored value for bytes
 											uconnMap[srcDstKey].ConnStateList[uid].Bytes = bytes
 										}
 									}
