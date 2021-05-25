@@ -77,10 +77,15 @@ func (a *analyzer) start() {
 			// being removed from the OpenBytes and OpenDuration totals. The Bytes and Duration
 			// values from the closed connection will have already been added to the appropriate
 			// chunk in a "dat" entry so overwriting them at this point is fine.
-			for _, connStateEntry := range datum.ConnStateList {
+			for key, connStateEntry := range datum.ConnStateList {
 				if connStateEntry.Open {
 					datum.OpenBytes += connStateEntry.Bytes
 					datum.OpenDuration += connStateEntry.Duration
+				} else {
+					// Remove the closed entry so it doesn't appear in the list of open connections in mongo
+					// Interwebs says it is safe to do this operation within a range loop
+					// source: https://stackoverflow.com/questions/23229975/is-it-safe-to-remove-selected-keys-from-map-within-a-range-loop
+					delete(datum.ConnStateList, key)
 				}
 			}
 
@@ -96,6 +101,7 @@ func (a *analyzer) start() {
 					"dst_network_name": datum.Hosts.DstNetworkName,
 					"open_bytes":       datum.OpenBytes,
 					"open_duration":    datum.OpenDuration,
+					"open_conns":       datum.ConnStateList,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
@@ -117,6 +123,7 @@ func (a *analyzer) start() {
 					"dst_network_name": datum.Hosts.DstNetworkName,
 					"open_bytes":       datum.OpenBytes,
 					"open_duration":    datum.OpenDuration,
+					"open_conns":       datum.ConnStateList,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
