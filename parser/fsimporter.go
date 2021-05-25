@@ -489,15 +489,34 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									uconnMap[srcDstKey].ConnStateList = make(map[string]*uconn.ConnState)
 								}
 
-								// if an entry for this connection is present, check the state.
+								// If an entry for this connection is present, check the state.
 								// if the state is already closed, then don't update it as open
-								// because the closed state supersedes the open state. If the connection
-								// is open, mark it as closed.
+								// because the closed state supersedes the open state.
+								// If the connection was stored as open and the current entry says
+								// it is still open, update the Duration and Bytes values if they are
+								// greater than the currently stored values. This can happen if we are
+								// processing multiple hours worth of logs in a single go. We want only
+								// the largest values as they are the most current values for any given
+								// connection.
+								// If the connection was open and the current entry says it is now closed,
+								// update the state to be closed
 								if _, ok := uconnMap[srcDstKey].ConnStateList[uid]; ok {
 									if uconnMap[srcDstKey].ConnStateList[uid].Open {
-										uconnMap[srcDstKey].ConnStateList[uid].Open = false
+										uconnMap[srcDstKey].ConnStateList[uid].Open = !connClosed
+
+										if duration > uconnMap[srcDstKey].ConnStateList[uid].Duration {
+											uconnMap[srcDstKey].ConnStateList[uid].Duration = duration
+										}
+										// really, if duration is longer then we can probably just assume
+										// bytes is the same or larger than the previous Bytes value...
+										// but it's good to check anyways, for extra sanity
+										if bytes > uconnMap[srcDstKey].ConnStateList[uid].Bytes {
+											uconnMap[srcDstKey].ConnStateList[uid].Bytes = bytes
+										}
 									}
 								} else {
+									// No entry was present for a connection with this UID. Create a new
+									// entry and set the Open state accordingly
 									uconnMap[srcDstKey].ConnStateList[uid] = &uconn.ConnState{
 										Bytes:    bytes,
 										DstPort:  dstPort,
