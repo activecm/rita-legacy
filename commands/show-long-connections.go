@@ -94,15 +94,22 @@ func showConns(connResults []uconn.LongConnResult, delim string, showNetNames bo
 
 	var headerFields []string
 	if showNetNames {
-		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration"}
+		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Open"}
 	} else {
-		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration"}
+		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Open"}
 	}
 
 	// Print the headers and analytic values, separated by a delimiter
 	fmt.Println(strings.Join(headerFields, delim))
 	for _, result := range connResults {
 		var row []string
+
+		// Convert the true/false open/closed state to a nice string
+		state := "closed"
+		if result.Open {
+			state = "open"
+		}
+
 		if showNetNames {
 			row = []string{
 				result.SrcNetworkName,
@@ -111,6 +118,7 @@ func showConns(connResults []uconn.LongConnResult, delim string, showNetNames bo
 				result.DstIP,
 				strings.Join(result.Tuples, " "),
 				f(result.MaxDuration),
+				state,
 			}
 		} else {
 			row = []string{
@@ -118,6 +126,7 @@ func showConns(connResults []uconn.LongConnResult, delim string, showNetNames bo
 				result.DstIP,
 				strings.Join(result.Tuples, " "),
 				f(result.MaxDuration),
+				state,
 			}
 		}
 
@@ -131,14 +140,21 @@ func showConnsHuman(connResults []uconn.LongConnResult, showNetNames bool) error
 
 	var headerFields []string
 	if showNetNames {
-		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration"}
+		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "State"}
 	} else {
-		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration"}
+		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "State"}
 	}
 
 	table.SetHeader(headerFields)
 	for _, result := range connResults {
 		var row []string
+
+		// Convert the true/false open/closed state to a nice string
+		state := "closed"
+		if result.Open {
+			state = "open"
+		}
+
 		if showNetNames {
 			row = []string{
 				result.SrcNetworkName,
@@ -147,6 +163,7 @@ func showConnsHuman(connResults []uconn.LongConnResult, showNetNames bool) error
 				result.DstIP,
 				strings.Join(result.Tuples, " "),
 				duration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
+				state,
 			}
 		} else {
 			row = []string{
@@ -154,6 +171,7 @@ func showConnsHuman(connResults []uconn.LongConnResult, showNetNames bool) error
 				result.DstIP,
 				strings.Join(result.Tuples, " "),
 				duration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
+				state,
 			}
 		}
 

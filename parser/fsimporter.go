@@ -427,6 +427,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								protocol := parseConn.Proto
 								service := parseConn.Service
 								dstPort := parseConn.DestinationPort
+								uid := parseConn.UID
+								connClosed := (parseConn.ConnState != "S1") //Anything other than S1 likely means closed
+
 								var tuple string
 								if service == "" {
 									tuple = strconv.Itoa(dstPort) + ":" + protocol + ":-"
@@ -470,8 +473,37 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
 									}
 
-									hostMap[srcKey].CountSrc++
-									hostMap[dstKey].CountDst++
+									// don't increment the connection count until the connection closes.
+									// this prevents double-counting connections
+									if connClosed {
+										hostMap[srcKey].CountSrc++
+										hostMap[dstKey].CountDst++
+									}
+								}
+
+								// If the ConnStateList map doesn't exist for this entry, create it.
+								// Doing this here as it's possible to create a uconnMap[srcDstKey] entry
+								// elsewhere. Rather than put in this map creation statement in those places,
+								// we can just check it and do it here.
+								if uconnMap[srcDstKey].ConnStateList == nil {
+									uconnMap[srcDstKey].ConnStateList = make(map[string]*uconn.ConnState)
+								}
+
+								// if an entry for this connection is present, check the state.
+								// if the state is already closed, then don't update it as open
+								// because the closed state supersedes the open state. If the connection
+								// is open, mark it as closed.
+								if _, ok := uconnMap[srcDstKey].ConnStateList[uid]; ok {
+									if uconnMap[srcDstKey].ConnStateList[uid].Open {
+										uconnMap[srcDstKey].ConnStateList[uid].Open = false
+									}
+								} else {
+									uconnMap[srcDstKey].ConnStateList[uid] = &uconn.ConnState{
+										Bytes:    bytes,
+										DstPort:  dstPort,
+										Duration: duration,
+										Open:     !connClosed,
+									}
 								}
 
 								// this is to keep track of how many times a host connected to
@@ -482,20 +514,27 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									for _, entry := range trustedAppReferenceList {
 										if (protocol == entry.protocol) && (dstPort == entry.port) {
 											if service != entry.service {
-												hostMap[srcKey].UntrustedAppConnCount++
 												uconnMap[srcDstKey].UPPSFlag = true
+
+												// only increment when the connection has closed to
+												// avoid double counting
+												if connClosed {
+													hostMap[srcKey].UntrustedAppConnCount++
+												}
 											}
 										}
 									}
 								}
 
-								// increment unique dst port: proto : service tuple list for host
+								// increment unique dst port: proto : service tuple list for host.
+								// Fine to do this with open connections as it's idempotent (yes, I like that word...)
 								if !stringInSlice(tuple, uconnMap[srcDstKey].Tuples) {
 									uconnMap[srcDstKey].Tuples = append(uconnMap[srcDstKey].Tuples, tuple)
 								}
 
 								// Check if invalid cert record was written before the uconns
 								// record, we'll need to update it with the tuples.
+								// Fine to do this with open connections as it's idempotent
 								if _, ok := certMap[dstKey]; ok {
 									// add tuple to invlaid cert list
 									if !stringInSlice(tuple, certMap[dstKey].Tuples) {
@@ -503,30 +542,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									}
 								}
 
-								// Increment the connection count for the src-dst pair
-								uconnMap[srcDstKey].ConnectionCount++
-								hostMap[srcKey].ConnectionCount++
-								hostMap[dstKey].ConnectionCount++
-
-								// Only append unique timestamps to tslist
-								if !int64InSlice(ts, uconnMap[srcDstKey].TsList) {
-									uconnMap[srcDstKey].TsList = append(uconnMap[srcDstKey].TsList, ts)
-								}
-
-								// Append all origIPBytes to origBytesList
-								uconnMap[srcDstKey].OrigBytesList = append(uconnMap[srcDstKey].OrigBytesList, origIPBytes)
-
-								// Calculate and store the total number of bytes exchanged by the uconn pair
-								uconnMap[srcDstKey].TotalBytes += bytes
-								hostMap[srcKey].TotalBytes += bytes
-								hostMap[dstKey].TotalBytes += bytes
-
-								// Calculate and store the total duration
-								uconnMap[srcDstKey].TotalDuration += duration
-								hostMap[srcKey].TotalDuration += duration
-								hostMap[dstKey].TotalDuration += duration
-
-								// Replace existing duration if current duration is higher
+								// Replace existing duration if current duration is higher. It's fine
+								// to do this if the connection is still open as it will just get replaced
+								// later when the connection closes. If an open connection is responsible
+								// for the longest duration, we want to see that.
 								if duration > uconnMap[srcDstKey].MaxDuration {
 									uconnMap[srcDstKey].MaxDuration = duration
 								}
@@ -536,6 +555,35 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 								if duration > hostMap[dstKey].MaxDuration {
 									hostMap[dstKey].MaxDuration = duration
+								}
+
+								// The following updates should only be performed when the connection
+								// is closed to avoid double-counting and prematurely including data
+								// in other analysis
+								if connClosed {
+
+									// Increment the connection count for the src-dst pair
+									uconnMap[srcDstKey].ConnectionCount++
+									hostMap[srcKey].ConnectionCount++
+									hostMap[dstKey].ConnectionCount++
+
+									// Only append unique timestamps to tslist
+									if !int64InSlice(ts, uconnMap[srcDstKey].TsList) {
+										uconnMap[srcDstKey].TsList = append(uconnMap[srcDstKey].TsList, ts)
+									}
+
+									// Append all origIPBytes to origBytesList
+									uconnMap[srcDstKey].OrigBytesList = append(uconnMap[srcDstKey].OrigBytesList, origIPBytes)
+
+									// Calculate and store the total number of bytes exchanged by the uconn pair
+									uconnMap[srcDstKey].TotalBytes += bytes
+									hostMap[srcKey].TotalBytes += bytes
+									hostMap[dstKey].TotalBytes += bytes
+
+									// Calculate and store the total duration
+									uconnMap[srcDstKey].TotalDuration += duration
+									hostMap[srcKey].TotalDuration += duration
+									hostMap[dstKey].TotalDuration += duration
 								}
 
 								mutex.Unlock()
