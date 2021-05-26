@@ -94,9 +94,9 @@ func showConns(connResults []uconn.LongConnResult, delim string, showNetNames bo
 
 	var headerFields []string
 	if showNetNames {
-		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Open"}
+		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "State"}
 	} else {
-		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Open"}
+		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "State"}
 	}
 
 	// Print the headers and analytic values, separated by a delimiter
