@@ -77,7 +77,7 @@ func OpenConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 	var openConnResults []OpenConnResult
 
 	openConnQuery := []bson.M{
-		{"$match": bson.M{}},
+		{"$match": bson.M{"$expr": bson.M{"$gt": []interface{}{bson.M{"$size": bson.M{"$objectToArray": "$open_conns"}}, 0}}}},
 		{"$project": bson.M{
 			"dst":              1,
 			"dst_network_name": 1,
@@ -85,13 +85,9 @@ func OpenConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 			"src":              1,
 			"src_network_name": 1,
 			"src_network_uuid": 1,
-			// Store temp variable that we can use to match only entries with open connections
-			"isOpen":     bson.M{"$gt": []interface{}{bson.M{"$size": bson.M{"$objectToArray": "$open_conns"}}, 0}},
-			"open_conns": bson.M{"$objectToArray": "$open_conns"},
+			"open_conns":       bson.M{"$objectToArray": "$open_conns"},
 		}},
-		{"$match": bson.M{"isOpen": true}},
 		{"$unwind": "$open_conns"},
-		{"$sort": bson.M{"maxdur": -1}},
 		{"$project": bson.M{
 			"_id":              0,
 			"dst":              1,
