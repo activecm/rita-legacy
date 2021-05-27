@@ -25,9 +25,7 @@ func LongConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 			"dst_network_name": 1,
 			"maxdur":           "$dat.maxdur",
 			"tuples":           bson.M{"$ifNull": []interface{}{"$dat.tuples", []interface{}{}}},
-			// If entry for open_duration is missing or 0, then there are no open connections
-			// from the src to the dst. If it is present and greater than 0, an open connection exists
-			"open": bson.M{"$gt": []interface{}{bson.M{"$ifNull": []interface{}{"$open_duration", 0}}, 0}},
+			"open":             1,
 		}},
 		bson.M{"$unwind": "$maxdur"},
 		bson.M{"$unwind": "$tuples"},
@@ -77,7 +75,7 @@ func OpenConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 	var openConnResults []OpenConnResult
 
 	openConnQuery := []bson.M{
-		{"$match": bson.M{"$expr": bson.M{"$gt": []interface{}{bson.M{"$size": bson.M{"$objectToArray": "$open_conns"}}, 0}}}},
+		{"$match": bson.M{"open": true}},
 		{"$project": bson.M{
 			"dst":              1,
 			"dst_network_name": 1,

@@ -89,6 +89,8 @@ func (a *analyzer) start() {
 				}
 			}
 
+			connState := len(datum.ConnStateList) > 0
+
 			// if this connection qualifies to be a strobe with the current number
 			// of connections in the current datum, don't store bytes and ts.
 			// it will not qualify to be downgraded to a beacon until this chunk is
@@ -102,6 +104,7 @@ func (a *analyzer) start() {
 					"open_bytes":       datum.OpenBytes,
 					"open_duration":    datum.OpenDuration,
 					"open_conns":       datum.ConnStateList,
+					"open":             connState,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
@@ -124,6 +127,7 @@ func (a *analyzer) start() {
 					"open_bytes":       datum.OpenBytes,
 					"open_duration":    datum.OpenDuration,
 					"open_conns":       datum.ConnStateList,
+					"open":             connState,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
