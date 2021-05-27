@@ -163,7 +163,7 @@ func showOpenConnsHuman(connResults []uconn.OpenConnResult, showNetNames bool) e
 				result.SrcIP,
 				result.DstIP,
 				result.Tuple,
-				duration(time.Duration(int(result.Duration * float64(time.Second)))),
+				openDuration(time.Duration(int(result.Duration * float64(time.Second)))),
 				strconv.Itoa(result.Bytes),
 				result.UID,
 			}
