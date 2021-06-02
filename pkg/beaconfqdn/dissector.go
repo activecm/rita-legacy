@@ -5,6 +5,7 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/globalsign/mgo/bson"
 )
@@ -46,14 +47,99 @@ func (d *dissector) close() {
 }
 
 //start kicks off a new analysis thread
+/*
+db.getCollection('uconn').aggregate([
+    {"$match": {
+        "$or": [{"dst":"172.217.4.226"}]
+    }},
+    {"$project": {
+        "src":              1,
+        "src_network_uuid": 1,
+        "src_network_name": 1,
+        "ts": {
+            "$reduce": {
+                "input":            "$dat.ts",
+                    "initialValue": [],
+                    "in":           {"$concatArrays": ["$$value", "$$this"]},
+            },
+        },
+        "bytes": {
+            "$reduce": {
+                "input":        "$dat.bytes",
+                "initialValue": [],
+                "in":           {"$concatArrays": ["$$value", "$$this"]},
+            },
+        },
+        "count":  {"$sum": "$dat.count"},
+        "tbytes": {"$sum": "$dat.tbytes"},
+    }},
+    {"$group": {
+        "_id":              {"src": "$src", "uuid": "$src_network_uuid"},
+        "ts":               {"$push": "$ts"},
+        "bytes":            {"$push": "$bytes"},
+        "count":            {"$sum": "$count"},
+        "tbytes":           {"$sum": "$tbytes"},
+        "src_network_name": {"$last": "$src_network_name"},
+    }},
+    {"$match": {"count": {"$gt": 20}}},
+    {"$unwind": {
+        "path": "$ts",
+        // by default, $unwind does not output a document if the field value is null,
+        // missing, or an empty array. Since uconns stops storing ts and byte array
+        // results if a result is going to be guaranteed to be a beacon, we need this
+        // to not discard the result so we can update the fqdn beacon accurately
+        "preserveNullAndEmptyArrays": true,
+    }},
+    {"$unwind": {
+        "path":                       "$ts",
+        "preserveNullAndEmptyArrays": true,
+    }},
+    {"$group": {
+        "_id": "$id",
+        // need to unique-ify timestamps or else results
+        // will be skewed by "0 distant" data points
+        "ts":     {"$addToSet": "$ts"},
+        "bytes":  {"$first": "$bytes"},
+        "count":  {"$first": "$count"},
+        "tbytes": {"$first": "$tbytes"},
+        "src_network_name": {"$last": "$src_network_name"},
+    }},
+    {"$unwind": {
+        "path":                       "$bytes",
+        "preserveNullAndEmptyArrays": true,
+    }},
+    {"$unwind": {
+        "path":                       "$bytes",
+        "preserveNullAndEmptyArrays": true,
+    }},
+    {"$group": {
+        "_id":    "$_id",
+        "ts":     {"$first": "$ts"},
+        "bytes":  {"$push": "$bytes"},
+        "count":  {"$first": "$count"},
+        "tbytes": {"$first": "$tbytes"},
+        "src_network_name": {"$last": "$src_network_name"},
+    }},
+    {"$project": {
+        "_id":              0,
+        "src":              "$_id.src",
+        "src_network_uuid": "$_id.uuid",
+        "src_network_name": 1,
+        "ts":               1,
+        "bytes":            1,
+        "count":            1,
+        "tbytes":           1,
+    }},
+])
+*/
 func (d *dissector) start() {
 	d.dissectWg.Add(1)
+
 	go func() {
 		ssn := d.db.Session.Copy()
 		defer ssn.Close()
 
 		for entry := range d.dissectChannel {
-
 			// This will work for both updating and inserting completely new Beacons
 			// for every new hostnames record we have, we will check every entry in the
 			// uconn table where the source IP from the hostnames record connected to one
@@ -72,10 +158,18 @@ func (d *dissector) start() {
 				// we do not have that, so the calculation must happen. We don't necessarily need to store
 				// the tslist or byte list, but I don't think that leaving it in will significantly impact
 				// performance on a few strobes.
-				{"$match": entry.Src.BSONKey()},
+
+				// This query pulls out all uconn entries where any of the resolved IPs in DstBSONList
+				// are shown as a destination. We then group on unique Src (src IP, uuid, network name).
+				// This returns an array of results such that for each Src, we have the timestamps from
+				// that Src to any of the resolved IPs. We then iterate over that array of results to
+				// perfrom the beacon FQDN analysis. This was shown to be over 8x faster than making
+				// separate queries to the uconn table for each Src.
 				{"$match": bson.M{"$or": entry.DstBSONList}},
 				{"$project": bson.M{
-					"src": 1,
+					"src":              1,
+					"src_network_uuid": 1,
+					"src_network_name": 1,
 					"ts": bson.M{
 						"$reduce": bson.M{
 							"input":        "$dat.ts",
@@ -94,11 +188,12 @@ func (d *dissector) start() {
 					"tbytes": bson.M{"$sum": "$dat.tbytes"},
 				}},
 				{"$group": bson.M{
-					"_id":    "$src",
-					"ts":     bson.M{"$push": "$ts"},
-					"bytes":  bson.M{"$push": "$bytes"},
-					"count":  bson.M{"$sum": "$count"},
-					"tbytes": bson.M{"$sum": "$tbytes"},
+					"_id":              bson.M{"src": "$src", "uuid": "$src_network_uuid"},
+					"ts":               bson.M{"$push": "$ts"},
+					"bytes":            bson.M{"$push": "$bytes"},
+					"count":            bson.M{"$sum": "$count"},
+					"tbytes":           bson.M{"$sum": "$tbytes"},
+					"src_network_name": bson.M{"$last": "$src_network_name"},
 				}},
 				{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.BeaconFQDN.DefaultConnectionThresh}}},
 				{"$unwind": bson.M{
@@ -117,10 +212,11 @@ func (d *dissector) start() {
 					"_id": "$_id",
 					// need to unique-ify timestamps or else results
 					// will be skewed by "0 distant" data points
-					"ts":     bson.M{"$addToSet": "$ts"},
-					"bytes":  bson.M{"$first": "$bytes"},
-					"count":  bson.M{"$first": "$count"},
-					"tbytes": bson.M{"$first": "$tbytes"},
+					"ts":               bson.M{"$addToSet": "$ts"},
+					"bytes":            bson.M{"$first": "$bytes"},
+					"count":            bson.M{"$first": "$count"},
+					"tbytes":           bson.M{"$first": "$tbytes"},
+					"src_network_name": bson.M{"$last": "$src_network_name"},
 				}},
 				{"$unwind": bson.M{
 					"path":                       "$bytes",
@@ -131,37 +227,49 @@ func (d *dissector) start() {
 					"preserveNullAndEmptyArrays": true,
 				}},
 				{"$group": bson.M{
-					"_id":    "$_id",
-					"ts":     bson.M{"$first": "$ts"},
-					"bytes":  bson.M{"$push": "$bytes"},
-					"count":  bson.M{"$first": "$count"},
-					"tbytes": bson.M{"$first": "$tbytes"},
+					"_id":              "$_id",
+					"ts":               bson.M{"$first": "$ts"},
+					"bytes":            bson.M{"$push": "$bytes"},
+					"count":            bson.M{"$first": "$count"},
+					"tbytes":           bson.M{"$first": "$tbytes"},
+					"src_network_name": bson.M{"$last": "$src_network_name"},
 				}},
 				{"$project": bson.M{
-					"_id":    0,
-					"ts":     1,
-					"bytes":  1,
-					"count":  1,
-					"tbytes": 1,
+					"_id":              0,
+					"src":              "$_id.src",
+					"src_network_uuid": "$_id.uuid",
+					"src_network_name": 1,
+					"ts":               1,
+					"bytes":            1,
+					"count":            1,
+					"tbytes":           1,
 				}},
 			}
 
-			var res struct {
-				Count  int64   `bson:"count"`
-				Ts     []int64 `bson:"ts"`
-				Bytes  []int64 `bson:"bytes"`
-				TBytes int64   `bson:"tbytes"`
-			}
+			type (
+				indvidualRes struct {
+					Src            string      `bson:"src"`
+					SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
+					SrcNetworkName string      `bson:"src_network_name"`
+					Count          int64       `bson:"count"`
+					Ts             []int64     `bson:"ts"`
+					Bytes          []int64     `bson:"bytes"`
+					TBytes         int64       `bson:"tbytes"`
+				}
+			)
 
-			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnTable).Pipe(uconnFindQuery).AllowDiskUse().One(&res)
+			var allResults []indvidualRes
 
-			// Check for errors and parse results
-			// this is here because it will still return an empty document even if there are no results
-			if res.Count > 0 {
+			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnTable).Pipe(uconnFindQuery).AllowDiskUse().All(&allResults)
 
+			// Iterate through the results to run the analysis on each set of timestamps
+			// between a Src and any of the resolved IPs for the current FQDN
+			for _, res := range allResults {
+
+				srcCurr := data.UniqueSrcIP{SrcIP: res.Src, SrcNetworkUUID: res.SrcNetworkUUID, SrcNetworkName: res.SrcNetworkName}
 				analysisInput := &hostname.FqdnInput{
 					FQDN:            entry.FQDN,
-					Src:             entry.Src,
+					Src:             srcCurr,
 					ConnectionCount: res.Count,
 					TotalBytes:      res.TBytes,
 					ResolvedIPs:     entry.ResolvedIPs,
@@ -188,6 +296,7 @@ func (d *dissector) start() {
 			}
 
 		}
+
 		d.dissectWg.Done()
 	}()
 }

@@ -44,6 +44,7 @@ func (w *writer) close() {
 //start kicks off a new write thread
 func (w *writer) start() {
 	w.writeWg.Add(1)
+
 	go func() {
 		ssn := w.db.Session.Copy()
 		defer ssn.Close()
@@ -80,6 +81,7 @@ func (w *writer) start() {
 				}
 			}
 		}
+
 		w.writeWg.Done()
 	}()
 }
