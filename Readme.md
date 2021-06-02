@@ -83,7 +83,7 @@ RITA can process TSV, JSON, and [JSON streaming](https://github.com/corelight/js
 This is the simplest usage and is great for analyzing a collection of Zeek logs in a single directory. If you expect to have more logs to add to the same analysis later see the next section on Rolling Datasets.
 
 ```
-rita import path/to/your/zeek_logs dataset_name`
+rita import path/to/your/zeek_logs dataset_name
 ```
 
 Every log file in the supplied directory will be imported into a dataset with the given name. However, files in nested directories will not be processed.
@@ -105,6 +105,10 @@ rita import --rolling /opt/zeek/logs/$(date --date='-1 hour' +\%Y-\%m-\%d)/ data
 ```
 
 RITA cycles data into and out of rolling databases in "chunks". You can think of each chunk as one hour, and the default being 24 chunks in a dataset. This gives the ability to always have the most recent 24 hours' worth of data available. But chunks are generic enough to accommodate non-default Zeek logging configurations or data retention times as well. See the [Rolling Datasets](docs/Rolling%20Datasets.md) documentation for advanced options.
+
+
+> :grey_exclamation: **Note:** `dataset_name` is simply a name of your choosing. We recommend a descriptive name such as the hostname or location of where the data was captured. Stick with letters, numbers, and underscores. Periods and other special characters are not allowed.
+
 
 #### Examining Data With RITA
 
