@@ -74,11 +74,12 @@ db.getCollection('uconn').aggregate([
         "tbytes": {"$sum": "$dat.tbytes"},
     }},
     {"$group": {
-        "_id":              {"src": "$src", "uuid": "$src_network_uuid", "network": "$src_network_name"},
+        "_id":              {"src": "$src", "uuid": "$src_network_uuid"},
         "ts":               {"$push": "$ts"},
         "bytes":            {"$push": "$bytes"},
         "count":            {"$sum": "$count"},
         "tbytes":           {"$sum": "$tbytes"},
+        "src_network_name": {"$last": "$src_network_name"},
     }},
     {"$match": {"count": {"$gt": 20}}},
     {"$unwind": {
@@ -101,6 +102,7 @@ db.getCollection('uconn').aggregate([
         "bytes":  {"$first": "$bytes"},
         "count":  {"$first": "$count"},
         "tbytes": {"$first": "$tbytes"},
+        "src_network_name": {"$last": "$src_network_name"},
     }},
     {"$unwind": {
         "path":                       "$bytes",
@@ -116,12 +118,13 @@ db.getCollection('uconn').aggregate([
         "bytes":  {"$push": "$bytes"},
         "count":  {"$first": "$count"},
         "tbytes": {"$first": "$tbytes"},
+        "src_network_name": {"$last": "$src_network_name"},
     }},
     {"$project": {
         "_id":              0,
         "src":              "$_id.src",
         "src_network_uuid": "$_id.uuid",
-        "src_network_name": "$_id.network",
+        "src_network_name": 1,
         "ts":               1,
         "bytes":            1,
         "count":            1,
