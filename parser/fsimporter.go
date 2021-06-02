@@ -54,7 +54,7 @@ type (
 	trustedAppTiplet struct {
 		protocol string
 		port     int
-		service  string
+		service  []string
 	}
 )
 
@@ -78,10 +78,18 @@ func NewFSImporter(res *resources.Resources,
 		neverIncludedDomain:  res.Config.S.Filtering.NeverIncludeDomain,
 	}
 }
-
+// These protocols are innocent until proven guilty
 var trustedAppReferenceList = [...]trustedAppTiplet{
-	{"tcp", 80, "http"},
-	{"tcp", 443, "ssl"},
+	{"tcp", 80, []string{"http", "ssl", "http,ssl"}},
+	{"tcp", 443, []string{"ssl"}},
+	{"tcp", 53, []string{"dns"}},
+	{"tcp", 22, []string{"ssh"}},
+	{"udp", 123, []string{"ntp", "-"}},
+	{"udp", 53, []string{"dns"}},
+	{"tcp", 445, []string{"smb"}},
+	{"tcp", 25, []string{"smtp", "ssl", "smtp,ssl"}},
+	{"tcp", 3306, []string{"mysql"}},
+	{"tcp", 143, []string{"imap", "ssl", "imap,ssl"}},
 }
 
 //GetInternalSubnets returns the internal subnets from the config file
@@ -481,9 +489,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								if !uconnMap[srcDstKey].UPPSFlag {
 									for _, entry := range trustedAppReferenceList {
 										if (protocol == entry.protocol) && (dstPort == entry.port) {
-											if service != entry.service {
-												hostMap[srcKey].UntrustedAppConnCount++
-												uconnMap[srcDstKey].UPPSFlag = true
+											for i := range entry.service {
+												if service != entry.service[i] {
+													hostMap[srcKey].UntrustedAppConnCount++
+													uconnMap[srcDstKey].UPPSFlag = true
+													break; // make sure it only doesn't match once
+												}
 											}
 										}
 									}
