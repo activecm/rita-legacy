@@ -138,12 +138,13 @@ func (a *analyzer) start() {
 					"cid":                   a.chunk,
 					"src_network_name":      datum.Hosts.SrcNetworkName,
 					"dst_network_name":      datum.Hosts.DstNetworkName,
-					"open_bytes":            datum.OpenBytes,
-					"open_orig_bytes":       datum.OpenOrigBytes,
-					"open_duration":         datum.OpenDuration,
-					"open_conns":            datum.ConnStateList,
-					"open_connection_count": datum.OpenConnectionCount,
 					"open":                  connState,
+					"open_bytes":            datum.OpenBytes,
+					"open_connection_count": datum.OpenConnectionCount,
+					"open_conns":            datum.ConnStateList,
+					"open_duration":         datum.OpenDuration,
+					"open_orig_bytes":       datum.OpenOrigBytes,
+					"open_ts":               datum.OpenTSList,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
