@@ -473,12 +473,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
 									}
 
-									// don't increment the connection count until the connection closes.
-									// this prevents double-counting connections
-									if connClosed {
-										hostMap[srcKey].CountSrc++
-										hostMap[dstKey].CountDst++
-									}
+									// Can do this even if the connection is open. For each set of logs we
+									// process, we increment these values once per unique connection.
+									// This might mean that an open connection has caused these values
+									// to be incremented, but that is ok.
+									hostMap[srcKey].CountSrc++
+									hostMap[dstKey].CountDst++
 								}
 
 								// If the ConnStateList map doesn't exist for this entry, create it.
@@ -509,18 +509,21 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 											// If current duration is longer than previous duration, we can
 											// also assume that current bytes is /at least/ as big as the
-											// stored value for bytes
+											// stored value for bytes...same for OrigBytes
 											uconnMap[srcDstKey].ConnStateList[uid].Bytes = bytes
+											uconnMap[srcDstKey].ConnStateList[uid].OrigBytes = origIPBytes
 										}
 									}
 								} else {
 									// No entry was present for a connection with this UID. Create a new
 									// entry and set the Open state accordingly
 									uconnMap[srcDstKey].ConnStateList[uid] = &uconn.ConnState{
-										Bytes:    bytes,
-										Tuple:    tuple,
-										Duration: duration,
-										Open:     !connClosed,
+										Bytes:     bytes,
+										Duration:  duration,
+										Open:      !connClosed,
+										OrigBytes: origIPBytes,
+										Ts:        ts,
+										Tuple:     tuple,
 									}
 								}
 
@@ -582,6 +585,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 									// Increment the connection count for the src-dst pair
 									uconnMap[srcDstKey].ConnectionCount++
+
+									// Not sure if this is used anywhere?
 									hostMap[srcKey].ConnectionCount++
 									hostMap[dstKey].ConnectionCount++
 
@@ -595,11 +600,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 									// Calculate and store the total number of bytes exchanged by the uconn pair
 									uconnMap[srcDstKey].TotalBytes += bytes
+
+									// Not sure that this is used anywhere?
 									hostMap[srcKey].TotalBytes += bytes
 									hostMap[dstKey].TotalBytes += bytes
 
 									// Calculate and store the total duration
 									uconnMap[srcDstKey].TotalDuration += duration
+
+									// Not sure that this is used anywhere?
 									hostMap[srcKey].TotalDuration += duration
 									hostMap[dstKey].TotalDuration += duration
 								}

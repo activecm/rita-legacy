@@ -81,10 +81,21 @@ func (a *analyzer) start() {
 				if connStateEntry.Open {
 					datum.OpenBytes += connStateEntry.Bytes
 					datum.OpenDuration += connStateEntry.Duration
+					datum.OpenOrigBytes += connStateEntry.OrigBytes
+
+					//Increment the OpenConnectionCount for each open entry that we have
+					datum.OpenConnectionCount++
+
+					// Only append unique timestamps to OpenTsList.
+					if !int64InSlice(connStateEntry.Ts, datum.OpenTSList) {
+						datum.OpenTSList = append(datum.OpenTSList, connStateEntry.Ts)
+					}
 				} else {
 					// Remove the closed entry so it doesn't appear in the list of open connections in mongo
 					// Interwebs says it is safe to do this operation within a range loop
 					// source: https://stackoverflow.com/questions/23229975/is-it-safe-to-remove-selected-keys-from-map-within-a-range-loop
+					// This will also prevent duplication of data between a previously-opened and closed connection that are
+					// one int he same
 					delete(datum.ConnStateList, key)
 				}
 			}
@@ -97,14 +108,17 @@ func (a *analyzer) start() {
 			// outdated and removed. If only importing once - still just a strobe.
 			if datum.ConnectionCount >= a.connLimit {
 				query["$set"] = bson.M{
-					"strobe":           true,
-					"cid":              a.chunk,
-					"src_network_name": datum.Hosts.SrcNetworkName,
-					"dst_network_name": datum.Hosts.DstNetworkName,
-					"open_bytes":       datum.OpenBytes,
-					"open_duration":    datum.OpenDuration,
-					"open_conns":       datum.ConnStateList,
-					"open":             connState,
+					"strobe":                true,
+					"cid":                   a.chunk,
+					"src_network_name":      datum.Hosts.SrcNetworkName,
+					"dst_network_name":      datum.Hosts.DstNetworkName,
+					"open":                  connState,
+					"open_bytes":            datum.OpenBytes,
+					"open_connection_count": datum.OpenConnectionCount,
+					"open_conns":            datum.ConnStateList,
+					"open_duration":         datum.OpenDuration,
+					"open_orig_bytes":       datum.OpenOrigBytes,
+					"open_ts":               datum.OpenTSList,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
@@ -121,13 +135,15 @@ func (a *analyzer) start() {
 				}
 			} else {
 				query["$set"] = bson.M{
-					"cid":              a.chunk,
-					"src_network_name": datum.Hosts.SrcNetworkName,
-					"dst_network_name": datum.Hosts.DstNetworkName,
-					"open_bytes":       datum.OpenBytes,
-					"open_duration":    datum.OpenDuration,
-					"open_conns":       datum.ConnStateList,
-					"open":             connState,
+					"cid":                   a.chunk,
+					"src_network_name":      datum.Hosts.SrcNetworkName,
+					"dst_network_name":      datum.Hosts.DstNetworkName,
+					"open_bytes":            datum.OpenBytes,
+					"open_orig_bytes":       datum.OpenOrigBytes,
+					"open_duration":         datum.OpenDuration,
+					"open_conns":            datum.ConnStateList,
+					"open_connection_count": datum.OpenConnectionCount,
+					"open":                  connState,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
@@ -290,4 +306,14 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP data.UniqueIP, extern
 	}
 
 	return output
+}
+
+//int64InSlice ...
+func int64InSlice(a int64, list []int64) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }

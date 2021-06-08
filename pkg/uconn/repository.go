@@ -25,18 +25,21 @@ type update struct {
 
 //Input holds aggregated connection information between two hosts in a dataset
 type Input struct {
-	Hosts           data.UniqueIPPair
-	ConnectionCount int64
-	IsLocalSrc      bool
-	IsLocalDst      bool
-	OpenBytes       int64
-	TotalBytes      int64
-	MaxDuration     float64
-	OpenDuration    float64
-	TotalDuration   float64
-	TsList          []int64
-	OrigBytesList   []int64
-	Tuples          []string
+	Hosts               data.UniqueIPPair
+	OpenConnectionCount int64
+	ConnectionCount     int64
+	IsLocalSrc          bool
+	IsLocalDst          bool
+	OpenBytes           int64
+	TotalBytes          int64
+	MaxDuration         float64
+	OpenDuration        float64
+	TotalDuration       float64
+	OpenTSList          []int64
+	TsList              []int64
+	OrigBytesList       []int64
+	OpenOrigBytes       int64
+	Tuples              []string
 	// InvalidCerts    []string
 	InvalidCertFlag bool
 	UPPSFlag        bool
@@ -75,12 +78,16 @@ type OpenConnResult struct {
 // when the connection closes.
 // Parameters:
 //		Bytes: 		total bytes for current connection
-//		Tuple: 		destination port:protocol:service of current connection
 //		Duration: 	total duration for current connection
 //		Open:		shows if a connection is still open
+//		OrigBytes:  total origin bytes for current connection
+//		Ts:			timestamp of the start of the open connection
+//		Tuple: 		destination port:protocol:service of current connection
 type ConnState struct {
-	Bytes    int64   `bson:"bytes"`
-	Tuple    string  `bson:"tuple"`
-	Duration float64 `bson:"duration"`
-	Open     bool    `bson:"open"`
+	Bytes     int64   `bson:"bytes"`
+	Duration  float64 `bson:"duration"`
+	Open      bool    `bson:"open"`
+	OrigBytes int64   `bson:"orig_bytes"`
+	Ts        int64   `bson:"ts"`
+	Tuple     string  `bson:"tuple"`
 }
