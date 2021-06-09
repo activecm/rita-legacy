@@ -59,10 +59,9 @@ func (a *analyzer) close() {
 //start kicks off a new analysis thread
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
+
 	go func() {
-
 		for entry := range a.analysisChannel {
-
 			// set up beacon writer output
 			output := &update{}
 
@@ -258,7 +257,9 @@ func (a *analyzer) start() {
 				// set to writer channel
 				a.analyzedCallback(output)
 			}
+
 		}
+
 		a.analysisWg.Done()
 	}()
 }

@@ -47,10 +47,9 @@ func (s *sorter) close() {
 //start kicks off a new analysis thread
 func (s *sorter) start() {
 	s.sortWg.Add(1)
+
 	go func() {
-
 		for entry := range s.sortChannel {
-
 			if (entry.TsList) != nil {
 				//sort the size and timestamps to compute quantiles in the analyzer
 				sort.Sort(util.SortableInt64(entry.TsList))
@@ -59,7 +58,6 @@ func (s *sorter) start() {
 			}
 
 			s.sortedCallback(entry)
-
 		}
 		s.sortWg.Done()
 	}()
