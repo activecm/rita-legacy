@@ -75,6 +75,7 @@ func (a *analyzer) start() {
 				}
 
 				srcHostUpdate := appendBlacklistedDstQuery(a.chunk, blacklistedIP, blUconnData, newBLSrc)
+
 				// set to writer channel
 				a.analyzedCallback(srcHostUpdate)
 			}
@@ -203,6 +204,15 @@ func (a *analyzer) getUniqueConnsforBLDestination(blDestinationIP data.UniqueIP)
 			},
 			"bl_conn_count":  bson.M{"$sum": "$dat.count"},
 			"bl_total_bytes": bson.M{"$sum": "$dat.tbytes"},
+			// I don't think that either of these fields will ever be more than one value...
+			// ...but just in case
+			"open_bytes":            bson.M{"$sum": "$open_bytes"},
+			"open_connection_count": bson.M{"$sum": "$open_connection_count"},
+		}},
+		{"$project": bson.M{
+			"_id":            1,
+			"bl_conn_count":  bson.M{"$sum": []interface{}{"$bl_conn_count", "$open_connection_count"}},
+			"bl_total_bytes": bson.M{"$sum": []interface{}{"$bl_total_bytes", "$open_bytes"}},
 		}},
 	}
 
@@ -230,8 +240,15 @@ func (a *analyzer) getUniqueConnsforBLSource(blSourceIP data.UniqueIP) []connect
 				"ip":           "$dst",
 				"network_uuid": "$dst_network_uuid",
 			},
-			"bl_conn_count":  bson.M{"$sum": "$dat.count"},
-			"bl_total_bytes": bson.M{"$sum": "$dat.tbytes"},
+			"bl_conn_count":         bson.M{"$sum": "$dat.count"},
+			"bl_total_bytes":        bson.M{"$sum": "$dat.tbytes"},
+			"open_bytes":            bson.M{"$sum": "$open_bytes"},
+			"open_connection_count": bson.M{"$sum": "$open_connection_count"},
+		}},
+		{"$project": bson.M{
+			"_id":            1,
+			"bl_conn_count":  bson.M{"$sum": []interface{}{"$bl_conn_count", "$open_connection_count"}},
+			"bl_total_bytes": bson.M{"$sum": []interface{}{"$bl_total_bytes", "$open_bytes"}},
 		}},
 	}
 

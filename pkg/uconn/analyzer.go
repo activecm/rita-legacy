@@ -71,12 +71,11 @@ func (a *analyzer) start() {
 			// Tally up the bytes and duration from the open connections.
 			// We will add these at the top level of the current uconn entry
 			// when it's placed in mongo such that we will have an up-to-date
-			// total for OpenBytes and OpenDurations each time we parse another
+			// total for open connection values each time we parse another
 			// set of logs. These current values will overwrite any existing values.
-			// This will result in Bytes and Duration values from previously-open entries
-			// being removed from the OpenBytes and OpenDuration totals. The Bytes and Duration
-			// values from the closed connection will have already been added to the appropriate
-			// chunk in a "dat" entry so overwriting them at this point is fine.
+			// The relevant values from the closed connection will be added to the
+			// appropriate chunk in a "dat" and those values will effetively be
+			// removed from the open connection values that we are tracking.
 			for key, connStateEntry := range datum.ConnStateList {
 				if connStateEntry.Open {
 					datum.OpenBytes += connStateEntry.Bytes
@@ -95,7 +94,7 @@ func (a *analyzer) start() {
 					// Interwebs says it is safe to do this operation within a range loop
 					// source: https://stackoverflow.com/questions/23229975/is-it-safe-to-remove-selected-keys-from-map-within-a-range-loop
 					// This will also prevent duplication of data between a previously-opened and closed connection that are
-					// one int he same
+					// one in the same
 					delete(datum.ConnStateList, key)
 				}
 			}

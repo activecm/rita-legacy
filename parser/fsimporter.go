@@ -380,7 +380,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 					)
 
 					if datum != nil {
-						//figure out which collection (dns, http, or conn) this line is heading for
+						//figure out which collection (dns, http, or conn/conn_long) this line is heading for
 						targetCollection := indexedFiles[j].TargetCollection
 
 						switch targetCollection {
@@ -428,7 +428,11 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								service := parseConn.Service
 								dstPort := parseConn.DestinationPort
 								uid := parseConn.UID
-								connClosed := (parseConn.ConnState != "S1") //Anything other than S1 likely means closed
+								// Anything other than S1 likely means closed. In otherwords, S1 should
+								// only appear if a connection is open...which either means:
+								// 1) it came from conn_long.log; or 2) zeek was closed while a connection
+								// was still open, which means it was written out to conn.log.
+								connClosed := (parseConn.ConnState != "S1")
 
 								var tuple string
 								if service == "" {
@@ -490,7 +494,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 
 								// If an entry for this connection is present, check the state.
-								// if the state is already closed, then don't update it as open
+								// If the state is already closed, then don't update it as open
 								// because the closed state supersedes the open state.
 								// If the connection was stored as open and the current entry says
 								// it is still open, update the Duration and Bytes values if they are
@@ -522,7 +526,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										Duration:  duration,
 										Open:      !connClosed,
 										OrigBytes: origIPBytes,
-										Ts:        ts,
+										Ts:        ts, //ts is the timestamp at which the connection was detected
 										Tuple:     tuple,
 									}
 								}
