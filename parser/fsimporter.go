@@ -1153,8 +1153,13 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// Build query for aggregation
 	timestampMinQuery := []bson.M{
-		{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
+		{"$project": bson.M{
+			"_id":     0,
+			"ts":      "$dat.ts",
+			"open_ts": bson.M{"$ifNull": []interface{}{"$open_ts", []interface{}{}}},
+		}},
 		{"$unwind": "$ts"},
+		{"$project": bson.M{"_id": 0, "ts": bson.M{"$concatArrays": []interface{}{"$ts", "$open_ts"}}}},
 		{"$unwind": "$ts"}, // Not an error, must unwind it twice
 		{"$sort": bson.M{"ts": 1}},
 		{"$limit": 1},
@@ -1177,8 +1182,13 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// Build query for aggregation
 	timestampMaxQuery := []bson.M{
-		{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
+		{"$project": bson.M{
+			"_id":     0,
+			"ts":      "$dat.ts",
+			"open_ts": bson.M{"$ifNull": []interface{}{"$open_ts", []interface{}{}}},
+		}},
 		{"$unwind": "$ts"},
+		{"$project": bson.M{"_id": 0, "ts": bson.M{"$concatArrays": []interface{}{"$ts", "$open_ts"}}}},
 		{"$unwind": "$ts"}, // Not an error, must unwind it twice
 		{"$sort": bson.M{"ts": -1}},
 		{"$limit": 1},
