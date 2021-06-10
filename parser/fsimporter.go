@@ -428,11 +428,13 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								service := parseConn.Service
 								dstPort := parseConn.DestinationPort
 								uid := parseConn.UID
-								// Anything other than S1 likely means closed. In otherwords, S1 should
+								// Anything other than S1 or OTH likely means closed. In otherwords, S1 or OTH should
 								// only appear if a connection is open...which either means:
 								// 1) it came from conn_long.log; or 2) zeek was closed while a connection
 								// was still open, which means it was written out to conn.log.
-								connClosed := (parseConn.ConnState != "S1")
+								// OTH shows up if zeek didn't see the original SYN packet and is seeing the
+								// traffic midstream.
+								connClosed := ((parseConn.ConnState != "S1") && (parseConn.ConnState != "OTH"))
 
 								var tuple string
 								if service == "" {
