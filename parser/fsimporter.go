@@ -434,7 +434,16 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// was still open, which means it was written out to conn.log.
 								// OTH shows up if zeek didn't see the original SYN packet and is seeing the
 								// traffic midstream.
-								connClosed := ((parseConn.ConnState != "S1") && (parseConn.ConnState != "OTH"))
+								// Also, if the protocol is icmp, then we need to mark it as closed since icmp shows up
+								// with an OTH conn_state flag in the logs...and it definitely isn't "open" as it's stateless...
+								// Break this out into an if/else-if tree as it's a bit easier to decipher than a multi-grouped
+								// boolean statement
+								connClosed := true
+								if parseConn.ConnState == "S1" {
+									connClosed = false
+								} else if parseConn.ConnState == "OTH" && protocol != "icmp" {
+									connClosed = false
+								}
 
 								var tuple string
 								if service == "" {
