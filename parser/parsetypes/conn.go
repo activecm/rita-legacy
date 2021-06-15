@@ -5,7 +5,7 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
-// Conn provides a data structure for bro's connection data
+// Conn provides a data structure for zeek's connection data
 type Conn struct {
 	// ID is the id coming out of mongodb
 	ID bson.ObjectId `bson:"_id,omitempty"`

@@ -5,7 +5,7 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
-// OpenConn provides a data structure for bro's open connection data
+// OpenConn provides a data structure for zeek's open connection data
 type OpenConn struct {
 	// ID is the id coming out of mongodb
 	ID bson.ObjectId `bson:"_id,omitempty"`

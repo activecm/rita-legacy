@@ -928,6 +928,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									hostMap[dstKey].MaxDuration = duration
 								}
 
+								// NOTE: We are not incrementing the connection counters until the
+								// connection closes to prevent double-counting.
+
 								mutex.Unlock()
 
 							}
