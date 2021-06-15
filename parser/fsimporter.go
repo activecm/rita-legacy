@@ -760,9 +760,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						///                           OPEN CONNS                         ///
 						/// *************************************************************///
 						case fs.res.Config.T.Structure.OpenConnTable:
-							fmt.Println("Here and stuff")
-							fmt.Println("Here and stuff")
-							fmt.Println("Here and stuff")
 							parseConn, ok := datum.(*parsetypes.OpenConn)
 							if !ok {
 								continue
@@ -864,17 +861,14 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Otherwise, if it's open then check if this more up-to-date data
 								// (i.e., longer duration)
 								if _, ok := uconnMap[srcDstKey].ConnStateMap[uid]; ok {
-									if uconnMap[srcDstKey].ConnStateMap[uid].Open {
+									if (uconnMap[srcDstKey].ConnStateMap[uid].Open) && (duration > uconnMap[srcDstKey].ConnStateMap[uid].Duration) {
+										uconnMap[srcDstKey].ConnStateMap[uid].Duration = duration
 
-										if duration > uconnMap[srcDstKey].ConnStateMap[uid].Duration {
-											uconnMap[srcDstKey].ConnStateMap[uid].Duration = duration
-
-											// If current duration is longer than previous duration, we can
-											// also assume that current bytes is /at least/ as big as the
-											// stored value for bytes...same for OrigBytes
-											uconnMap[srcDstKey].ConnStateMap[uid].Bytes = bytes
-											uconnMap[srcDstKey].ConnStateMap[uid].OrigBytes = origIPBytes
-										}
+										// If current duration is longer than previous duration, we can
+										// also assume that current bytes is /at least/ as big as the
+										// stored value for bytes...same for OrigBytes
+										uconnMap[srcDstKey].ConnStateMap[uid].Bytes = bytes
+										uconnMap[srcDstKey].ConnStateMap[uid].OrigBytes = origIPBytes
 									}
 								} else {
 									// No entry was present for a connection with this UID. Create a new
