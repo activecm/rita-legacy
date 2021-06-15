@@ -76,7 +76,7 @@ func (a *analyzer) start() {
 			// The relevant values from the closed connection will be added to the
 			// appropriate chunk in a "dat" and those values will effetively be
 			// removed from the open connection values that we are tracking.
-			for key, connStateEntry := range datum.ConnStateList {
+			for key, connStateEntry := range datum.ConnStateMap {
 				if connStateEntry.Open {
 					datum.OpenBytes += connStateEntry.Bytes
 					datum.OpenDuration += connStateEntry.Duration
@@ -95,11 +95,11 @@ func (a *analyzer) start() {
 					// source: https://stackoverflow.com/questions/23229975/is-it-safe-to-remove-selected-keys-from-map-within-a-range-loop
 					// This will also prevent duplication of data between a previously-opened and closed connection that are
 					// one in the same
-					delete(datum.ConnStateList, key)
+					delete(datum.ConnStateMap, key)
 				}
 			}
 
-			connState := len(datum.ConnStateList) > 0
+			connState := len(datum.ConnStateMap) > 0
 
 			// if this connection qualifies to be a strobe with the current number
 			// of connections in the current datum, don't store bytes and ts.
@@ -114,7 +114,7 @@ func (a *analyzer) start() {
 					"open":                  connState,
 					"open_bytes":            datum.OpenBytes,
 					"open_connection_count": datum.OpenConnectionCount,
-					"open_conns":            datum.ConnStateList,
+					"open_conns":            datum.ConnStateMap,
 					"open_duration":         datum.OpenDuration,
 					"open_orig_bytes":       datum.OpenOrigBytes,
 					"open_ts":               datum.OpenTSList,
@@ -140,7 +140,7 @@ func (a *analyzer) start() {
 					"open":                  connState,
 					"open_bytes":            datum.OpenBytes,
 					"open_connection_count": datum.OpenConnectionCount,
-					"open_conns":            datum.ConnStateList,
+					"open_conns":            datum.ConnStateMap,
 					"open_duration":         datum.OpenDuration,
 					"open_orig_bytes":       datum.OpenOrigBytes,
 					"open_ts":               datum.OpenTSList,

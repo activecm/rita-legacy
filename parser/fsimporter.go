@@ -477,8 +477,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 
 								// If the ConnStateList map doesn't exist for this entry, create it.
-								if uconnMap[srcDstKey].ConnStateList == nil {
-									uconnMap[srcDstKey].ConnStateList = make(map[string]*uconn.ConnState)
+								if uconnMap[srcDstKey].ConnStateMap == nil {
+									uconnMap[srcDstKey].ConnStateMap = make(map[string]*uconn.ConnState)
 								}
 
 								// If an entry for this connection is present, it means it was
@@ -486,9 +486,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// to update any other attributes as we are going to discard
 								// them later anyways since the data will now go into the
 								// dat section of the uconn entry
-								if _, ok := uconnMap[srcDstKey].ConnStateList[uid]; ok {
+								if _, ok := uconnMap[srcDstKey].ConnStateMap[uid]; ok {
 
-									uconnMap[srcDstKey].ConnStateList[uid].Open = false
+									uconnMap[srcDstKey].ConnStateMap[uid].Open = false
 								}
 
 								// this is to keep track of how many times a host connected to
@@ -854,8 +854,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								}
 
 								// If the ConnStateList map doesn't exist for this entry, create it.
-								if uconnMap[srcDstKey].ConnStateList == nil {
-									uconnMap[srcDstKey].ConnStateList = make(map[string]*uconn.ConnState)
+								if uconnMap[srcDstKey].ConnStateMap == nil {
+									uconnMap[srcDstKey].ConnStateMap = make(map[string]*uconn.ConnState)
 								}
 
 								// If an entry for this open connection is present, first check
@@ -863,23 +863,23 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// as closed, that supersedes any open connections information.
 								// Otherwise, if it's open then check if this more up-to-date data
 								// (i.e., longer duration)
-								if _, ok := uconnMap[srcDstKey].ConnStateList[uid]; ok {
-									if uconnMap[srcDstKey].ConnStateList[uid].Open {
+								if _, ok := uconnMap[srcDstKey].ConnStateMap[uid]; ok {
+									if uconnMap[srcDstKey].ConnStateMap[uid].Open {
 
-										if duration > uconnMap[srcDstKey].ConnStateList[uid].Duration {
-											uconnMap[srcDstKey].ConnStateList[uid].Duration = duration
+										if duration > uconnMap[srcDstKey].ConnStateMap[uid].Duration {
+											uconnMap[srcDstKey].ConnStateMap[uid].Duration = duration
 
 											// If current duration is longer than previous duration, we can
 											// also assume that current bytes is /at least/ as big as the
 											// stored value for bytes...same for OrigBytes
-											uconnMap[srcDstKey].ConnStateList[uid].Bytes = bytes
-											uconnMap[srcDstKey].ConnStateList[uid].OrigBytes = origIPBytes
+											uconnMap[srcDstKey].ConnStateMap[uid].Bytes = bytes
+											uconnMap[srcDstKey].ConnStateMap[uid].OrigBytes = origIPBytes
 										}
 									}
 								} else {
 									// No entry was present for a connection with this UID. Create a new
 									// entry and set the Open state accordingly
-									uconnMap[srcDstKey].ConnStateList[uid] = &uconn.ConnState{
+									uconnMap[srcDstKey].ConnStateMap[uid] = &uconn.ConnState{
 										Bytes:     bytes,
 										Duration:  duration,
 										Open:      true,

@@ -43,7 +43,7 @@ type Input struct {
 	// InvalidCerts    []string
 	InvalidCertFlag bool
 	UPPSFlag        bool
-	ConnStateList   map[string]*ConnState
+	ConnStateMap    map[string]*ConnState
 }
 
 //LongConnResult represents a pair of hosts that communicated and
