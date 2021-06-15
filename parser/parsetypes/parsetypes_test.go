@@ -8,7 +8,7 @@ import (
 
 func TestNewBroDataFactory(t *testing.T) {
 
-	testCasesIn := []string{"conn", "http", "dns", "httpa", "http_a", "http_eth0", "httpasdf12345=-ASDF?", "open", "ASDF"}
+	testCasesIn := []string{"conn", "http", "dns", "httpa", "http_a", "http_eth0", "httpasdf12345=-ASDF?", "open_conn", "ASDF"}
 	testCasesOut := []BroData{&Conn{}, &HTTP{}, &DNS{}, &HTTP{}, &HTTP{}, &HTTP{}, &HTTP{}, &OpenConn{}, nil}
 	for i := range testCasesIn {
 		factory := NewBroDataFactory(testCasesIn[i])
