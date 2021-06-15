@@ -113,7 +113,7 @@ func showOpenConns(connResults []uconn.OpenConnResult, delim string, showNetName
 				result.SrcIP,
 				result.DstIP,
 				result.Tuple,
-				f(result.Duration),
+				openDuration(time.Duration(int(result.Duration * float64(time.Second)))),
 				strconv.Itoa(result.Bytes),
 				result.UID,
 			}
@@ -122,7 +122,7 @@ func showOpenConns(connResults []uconn.OpenConnResult, delim string, showNetName
 				result.SrcIP,
 				result.DstIP,
 				result.Tuple,
-				f(result.Duration),
+				openDuration(time.Duration(int(result.Duration * float64(time.Second)))),
 				strconv.Itoa(result.Bytes),
 				result.UID,
 			}
@@ -154,7 +154,7 @@ func showOpenConnsHuman(connResults []uconn.OpenConnResult, showNetNames bool) e
 				result.SrcIP,
 				result.DstIP,
 				result.Tuple,
-				f(result.Duration),
+				openDuration(time.Duration(int(result.Duration * float64(time.Second)))),
 				strconv.Itoa(result.Bytes),
 				result.UID,
 			}
