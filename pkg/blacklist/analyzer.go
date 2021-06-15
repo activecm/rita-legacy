@@ -205,7 +205,11 @@ func (a *analyzer) getUniqueConnsforBLDestination(blDestinationIP data.UniqueIP)
 			"bl_conn_count":  bson.M{"$sum": "$dat.count"},
 			"bl_total_bytes": bson.M{"$sum": "$dat.tbytes"},
 			// I don't think that either of these fields will ever be more than one value...
-			// ...but just in case
+			// ...but just in case. In otherwords, open_bytes and open_connection_count should
+			// really only ever show up as a single value. Using sum here just in case there is
+			// situation that I didn't think of or encounter while testing that results in
+			// either of these values showing up as an array of values. This might not
+			// be necessary but I don't think it hurts
 			"open_bytes":            bson.M{"$sum": "$open_bytes"},
 			"open_connection_count": bson.M{"$sum": "$open_connection_count"},
 		}},
