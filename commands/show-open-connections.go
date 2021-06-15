@@ -96,9 +96,9 @@ func showOpenConns(connResults []uconn.OpenConnResult, delim string, showNetName
 
 	var headerFields []string
 	if showNetNames {
-		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Bytes", "UID"}
+		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Bytes", "Zeek UID"}
 	} else {
-		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Bytes", "UID"}
+		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Bytes", "Zeek UID"}
 	}
 
 	// Print the headers and analytic values, separated by a delimiter
@@ -138,9 +138,9 @@ func showOpenConnsHuman(connResults []uconn.OpenConnResult, showNetNames bool) e
 
 	var headerFields []string
 	if showNetNames {
-		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Bytes", "UID"}
+		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Bytes", "Zeek UID"}
 	} else {
-		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Bytes", "UID"}
+		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Bytes", "Zeek UID"}
 	}
 
 	table.SetHeader(headerFields)
