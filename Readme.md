@@ -71,7 +71,7 @@ Note that any value listed in the `Filtering` section should be in CIDR format. 
       * You may wish to [compile Zeek from source](https://docs.zeek.org/en/master/install/install.html) for performance reasons. [This script](https://github.com/activecm/bro-install) can help automate the process.
       * The automated installer for RITA installs pre-compiled Zeek binaries by default
         * Provide the `--disable-zeek` flag when running the installer if you intend to compile Zeek from source
-      * To take advantage of the feature for monitoring long-running, open connections (default is 1 hour or more), you will need to install our [zeek-open-connections plugin](https://github.com/activecm/zeek-open-connections/). We recommend installing the package with Zeek's package manager _zkg_. Newer versions of Zeek (4.0.0 or greater) will come bundled with _zkg_. If you do not have _zkg_ installed, you can [manually install](https://docs.zeek.org/projects/package-manager/en/stable/quickstart.html). Once you have _zkg_, run the following commands to install the package
+      * To take advantage of the feature for monitoring long-running, open connections (default is 1 hour or more), you will need to install our [zeek-open-connections plugin](https://github.com/activecm/zeek-open-connections/). We recommend installing the package with Zeek's package manager _zkg_. Newer versions of Zeek (4.0.0 or greater) will come bundled with _zkg_. If you do not have _zkg_ installed, you can [manually install](https://docs.zeek.org/projects/package-manager/en/stable/quickstart.html) it. Once you have _zkg_ installed, run the following commands to install the package
         * ```zkg refresh```
         * ```zkg install zeek/activecm/zeek-open-connections```
 
