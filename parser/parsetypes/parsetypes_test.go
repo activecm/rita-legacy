@@ -1,14 +1,15 @@
 package parsetypes
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewBroDataFactory(t *testing.T) {
 
-	testCasesIn := []string{"conn", "http", "dns", "httpa", "http_a", "http_eth0", "httpasdf12345=-ASDF?", "ASDF"}
-	testCasesOut := []BroData{&Conn{}, &HTTP{}, &DNS{}, &HTTP{}, &HTTP{}, &HTTP{}, &HTTP{}, nil}
+	testCasesIn := []string{"conn", "http", "dns", "httpa", "http_a", "http_eth0", "httpasdf12345=-ASDF?", "open_conn", "ASDF"}
+	testCasesOut := []BroData{&Conn{}, &HTTP{}, &DNS{}, &HTTP{}, &HTTP{}, &HTTP{}, &HTTP{}, &OpenConn{}, nil}
 	for i := range testCasesIn {
 		factory := NewBroDataFactory(testCasesIn[i])
 		if factory == nil {
@@ -21,7 +22,7 @@ func TestNewBroDataFactory(t *testing.T) {
 
 func TestConvertTimestamp(t *testing.T) {
 	testCases := []struct {
-		input interface{}
+		input    interface{}
 		expected int64
 	}{
 		{1517336042.090842, 1517336042},

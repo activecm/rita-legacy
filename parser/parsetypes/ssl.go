@@ -4,7 +4,7 @@ import (
 	"github.com/activecm/rita/config"
 )
 
-// SSL provides a data structure for bro's connection data
+// SSL provides a data structure for zeek's connection data
 type SSL struct {
 	// TimeStamp of this connection
 	TimeStamp int64 `bson:"ts" bro:"ts" brotype:"time" json:"-"`

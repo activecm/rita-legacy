@@ -33,6 +33,10 @@ func NewBroDataFactory(fileType string) func() BroData {
 		return func() BroData {
 			return &HTTP{}
 		}
+	} else if strings.HasPrefix(fileType, "open_conn") {
+		return func() BroData {
+			return &OpenConn{}
+		}
 	} else if strings.HasPrefix(fileType, "ssl") {
 		return func() BroData {
 			return &SSL{}

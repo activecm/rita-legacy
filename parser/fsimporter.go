@@ -380,7 +380,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 					)
 
 					if datum != nil {
-						//figure out which collection (dns, http, or conn) this line is heading for
+						//figure out which collection (dns, http, or conn/conn_long) this line is heading for
 						targetCollection := indexedFiles[j].TargetCollection
 
 						switch targetCollection {
@@ -427,6 +427,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								protocol := parseConn.Proto
 								service := parseConn.Service
 								dstPort := parseConn.DestinationPort
+								uid := parseConn.UID
+
 								var tuple string
 								if service == "" {
 									tuple = strconv.Itoa(dstPort) + ":" + protocol + ":-"
@@ -474,6 +476,21 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									hostMap[dstKey].CountDst++
 								}
 
+								// If the ConnStateList map doesn't exist for this entry, create it.
+								if uconnMap[srcDstKey].ConnStateMap == nil {
+									uconnMap[srcDstKey].ConnStateMap = make(map[string]*uconn.ConnState)
+								}
+
+								// If an entry for this connection is present, it means it was
+								// marked as open and we should now mark it as closed. No need
+								// to update any other attributes as we are going to discard
+								// them later anyways since the data will now go into the
+								// dat section of the uconn entry
+								if _, ok := uconnMap[srcDstKey].ConnStateMap[uid]; ok {
+
+									uconnMap[srcDstKey].ConnStateMap[uid].Open = false
+								}
+
 								// this is to keep track of how many times a host connected to
 								// an unexpected port - proto - service Tuple
 								// we only want to increment the count once per unique destination,
@@ -482,14 +499,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									for _, entry := range trustedAppReferenceList {
 										if (protocol == entry.protocol) && (dstPort == entry.port) {
 											if service != entry.service {
-												hostMap[srcKey].UntrustedAppConnCount++
 												uconnMap[srcDstKey].UPPSFlag = true
+
+												hostMap[srcKey].UntrustedAppConnCount++
 											}
 										}
 									}
 								}
 
-								// increment unique dst port: proto : service tuple list for host
+								// increment unique dst port: proto : service tuple list for host.
 								if !stringInSlice(tuple, uconnMap[srcDstKey].Tuples) {
 									uconnMap[srcDstKey].Tuples = append(uconnMap[srcDstKey].Tuples, tuple)
 								}
@@ -503,8 +521,22 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									}
 								}
 
+								// Replace existing duration if current duration is higher.
+								if duration > uconnMap[srcDstKey].MaxDuration {
+									uconnMap[srcDstKey].MaxDuration = duration
+								}
+
+								if duration > hostMap[srcKey].MaxDuration {
+									hostMap[srcKey].MaxDuration = duration
+								}
+								if duration > hostMap[dstKey].MaxDuration {
+									hostMap[dstKey].MaxDuration = duration
+								}
+
 								// Increment the connection count for the src-dst pair
 								uconnMap[srcDstKey].ConnectionCount++
+
+								// Not sure if this is used anywhere?
 								hostMap[srcKey].ConnectionCount++
 								hostMap[dstKey].ConnectionCount++
 
@@ -518,25 +550,17 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 								// Calculate and store the total number of bytes exchanged by the uconn pair
 								uconnMap[srcDstKey].TotalBytes += bytes
+
+								// Not sure that this is used anywhere?
 								hostMap[srcKey].TotalBytes += bytes
 								hostMap[dstKey].TotalBytes += bytes
 
 								// Calculate and store the total duration
 								uconnMap[srcDstKey].TotalDuration += duration
+
+								// Not sure that this is used anywhere?
 								hostMap[srcKey].TotalDuration += duration
 								hostMap[dstKey].TotalDuration += duration
-
-								// Replace existing duration if current duration is higher
-								if duration > uconnMap[srcDstKey].MaxDuration {
-									uconnMap[srcDstKey].MaxDuration = duration
-								}
-
-								if duration > hostMap[srcKey].MaxDuration {
-									hostMap[srcKey].MaxDuration = duration
-								}
-								if duration > hostMap[dstKey].MaxDuration {
-									hostMap[dstKey].MaxDuration = duration
-								}
 
 								mutex.Unlock()
 
@@ -731,6 +755,185 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							}
 
 							mutex.Unlock()
+
+						/// *************************************************************///
+						///                           OPEN CONNS                         ///
+						/// *************************************************************///
+						case fs.res.Config.T.Structure.OpenConnTable:
+							parseConn, ok := datum.(*parsetypes.OpenConn)
+							if !ok {
+								continue
+							}
+
+							// get source destination pair for connection record
+							src := parseConn.Source
+							dst := parseConn.Destination
+
+							// parse addresses into binary format
+							srcIP := net.ParseIP(src)
+							dstIP := net.ParseIP(dst)
+
+							// disambiguate addresses which are not publicly routable
+							srcUniqIP := data.NewUniqueIP(srcIP, parseConn.AgentUUID, parseConn.AgentHostname)
+							dstUniqIP := data.NewUniqueIP(dstIP, parseConn.AgentUUID, parseConn.AgentHostname)
+							srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
+
+							// get aggregation keys for ip addresses and connection pair
+							srcKey := srcUniqIP.MapKey()
+							dstKey := dstUniqIP.MapKey()
+							srcDstKey := srcDstPair.MapKey()
+
+							// Run conn pair through filter to filter out certain connections
+							ignore := fs.filterConnPair(srcIP, dstIP)
+
+							// If connection pair is not subject to filtering, process
+							if !ignore {
+								ts := parseConn.TimeStamp
+								origIPBytes := parseConn.OrigIPBytes
+								respIPBytes := parseConn.RespIPBytes
+								duration := parseConn.Duration
+								duration = math.Ceil((duration)*10000) / 10000
+								bytes := int64(origIPBytes + respIPBytes)
+								protocol := parseConn.Proto
+								service := parseConn.Service
+								dstPort := parseConn.DestinationPort
+								uid := parseConn.UID
+
+								var tuple string
+								if service == "" {
+									tuple = strconv.Itoa(dstPort) + ":" + protocol + ":-"
+								} else {
+									tuple = strconv.Itoa(dstPort) + ":" + protocol + ":" + service
+								}
+
+								// Safely store the number of conns for this uconn
+								mutex.Lock()
+
+								// Check if the map value is set
+								if _, ok := hostMap[srcKey]; !ok {
+									// create new host record with src and dst
+									hostMap[srcKey] = &host.Input{
+										Host:    srcUniqIP,
+										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+										IP4:     util.IsIPv4(src),
+										IP4Bin:  util.IPv4ToBinary(srcIP),
+									}
+								}
+
+								// Check if the map value is set
+								if _, ok := hostMap[dstKey]; !ok {
+									// create new host record with src and dst
+									hostMap[dstKey] = &host.Input{
+										Host:    dstUniqIP,
+										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+										IP4:     util.IsIPv4(dst),
+										IP4Bin:  util.IPv4ToBinary(dstIP),
+									}
+								}
+
+								// Check if the map value is set
+								if _, ok := uconnMap[srcDstKey]; !ok {
+									// create new uconn record with src and dst
+									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
+									// we only need to do this once if the uconn record does not exist
+									uconnMap[srcDstKey] = &uconn.Input{
+										Hosts:      srcDstPair,
+										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+									}
+
+									// Can do this even if the connection is open. For each set of logs we
+									// process, we increment these values once per unique connection.
+									// This might mean that an open connection has caused these values
+									// to be incremented, but that is ok.
+									hostMap[srcKey].CountSrc++
+									hostMap[dstKey].CountDst++
+								}
+
+								// If the ConnStateList map doesn't exist for this entry, create it.
+								if uconnMap[srcDstKey].ConnStateMap == nil {
+									uconnMap[srcDstKey].ConnStateMap = make(map[string]*uconn.ConnState)
+								}
+
+								// If an entry for this open connection is present, first check
+								// to make sure it hasn't been marked as closed. If it was marked
+								// as closed, that supersedes any open connections information.
+								// Otherwise, if it's open then check if this more up-to-date data
+								// (i.e., longer duration)
+								if _, ok := uconnMap[srcDstKey].ConnStateMap[uid]; ok {
+									if (uconnMap[srcDstKey].ConnStateMap[uid].Open) && (duration > uconnMap[srcDstKey].ConnStateMap[uid].Duration) {
+										uconnMap[srcDstKey].ConnStateMap[uid].Duration = duration
+
+										// If current duration is longer than previous duration, we can
+										// also assume that current bytes is /at least/ as big as the
+										// stored value for bytes...same for OrigBytes
+										uconnMap[srcDstKey].ConnStateMap[uid].Bytes = bytes
+										uconnMap[srcDstKey].ConnStateMap[uid].OrigBytes = origIPBytes
+									}
+								} else {
+									// No entry was present for a connection with this UID. Create a new
+									// entry and set the Open state accordingly
+									uconnMap[srcDstKey].ConnStateMap[uid] = &uconn.ConnState{
+										Bytes:     bytes,
+										Duration:  duration,
+										Open:      true,
+										OrigBytes: origIPBytes,
+										Ts:        ts, //ts is the timestamp at which the connection was detected
+										Tuple:     tuple,
+									}
+								}
+
+								// this is to keep track of how many times a host connected to
+								// an unexpected port - proto - service Tuple
+								// we only want to increment the count once per unique destination,
+								// not once per connection, hence the flag and the check
+								if !uconnMap[srcDstKey].UPPSFlag {
+									for _, entry := range trustedAppReferenceList {
+										if (protocol == entry.protocol) && (dstPort == entry.port) {
+											if service != entry.service {
+												uconnMap[srcDstKey].UPPSFlag = true
+											}
+										}
+									}
+								}
+
+								// increment unique dst port: proto : service tuple list for host.
+								// Fine to do this with open connections as it's idempotent (yes, I like that word...)
+								if !stringInSlice(tuple, uconnMap[srcDstKey].Tuples) {
+									uconnMap[srcDstKey].Tuples = append(uconnMap[srcDstKey].Tuples, tuple)
+								}
+
+								// Check if invalid cert record was written before the uconns
+								// record, we'll need to update it with the tuples.
+								// Fine to do this with open connections as it's idempotent
+								if _, ok := certMap[dstKey]; ok {
+									// add tuple to invlaid cert list
+									if !stringInSlice(tuple, certMap[dstKey].Tuples) {
+										certMap[dstKey].Tuples = append(certMap[dstKey].Tuples, tuple)
+									}
+								}
+
+								// Replace existing duration if current duration is higher. It's fine
+								// to do this if the connection is still open as it will just get replaced
+								// later when the connection closes. If an open connection is responsible
+								// for the longest duration, we want to see that.
+								if duration > uconnMap[srcDstKey].MaxDuration {
+									uconnMap[srcDstKey].MaxDuration = duration
+								}
+
+								if duration > hostMap[srcKey].MaxDuration {
+									hostMap[srcKey].MaxDuration = duration
+								}
+								if duration > hostMap[dstKey].MaxDuration {
+									hostMap[dstKey].MaxDuration = duration
+								}
+
+								// NOTE: We are not incrementing the connection counters until the
+								// connection closes to prevent double-counting.
+
+								mutex.Unlock()
+
+							}
 
 						/// *************************************************************///
 						///                             SSL                              ///
@@ -1074,8 +1277,13 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// Build query for aggregation
 	timestampMinQuery := []bson.M{
-		{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
+		{"$project": bson.M{
+			"_id":     0,
+			"ts":      "$dat.ts",
+			"open_ts": bson.M{"$ifNull": []interface{}{"$open_ts", []interface{}{}}},
+		}},
 		{"$unwind": "$ts"},
+		{"$project": bson.M{"_id": 0, "ts": bson.M{"$concatArrays": []interface{}{"$ts", "$open_ts"}}}},
 		{"$unwind": "$ts"}, // Not an error, must unwind it twice
 		{"$sort": bson.M{"ts": 1}},
 		{"$limit": 1},
@@ -1098,8 +1306,13 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// Build query for aggregation
 	timestampMaxQuery := []bson.M{
-		{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
+		{"$project": bson.M{
+			"_id":     0,
+			"ts":      "$dat.ts",
+			"open_ts": bson.M{"$ifNull": []interface{}{"$open_ts", []interface{}{}}},
+		}},
 		{"$unwind": "$ts"},
+		{"$project": bson.M{"_id": 0, "ts": bson.M{"$concatArrays": []interface{}{"$ts", "$open_ts"}}}},
 		{"$unwind": "$ts"}, // Not an error, must unwind it twice
 		{"$sort": bson.M{"ts": -1}},
 		{"$limit": 1},

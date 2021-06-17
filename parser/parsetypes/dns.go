@@ -5,7 +5,7 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
-// DNS provides a data structure for entries in the bro DNS log
+// DNS provides a data structure for entries in the zeek DNS log
 type DNS struct {
 	// ID contains the id set by mongodb
 	ID bson.ObjectId `bson:"_id,omitempty"`

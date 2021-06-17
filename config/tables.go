@@ -22,11 +22,12 @@ type (
 	//StructureTableCfg contains the names of the base level collections
 	StructureTableCfg struct {
 		ConnTable       string `default:"conn"`
-		HTTPTable       string `default:"http"`
 		DNSTable        string `default:"dns"`
+		HostTable       string `default:"host"`
+		HTTPTable       string `default:"http"`
+		OpenConnTable   string `default:"openconn"`
 		SSLTable        string `default:"ssl"`
 		UniqueConnTable string `default:"uconn"`
-		HostTable       string `default:"host"`
 	}
 
 	//DNSTableCfg is used to control the dns analysis module
