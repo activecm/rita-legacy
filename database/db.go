@@ -14,16 +14,16 @@ import (
 //MinMongoDBVersion is the lower, inclusive bound on the
 //versions of MongoDB compatible with RITA
 var MinMongoDBVersion = semver.Version{
-	Major: 3,
-	Minor: 6,
+	Major: 4,
+	Minor: 2,
 	Patch: 0,
 }
 
 //MaxMongoDBVersion is the upper, exclusive bound on the
 //versions of MongoDB compatible with RITA
 var MaxMongoDBVersion = semver.Version{
-	Major: 3,
-	Minor: 7,
+	Major: 4,
+	Minor: 3,
 	Patch: 0,
 }
 
