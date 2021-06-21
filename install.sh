@@ -5,7 +5,8 @@
 
 # CONSTANTS
 _RITA_VERSION="v4.2.0"
-_MONGO_VERSION="3.6"
+_MONGO_VERSION="4.2"
+_MONGO_MIN_UPDATE_VERSION="4.0"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
 _SUCCESS="\e[92mSUCCESS\e[0m"
@@ -155,6 +156,13 @@ __install() {
         if [ "$_MONGO_INSTALLED" = "false" ]; then
             __load "$_ITEM Installing MongoDB" __install_mongodb
         elif ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_VERSION" ; then
+            # If Mongo is installed, check that it is 4.0 or above. Trying to update to v4.2
+            # from a version less than 4.0 will result in a bad day
+            if ! __satisfies_version() "$_MONGO_INSTALLED_VERSION" "$_MONGO_MIN_UPDATE_VERSION"; then
+                __mongo_upgrade_info
+                exit 1
+            fi
+
             __load "$_ITEM Updating MongoDB" __install_mongodb
             # Need to also install all the components of the mongodb-org metapackage for Ubuntu
             __install_packages mongodb-org-mongos mongodb-org-server mongodb-org-shell mongodb-org-tools
@@ -551,6 +559,12 @@ __explain() {
         printf "$_SUBITEM Update RITA at $_BIN_PATH/rita \n"
     fi
     sleep 5s
+}
+
+__mongo_upgrade_info() {
+    printf "$_IMPORTANT Cannot update to Mongo v4.2 from the currently installed Mongo Version of $_MONGO_INSTALLED_VERSION \n"
+    printf "$_IMPORTANT First upgrade to Mongo v4.0 and then re-run this installer or manually upgrade to Mongo v4.2 \n"
+    printf "$_IMPORTANT https://docs.mongodb.com/manual/release-notes/4.2-upgrade-standalone/ \n"
 }
 
 __title() {
