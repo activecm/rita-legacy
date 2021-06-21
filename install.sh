@@ -158,7 +158,7 @@ __install() {
         elif ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_VERSION" ; then
             # If Mongo is installed, check that it is 4.0 or above. Trying to update to v4.2
             # from a version less than 4.0 will result in a bad day
-            if ! __satisfies_version() "$_MONGO_INSTALLED_VERSION" "$_MONGO_MIN_UPDATE_VERSION"; then
+            if ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_MIN_UPDATE_VERSION"; then
                 __mongo_upgrade_info
                 exit 1
             fi
