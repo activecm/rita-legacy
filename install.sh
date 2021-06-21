@@ -436,13 +436,6 @@ __gather_OS() {
         printf "$_IMPORTANT Your operating system is unsupported."
         exit 1
     fi
-
-    # There is no official repository for Mongo3.6 on Ubuntu 18.04 Bionic.
-    # Documentation recommends using the xenial codename in repos to install Mongo 3.6:
-    # https://linuxconfig.org/how-to-install-latest-mongodb-on-ubuntu-18-04-bionic-beaver-linux
-    if [ "$_MONGO_OS_CODENAME" == "bionic" ]; then
-        _MONGO_OS_CODENAME="xenial"
-    fi
 }
 
 __gather_pkg_mgr() {
