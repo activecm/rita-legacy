@@ -356,15 +356,12 @@ __intermediary_update_mongodb() {
         # Star and configure the service so that we can run the command to update feature compatibility
         __configure_mongodb
 
-        # Loop until service comes to life
-        while ! $(systemctl is-active --quiet mongod);
-        do
-            sleep 1
-        done
+        # Wait for service to come to life
+        sleep 10
 
         # Need to update feature compatibility to 4.0 otherwise things will break when we update
-        # to 4.2
-        mongo --eval "db.adminCommand( { setFeatureCompatibilityVersion: '$_MONGO_MIN_UPDATE_VERSION' } )"
+        # to 4.2. Hardcoded for now, can fix this later
+        mongo --eval 'db.adminCommand( { setFeatureCompatibilityVersion: "4.0" } )'
     fi
 }
 
