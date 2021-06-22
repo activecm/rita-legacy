@@ -360,9 +360,13 @@ __intermediary_update_mongodb() {
         sleep 10
 
         # Need to update feature compatibility to 4.0 otherwise things will break when we update
-        # to 4.2. Hardcoded for now, can fix this later
-        mongo --eval 'db.adminCommand( { setFeatureCompatibilityVersion: "4.0" } )'
+        # to 4.2
+        __load "$ITEM Updating feature comapibility in Mongo to 4.0" __update_feature_compatibility
     fi
+}
+
+__update_feature_compatibility() {
+    mongo --eval 'db.adminCommand( { setFeatureCompatibilityVersion: "4.0" } )' --quiet
 }
 
 __install_mongodb() {
