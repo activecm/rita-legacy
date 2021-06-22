@@ -156,6 +156,10 @@ __install() {
         if [ "$_MONGO_INSTALLED" = "false" ]; then
             __load "$_ITEM Installing MongoDB" __install_mongodb "$_MONGO_VERSION" 
         elif ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_VERSION" ; then
+
+            # Check that the user wants to upgrade
+            __mongo_upgrade_info
+
             # Check if the version is less than 4.0. If so, we need to update to 4.0
             # before going to 4.2
             if ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_MIN_UPDATE_VERSION"; then
@@ -340,6 +344,18 @@ __add_zeek_to_path() {
     _ZEEK_PATH_SCRIPT_INSTALLED=true
     export PATH="$PATH:$_ZEEK_PATH"
     _ZEEK_IN_PATH=true
+}
+
+__mongo_upgrade_info() {
+    printf "$_IMPORTANT Mongo is already installed and is version $_MONGO_INSTALLED_VERSION.\n"
+    printf "$_IMPORTANT This will upgrade Mongo to version $_MONGO_VERSION.\n"
+    printf "$_IMPORTANT Note that Mongo must be upgraded to  $_MONGO_INSTALLED_VERSION for RITA $_RITA_VERSION to work.\n"
+    printf "$_IMPORTANT We suggest creating a backup of your data before upgrading (https://docs.mongodb.com/manual/tutorial/backup-and-restore-tools/).\n"
+    printf "$_QUESTION Would you like to upgrade your Mongo instance [y/N] "
+    read -e
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 0
+    fi
 }
 
 __intermediary_update_mongodb() {
@@ -583,12 +599,6 @@ __explain() {
         printf "$_SUBITEM Update RITA at $_BIN_PATH/rita \n"
     fi
     sleep 5s
-}
-
-__mongo_upgrade_info() {
-    printf "$_IMPORTANT Cannot update to Mongo v4.2 from the currently installed Mongo Version of $_MONGO_INSTALLED_VERSION \n"
-    printf "$_IMPORTANT First upgrade to Mongo v4.0 and then re-run this installer or manually upgrade to Mongo v4.2 \n"
-    printf "$_IMPORTANT https://docs.mongodb.com/manual/release-notes/4.2-upgrade-standalone/ \n"
 }
 
 __title() {
