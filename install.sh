@@ -165,7 +165,7 @@ __install() {
 
             # Need to stop mongo before updating otherwise we can end up with weird issues,
             # such as the console version not matching the server version
-            systemctl stop mongo
+            systemctl is-active --quiet mongod && systemctl stop mongod
 
             __load "$_ITEM Updating MongoDB" __install_mongodb "$_MONGO_VERSION"
             # Need to also install all the components of the mongodb-org metapackage for Ubuntu
@@ -345,7 +345,7 @@ __add_zeek_to_path() {
 __intermediary_update_mongodb() {
     # Need to stop mongo before updating otherwise we can end up with weird issues,
     # such as the console version not matching the server version
-    systemctl stop mongo
+    systemctl is-active --quiet mongod && systemctl stop mongod
 
     __load __install_mongodb "$_MONGO_MIN_UPDATE_VERSION"
 
