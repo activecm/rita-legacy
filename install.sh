@@ -347,7 +347,7 @@ __intermediary_update_mongodb() {
     # such as the console version not matching the server version
     systemctl is-active --quiet mongod && systemctl stop mongod
 
-    __load __install_mongodb "$_MONGO_MIN_UPDATE_VERSION"
+    __install_mongodb "$_MONGO_MIN_UPDATE_VERSION"
 
     # Need to also install all the components of the mongodb-org metapackage for Ubuntu
     __install_packages mongodb-org-mongos mongodb-org-server mongodb-org-shell mongodb-org-tools
