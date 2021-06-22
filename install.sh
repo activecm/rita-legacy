@@ -357,7 +357,7 @@ __intermediary_update_mongodb() {
         __configure_mongodb
 
         # Loop until service comes to life
-        while [ ! systemctl is-active --quiet mongod ]
+        while [ ! $(systemctl is-active --quiet mongod) ];
         do
             sleep 1
         done
