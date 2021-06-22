@@ -4,7 +4,7 @@
 # activecountermeasures.com
 
 # CONSTANTS
-_RITA_VERSION="v4.2.0"
+_RITA_VERSION="v4.3.0"
 _MONGO_VERSION="4.2"
 _MONGO_MIN_UPDATE_VERSION="4.0"
 _NAME=$(basename "${0}")
@@ -154,16 +154,20 @@ __install() {
 
     if [ "$_INSTALL_MONGO" = "true" ]; then
         if [ "$_MONGO_INSTALLED" = "false" ]; then
-            __load "$_ITEM Installing MongoDB" __install_mongodb
+            __load "$_ITEM Installing MongoDB" __install_mongodb "$_MONGO_VERSION" 
         elif ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_VERSION" ; then
-            # If Mongo is installed, check that it is 4.0 or above. Trying to update to v4.2
-            # from a version less than 4.0 will result in a bad day
+            # Check if the version is less than 4.0. If so, we need to update to 4.0
+            # before going to 4.2
             if ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_MIN_UPDATE_VERSION"; then
-                __mongo_upgrade_info
-                exit 1
+                printf "$_ITEM Detected Mongo version less than $_MONGO_MIN_UPDATE_VERSION \n"
+                __load "$_ITEM Performing intermediary update of MongoDB" __intermediary_update_mongodb
             fi
 
-            __load "$_ITEM Updating MongoDB" __install_mongodb
+            # Need to stop mongo before updating otherwise we can end up with weird issues,
+            # such as the console version not matching the server version
+            systemctl stop mongo
+
+            __load "$_ITEM Updating MongoDB" __install_mongodb "$_MONGO_VERSION"
             # Need to also install all the components of the mongodb-org metapackage for Ubuntu
             __install_packages mongodb-org-mongos mongodb-org-server mongodb-org-shell mongodb-org-tools
         else
@@ -338,22 +342,42 @@ __add_zeek_to_path() {
     _ZEEK_IN_PATH=true
 }
 
+__intermediary_update_mongodb() {
+    # Need to stop mongo before updating otherwise we can end up with weird issues,
+    # such as the console version not matching the server version
+    systemctl stop mongo
+
+    __load __install_mongodb "$_MONGO_MIN_UPDATE_VERSION"
+
+    # Need to also install all the components of the mongodb-org metapackage for Ubuntu
+    __install_packages mongodb-org-mongos mongodb-org-server mongodb-org-shell mongodb-org-tools
+
+    if [ "$_MONGO_INSTALLED" = "true" ]; then
+        # Star and configure the service so that we can run the command to update feature compatibility
+        __configure_mongodb
+
+        # Need to update feature compatibility to 4.0 otherwise things will break when we update
+        # to 4.2
+        mongo --eval "db.adminCommand( { setFeatureCompatibilityVersion: '$_MONGO_MIN_UPDATE_VERSION' } )"
+    fi
+}
+
 __install_mongodb() {
     case "$_OS" in
         Ubuntu)
-            __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu ${_MONGO_OS_CODENAME}/mongodb-org/${_MONGO_VERSION} multiverse" \
-                "mongodb-org-${_MONGO_VERSION}" \
-                "https://www.mongodb.org/static/pgp/server-${_MONGO_VERSION}.asc"
+            __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu ${_MONGO_OS_CODENAME}/mongodb-org/$1 multiverse" \
+                "mongodb-org-$1" \
+                "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
         CentOS|RedHatEnterprise|RedHatEnterpriseServer)
-            if [ ! -s /etc/yum.repos.d/mongodb-org-${_MONGO_VERSION}.repo ]; then
-                cat << EOF > /etc/yum.repos.d/mongodb-org-${_MONGO_VERSION}.repo
-[mongodb-org-${_MONGO_VERSION}]
+            if [ ! -s /etc/yum.repos.d/mongodb-org-$1.repo ]; then
+                cat << EOF > /etc/yum.repos.d/mongodb-org-$1.repo
+[mongodb-org-$1]
 name=MongoDB Repository
-baseurl=https://repo.mongodb.org/yum/redhat/\$releasever/mongodb-org/${_MONGO_VERSION}/x86_64/
+baseurl=https://repo.mongodb.org/yum/redhat/\$releasever/mongodb-org/$1/x86_64/
 gpgcheck=1
 enabled=1
-gpgkey=https://www.mongodb.org/static/pgp/server-${_MONGO_VERSION}.asc
+gpgkey=https://www.mongodb.org/static/pgp/server-$1.asc
 EOF
             fi
             __freshen_packages
