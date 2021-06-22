@@ -349,7 +349,7 @@ __add_zeek_to_path() {
 __mongo_upgrade_info() {
     printf "$_IMPORTANT Mongo is already installed and is version $_MONGO_INSTALLED_VERSION.\n"
     printf "$_IMPORTANT This will upgrade Mongo to version $_MONGO_VERSION.\n"
-    printf "$_IMPORTANT Note that Mongo must be upgraded to  $_MONGO_INSTALLED_VERSION for RITA $_RITA_VERSION to work.\n"
+    printf "$_IMPORTANT Note that Mongo must be upgraded to $_MONGO_INSTALLED_VERSION for RITA $_RITA_VERSION to work.\n"
     printf "$_IMPORTANT We suggest creating a backup of your data before upgrading (https://docs.mongodb.com/manual/tutorial/backup-and-restore-tools/).\n"
     printf "$_QUESTION Would you like to upgrade your Mongo instance [y/N] "
     read -e
@@ -382,7 +382,7 @@ __intermediary_update_mongodb() {
 }
 
 __update_feature_compatibility() {
-    mongo --eval 'db.adminCommand( { setFeatureCompatibilityVersion: "4.0" } )' --quiet
+    mongo --eval 'db.adminCommand( { setFeatureCompatibilityVersion: "4.0" } )' > /dev/null
 }
 
 __install_mongodb() {
