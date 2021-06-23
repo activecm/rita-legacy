@@ -172,6 +172,7 @@ __install() {
             systemctl is-active --quiet mongod && systemctl stop mongod
 
             __load "$_ITEM Updating MongoDB" __install_mongodb "$_MONGO_VERSION"
+
             # Need to also install all the components of the mongodb-org metapackage for Ubuntu
             __install_packages mongodb-org-mongos mongodb-org-server mongodb-org-shell mongodb-org-tools
         else
@@ -180,6 +181,14 @@ __install() {
 
         if [ "$_MONGO_INSTALLED" = "true" ]; then
             __configure_mongodb
+
+            # Wait for service to come to life
+            printf "$_ITEM Sleeping to give the Mongo service some time to fully start..."
+            sleep 10
+             
+            # Set compatibility version in case we updated Mongo. It's fine to do this even if we didn't
+            # update Mongo...it's just a bit cleaner to do it here to cut down on code redundancy and logic checks
+            __load "$ITEM Setting Mongo feature compatibility to $_MONGO_VERSION" __update_feature_compatibility "$_MONGO_VERSION"
         fi
     fi
 
@@ -373,16 +382,17 @@ __intermediary_update_mongodb() {
         __configure_mongodb
 
         # Wait for service to come to life
+        printf "$_ITEM Sleeping to give the Mongo service some time to fully start..."
         sleep 10
 
         # Need to update feature compatibility to 4.0 otherwise things will break when we update
         # to 4.2
-        __load "$ITEM Updating feature comapibility in Mongo to 4.0" __update_feature_compatibility
+        __load "$ITEM Setting feature compatibility in Mongo to $_MONGO_MIN_UPDATE_VERSION" __update_feature_compatibility "$_MONGO_MIN_UPDATE_VERSION"
     fi
 }
 
 __update_feature_compatibility() {
-    mongo --eval 'db.adminCommand( { setFeatureCompatibilityVersion: "4.0" } )' > /dev/null
+    mongo --eval "db.adminCommand( { setFeatureCompatibilityVersion: '$1' } )" > /dev/null
 }
 
 __install_mongodb() {
