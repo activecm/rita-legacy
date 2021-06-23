@@ -188,7 +188,7 @@ __install() {
              
             # Set compatibility version in case we updated Mongo. It's fine to do this even if we didn't
             # update Mongo...it's just a bit cleaner to do it here to cut down on code redundancy and logic checks
-            __load "$ITEM Setting Mongo feature compatibility to $_MONGO_VERSION" __update_feature_compatibility "$_MONGO_VERSION"
+            __load "$_ITEM Setting Mongo feature compatibility to $_MONGO_VERSION" __update_feature_compatibility "$_MONGO_VERSION"
         fi
     fi
 
@@ -387,7 +387,7 @@ __intermediary_update_mongodb() {
 
         # Need to update feature compatibility to 4.0 otherwise things will break when we update
         # to 4.2
-        __load "$ITEM Setting feature compatibility in Mongo to $_MONGO_MIN_UPDATE_VERSION" __update_feature_compatibility "$_MONGO_MIN_UPDATE_VERSION"
+        __load "$_ITEM Setting feature compatibility in Mongo to $_MONGO_MIN_UPDATE_VERSION" __update_feature_compatibility "$_MONGO_MIN_UPDATE_VERSION"
     fi
 }
 
