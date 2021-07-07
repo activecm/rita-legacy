@@ -112,12 +112,13 @@ type (
 
 	//FilteringStaticCfg controls address filtering
 	FilteringStaticCfg struct {
-		AlwaysInclude       []string `yaml:"AlwaysInclude" default:"[]"`
-		NeverInclude        []string `yaml:"NeverInclude" default:"[\"0.0.0.0/32\", \"127.0.0.0/8\", \"169.254.0.0/16\", \"224.0.0.0/4\", \"255.255.255.255/32\", \"::1/128\", \"fe80::/10\", \"ff00::/8\"]"`
-		InternalSubnets     []string `yaml:"InternalSubnets" default:"[\"10.0.0.0/8\", \"172.16.0.0/12\", \"192.168.0.0/16\"]"`
-		HTTPProxyServers    []string `yaml:"HTTPProxyServers" default:"[]"`
-		AlwaysIncludeDomain []string `yaml:"AlwaysIncludeDomain" default:"[]"`
-		NeverIncludeDomain  []string `yaml:"NeverIncludeDomain" default:"[]"`
+		AlwaysInclude            []string `yaml:"AlwaysInclude" default:"[]"`
+		NeverInclude             []string `yaml:"NeverInclude" default:"[\"0.0.0.0/32\", \"127.0.0.0/8\", \"169.254.0.0/16\", \"224.0.0.0/4\", \"255.255.255.255/32\", \"::1/128\", \"fe80::/10\", \"ff00::/8\"]"`
+		InternalSubnets          []string `yaml:"InternalSubnets" default:"[\"10.0.0.0/8\", \"172.16.0.0/12\", \"192.168.0.0/16\"]"`
+		HTTPProxyServers         []string `yaml:"HTTPProxyServers" default:"[]"`
+		AlwaysIncludeDomain      []string `yaml:"AlwaysIncludeDomain" default:"[]"`
+		NeverIncludeDomain       []string `yaml:"NeverIncludeDomain" default:"[]"`
+		FilterExternalToInternal bool     `yaml:"FilterExternalToInternal" default:"false"`
 	}
 
 	//StrobeStaticCfg controls the maximum number of connections between any two given hosts

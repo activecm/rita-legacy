@@ -52,6 +52,11 @@ func (fs *FSImporter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 		return true
 	}
 
+	// filter external to internal traffic if the user has specified to do so
+	if fs.filterExternalToInternal && (!isSrcInternal) && isDstInternal {
+		return true
+	}
+
 	// default to not filter the connection pair
 	return false
 }

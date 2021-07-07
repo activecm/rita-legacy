@@ -35,20 +35,21 @@ import (
 type (
 	//FSImporter provides the ability to import bro files from the file system
 	FSImporter struct {
-		res                  *resources.Resources
-		importFiles          []string
-		rolling              bool
-		totalChunks          int
-		currentChunk         int
-		indexingThreads      int
-		parseThreads         int
-		batchSizeBytes       int64
-		internal             []*net.IPNet
-		httpProxyServers     []*net.IPNet
-		alwaysIncluded       []*net.IPNet
-		neverIncluded        []*net.IPNet
-		alwaysIncludedDomain []string
-		neverIncludedDomain  []string
+		res                      *resources.Resources
+		importFiles              []string
+		rolling                  bool
+		totalChunks              int
+		currentChunk             int
+		indexingThreads          int
+		parseThreads             int
+		batchSizeBytes           int64
+		internal                 []*net.IPNet
+		httpProxyServers         []*net.IPNet
+		alwaysIncluded           []*net.IPNet
+		neverIncluded            []*net.IPNet
+		alwaysIncludedDomain     []string
+		neverIncludedDomain      []string
+		filterExternalToInternal bool
 	}
 
 	trustedAppTiplet struct {
@@ -62,20 +63,21 @@ type (
 func NewFSImporter(res *resources.Resources,
 	indexingThreads int, parseThreads int, importFiles []string) *FSImporter {
 	return &FSImporter{
-		res:                  res,
-		importFiles:          importFiles,
-		rolling:              res.Config.S.Rolling.Rolling,
-		totalChunks:          res.Config.S.Rolling.TotalChunks,
-		currentChunk:         res.Config.S.Rolling.CurrentChunk,
-		indexingThreads:      indexingThreads,
-		parseThreads:         parseThreads,
-		batchSizeBytes:       2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
-		internal:             util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
-		httpProxyServers:     util.ParseSubnets(res.Config.S.Filtering.HTTPProxyServers),
-		alwaysIncluded:       util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
-		neverIncluded:        util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
-		alwaysIncludedDomain: res.Config.S.Filtering.AlwaysIncludeDomain,
-		neverIncludedDomain:  res.Config.S.Filtering.NeverIncludeDomain,
+		res:                      res,
+		importFiles:              importFiles,
+		rolling:                  res.Config.S.Rolling.Rolling,
+		totalChunks:              res.Config.S.Rolling.TotalChunks,
+		currentChunk:             res.Config.S.Rolling.CurrentChunk,
+		indexingThreads:          indexingThreads,
+		parseThreads:             parseThreads,
+		batchSizeBytes:           2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
+		internal:                 util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
+		httpProxyServers:         util.ParseSubnets(res.Config.S.Filtering.HTTPProxyServers),
+		alwaysIncluded:           util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
+		neverIncluded:            util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
+		alwaysIncludedDomain:     res.Config.S.Filtering.AlwaysIncludeDomain,
+		neverIncludedDomain:      res.Config.S.Filtering.NeverIncludeDomain,
+		filterExternalToInternal: res.Config.S.Filtering.FilterExternalToInternal,
 	}
 }
 

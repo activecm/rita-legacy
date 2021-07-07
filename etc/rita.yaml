@@ -113,6 +113,10 @@ Filtering:
   #       ie, '*.mydomain.com'. Only subdomain wildcarding 
   #       (asterisk as the prefix) is supported
   NeverIncludeDomain: []
+
+  # FilterExternalToInternal will ignore any entries where communication
+  # is occurring from an external host to an internal host
+  FilterExternalToInternal: true
   
 BlackListed:
   Enabled: true
