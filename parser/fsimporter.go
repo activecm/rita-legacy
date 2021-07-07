@@ -11,7 +11,9 @@ import (
 	"sync"
 	"time"
 
-	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/parser/files"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/pkg/beaconfqdn"
@@ -35,20 +37,14 @@ import (
 type (
 	//FSImporter provides the ability to import bro files from the file system
 	FSImporter struct {
-		res                  *resources.Resources
-		importFiles          []string
-		rolling              bool
-		totalChunks          int
-		currentChunk         int
-		indexingThreads      int
-		parseThreads         int
-		batchSizeBytes       int64
-		internal             []*net.IPNet
-		httpProxyServers     []*net.IPNet
-		alwaysIncluded       []*net.IPNet
-		neverIncluded        []*net.IPNet
-		alwaysIncludedDomain []string
-		neverIncludedDomain  []string
+		filter
+
+		log      *log.Logger
+		config   *config.Config
+		database *database.DB
+		metaDB   *database.MetaDB
+
+		batchSizeBytes int64
 	}
 
 	trustedAppTiplet struct {
@@ -59,23 +55,14 @@ type (
 )
 
 //NewFSImporter creates a new file system importer
-func NewFSImporter(res *resources.Resources,
-	indexingThreads int, parseThreads int, importFiles []string) *FSImporter {
+func NewFSImporter(res *resources.Resources) *FSImporter {
 	return &FSImporter{
-		res:                  res,
-		importFiles:          importFiles,
-		rolling:              res.Config.S.Rolling.Rolling,
-		totalChunks:          res.Config.S.Rolling.TotalChunks,
-		currentChunk:         res.Config.S.Rolling.CurrentChunk,
-		indexingThreads:      indexingThreads,
-		parseThreads:         parseThreads,
-		batchSizeBytes:       2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
-		internal:             util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
-		httpProxyServers:     util.ParseSubnets(res.Config.S.Filtering.HTTPProxyServers),
-		alwaysIncluded:       util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
-		neverIncluded:        util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
-		alwaysIncludedDomain: res.Config.S.Filtering.AlwaysIncludeDomain,
-		neverIncludedDomain:  res.Config.S.Filtering.NeverIncludeDomain,
+		filter:         newFilter(res.Config),
+		log:            res.Log,
+		config:         res.Config,
+		database:       res.DB,
+		metaDB:         res.MetaDB,
+		batchSizeBytes: 2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
 	}
 }
 
@@ -90,65 +77,67 @@ func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
 }
 
 //CollectFileDetails reads and hashes the files
-func (fs *FSImporter) CollectFileDetails() []*fpt.IndexedFile {
+func (fs *FSImporter) CollectFileDetails(importFiles []string, threads int) []*files.IndexedFile {
 	// find all of the potential bro log paths
-	files := readFiles(fs.importFiles, fs.res.Log)
+	logFiles := files.GatherLogFiles(importFiles, fs.log)
 
 	// hash the files and get their stats
-	return indexFiles(files, fs.indexingThreads, fs.res)
+	return files.IndexFiles(
+		logFiles, threads, fs.database.GetSelectedDB(), fs.config.S.Rolling.CurrentChunk, fs.log, fs.config,
+	)
 }
 
 //Run starts the importing
-func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
+func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 	start := time.Now()
 
 	fmt.Println("\t[-] Verifying log files have not been previously parsed into the target dataset ... ")
 	// check list of files against metadatabase records to ensure that the a file
 	// won't be imported into the same database twice.
-	indexedFiles = removeOldFilesFromIndex(indexedFiles, fs.res.MetaDB, fs.res.Log, fs.res.DB.GetSelectedDB())
+	indexedFiles = fs.metaDB.FilterOutPreviouslyIndexedFiles(indexedFiles, fs.database.GetSelectedDB())
 
 	// if all files were removed because they've already been imported, handle error
 	if !(len(indexedFiles) > 0) {
-		if fs.rolling {
-			fmt.Println("\t[!] All files pertaining to the current chunk entry have already been parsed into database: ", fs.res.DB.GetSelectedDB())
+		if fs.config.S.Rolling.Rolling {
+			fmt.Println("\t[!] All files pertaining to the current chunk entry have already been parsed into database: ", fs.database.GetSelectedDB())
 		} else {
-			fmt.Println("\t[!] All files in this directory have already been parsed into database: ", fs.res.DB.GetSelectedDB())
+			fmt.Println("\t[!] All files in this directory have already been parsed into database: ", fs.database.GetSelectedDB())
 		}
 		return
 	}
 
 	// Add new metadatabase record for db if doesn't already exist
-	dbExists, err := fs.res.MetaDB.DBExists(fs.res.DB.GetSelectedDB())
+	dbExists, err := fs.metaDB.DBExists(fs.database.GetSelectedDB())
 	if err != nil {
-		fs.res.Log.WithFields(log.Fields{
+		fs.log.WithFields(log.Fields{
 			"err":      err,
-			"database": fs.res.DB.GetSelectedDB(),
+			"database": fs.database.GetSelectedDB(),
 		}).Error("Could not check if metadatabase record exists for target database")
 		fmt.Printf("\t[!] %v", err.Error())
 	}
 
 	if !dbExists {
-		err := fs.res.MetaDB.AddNewDB(fs.res.DB.GetSelectedDB(), fs.currentChunk, fs.totalChunks)
+		err := fs.metaDB.AddNewDB(fs.database.GetSelectedDB(), fs.config.S.Rolling.CurrentChunk, fs.config.S.Rolling.TotalChunks)
 		if err != nil {
-			fs.res.Log.WithFields(log.Fields{
+			fs.log.WithFields(log.Fields{
 				"err":      err,
-				"database": fs.res.DB.GetSelectedDB(),
+				"database": fs.database.GetSelectedDB(),
 			}).Error("Could not add metadatabase record for new database")
 			fmt.Printf("\t[!] %v", err.Error())
 		}
 	}
 
-	if fs.rolling {
-		err := fs.res.MetaDB.SetRollingSettings(fs.res.DB.GetSelectedDB(), fs.currentChunk, fs.totalChunks)
+	if fs.config.S.Rolling.Rolling {
+		err := fs.metaDB.SetRollingSettings(fs.database.GetSelectedDB(), fs.config.S.Rolling.CurrentChunk, fs.config.S.Rolling.TotalChunks)
 		if err != nil {
-			fs.res.Log.WithFields(log.Fields{
+			fs.log.WithFields(log.Fields{
 				"err":      err,
-				"database": fs.res.DB.GetSelectedDB(),
+				"database": fs.database.GetSelectedDB(),
 			}).Error("Could not update rolling database settings for database")
 			fmt.Printf("\t[!] %v", err.Error())
 		}
 
-		chunkSet, err := fs.res.MetaDB.IsChunkSet(fs.currentChunk, fs.res.DB.GetSelectedDB())
+		chunkSet, err := fs.metaDB.IsChunkSet(fs.config.S.Rolling.CurrentChunk, fs.database.GetSelectedDB())
 		if err != nil {
 			fmt.Println("\t[!] Could not find CID List entry in metadatabase")
 			return
@@ -156,7 +145,7 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 
 		if chunkSet {
 			fmt.Println("\t[-] Removing outdated data from rolling dataset ... ")
-			err := fs.removeAnalysisChunk(fs.currentChunk)
+			err := fs.removeAnalysisChunk(fs.config.S.Rolling.CurrentChunk)
 			if err != nil {
 				fmt.Println("\t[!] Failed to remove outdata data from rolling dataset")
 				return
@@ -165,8 +154,8 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 	}
 
 	// create blacklisted reference Collection if blacklisted module is enabled
-	if fs.res.Config.S.Blacklisted.Enabled {
-		blacklist.BuildBlacklistedCollections(fs.res)
+	if fs.config.S.Blacklisted.Enabled {
+		blacklist.BuildBlacklistedCollections(fs.database, fs.config, fs.log)
 	}
 
 	// batch up the indexed files so as not to read too much in at one time
@@ -176,11 +165,11 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fmt.Printf("\t[-] Processing batch %d of %d\n", i+1, len(batchedIndexedFiles))
 
 		// parse in those files!
-		uconnMap, hostMap, explodeddnsMap, hostnameMap, proxyHostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
+		uconnMap, hostMap, explodeddnsMap, hostnameMap, proxyHostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, threads, fs.log)
 
 		// Set chunk before we continue so if process dies, we still verify with a delete if
 		// any data was written out.
-		fs.res.MetaDB.SetChunk(fs.currentChunk, fs.res.DB.GetSelectedDB(), true)
+		fs.metaDB.SetChunk(fs.config.S.Rolling.CurrentChunk, fs.database.GetSelectedDB(), true)
 
 		// build Hosts table.
 		fs.buildHosts(hostMap)
@@ -189,7 +178,7 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fs.buildUconns(uconnMap)
 
 		// update ts range for dataset (needs to be run before beacons)
-		fs.updateTimestampRange()
+		minTimestamp, maxTimestamp := fs.updateTimestampRange()
 
 		// build or update the exploded DNS table. Must go before hostnames
 		fs.buildExplodedDNS(explodeddnsMap)
@@ -198,13 +187,13 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fs.buildHostnames(hostnameMap)
 
 		// build or update Beacons table
-		fs.buildBeacons(uconnMap)
+		fs.buildBeacons(uconnMap, minTimestamp, maxTimestamp)
 
 		// build or update the FQDN Beacons Table
-		fs.buildFQDNBeacons(hostnameMap)
+		fs.buildFQDNBeacons(hostnameMap, minTimestamp, maxTimestamp)
 
 		// build or update the Proxy Beacons Table
-		fs.buildProxyBeacons(proxyHostnameMap)
+		fs.buildProxyBeacons(proxyHostnameMap, minTimestamp, maxTimestamp)
 
 		// build or update UserAgent table
 		fs.buildUserAgent(useragentMap)
@@ -217,15 +206,18 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 
 		// record file+database name hash in metadabase to prevent duplicate content
 		fmt.Println("\t[-] Indexing log entries ... ")
-		updateFilesIndex(indexedFileBatch, fs.res.MetaDB, fs.res.Log)
+		err := fs.metaDB.AddNewFilesToIndex(indexedFileBatch)
+		if err != nil {
+			fs.log.Error("Could not update the list of parsed files")
+		}
 	}
 
 	// mark results as imported and analyzed
 	fmt.Println("\t[-] Updating metadatabase ... ")
-	fs.res.MetaDB.MarkDBAnalyzed(fs.res.DB.GetSelectedDB(), true)
+	fs.metaDB.MarkDBAnalyzed(fs.database.GetSelectedDB(), true)
 
 	progTime := time.Now()
-	fs.res.Log.WithFields(
+	fs.log.WithFields(
 		log.Fields{
 			"current_time": progTime.Format(util.TimeFormat),
 			"total_time":   progTime.Sub(start).String(),
@@ -233,7 +225,7 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 	).Info("Finished upload. Starting indexing")
 
 	progTime = time.Now()
-	fs.res.Log.WithFields(
+	fs.log.WithFields(
 		log.Fields{
 			"current_time": progTime.Format(util.TimeFormat),
 			"total_time":   progTime.Sub(start).String(),
@@ -245,24 +237,24 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 
 // batchFilesBySize takes in an slice of indexedFiles and splits the array into
 // subgroups of indexedFiles such that each group has a total size in bytes less than size
-func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.IndexedFile {
+func batchFilesBySize(indexedFiles []*files.IndexedFile, size int64) [][]*files.IndexedFile {
 	// sort the indexed files so we process them in order
 	sort.Slice(indexedFiles, func(i, j int) bool {
 		return indexedFiles[i].Path < indexedFiles[j].Path
 	})
 
 	//group by target collection
-	fileTypeMap := make(map[string][]*fpt.IndexedFile)
+	fileTypeMap := make(map[string][]*files.IndexedFile)
 	for _, file := range indexedFiles {
 		if _, ok := fileTypeMap[file.TargetCollection]; !ok {
-			fileTypeMap[file.TargetCollection] = make([]*fpt.IndexedFile, 0)
+			fileTypeMap[file.TargetCollection] = make([]*files.IndexedFile, 0)
 		}
 		fileTypeMap[file.TargetCollection] = append(fileTypeMap[file.TargetCollection], file)
 	}
 
 	// Take n files in each target collection group until the size limit is exceeded, then start a new batch
-	batches := make([][]*fpt.IndexedFile, 0)
-	currBatch := make([]*fpt.IndexedFile, 0)
+	batches := make([][]*files.IndexedFile, 0)
+	currBatch := make([]*files.IndexedFile, 0)
 	currAggBytes := int64(0)
 	iterators := make(map[string]int)
 	for fileType := range fileTypeMap {
@@ -271,7 +263,7 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 
 	for len(iterators) != 0 { // while there is data to iterate through
 
-		maybeBatch := make([]*fpt.IndexedFile, 0)
+		maybeBatch := make([]*files.IndexedFile, 0)
 		maybeAggBytes := int64(0)
 		for fileType := range fileTypeMap { // grab a file for each target collection.
 			if _, ok := iterators[fileType]; ok { // if we haven't ran through all the files for the target collection
@@ -292,7 +284,7 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 		// small enough batch sizes. We just try our best and process 1 file for each target collection at a time.
 		if len(currBatch) != 0 && currAggBytes+maybeAggBytes >= size {
 			batches = append(batches, currBatch)
-			currBatch = make([]*fpt.IndexedFile, 0)
+			currBatch = make([]*files.IndexedFile, 0)
 			currAggBytes = 0
 		}
 
@@ -307,10 +299,10 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 //threads to use to parse the files, whether or not to sort data by date,
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
-func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, logger *log.Logger) (
+func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThreads int, logger *log.Logger) (
 	map[string]*uconn.Input, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*beaconproxy.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
 
-	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
+	fmt.Println("\t[-] Parsing logs to: " + fs.database.GetSelectedDB() + " ... ")
 
 	// create log parsing maps
 	explodeddnsMap := make(map[string]int)
@@ -338,7 +330,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	for i := 0; i < parsingThreads; i++ {
 		parsingWG.Add(1)
 
-		go func(indexedFiles []*fpt.IndexedFile, logger *log.Logger,
+		go func(indexedFiles []*files.IndexedFile, logger *log.Logger,
 			wg *sync.WaitGroup, start int, jump int, length int) {
 			//comb over array
 			for j := start; j < length; j += jump {
@@ -353,7 +345,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 				}
 
 				// read the file
-				fileScanner, err := getFileScanner(fileHandle)
+				fileScanner, err := files.GetFileScanner(fileHandle)
 				if err != nil {
 					logger.WithFields(log.Fields{
 						"file":  indexedFiles[j].Path,
@@ -370,14 +362,19 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 					}
 
 					//parse the line
-					datum := parseLine(
-						fileScanner.Text(),
-						indexedFiles[j].GetHeader(),
-						indexedFiles[j].GetFieldMap(),
-						indexedFiles[j].GetBroDataFactory(),
-						indexedFiles[j].IsJSON(),
-						logger,
-					)
+					var datum parsetypes.BroData
+					if indexedFiles[j].IsJSON() {
+						datum = files.ParseJSONLine(fileScanner.Bytes(), indexedFiles[j].GetBroDataFactory(), logger)
+					} else {
+						datum = files.ParseTSVLine(
+							fileScanner.Text(), indexedFiles[j].GetHeader(), indexedFiles[j].GetFieldMap(),
+							indexedFiles[j].GetBroDataFactory(), logger,
+						)
+					}
+
+					if datum == nil {
+						continue
+					}
 
 					if datum != nil {
 						//figure out which collection (dns, http, or conn/conn_long) this line is heading for
@@ -388,7 +385,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						/// *************************************************************///
 						///                           CONNS                              ///
 						/// *************************************************************///
-						case fs.res.Config.T.Structure.ConnTable:
+						case fs.config.T.Structure.ConnTable:
 
 							parseConn, ok := datum.(*parsetypes.Conn)
 							if !ok {
@@ -444,7 +441,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// create new host record with src and dst
 									hostMap[srcKey] = &host.Input{
 										Host:    srcUniqIP,
-										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+										IsLocal: fs.checkIfInternal(srcIP),
 										IP4:     util.IsIPv4(src),
 										IP4Bin:  util.IPv4ToBinary(srcIP),
 									}
@@ -455,7 +452,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// create new host record with src and dst
 									hostMap[dstKey] = &host.Input{
 										Host:    dstUniqIP,
-										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+										IsLocal: fs.checkIfInternal(dstIP),
 										IP4:     util.IsIPv4(dst),
 										IP4Bin:  util.IPv4ToBinary(dstIP),
 									}
@@ -468,8 +465,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// we only need to do this once if the uconn record does not exist
 									uconnMap[srcDstKey] = &uconn.Input{
 										Hosts:      srcDstPair,
-										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
-										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+										IsLocalSrc: fs.checkIfInternal(srcIP),
+										IsLocalDst: fs.checkIfInternal(dstIP),
 									}
 
 									hostMap[srcKey].CountSrc++
@@ -569,7 +566,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						/// *************************************************************///
 						///                             DNS                              ///
 						/// *************************************************************///
-						case fs.res.Config.T.Structure.DNSTable:
+						case fs.config.T.Structure.DNSTable:
 							parseDNS, ok := datum.(*parsetypes.DNS)
 							if !ok {
 								continue
@@ -635,7 +632,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										// we only need to do this once if the uconn record does not exist
 										hostMap[srcKey] = &host.Input{
 											Host:    srcUniqIP,
-											IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+											IsLocal: fs.checkIfInternal(srcIP),
 											IP4:     util.IsIPv4(src),
 											IP4Bin:  util.IPv4ToBinary(srcIP),
 										}
@@ -657,7 +654,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						/// *************************************************************///
 						///                             HTTP                             ///
 						/// *************************************************************///
-						case fs.res.Config.T.Structure.HTTPTable:
+						case fs.config.T.Structure.HTTPTable:
 							parseHTTP, ok := datum.(*parsetypes.HTTP)
 							if !ok {
 								continue
@@ -759,7 +756,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						/// *************************************************************///
 						///                           OPEN CONNS                         ///
 						/// *************************************************************///
-						case fs.res.Config.T.Structure.OpenConnTable:
+						case fs.config.T.Structure.OpenConnTable:
 							parseConn, ok := datum.(*parsetypes.OpenConn)
 							if !ok {
 								continue
@@ -814,7 +811,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// create new host record with src and dst
 									hostMap[srcKey] = &host.Input{
 										Host:    srcUniqIP,
-										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+										IsLocal: fs.checkIfInternal(srcIP),
 										IP4:     util.IsIPv4(src),
 										IP4Bin:  util.IPv4ToBinary(srcIP),
 									}
@@ -825,7 +822,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// create new host record with src and dst
 									hostMap[dstKey] = &host.Input{
 										Host:    dstUniqIP,
-										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+										IsLocal: fs.checkIfInternal(dstIP),
 										IP4:     util.IsIPv4(dst),
 										IP4Bin:  util.IPv4ToBinary(dstIP),
 									}
@@ -838,8 +835,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// we only need to do this once if the uconn record does not exist
 									uconnMap[srcDstKey] = &uconn.Input{
 										Hosts:      srcDstPair,
-										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
-										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+										IsLocalSrc: fs.checkIfInternal(srcIP),
+										IsLocalDst: fs.checkIfInternal(dstIP),
 									}
 
 									// Can do this even if the connection is open. For each set of logs we
@@ -938,7 +935,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 						/// *************************************************************///
 						///                             SSL                              ///
 						/// *************************************************************///
-						case fs.res.Config.T.Structure.SSLTable:
+						case fs.config.T.Structure.SSLTable:
 							parseSSL, ok := datum.(*parsetypes.SSL)
 							if !ok {
 								continue
@@ -1000,8 +997,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									// create new uconn record if it does not exist
 									uconnMap[srcDstKey] = &uconn.Input{
 										Hosts:      srcDstPair,
-										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
-										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+										IsLocalSrc: fs.checkIfInternal(srcIP),
+										IsLocalDst: fs.checkIfInternal(dstIP),
 									}
 								}
 
@@ -1057,13 +1054,13 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 //buildExplodedDNS .....
 func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 
-	if fs.res.Config.S.DNS.Enabled {
+	if fs.config.S.DNS.Enabled {
 		if len(domainMap) > 0 {
 			// Set up the database
-			explodedDNSRepo := explodeddns.NewMongoRepository(fs.res)
+			explodedDNSRepo := explodeddns.NewMongoRepository(fs.database, fs.config, fs.log)
 			err := explodedDNSRepo.CreateIndexes()
 			if err != nil {
-				fs.res.Log.Error(err)
+				fs.log.Error(err)
 			}
 			explodedDNSRepo.Upsert(domainMap)
 		} else {
@@ -1077,10 +1074,10 @@ func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 	if len(certMap) > 0 {
 		// Set up the database
-		certificateRepo := certificate.NewMongoRepository(fs.res)
+		certificateRepo := certificate.NewMongoRepository(fs.database, fs.config, fs.log)
 		err := certificateRepo.CreateIndexes()
 		if err != nil {
-			fs.res.Log.Error(err)
+			fs.log.Error(err)
 		}
 		certificateRepo.Upsert(certMap)
 	} else {
@@ -1093,14 +1090,14 @@ func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 func (fs *FSImporter) removeAnalysisChunk(cid int) error {
 
 	// Set up the remover
-	removerRepo := remover.NewMongoRemover(fs.res)
+	removerRepo := remover.NewMongoRemover(fs.database, fs.config, fs.log)
 	err := removerRepo.Remove(cid)
 	if err != nil {
-		fs.res.Log.Error(err)
+		fs.log.Error(err)
 		return err
 	}
 
-	fs.res.MetaDB.SetChunk(cid, fs.res.DB.GetSelectedDB(), false)
+	fs.metaDB.SetChunk(cid, fs.database.GetSelectedDB(), false)
 
 	return nil
 
@@ -1111,10 +1108,10 @@ func (fs *FSImporter) buildHostnames(hostnameMap map[string]*hostname.Input) {
 	// non-optional module
 	if len(hostnameMap) > 0 {
 		// Set up the database
-		hostnameRepo := hostname.NewMongoRepository(fs.res)
+		hostnameRepo := hostname.NewMongoRepository(fs.database, fs.config, fs.log)
 		err := hostnameRepo.CreateIndexes()
 		if err != nil {
-			fs.res.Log.Error(err)
+			fs.log.Error(err)
 		}
 		hostnameRepo.Upsert(hostnameMap)
 	} else {
@@ -1127,11 +1124,11 @@ func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Input) {
 	// non-optional module
 	if len(uconnMap) > 0 {
 		// Set up the database
-		uconnRepo := uconn.NewMongoRepository(fs.res)
+		uconnRepo := uconn.NewMongoRepository(fs.database, fs.config, fs.log)
 
 		err := uconnRepo.CreateIndexes()
 		if err != nil {
-			fs.res.Log.Error(err)
+			fs.log.Error(err)
 		}
 
 		// send uconns to uconn analysis
@@ -1146,11 +1143,11 @@ func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Input) {
 func (fs *FSImporter) buildHosts(hostMap map[string]*host.Input) {
 	// non-optional module
 	if len(hostMap) > 0 {
-		hostRepo := host.NewMongoRepository(fs.res)
+		hostRepo := host.NewMongoRepository(fs.database, fs.config, fs.log)
 
 		err := hostRepo.CreateIndexes()
 		if err != nil {
-			fs.res.Log.Error(err)
+			fs.log.Error(err)
 		}
 
 		// send uconns to host analysis
@@ -1165,11 +1162,11 @@ func (fs *FSImporter) buildHosts(hostMap map[string]*host.Input) {
 func (fs *FSImporter) markBlacklistedPeers(hostMap map[string]*host.Input) {
 	// non-optional module
 	if len(hostMap) > 0 {
-		blacklistRepo := blacklist.NewMongoRepository(fs.res)
+		blacklistRepo := blacklist.NewMongoRepository(fs.database, fs.config, fs.log)
 
 		err := blacklistRepo.CreateIndexes()
 		if err != nil {
-			fs.res.Log.Error(err)
+			fs.log.Error(err)
 		}
 
 		// send uconns to host analysis
@@ -1177,18 +1174,18 @@ func (fs *FSImporter) markBlacklistedPeers(hostMap map[string]*host.Input) {
 	}
 }
 
-func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input) {
-	if fs.res.Config.S.Beacon.Enabled {
+func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input, minTimestamp, maxTimestamp int64) {
+	if fs.config.S.Beacon.Enabled {
 		if len(uconnMap) > 0 {
-			beaconRepo := beacon.NewMongoRepository(fs.res)
+			beaconRepo := beacon.NewMongoRepository(fs.database, fs.config, fs.log)
 
 			err := beaconRepo.CreateIndexes()
 			if err != nil {
-				fs.res.Log.Error(err)
+				fs.log.Error(err)
 			}
 
 			// send uconns to beacon analysis
-			beaconRepo.Upsert(uconnMap)
+			beaconRepo.Upsert(uconnMap, minTimestamp, maxTimestamp)
 		} else {
 			fmt.Println("\t[!] No Beacon data to analyze")
 		}
@@ -1196,18 +1193,18 @@ func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input) {
 
 }
 
-func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
-	if fs.res.Config.S.BeaconFQDN.Enabled {
+func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input, minTimestamp, maxTimestamp int64) {
+	if fs.config.S.BeaconFQDN.Enabled {
 		if len(hostnameMap) > 0 {
-			beaconFQDNRepo := beaconfqdn.NewMongoRepository(fs.res)
+			beaconFQDNRepo := beaconfqdn.NewMongoRepository(fs.database, fs.config, fs.log)
 
 			err := beaconFQDNRepo.CreateIndexes()
 			if err != nil {
-				fs.res.Log.Error(err)
+				fs.log.Error(err)
 			}
 
 			// send uconns to beacon analysis
-			beaconFQDNRepo.Upsert(hostnameMap)
+			beaconFQDNRepo.Upsert(hostnameMap, minTimestamp, maxTimestamp)
 		} else {
 			fmt.Println("\t[!] No FQDN Beacon data to analyze")
 		}
@@ -1215,18 +1212,18 @@ func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
 
 }
 
-func (fs *FSImporter) buildProxyBeacons(proxyHostnameMap map[string]*beaconproxy.Input) {
-	if fs.res.Config.S.BeaconProxy.Enabled {
+func (fs *FSImporter) buildProxyBeacons(proxyHostnameMap map[string]*beaconproxy.Input, minTimestamp, maxTimestamp int64) {
+	if fs.config.S.BeaconProxy.Enabled {
 		if len(proxyHostnameMap) > 0 {
-			beaconProxyRepo := beaconproxy.NewMongoRepository(fs.res)
+			beaconProxyRepo := beaconproxy.NewMongoRepository(fs.database, fs.config, fs.log)
 
 			err := beaconProxyRepo.CreateIndexes()
 			if err != nil {
-				fs.res.Log.Error(err)
+				fs.log.Error(err)
 			}
 
 			// send uconns to beacon analysis
-			beaconProxyRepo.Upsert(proxyHostnameMap)
+			beaconProxyRepo.Upsert(proxyHostnameMap, minTimestamp, maxTimestamp)
 		} else {
 			fmt.Println("\t[!] No Proxy Beacon data to analyze")
 		}
@@ -1237,13 +1234,14 @@ func (fs *FSImporter) buildProxyBeacons(proxyHostnameMap map[string]*beaconproxy
 //buildUserAgent .....
 func (fs *FSImporter) buildUserAgent(useragentMap map[string]*useragent.Input) {
 
-	if fs.res.Config.S.UserAgent.Enabled {
+	if fs.config.S.UserAgent.Enabled {
 		if len(useragentMap) > 0 {
 			// Set up the database
-			useragentRepo := useragent.NewMongoRepository(fs.res)
+			useragentRepo := useragent.NewMongoRepository(fs.database, fs.config, fs.log)
+
 			err := useragentRepo.CreateIndexes()
 			if err != nil {
-				fs.res.Log.Error(err)
+				fs.log.Error(err)
 			}
 			useragentRepo.Upsert(useragentMap)
 		} else {
@@ -1252,15 +1250,15 @@ func (fs *FSImporter) buildUserAgent(useragentMap map[string]*useragent.Input) {
 	}
 }
 
-func (fs *FSImporter) updateTimestampRange() {
-	session := fs.res.DB.Session.Copy()
+func (fs *FSImporter) updateTimestampRange() (int64, int64) {
+	session := fs.database.Session.Copy()
 	defer session.Close()
 
 	// set collection name
-	collectionName := fs.res.Config.T.Structure.UniqueConnTable
+	collectionName := fs.config.T.Structure.UniqueConnTable
 
 	// check if collection already exists
-	names, _ := session.DB(fs.res.DB.GetSelectedDB()).CollectionNames()
+	names, _ := session.DB(fs.database.GetSelectedDB()).CollectionNames()
 
 	exists := false
 	// make sure collection exists
@@ -1272,7 +1270,7 @@ func (fs *FSImporter) updateTimestampRange() {
 	}
 
 	if !exists {
-		return
+		return 0, 0
 	}
 
 	// Build query for aggregation
@@ -1295,13 +1293,13 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// get iminimum timestamp
 	// sort by the timestamp, limit it to 1 (only returns first result)
-	err := session.DB(fs.res.DB.GetSelectedDB()).C(collectionName).Pipe(timestampMinQuery).AllowDiskUse().One(&resultMin)
+	err := session.DB(fs.database.GetSelectedDB()).C(collectionName).Pipe(timestampMinQuery).AllowDiskUse().One(&resultMin)
 
 	if err != nil {
-		fs.res.Log.WithFields(log.Fields{
+		fs.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("Could not retrieve minimum timestamp:", err)
-		return
+		return 0, 0
 	}
 
 	// Build query for aggregation
@@ -1324,23 +1322,24 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// get max timestamp
 	// sort by the timestamp, limit it to 1 (only returns first result)
-	err = session.DB(fs.res.DB.GetSelectedDB()).C(collectionName).Pipe(timestampMaxQuery).AllowDiskUse().One(&resultMax)
+	err = session.DB(fs.database.GetSelectedDB()).C(collectionName).Pipe(timestampMaxQuery).AllowDiskUse().One(&resultMax)
 
 	if err != nil {
-		fs.res.Log.WithFields(log.Fields{
+		fs.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("Could not retrieve maximum timestamp:", err)
-		return
+		return 0, 0
 	}
 
 	// set range in metadatabase
-	err = fs.res.MetaDB.AddTSRange(fs.res.DB.GetSelectedDB(), resultMin.Timestamp, resultMax.Timestamp)
+	err = fs.metaDB.AddTSRange(fs.database.GetSelectedDB(), resultMin.Timestamp, resultMax.Timestamp)
 	if err != nil {
-		fs.res.Log.WithFields(log.Fields{
+		fs.log.WithFields(log.Fields{
 			"error": err.Error(),
 		}).Error("Could not set ts range in metadatabase: ", err)
+		return 0, 0
 	}
-
+	return resultMin.Timestamp, resultMax.Timestamp
 }
 
 //stringInSlice ...

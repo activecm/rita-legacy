@@ -11,7 +11,7 @@ import (
 	"github.com/activecm/rita-bl/list"
 	"github.com/activecm/rita-bl/sources/lists"
 	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/database"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -25,10 +25,10 @@ import (
 
 //BuildBlacklistedCollections builds the blacklist master reference collection
 //and checks the uconn documents against that collection
-func BuildBlacklistedCollections(res *resources.Resources) {
+func BuildBlacklistedCollections(db *database.DB, conf *config.Config, logger *log.Logger) {
 	// build the blacklist reference collection from provided blacklist sources
 	// this will be the master list ips and hostnames will be checked against
-	buildBlacklistReferenceCollection(res)
+	buildBlacklistReferenceCollection(db, conf, logger)
 
 	// // build src ip collection
 	// buildBlacklistedIPs(res, true)
@@ -41,35 +41,35 @@ func BuildBlacklistedCollections(res *resources.Resources) {
 
 }
 
-func buildBlacklistReferenceCollection(res *resources.Resources) {
+func buildBlacklistReferenceCollection(db *database.DB, conf *config.Config, logger *log.Logger) {
 
 	/***************** create new blacklist collection *********************/
 	var err error
 	var blDatabase ritaBLdb.Handle
 
 	// set current dataset name
-	currentDB := res.DB.GetSelectedDB()
+	currentDB := db.GetSelectedDB()
 
 	// User option set in yaml file, if enabled
 	// RITA will verify the MongoDB certificate's hostname and validity
 	// otherwise run a normal request to create a database
-	if res.Config.S.MongoDB.TLS.Enabled {
+	if conf.S.MongoDB.TLS.Enabled {
 		blDatabase, err = ritaBLdb.NewSecureMongoDB(
-			res.Config.S.MongoDB.ConnectionString,
-			res.Config.R.MongoDB.AuthMechanismParsed,
-			res.Config.S.Blacklisted.BlacklistDatabase,
-			res.Config.R.MongoDB.TLS.TLSConfig,
+			conf.S.MongoDB.ConnectionString,
+			conf.R.MongoDB.AuthMechanismParsed,
+			conf.S.Blacklisted.BlacklistDatabase,
+			conf.R.MongoDB.TLS.TLSConfig,
 		)
 	} else {
 		blDatabase, err = ritaBLdb.NewMongoDB(
-			res.Config.S.MongoDB.ConnectionString,
-			res.Config.R.MongoDB.AuthMechanismParsed,
-			res.Config.S.Blacklisted.BlacklistDatabase,
+			conf.S.MongoDB.ConnectionString,
+			conf.R.MongoDB.AuthMechanismParsed,
+			conf.S.Blacklisted.BlacklistDatabase,
 		)
 	}
 
 	if err != nil {
-		res.Log.Error(err)
+		logger.Error(err)
 		fmt.Println("\t[!] Could not connect to blacklist database")
 		return
 	}
@@ -78,14 +78,14 @@ func buildBlacklistReferenceCollection(res *resources.Resources) {
 	ritaBL := ritaBL.NewBlacklist(
 		blDatabase,
 		func(err error) { //error handler
-			res.Log.WithFields(log.Fields{
+			logger.WithFields(log.Fields{
 				"db": currentDB,
 			}).Error(err)
 		},
 	)
 
 	//send blacklist source lists
-	ritaBL.SetLists(getSourceLists(res.Config)...)
+	ritaBL.SetLists(getSourceLists(conf)...)
 
 	//update the lists
 	ritaBL.Update()

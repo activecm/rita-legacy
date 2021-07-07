@@ -4,19 +4,26 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo/bson"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type remover struct {
-	res *resources.Resources
+	database *database.DB
+	config   *config.Config
+	log      *log.Logger
 }
 
-//NewMongoRemover create new repository
-func NewMongoRemover(res *resources.Resources) Repository {
+//NewMongoRemover create new remover. Handles removing outdated data by chunk ID.
+func NewMongoRemover(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &remover{
-		res: res,
+		database: db,
+		config:   conf,
+		log:      logger,
 	}
 }
 
@@ -41,21 +48,21 @@ func (r *remover) Remove(cid int) error {
 }
 
 func (r *remover) reduceDNSSubCount(cid int) error {
-	ssn := r.res.DB.Session.Copy()
+	ssn := r.database.Session.Copy()
 	defer ssn.Close()
 
 	//Create the workers
 	writerWorker := newUpdater(
 		cid,
-		r.res.DB,
-		r.res.Config,
-		r.res.Log,
+		r.database,
+		r.config,
+		r.log,
 	)
 
 	analyzerWorker := newAnalyzer(
 		cid,
-		r.res.DB,
-		r.res.Config,
+		r.database,
+		r.config,
 		writerWorker.collectUpdater,
 		writerWorker.closeUpdater,
 	)
@@ -72,7 +79,7 @@ func (r *remover) reduceDNSSubCount(cid int) error {
 		Host string `bson:"host"`
 	}
 
-	hostnamesIter := ssn.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable).Find(bson.M{"cid": cid}).Iter()
+	hostnamesIter := ssn.DB(r.database.GetSelectedDB()).C(r.config.T.DNS.HostnamesTable).Find(bson.M{"cid": cid}).Iter()
 
 	for hostnamesIter.Next(&res) {
 		analyzerWorker.collect(res.Host)
@@ -92,22 +99,22 @@ func (r *remover) removeOutdatedCIDs(cid int) error {
 	// they still need to have this done, the previous loop was for updating existing
 	// documents due to to the special case in how that data is updated and stored.
 	modules := []string{
-		r.res.Config.T.Beacon.BeaconTable,
-		r.res.Config.T.BeaconFQDN.BeaconFQDNTable,
-		r.res.Config.T.Structure.HostTable,
-		r.res.Config.T.Structure.UniqueConnTable,
-		r.res.Config.T.DNS.ExplodedDNSTable,
-		r.res.Config.T.DNS.HostnamesTable,
-		r.res.Config.T.Cert.CertificateTable,
-		r.res.Config.T.UserAgent.UserAgentTable,
+		r.config.T.Beacon.BeaconTable,
+		r.config.T.BeaconFQDN.BeaconFQDNTable,
+		r.config.T.Structure.HostTable,
+		r.config.T.Structure.UniqueConnTable,
+		r.config.T.DNS.ExplodedDNSTable,
+		r.config.T.DNS.HostnamesTable,
+		r.config.T.Cert.CertificateTable,
+		r.config.T.UserAgent.UserAgentTable,
 	}
 
 	//Create the workers
 	writerWorker := newCIDRemover(
 		cid,
-		r.res.DB,
-		r.res.Config,
-		r.res.Log,
+		r.database,
+		r.config,
+		r.log,
 	)
 
 	//kick off the threaded goroutines
