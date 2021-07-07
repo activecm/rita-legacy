@@ -50,7 +50,7 @@ Filtering:
     HTTPProxyServers: ["1.1.1.1", "1.1.1.2/32", "1.2.0.0/16"]
     AlwaysIncludeDomain: ["bad.com", "google.com", "*.myotherdomain.com"]
     NeverIncludeDomain: ["good.com", "google.com", "*.mydomain.com"]
-	FilterExternalToInternal: false
+    FilterExternalToInternal: false
 `
 
 var testConfigFullExp = StaticCfg{
