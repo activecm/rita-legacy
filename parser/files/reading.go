@@ -232,7 +232,7 @@ func parseTSVField(fieldText string, fieldType string, targetField reflect.Value
 			return
 		}
 
-		s, err := strconv.ParseInt(fieldText[:decimalPointIdx], 10, 64)
+		s, err := strconv.Atoi(fieldText[:decimalPointIdx])
 		if err != nil {
 			logger.WithFields(log.Fields{
 				"error": err.Error(),
@@ -242,7 +242,7 @@ func parseTSVField(fieldText string, fieldType string, targetField reflect.Value
 			return
 		}
 
-		nanos, err := strconv.ParseInt(fieldText[decimalPointIdx+1:], 10, 64)
+		nanos, err := strconv.Atoi(fieldText[decimalPointIdx+1:])
 		if err != nil {
 			logger.WithFields(log.Fields{
 				"error": err.Error(),
@@ -252,7 +252,7 @@ func parseTSVField(fieldText string, fieldType string, targetField reflect.Value
 			return
 		}
 
-		ttim := time.Unix(s, nanos)
+		ttim := time.Unix(int64(s), int64(nanos))
 		tval := ttim.Unix()
 		targetField.SetInt(tval)
 	case pt.String:
@@ -264,7 +264,7 @@ func parseTSVField(fieldText string, fieldType string, targetField reflect.Value
 	case pt.Port:
 		fallthrough
 	case pt.Count:
-		intValue, err := strconv.ParseInt(fieldText, 10, 32)
+		intValue, err := strconv.Atoi(fieldText)
 		if err != nil {
 			logger.WithFields(log.Fields{
 				"error": err.Error(),
@@ -273,7 +273,7 @@ func parseTSVField(fieldText string, fieldType string, targetField reflect.Value
 			targetField.SetInt(-1)
 			return
 		}
-		targetField.SetInt(intValue)
+		targetField.SetInt(int64(intValue))
 	case pt.Interval:
 		flt, err := strconv.ParseFloat(fieldText, 64)
 		if err != nil {
