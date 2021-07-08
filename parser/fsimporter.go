@@ -206,6 +206,7 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 		if err != nil {
 			fs.log.Error("Could not update the list of parsed files")
 		}
+
 	}
 
 	// mark results as imported and analyzed
@@ -299,6 +300,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.database.GetSelectedDB() + " ... ")
 
+	parseStartTime := time.Now()
 	retVals := newParseResults()
 
 	//set up parallel parsing
@@ -344,8 +346,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 					if indexedFiles[j].IsJSON() {
 						entry = files.ParseJSONLine(fileScanner.Bytes(), indexedFiles[j].GetBroDataFactory(), logger)
 					} else {
-						entry = files.ParseTSVLine(
-							fileScanner.Text(), indexedFiles[j].GetHeader(), indexedFiles[j].GetFieldMap(),
+						// I've tried to increase performance by avoiding the allocations that result from
+						// scanner.Text() by using .Bytes() with an unsafe cast, but that seemed to hurt performance -LL
+						entry = files.ParseTSVLine(fileScanner.Text(),
+							indexedFiles[j].GetHeader(), indexedFiles[j].GetFieldMap(),
 							indexedFiles[j].GetBroDataFactory(), logger,
 						)
 					}
@@ -377,6 +381,19 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 		}(indexedFiles, logger, parsingWG, i, parsingThreads, n)
 	}
 	parsingWG.Wait()
+	fmt.Println("\t[-] Finished parsing logs in " + util.FormatDuration(
+		time.Since(parseStartTime).Truncate(time.Millisecond)),
+	)
+	/*
+		f, err := os.Create("./ram.pprof")
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		defer f.Close() // error handling omitted for example
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatal("could not write memory profile: ", err)
+		}
+	*/
 
 	return retVals
 }
