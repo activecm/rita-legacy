@@ -222,8 +222,17 @@ func ParseJSONLine(lineBuffer []byte, broDataFactory func() pt.BroData,
 func parseTSVField(fieldText string, fieldType string, targetField reflect.Value, logger *log.Logger) {
 	switch fieldType {
 	case pt.Time:
-		secs := strings.Split(fieldText, ".")
-		s, err := strconv.ParseInt(secs[0], 10, 64)
+		decimalPointIdx := strings.Index(fieldText, ".")
+		if decimalPointIdx == -1 {
+			logger.WithFields(log.Fields{
+				"error": "no decimal point found in timestamp",
+				"value": fieldText,
+			}).Error("Couldn't convert unix ts")
+			targetField.SetInt(-1)
+			return
+		}
+
+		s, err := strconv.ParseInt(fieldText[:decimalPointIdx], 10, 64)
 		if err != nil {
 			logger.WithFields(log.Fields{
 				"error": err.Error(),
@@ -233,7 +242,7 @@ func parseTSVField(fieldText string, fieldType string, targetField reflect.Value
 			return
 		}
 
-		nanos, err := strconv.ParseInt(secs[1], 10, 64)
+		nanos, err := strconv.ParseInt(fieldText[decimalPointIdx+1:], 10, 64)
 		if err != nil {
 			logger.WithFields(log.Fields{
 				"error": err.Error(),
