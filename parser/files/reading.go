@@ -134,52 +134,50 @@ func scanTSVHeader(fileScanner *bufio.Scanner) (*BroHeader, error) {
 	return toReturn, nil
 }
 
-//mapBroHeaderToParserType checks a parsed BroHeader against
-//a BroData struct and returns a mapping from bro field names in the
-//bro header to the indexes of the respective fields in the BroData struct
-func mapBroHeaderToParserType(header *BroHeader, broDataFactory func() pt.BroData,
-	logger *log.Logger) (BroHeaderIndexMap, error) {
-	// The lookup struct gives us a way to walk the data structure only once
-	type lookup struct {
-		broType string
-		offset  int
-	}
-
-	//create a bro data to check the header against
+func mapZeekHeaderToParseType(header *BroHeader, broDataFactory func() pt.BroData, logger *log.Logger) (ZeekHeaderIndexMap, error) {
 	broData := broDataFactory()
-
-	// map the bro names -> the brotypes
-	fieldTypes := make(map[string]lookup)
-
-	//toReturn is a simplified version of the fieldTypes map which
-	//links a bro field name to its index in the broData struct
-	toReturn := make(map[string]int)
-
 	structType := reflect.TypeOf(broData).Elem()
 
-	// walk the fields of the bro data, making sure the bro data struct has
-	// an equal number of named bro fields and bro type
+	indexMap := ZeekHeaderIndexMap{
+		NthLogFieldExistsInParseType: make([]bool, len(header.Names)),
+		NthLogFieldParseTypeOffset:   make([]int, len(header.Names)),
+	}
+
+	// parseTypeFieldInfo and the parseTypeFields map record the names, types, and offsets of the
+	// Zeek fields we want to populate the broData with. Recording this info in a map allows
+	// us to match the Zeek header to the parse type fields without nested loops.
+	type parseTypeFieldInfo struct {
+		zeekType             string
+		parseTypeFieldOffset int
+	}
+	// parseTypeFields maps from Zeek field names to the associated info as defined by the
+	// broData struct tags
+	parseTypeFields := make(map[string]parseTypeFieldInfo)
+
+	// walk the fields of the broData, making sure the broData struct has
+	// an equal number of named bro fields and bro types
 	for i := 0; i < structType.NumField(); i++ {
 		structField := structType.Field(i)
-		broName := structField.Tag.Get("bro")
-		broType := structField.Tag.Get("brotype")
+		zeekName := structField.Tag.Get("bro")
+		zeekType := structField.Tag.Get("brotype")
 
 		//If this field is not associated with bro, skip it
-		if len(broName) == 0 && len(broType) == 0 {
+		if len(zeekName) == 0 && len(zeekType) == 0 {
 			continue
 		}
 
-		if len(broName) == 0 || len(broType) == 0 {
-			return nil, errors.New("incomplete bro variable")
+		if len(zeekName) == 0 || len(zeekType) == 0 {
+			return indexMap, errors.New("incomplete bro variable")
 		}
-		fieldTypes[broName] = lookup{broType: broType, offset: i}
-		toReturn[broName] = i
+
+		parseTypeFields[zeekName] = parseTypeFieldInfo{
+			zeekType:             zeekType,
+			parseTypeFieldOffset: i,
+		}
 	}
 
-	// walk the header names array and link each field up with a type in the
-	// bro data
 	for index, name := range header.Names {
-		lu, ok := fieldTypes[name]
+		fieldInfo, ok := parseTypeFields[name]
 		if !ok {
 			//NOTE: an unmatched field which exists in the log but not the struct
 			//is not a fatal error, so we report it and move on
@@ -190,18 +188,21 @@ func mapBroHeaderToParserType(header *BroHeader, broDataFactory func() pt.BroDat
 			continue
 		}
 
-		if header.Types[index] != lu.broType {
+		if header.Types[index] != fieldInfo.zeekType {
 			err := errors.New("type mismatch found in log")
 			logger.WithFields(log.Fields{
-				"error":               err,
-				"header.Types[index]": header.Types[index],
-				"lu.broType":          lu.broType,
+				"error":         err,
+				"type in log":   header.Types[index],
+				"expected type": fieldInfo.zeekType,
 			})
-			return nil, err
+			return indexMap, err
 		}
+
+		indexMap.NthLogFieldExistsInParseType[index] = true
+		indexMap.NthLogFieldParseTypeOffset[index] = fieldInfo.parseTypeFieldOffset
 	}
 
-	return toReturn, nil
+	return indexMap, nil
 }
 
 //ParseJSONLine creates a new BroData from a line of a Zeek JSON log.
@@ -327,7 +328,7 @@ func parseTSVField(fieldText string, fieldType string, targetField reflect.Value
 //String matching is generally faster than byte matching in Golang for some reason, so we take use a string
 //rather than bytes here.
 func ParseTSVLine(lineString string, header *BroHeader,
-	fieldMap BroHeaderIndexMap, broDataFactory func() pt.BroData,
+	fieldMap ZeekHeaderIndexMap, broDataFactory func() pt.BroData,
 	logger *log.Logger) pt.BroData {
 
 	if strings.HasPrefix(lineString, "#") {
@@ -342,12 +343,15 @@ func ParseTSVLine(lineString string, header *BroHeader,
 	for tokenEndIdx != -1 && tokenCounter < len(header.Names) {
 		//fields not in the struct will not be parsed
 		if lineString[:tokenEndIdx] != header.Empty && lineString[:tokenEndIdx] != header.Unset {
-			fieldOffset, ok := fieldMap[header.Names[tokenCounter]]
-			if ok {
+			// we used to map from the field names to their field offsets in the broData, but
+			// since this code is very hot, it was replaced with the array accesses within the
+			// fieldMap struct seen below. Now, we map from the field's index in the file header
+			// to the offsets in the broData using the NthLogFieldParseTypeOffset array.
+			if fieldMap.NthLogFieldExistsInParseType[tokenCounter] {
 				parseTSVField(
 					lineString[:tokenEndIdx],
 					header.Types[tokenCounter],
-					data.Field(fieldOffset),
+					data.Field(fieldMap.NthLogFieldParseTypeOffset[tokenCounter]),
 					logger,
 				)
 			}
@@ -361,12 +365,11 @@ func ParseTSVLine(lineString string, header *BroHeader,
 
 	//handle last field
 	if lineString != header.Empty && lineString != header.Unset {
-		fieldOffset, ok := fieldMap[header.Names[tokenCounter]]
-		if ok {
+		if fieldMap.NthLogFieldExistsInParseType[tokenCounter] {
 			parseTSVField(
 				lineString,
 				header.Types[tokenCounter],
-				data.Field(fieldOffset),
+				data.Field(fieldMap.NthLogFieldParseTypeOffset[tokenCounter]),
 				logger,
 			)
 		}

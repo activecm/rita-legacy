@@ -84,10 +84,10 @@ func newIndexedFile(filePath string, targetDB string, targetCID int,
 	}
 	toReturn.SetBroDataFactory(broDataFactory)
 
-	var fieldMap BroHeaderIndexMap
+	var fieldMap ZeekHeaderIndexMap
 	// there is no need for the fieldMap with JSON
 	if !toReturn.IsJSON() {
-		fieldMap, err = mapBroHeaderToParserType(header, broDataFactory, logger)
+		fieldMap, err = mapZeekHeaderToParseType(header, broDataFactory, logger)
 		if err != nil {
 			fileHandle.Close()
 			return toReturn, err
