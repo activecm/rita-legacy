@@ -2,11 +2,14 @@ package files
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"reflect"
 	"strconv"
@@ -73,7 +76,7 @@ func GetFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
 
 	var scanner *bufio.Scanner
 	if ftype == ".gz" {
-		rdr, err := gzip.NewReader(fileHandle)
+		rdr, err := newGzipReader(fileHandle)
 		if err != nil {
 			return nil, err
 		}
@@ -84,6 +87,42 @@ func GetFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
 
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	return scanner, nil
+}
+
+//newGzipReader returns an un-gzipped byte stream given a gzip compressed byte stream.
+//This method tries to use the system's pigz or gzip implementation before relying on
+//Golang's gzip package (as it is quite slow).
+func newGzipReader(fileHandle io.Reader) (io.Reader, error) {
+	var gzipPath string
+	if path, err := exec.LookPath("pigz"); err == nil {
+		gzipPath = path
+	} else if path, err := exec.LookPath("gzip"); err == nil {
+		gzipPath = path
+	} else {
+		return gzip.NewReader(fileHandle)
+	}
+
+	pipeR, pipeW := io.Pipe()
+	var cmdStdErr bytes.Buffer
+
+	gzipCommand := exec.Command(gzipPath, "-d", "-c")
+	gzipCommand.Stdin = fileHandle
+	gzipCommand.Stdout = pipeW
+	gzipCommand.Stderr = &cmdStdErr
+
+	if err := gzipCommand.Start(); err != nil {
+		return nil, err
+	}
+
+	go func() {
+		if err := gzipCommand.Wait(); err != nil {
+			pipeW.CloseWithError(errors.New(err.Error() + ": " + cmdStdErr.String()))
+		} else {
+			pipeW.Close()
+		}
+	}()
+
+	return pipeR, nil
 }
 
 // scanHeader scans the comment lines out of a bro file and returns a
