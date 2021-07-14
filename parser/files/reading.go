@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
-	"encoding/json"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -18,6 +17,8 @@ import (
 
 	pt "github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/util"
+
+	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -249,7 +250,7 @@ func ParseJSONLine(lineBuffer []byte, broDataFactory func() pt.BroData,
 	logger *log.Logger) pt.BroData {
 
 	dat := broDataFactory()
-	err := json.Unmarshal(lineBuffer, dat)
+	err := jsoniter.ConfigCompatibleWithStandardLibrary.Unmarshal(lineBuffer, dat)
 	if err != nil {
 		logger.WithFields(log.Fields{
 			"error": err.Error(),

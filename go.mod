@@ -19,6 +19,7 @@ require (
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/safebrowsing v0.0.0-20190214191829-0feabcc2960b // indirect
 	github.com/google/uuid v1.1.2
+	github.com/json-iterator/go v1.1.11
 	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/olekukonko/tablewriter v0.0.2-0.20190214164707-93462a5dfaa6
