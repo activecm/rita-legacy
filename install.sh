@@ -141,6 +141,7 @@ __install() {
         #Unconditionally installed whether this is a new install or an upgrade
         #Install this before calling __configure_zeek so the modules are in place when "zeekctl deploy" restarts zeek
         __install_ja3
+        __fix_inactivity_timeout
         __enable_ssl_certificate_logging
 
         if [ "$_ZEEK_INSTALLED" = "true" ]; then
@@ -275,6 +276,18 @@ __install_ja3() {
         echo '' >>$local_path/local.zeek
         echo '#Load ja3 support libraries' >>$local_path/local.zeek
         echo '@load ./ja3' >>$local_path/local.zeek
+    fi
+}
+
+__fix_inactivity_timeout() {
+    local_path=$_ZEEK_PATH/../share/zeek/site/
+
+    mkdir -p $local_path
+
+    if ! grep -q '^[^#]*redef tcp_inactivity_timeout = 60 min;' $local_path/local.zeek ; then
+        echo '' >>$local_path/local.zeek
+        echo '#Extend inactivity timeout to collect lots of short connections' >>$local_path/local.zeek
+        echo 'redef tcp_inactivity_timeout = 60 min;' >>$local_path/local.zeek
     fi
 }
 
