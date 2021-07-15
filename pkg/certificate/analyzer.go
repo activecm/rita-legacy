@@ -62,8 +62,9 @@ func (a *analyzer) start() {
 			// cap the list to an arbitrary amount (hopefully smaller than the 16 MB document size cap)
 			// anything approaching this limit will cause performance issues in software that depends on rita
 			// anything tuncated over this limit won't be visible as an IP connecting to an invalid cert
-			if len(datum.OrigIps) > 200003 {
-				datum.OrigIps = datum.OrigIps[:200003]
+			origIPs := datum.OrigIps.Items()
+			if len(origIPs) > 200003 {
+				origIPs = origIPs[:200003]
 			}
 
 			if len(datum.Tuples) > 20 {
@@ -79,7 +80,7 @@ func (a *analyzer) start() {
 				"$push": bson.M{
 					"dat": bson.M{
 						"seen":     datum.Seen,
-						"orig_ips": datum.OrigIps,
+						"orig_ips": origIPs,
 						"tuples":   datum.Tuples,
 						"icodes":   datum.InvalidCerts,
 						"cid":      a.chunk,

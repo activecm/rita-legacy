@@ -202,23 +202,29 @@ func (p UniqueIPPair) BSONKey() bson.M {
 //UniqueIPSet is a set of UniqueIPs which contains at most one instance of each UniqueIP
 //this implementation is based on a slice of UniqueIPs rather than a map[string]UniqueIP
 //since it requires less RAM.
-type UniqueIPSet []UniqueIP
+type UniqueIPSet map[string]UniqueIP
+
+func (s UniqueIPSet) Items() []UniqueIP {
+	retVal := make([]UniqueIP, 0, len(s))
+	for _, ip := range s {
+		retVal = append(retVal, ip)
+	}
+	return retVal
+}
 
 //Insert adds a UniqueIP to the set
-func (s *UniqueIPSet) Insert(ip UniqueIP) {
-	contained := s.Contains(ip)
-	if contained {
-		return
+func (s UniqueIPSet) Insert(ip UniqueIP) {
+	if s == nil {
+		s = make(UniqueIPSet)
 	}
-	*s = append(*s, ip)
+	s[ip.MapKey()] = ip
 }
 
 //Contains checks if a given UniqueIP is in the set
 func (s UniqueIPSet) Contains(ip UniqueIP) bool {
-	for i := range s {
-		if s[i].Equal(ip) {
-			return true
-		}
+	if s == nil {
+		return false
 	}
-	return false
+	_, ok := s[ip.MapKey()]
+	return ok
 }

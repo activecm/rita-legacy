@@ -16,18 +16,18 @@ func Results(res *resources.Resources, sortDirection, limit int, noLimit bool) (
 	var useragentResults []Result
 
 	useragentQuery := []bson.M{
-		bson.M{"$project": bson.M{"user_agent": 1, "seen": "$dat.seen"}},
-		bson.M{"$unwind": "$seen"},
-		bson.M{"$group": bson.M{
+		{"$project": bson.M{"user_agent": 1, "seen": "$dat.seen"}},
+		{"$unwind": "$seen"},
+		{"$group": bson.M{
 			"_id":  "$user_agent",
 			"seen": bson.M{"$sum": "$seen"},
 		}},
-		bson.M{"$project": bson.M{
+		{"$project": bson.M{
 			"_id":        0,
 			"user_agent": "$_id",
 			"seen":       1,
 		}},
-		bson.M{"$sort": bson.M{"seen": sortDirection}},
+		{"$sort": bson.M{"seen": sortDirection}},
 	}
 
 	if !noLimit {
