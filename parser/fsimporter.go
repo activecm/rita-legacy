@@ -15,6 +15,7 @@ import (
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/pkg/beaconfqdn"
+	"github.com/activecm/rita/pkg/beaconproxy"
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/data"
@@ -34,17 +35,20 @@ import (
 type (
 	//FSImporter provides the ability to import bro files from the file system
 	FSImporter struct {
-		res             *resources.Resources
-		importFiles     []string
-		rolling         bool
-		totalChunks     int
-		currentChunk    int
-		indexingThreads int
-		parseThreads    int
-		batchSizeBytes  int64
-		internal        []*net.IPNet
-		alwaysIncluded  []*net.IPNet
-		neverIncluded   []*net.IPNet
+		res                  *resources.Resources
+		importFiles          []string
+		rolling              bool
+		totalChunks          int
+		currentChunk         int
+		indexingThreads      int
+		parseThreads         int
+		batchSizeBytes       int64
+		internal             []*net.IPNet
+		httpProxyServers     []*net.IPNet
+		alwaysIncluded       []*net.IPNet
+		neverIncluded        []*net.IPNet
+		alwaysIncludedDomain []string
+		neverIncludedDomain  []string
 	}
 
 	trustedAppTiplet struct {
@@ -58,17 +62,20 @@ type (
 func NewFSImporter(res *resources.Resources,
 	indexingThreads int, parseThreads int, importFiles []string) *FSImporter {
 	return &FSImporter{
-		res:             res,
-		importFiles:     importFiles,
-		rolling:         res.Config.S.Rolling.Rolling,
-		totalChunks:     res.Config.S.Rolling.TotalChunks,
-		currentChunk:    res.Config.S.Rolling.CurrentChunk,
-		indexingThreads: indexingThreads,
-		parseThreads:    parseThreads,
-		batchSizeBytes:  2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
-		internal:        util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
-		alwaysIncluded:  util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
-		neverIncluded:   util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
+		res:                  res,
+		importFiles:          importFiles,
+		rolling:              res.Config.S.Rolling.Rolling,
+		totalChunks:          res.Config.S.Rolling.TotalChunks,
+		currentChunk:         res.Config.S.Rolling.CurrentChunk,
+		indexingThreads:      indexingThreads,
+		parseThreads:         parseThreads,
+		batchSizeBytes:       2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
+		internal:             util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
+		httpProxyServers:     util.ParseSubnets(res.Config.S.Filtering.HTTPProxyServers),
+		alwaysIncluded:       util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
+		neverIncluded:        util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
+		alwaysIncludedDomain: res.Config.S.Filtering.AlwaysIncludeDomain,
+		neverIncludedDomain:  res.Config.S.Filtering.NeverIncludeDomain,
 	}
 }
 
@@ -82,6 +89,7 @@ func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
 	return fs.internal
 }
 
+//CollectFileDetails reads and hashes the files
 func (fs *FSImporter) CollectFileDetails() []*fpt.IndexedFile {
 	// find all of the potential bro log paths
 	files := readFiles(fs.importFiles, fs.res.Log)
@@ -168,7 +176,7 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fmt.Printf("\t[-] Processing batch %d of %d\n", i+1, len(batchedIndexedFiles))
 
 		// parse in those files!
-		uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
+		uconnMap, hostMap, explodeddnsMap, hostnameMap, proxyHostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
 
 		// Set chunk before we continue so if process dies, we still verify with a delete if
 		// any data was written out.
@@ -194,6 +202,9 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 
 		// build or update the FQDN Beacons Table
 		fs.buildFQDNBeacons(hostnameMap)
+
+		// build or update the Proxy Beacons Table
+		fs.buildProxyBeacons(proxyHostnameMap)
 
 		// build or update UserAgent table
 		fs.buildUserAgent(useragentMap)
@@ -297,7 +308,7 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, logger *log.Logger) (
-	map[string]*uconn.Input, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
+	map[string]*uconn.Input, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*beaconproxy.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 
@@ -305,6 +316,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	explodeddnsMap := make(map[string]int)
 
 	hostnameMap := make(map[string]*hostname.Input)
+
+	proxyHostnameMap := make(map[string]*beaconproxy.Input)
 
 	useragentMap := make(map[string]*useragent.Input)
 
@@ -367,7 +380,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 					)
 
 					if datum != nil {
-						//figure out which collection (dns, http, or conn) this line is heading for
+						//figure out which collection (dns, http, or conn/conn_long) this line is heading for
 						targetCollection := indexedFiles[j].TargetCollection
 
 						switch targetCollection {
@@ -414,6 +427,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								protocol := parseConn.Proto
 								service := parseConn.Service
 								dstPort := parseConn.DestinationPort
+								uid := parseConn.UID
+
 								var tuple string
 								if service == "" {
 									tuple = strconv.Itoa(dstPort) + ":" + protocol + ":-"
@@ -461,23 +476,39 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									hostMap[dstKey].CountDst++
 								}
 
+								// If the ConnStateList map doesn't exist for this entry, create it.
+								if uconnMap[srcDstKey].ConnStateMap == nil {
+									uconnMap[srcDstKey].ConnStateMap = make(map[string]*uconn.ConnState)
+								}
+
+								// If an entry for this connection is present, it means it was
+								// marked as open and we should now mark it as closed. No need
+								// to update any other attributes as we are going to discard
+								// them later anyways since the data will now go into the
+								// dat section of the uconn entry
+								if _, ok := uconnMap[srcDstKey].ConnStateMap[uid]; ok {
+
+									uconnMap[srcDstKey].ConnStateMap[uid].Open = false
+								}
+
 								// this is to keep track of how many times a host connected to
 								// an unexpected port - proto - service Tuple
 								// we only want to increment the count once per unique destination,
 								// not once per connection, hence the flag and the check
-								if uconnMap[srcDstKey].UPPSFlag == false {
+								if !uconnMap[srcDstKey].UPPSFlag {
 									for _, entry := range trustedAppReferenceList {
 										if (protocol == entry.protocol) && (dstPort == entry.port) {
 											if service != entry.service {
-												hostMap[srcKey].UntrustedAppConnCount++
 												uconnMap[srcDstKey].UPPSFlag = true
+
+												hostMap[srcKey].UntrustedAppConnCount++
 											}
 										}
 									}
 								}
 
-								// increment unique dst port: proto : service tuple list for host
-								if stringInSlice(tuple, uconnMap[srcDstKey].Tuples) == false {
+								// increment unique dst port: proto : service tuple list for host.
+								if !stringInSlice(tuple, uconnMap[srcDstKey].Tuples) {
 									uconnMap[srcDstKey].Tuples = append(uconnMap[srcDstKey].Tuples, tuple)
 								}
 
@@ -485,35 +516,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// record, we'll need to update it with the tuples.
 								if _, ok := certMap[dstKey]; ok {
 									// add tuple to invlaid cert list
-									if stringInSlice(tuple, certMap[dstKey].Tuples) == false {
+									if !stringInSlice(tuple, certMap[dstKey].Tuples) {
 										certMap[dstKey].Tuples = append(certMap[dstKey].Tuples, tuple)
 									}
 								}
 
-								// Increment the connection count for the src-dst pair
-								uconnMap[srcDstKey].ConnectionCount++
-								hostMap[srcKey].ConnectionCount++
-								hostMap[dstKey].ConnectionCount++
-
-								// Only append unique timestamps to tslist
-								if int64InSlice(ts, uconnMap[srcDstKey].TsList) == false {
-									uconnMap[srcDstKey].TsList = append(uconnMap[srcDstKey].TsList, ts)
-								}
-
-								// Append all origIPBytes to origBytesList
-								uconnMap[srcDstKey].OrigBytesList = append(uconnMap[srcDstKey].OrigBytesList, origIPBytes)
-
-								// Calculate and store the total number of bytes exchanged by the uconn pair
-								uconnMap[srcDstKey].TotalBytes += bytes
-								hostMap[srcKey].TotalBytes += bytes
-								hostMap[dstKey].TotalBytes += bytes
-
-								// Calculate and store the total duration
-								uconnMap[srcDstKey].TotalDuration += duration
-								hostMap[srcKey].TotalDuration += duration
-								hostMap[dstKey].TotalDuration += duration
-
-								// Replace existing duration if current duration is higher
+								// Replace existing duration if current duration is higher.
 								if duration > uconnMap[srcDstKey].MaxDuration {
 									uconnMap[srcDstKey].MaxDuration = duration
 								}
@@ -525,13 +533,42 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 									hostMap[dstKey].MaxDuration = duration
 								}
 
+								// Increment the connection count for the src-dst pair
+								uconnMap[srcDstKey].ConnectionCount++
+
+								// Not sure if this is used anywhere?
+								hostMap[srcKey].ConnectionCount++
+								hostMap[dstKey].ConnectionCount++
+
+								// Only append unique timestamps to tslist
+								if !int64InSlice(ts, uconnMap[srcDstKey].TsList) {
+									uconnMap[srcDstKey].TsList = append(uconnMap[srcDstKey].TsList, ts)
+								}
+
+								// Append all origIPBytes to origBytesList
+								uconnMap[srcDstKey].OrigBytesList = append(uconnMap[srcDstKey].OrigBytesList, origIPBytes)
+
+								// Calculate and store the total number of bytes exchanged by the uconn pair
+								uconnMap[srcDstKey].TotalBytes += bytes
+
+								// Not sure that this is used anywhere?
+								hostMap[srcKey].TotalBytes += bytes
+								hostMap[dstKey].TotalBytes += bytes
+
+								// Calculate and store the total duration
+								uconnMap[srcDstKey].TotalDuration += duration
+
+								// Not sure that this is used anywhere?
+								hostMap[srcKey].TotalDuration += duration
+								hostMap[dstKey].TotalDuration += duration
+
 								mutex.Unlock()
 
 							}
 
-							/// *************************************************************///
-							///                             DNS                             ///
-							/// *************************************************************///
+						/// *************************************************************///
+						///                             DNS                              ///
+						/// *************************************************************///
 						case fs.res.Config.T.Structure.DNSTable:
 							parseDNS, ok := datum.(*parsetypes.DNS)
 							if !ok {
@@ -541,88 +578,154 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							domain := parseDNS.Query
 							queryTypeName := parseDNS.QTypeName
 
-							// Safely store the number of conns for this uconn
-							mutex.Lock()
-
-							// increment domain map count for exploded dns
-							explodeddnsMap[domain]++
-
-							// initialize the hostname input objects for new hostnames
-							if _, ok := hostnameMap[domain]; !ok {
-								hostnameMap[domain] = &hostname.Input{
-									Host: domain,
-								}
-							}
-
 							// extract and store the dns client ip address
 							src := parseDNS.Source
 							srcIP := net.ParseIP(src)
-							srcUniqIP := data.NewUniqueIP(srcIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
-							srcKey := srcUniqIP.MapKey()
 
-							hostnameMap[domain].ClientIPs.Insert(srcUniqIP)
+							// Run domain through filter to filter out certain domains
+							ignore := (fs.filterDomain(domain) || fs.filterSingleIP(srcIP))
 
-							if queryTypeName == "A" {
-								answers := parseDNS.Answers
-								for _, answer := range answers {
-									answerIP := net.ParseIP(answer)
-									// Check if answer is an IP address and store it if it is
-									if answerIP != nil {
-										answerUniqIP := data.NewUniqueIP(answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
-										hostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
-									}
-								}
-							}
+							// If domain is not subject to filtering, process
+							if !ignore {
 
-							// We don't filter out the src ips like we do with the conn
-							// section since a c2 channel running over dns could have an
-							// internal ip to internal ip connection and not having that ip
-							// in the host table is limiting
+								// Safely store the number of conns for this uconn
+								mutex.Lock()
 
-							// in some of these strings, the empty space will get counted as a domain,
-							// don't add host or increment dns query count if queried domain
-							// is blank or ends in 'in-addr.arpa'
-							if (domain != "") && (!strings.HasSuffix(domain, "in-addr.arpa")) {
-								// Check if host map value is set, because this record could
-								// come before a relevant conns record
-								if _, ok := hostMap[srcKey]; !ok {
-									// create new uconn record with src and dst
-									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
-									// we only need to do this once if the uconn record does not exist
-									hostMap[srcKey] = &host.Input{
-										Host:    srcUniqIP,
-										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
-										IP4:     util.IsIPv4(src),
-										IP4Bin:  util.IPv4ToBinary(srcIP),
+								// increment domain map count for exploded dns
+								explodeddnsMap[domain]++
+
+								// initialize the hostname input objects for new hostnames
+								if _, ok := hostnameMap[domain]; !ok {
+									hostnameMap[domain] = &hostname.Input{
+										Host: domain,
 									}
 								}
 
-								// if there are no entries in the dnsquerycount map for this
-								// srcKey, initialize map
-								if hostMap[srcKey].DNSQueryCount == nil {
-									hostMap[srcKey].DNSQueryCount = make(map[string]int64)
+								srcUniqIP := data.NewUniqueIP(srcIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
+								srcKey := srcUniqIP.MapKey()
+
+								hostnameMap[domain].ClientIPs.Insert(srcUniqIP)
+
+								if queryTypeName == "A" {
+									answers := parseDNS.Answers
+									for _, answer := range answers {
+										answerIP := net.ParseIP(answer)
+										// Check if answer is an IP address and store it if it is
+										if answerIP != nil {
+											answerUniqIP := data.NewUniqueIP(answerIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
+											hostnameMap[domain].ResolvedIPs.Insert(answerUniqIP)
+										}
+									}
 								}
 
-								// increment the dns query count for this domain
-								hostMap[srcKey].DNSQueryCount[domain]++
+								// We don't filter out the src ips like we do with the conn
+								// section since a c2 channel running over dns could have an
+								// internal ip to internal ip connection and not having that ip
+								// in the host table is limiting
+
+								// in some of these strings, the empty space will get counted as a domain,
+								// don't add host or increment dns query count if queried domain
+								// is blank or ends in 'in-addr.arpa'
+								if (domain != "") && (!strings.HasSuffix(domain, "in-addr.arpa")) {
+									// Check if host map value is set, because this record could
+									// come before a relevant conns record
+									if _, ok := hostMap[srcKey]; !ok {
+										// create new uconn record with src and dst
+										// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
+										// we only need to do this once if the uconn record does not exist
+										hostMap[srcKey] = &host.Input{
+											Host:    srcUniqIP,
+											IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+											IP4:     util.IsIPv4(src),
+											IP4Bin:  util.IPv4ToBinary(srcIP),
+										}
+									}
+
+									// if there are no entries in the dnsquerycount map for this
+									// srcKey, initialize map
+									if hostMap[srcKey].DNSQueryCount == nil {
+										hostMap[srcKey].DNSQueryCount = make(map[string]int64)
+									}
+
+									// increment the dns query count for this domain
+									hostMap[srcKey].DNSQueryCount[domain]++
+								}
+
+								mutex.Unlock()
 							}
 
-							mutex.Unlock()
-
-							/// *************************************************************///
-							///                             HTTP                             ///
-							/// *************************************************************///
+						/// *************************************************************///
+						///                             HTTP                             ///
+						/// *************************************************************///
 						case fs.res.Config.T.Structure.HTTPTable:
 							parseHTTP, ok := datum.(*parsetypes.HTTP)
 							if !ok {
 								continue
 							}
-							userAgentName := parseHTTP.UserAgent
-							src := parseHTTP.Source
-							srcIP := net.ParseIP(src)
-							srcUniqIP := data.NewUniqueIP(srcIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
-							host := parseHTTP.Host
 
+							// get source destination pair for connection record
+							src := parseHTTP.Source
+							dst := parseHTTP.Destination
+
+							// parse addresses into binary format
+							srcIP := net.ParseIP(src)
+							dstIP := net.ParseIP(dst)
+
+							// parse host
+							fqdn := parseHTTP.Host
+
+							if fs.filterDomain(fqdn) || fs.filterConnPair(srcIP, dstIP) {
+								continue
+							}
+
+							// disambiguate addresses which are not publicly routable
+							srcUniqIP := data.NewUniqueIP(srcIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
+							dstUniqIP := data.NewUniqueIP(dstIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
+							srcProxyFQDNTrio := beaconproxy.NewUniqueSrcProxyHostnameTrio(srcUniqIP, dstUniqIP, fqdn)
+
+							// get aggregation keys for ip addresses and connection pair
+							srcProxyFQDNKey := srcProxyFQDNTrio.MapKey()
+
+							// check if destination is a proxy server
+							dstIsProxy := fs.checkIfProxyServer(dstIP)
+
+							// parse method type
+							method := parseHTTP.Method
+
+							// check if internal IP is requesting a connection
+							// through a proxy
+							if method == "CONNECT" && dstIsProxy {
+
+								// Safely store the number of conns for this uconn
+								mutex.Lock()
+
+								// add client (src) IP to hostname map
+
+								// Check if the map value is set
+								if _, ok := proxyHostnameMap[srcProxyFQDNKey]; !ok {
+									// create new host record with src and dst
+									proxyHostnameMap[srcProxyFQDNKey] = &beaconproxy.Input{
+										Hosts: srcProxyFQDNTrio,
+									}
+								}
+
+								// increment connection count
+								proxyHostnameMap[srcProxyFQDNKey].ConnectionCount++
+
+								// parse timestamp
+								ts := parseHTTP.TimeStamp
+
+								// add timestamp to unique timestamp list
+								if !int64InSlice(ts, proxyHostnameMap[srcProxyFQDNKey].TsList) {
+									proxyHostnameMap[srcProxyFQDNKey].TsList = append(proxyHostnameMap[srcProxyFQDNKey].TsList, ts)
+								}
+
+								mutex.Unlock()
+
+							}
+
+							// parse out useragent info
+							userAgentName := parseHTTP.UserAgent
 							if userAgentName == "" {
 								userAgentName = "Empty user agent string"
 							}
@@ -635,7 +738,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								useragentMap[userAgentName] = &useragent.Input{
 									Name:     userAgentName,
 									Seen:     1,
-									Requests: []string{host},
+									Requests: []string{fqdn},
 								}
 								useragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
 							} else {
@@ -646,16 +749,195 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								useragentMap[userAgentName].OrigIps.Insert(srcUniqIP)
 
 								// add request string to unique array
-								if stringInSlice(host, useragentMap[userAgentName].Requests) == false {
-									useragentMap[userAgentName].Requests = append(useragentMap[userAgentName].Requests, host)
+								if !stringInSlice(fqdn, useragentMap[userAgentName].Requests) {
+									useragentMap[userAgentName].Requests = append(useragentMap[userAgentName].Requests, fqdn)
 								}
 							}
 
 							mutex.Unlock()
 
-							/// *************************************************************///
-							///                             SSL                             ///
-							/// *************************************************************///
+						/// *************************************************************///
+						///                           OPEN CONNS                         ///
+						/// *************************************************************///
+						case fs.res.Config.T.Structure.OpenConnTable:
+							parseConn, ok := datum.(*parsetypes.OpenConn)
+							if !ok {
+								continue
+							}
+
+							// get source destination pair for connection record
+							src := parseConn.Source
+							dst := parseConn.Destination
+
+							// parse addresses into binary format
+							srcIP := net.ParseIP(src)
+							dstIP := net.ParseIP(dst)
+
+							// disambiguate addresses which are not publicly routable
+							srcUniqIP := data.NewUniqueIP(srcIP, parseConn.AgentUUID, parseConn.AgentHostname)
+							dstUniqIP := data.NewUniqueIP(dstIP, parseConn.AgentUUID, parseConn.AgentHostname)
+							srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
+
+							// get aggregation keys for ip addresses and connection pair
+							srcKey := srcUniqIP.MapKey()
+							dstKey := dstUniqIP.MapKey()
+							srcDstKey := srcDstPair.MapKey()
+
+							// Run conn pair through filter to filter out certain connections
+							ignore := fs.filterConnPair(srcIP, dstIP)
+
+							// If connection pair is not subject to filtering, process
+							if !ignore {
+								ts := parseConn.TimeStamp
+								origIPBytes := parseConn.OrigIPBytes
+								respIPBytes := parseConn.RespIPBytes
+								duration := parseConn.Duration
+								duration = math.Ceil((duration)*10000) / 10000
+								bytes := int64(origIPBytes + respIPBytes)
+								protocol := parseConn.Proto
+								service := parseConn.Service
+								dstPort := parseConn.DestinationPort
+								uid := parseConn.UID
+
+								var tuple string
+								if service == "" {
+									tuple = strconv.Itoa(dstPort) + ":" + protocol + ":-"
+								} else {
+									tuple = strconv.Itoa(dstPort) + ":" + protocol + ":" + service
+								}
+
+								// Safely store the number of conns for this uconn
+								mutex.Lock()
+
+								// Check if the map value is set
+								if _, ok := hostMap[srcKey]; !ok {
+									// create new host record with src and dst
+									hostMap[srcKey] = &host.Input{
+										Host:    srcUniqIP,
+										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+										IP4:     util.IsIPv4(src),
+										IP4Bin:  util.IPv4ToBinary(srcIP),
+									}
+								}
+
+								// Check if the map value is set
+								if _, ok := hostMap[dstKey]; !ok {
+									// create new host record with src and dst
+									hostMap[dstKey] = &host.Input{
+										Host:    dstUniqIP,
+										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+										IP4:     util.IsIPv4(dst),
+										IP4Bin:  util.IPv4ToBinary(dstIP),
+									}
+								}
+
+								// Check if the map value is set
+								if _, ok := uconnMap[srcDstKey]; !ok {
+									// create new uconn record with src and dst
+									// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
+									// we only need to do this once if the uconn record does not exist
+									uconnMap[srcDstKey] = &uconn.Input{
+										Hosts:      srcDstPair,
+										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+									}
+
+									// Can do this even if the connection is open. For each set of logs we
+									// process, we increment these values once per unique connection.
+									// This might mean that an open connection has caused these values
+									// to be incremented, but that is ok.
+									hostMap[srcKey].CountSrc++
+									hostMap[dstKey].CountDst++
+								}
+
+								// If the ConnStateList map doesn't exist for this entry, create it.
+								if uconnMap[srcDstKey].ConnStateMap == nil {
+									uconnMap[srcDstKey].ConnStateMap = make(map[string]*uconn.ConnState)
+								}
+
+								// If an entry for this open connection is present, first check
+								// to make sure it hasn't been marked as closed. If it was marked
+								// as closed, that supersedes any open connections information.
+								// Otherwise, if it's open then check if this more up-to-date data
+								// (i.e., longer duration)
+								if _, ok := uconnMap[srcDstKey].ConnStateMap[uid]; ok {
+									if (uconnMap[srcDstKey].ConnStateMap[uid].Open) && (duration > uconnMap[srcDstKey].ConnStateMap[uid].Duration) {
+										uconnMap[srcDstKey].ConnStateMap[uid].Duration = duration
+
+										// If current duration is longer than previous duration, we can
+										// also assume that current bytes is /at least/ as big as the
+										// stored value for bytes...same for OrigBytes
+										uconnMap[srcDstKey].ConnStateMap[uid].Bytes = bytes
+										uconnMap[srcDstKey].ConnStateMap[uid].OrigBytes = origIPBytes
+									}
+								} else {
+									// No entry was present for a connection with this UID. Create a new
+									// entry and set the Open state accordingly
+									uconnMap[srcDstKey].ConnStateMap[uid] = &uconn.ConnState{
+										Bytes:     bytes,
+										Duration:  duration,
+										Open:      true,
+										OrigBytes: origIPBytes,
+										Ts:        ts, //ts is the timestamp at which the connection was detected
+										Tuple:     tuple,
+									}
+								}
+
+								// this is to keep track of how many times a host connected to
+								// an unexpected port - proto - service Tuple
+								// we only want to increment the count once per unique destination,
+								// not once per connection, hence the flag and the check
+								if !uconnMap[srcDstKey].UPPSFlag {
+									for _, entry := range trustedAppReferenceList {
+										if (protocol == entry.protocol) && (dstPort == entry.port) {
+											if service != entry.service {
+												uconnMap[srcDstKey].UPPSFlag = true
+											}
+										}
+									}
+								}
+
+								// increment unique dst port: proto : service tuple list for host.
+								// Fine to do this with open connections as it's idempotent (yes, I like that word...)
+								if !stringInSlice(tuple, uconnMap[srcDstKey].Tuples) {
+									uconnMap[srcDstKey].Tuples = append(uconnMap[srcDstKey].Tuples, tuple)
+								}
+
+								// Check if invalid cert record was written before the uconns
+								// record, we'll need to update it with the tuples.
+								// Fine to do this with open connections as it's idempotent
+								if _, ok := certMap[dstKey]; ok {
+									// add tuple to invlaid cert list
+									if !stringInSlice(tuple, certMap[dstKey].Tuples) {
+										certMap[dstKey].Tuples = append(certMap[dstKey].Tuples, tuple)
+									}
+								}
+
+								// Replace existing duration if current duration is higher. It's fine
+								// to do this if the connection is still open as it will just get replaced
+								// later when the connection closes. If an open connection is responsible
+								// for the longest duration, we want to see that.
+								if duration > uconnMap[srcDstKey].MaxDuration {
+									uconnMap[srcDstKey].MaxDuration = duration
+								}
+
+								if duration > hostMap[srcKey].MaxDuration {
+									hostMap[srcKey].MaxDuration = duration
+								}
+								if duration > hostMap[dstKey].MaxDuration {
+									hostMap[dstKey].MaxDuration = duration
+								}
+
+								// NOTE: We are not incrementing the connection counters until the
+								// connection closes to prevent double-counting.
+
+								mutex.Unlock()
+
+							}
+
+						/// *************************************************************///
+						///                             SSL                              ///
+						/// *************************************************************///
 						case fs.res.Config.T.Structure.SSLTable:
 							parseSSL, ok := datum.(*parsetypes.SSL)
 							if !ok {
@@ -684,7 +966,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// Safely store ja3 information
 							mutex.Lock()
 
-							// create record if it doesn't exist
+							// create useragent record if it doesn't exist
 							if _, ok := useragentMap[ja3Hash]; !ok {
 								useragentMap[ja3Hash] = &useragent.Input{
 									Name:     ja3Hash,
@@ -701,27 +983,30 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								useragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
 
 								// add request string to unique array
-								if stringInSlice(host, useragentMap[ja3Hash].Requests) == false {
+								if !stringInSlice(host, useragentMap[ja3Hash].Requests) {
 									useragentMap[ja3Hash].Requests = append(useragentMap[ja3Hash].Requests, host)
 								}
 							}
 
-							//if there's any problem in the certificate, mark it invalid
-							if certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " " {
-								// Run conn pair through filter to filter out certain connections
-								ignore := fs.filterConnPair(srcIP, dstIP)
-								if !ignore {
+							// create uconn and cert records
+							// Run conn pair through filter to filter out certain connections
+							ignore := fs.filterConnPair(srcIP, dstIP)
+							if !ignore {
 
-									// Check if uconn map value is set, because this record could
-									// come before a relevant uconns record
-									if _, ok := uconnMap[srcDstKey]; !ok {
-										// create new uconn record if it does not exist
-										uconnMap[srcDstKey] = &uconn.Input{
-											Hosts:      srcDstPair,
-											IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
-											IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
-										}
+								// Check if uconn map value is set, because this record could
+								// come before a relevant uconns record (or may be the only source
+								// for the uconns record)
+								if _, ok := uconnMap[srcDstKey]; !ok {
+									// create new uconn record if it does not exist
+									uconnMap[srcDstKey] = &uconn.Input{
+										Hosts:      srcDstPair,
+										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
 									}
+								}
+
+								//if there's any problem in the certificate, mark it invalid
+								if certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " " {
 									// mark as having invalid cert
 									uconnMap[srcDstKey].InvalidCertFlag = true
 
@@ -738,18 +1023,19 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 									for _, tuple := range uconnMap[srcDstKey].Tuples {
 										// mark as having invalid cert
-										if stringInSlice(tuple, certMap[dstKey].Tuples) == false {
+										if !stringInSlice(tuple, certMap[dstKey].Tuples) {
 											certMap[dstKey].Tuples = append(certMap[dstKey].Tuples, tuple)
 										}
 									}
 									// mark as having invalid cert
-									if stringInSlice(certStatus, certMap[dstKey].InvalidCerts) == false {
+									if !stringInSlice(certStatus, certMap[dstKey].InvalidCerts) {
 										certMap[dstKey].InvalidCerts = append(certMap[dstKey].InvalidCerts, certStatus)
 									}
 									// add src of ssl request to unique array
 									certMap[dstKey].OrigIps.Insert(srcUniqIP)
 								}
 							}
+
 							mutex.Unlock()
 						}
 					}
@@ -765,7 +1051,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	return uconnMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap
+	return uconnMap, hostMap, explodeddnsMap, hostnameMap, proxyHostnameMap, useragentMap, certMap
 }
 
 //buildExplodedDNS .....
@@ -798,7 +1084,7 @@ func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 		}
 		certificateRepo.Upsert(certMap)
 	} else {
-		fmt.Println("\t[!] No certificate data to analyze")
+		fmt.Println("\t[!] No invalid certificate data to analyze")
 	}
 
 }
@@ -881,6 +1167,11 @@ func (fs *FSImporter) markBlacklistedPeers(hostMap map[string]*host.Input) {
 	if len(hostMap) > 0 {
 		blacklistRepo := blacklist.NewMongoRepository(fs.res)
 
+		err := blacklistRepo.CreateIndexes()
+		if err != nil {
+			fs.res.Log.Error(err)
+		}
+
 		// send uconns to host analysis
 		blacklistRepo.Upsert()
 	}
@@ -919,6 +1210,25 @@ func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
 			beaconFQDNRepo.Upsert(hostnameMap)
 		} else {
 			fmt.Println("\t[!] No FQDN Beacon data to analyze")
+		}
+	}
+
+}
+
+func (fs *FSImporter) buildProxyBeacons(proxyHostnameMap map[string]*beaconproxy.Input) {
+	if fs.res.Config.S.BeaconProxy.Enabled {
+		if len(proxyHostnameMap) > 0 {
+			beaconProxyRepo := beaconproxy.NewMongoRepository(fs.res)
+
+			err := beaconProxyRepo.CreateIndexes()
+			if err != nil {
+				fs.res.Log.Error(err)
+			}
+
+			// send uconns to beacon analysis
+			beaconProxyRepo.Upsert(proxyHostnameMap)
+		} else {
+			fmt.Println("\t[!] No Proxy Beacon data to analyze")
 		}
 	}
 
@@ -967,11 +1277,16 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// Build query for aggregation
 	timestampMinQuery := []bson.M{
-		bson.M{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
-		bson.M{"$unwind": "$ts"},
-		bson.M{"$unwind": "$ts"}, // Not an error, must unwind it twice
-		bson.M{"$sort": bson.M{"ts": 1}},
-		bson.M{"$limit": 1},
+		{"$project": bson.M{
+			"_id":     0,
+			"ts":      "$dat.ts",
+			"open_ts": bson.M{"$ifNull": []interface{}{"$open_ts", []interface{}{}}},
+		}},
+		{"$unwind": "$ts"},
+		{"$project": bson.M{"_id": 0, "ts": bson.M{"$concatArrays": []interface{}{"$ts", "$open_ts"}}}},
+		{"$unwind": "$ts"}, // Not an error, must unwind it twice
+		{"$sort": bson.M{"ts": 1}},
+		{"$limit": 1},
 	}
 
 	var resultMin struct {
@@ -991,11 +1306,16 @@ func (fs *FSImporter) updateTimestampRange() {
 
 	// Build query for aggregation
 	timestampMaxQuery := []bson.M{
-		bson.M{"$project": bson.M{"_id": 0, "ts": "$dat.ts"}},
-		bson.M{"$unwind": "$ts"},
-		bson.M{"$unwind": "$ts"}, // Not an error, must unwind it twice
-		bson.M{"$sort": bson.M{"ts": -1}},
-		bson.M{"$limit": 1},
+		{"$project": bson.M{
+			"_id":     0,
+			"ts":      "$dat.ts",
+			"open_ts": bson.M{"$ifNull": []interface{}{"$open_ts", []interface{}{}}},
+		}},
+		{"$unwind": "$ts"},
+		{"$project": bson.M{"_id": 0, "ts": bson.M{"$concatArrays": []interface{}{"$ts", "$open_ts"}}}},
+		{"$unwind": "$ts"}, // Not an error, must unwind it twice
+		{"$sort": bson.M{"ts": -1}},
+		{"$limit": 1},
 	}
 
 	var resultMax struct {

@@ -1,8 +1,9 @@
 package parser
 
 import (
-	"github.com/activecm/rita/util"
 	"net"
+
+	"github.com/activecm/rita/util"
 )
 
 // filterConnPair returns true if a connection pair is filtered/excluded.
@@ -53,4 +54,54 @@ func (fs *FSImporter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 
 	// default to not filter the connection pair
 	return false
+}
+
+// filterSingleIP returns true if an IP is filtered/excluded.
+// This is determined by the following rules, in order:
+//   1. Not filtered IP is on the AlwaysInclude list
+//   2. Filtered IP is on the NeverInclude list
+//   3. Not filtered in all other cases
+func (fs *FSImporter) filterSingleIP(IP net.IP) bool {
+	// check if on always included list
+	if util.ContainsIP(fs.alwaysIncluded, IP) {
+		return false
+	}
+
+	// check if on never included list
+	if util.ContainsIP(fs.neverIncluded, IP) {
+		return true
+	}
+
+	// default to not filter the IP address
+	return false
+}
+
+// filterDomain returns true if a domain is filtered/excluded.
+// This is determined by the following rules, in order:
+//   1. Not filtered if domain is on the AlwaysInclude list
+//   2. Filtered if domain is on the NeverInclude list
+//   5. Not filtered in all other cases
+func (fs *FSImporter) filterDomain(domain string) bool {
+	// check if on always included list
+	isDomainIncluded := util.ContainsDomain(fs.alwaysIncludedDomain, domain)
+
+	// check if on never included list
+	isDomainExcluded := util.ContainsDomain(fs.neverIncludedDomain, domain)
+
+	// if either IP is on the AlwaysInclude list, filter does not apply
+	if isDomainIncluded {
+		return false
+	}
+
+	// if either IP is on the NeverInclude list, filter applies
+	if isDomainExcluded {
+		return true
+	}
+
+	// default to not filter the connection pair
+	return false
+}
+
+func (fs *FSImporter) checkIfProxyServer(host net.IP) bool {
+	return util.ContainsIP(fs.httpProxyServers, host)
 }

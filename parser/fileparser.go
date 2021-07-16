@@ -69,7 +69,7 @@ func readFiles(paths []string, logger *log.Logger) []string {
 func getFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
 	ftype := fileHandle.Name()[len(fileHandle.Name())-3:]
 	if ftype != ".gz" && ftype != "log" {
-		return nil, errors.New("Filetype not recognized")
+		return nil, errors.New("filetype not recognized")
 	}
 
 	var scanner *bufio.Scanner
@@ -130,7 +130,7 @@ func scanTSVHeader(fileScanner *bufio.Scanner) (*fpt.BroHeader, error) {
 	}
 
 	if len(toReturn.Names) != len(toReturn.Types) {
-		return toReturn, errors.New("Name / Type mismatch")
+		return toReturn, errors.New("name / type mismatch")
 	}
 	return toReturn, nil
 }
@@ -192,7 +192,7 @@ func mapBroHeaderToParserType(header *fpt.BroHeader, broDataFactory func() pt.Br
 		}
 
 		if header.Types[index] != lu.broType {
-			err := errors.New("Type mismatch found in log")
+			err := errors.New("type mismatch found in log")
 			logger.WithFields(log.Fields{
 				"error":               err,
 				"header.Types[index]": header.Types[index],
@@ -284,13 +284,10 @@ func parseTSVLine(lineString string, header *fpt.BroHeader,
 			ttim := time.Unix(s, n)
 			tval := ttim.Unix()
 			data.Field(fieldOffset).SetInt(tval)
-			break
 		case pt.String:
 			data.Field(fieldOffset).SetString(line[idx])
-			break
 		case pt.Addr:
 			data.Field(fieldOffset).SetString(line[idx])
-			break
 		case pt.Port:
 			pval, err := strconv.ParseInt(line[idx], 10, 32)
 			if err != nil {
@@ -302,10 +299,8 @@ func parseTSVLine(lineString string, header *fpt.BroHeader,
 				break
 			}
 			data.Field(fieldOffset).SetInt(pval)
-			break
 		case pt.Enum:
 			data.Field(fieldOffset).SetString(line[idx])
-			break
 		case pt.Interval:
 			flt, err := strconv.ParseFloat(line[idx], 64)
 			if err != nil {
@@ -317,7 +312,6 @@ func parseTSVLine(lineString string, header *fpt.BroHeader,
 				break
 			}
 			data.Field(fieldOffset).SetFloat(flt)
-			break
 		case pt.Count:
 			cnt, err := strconv.ParseInt(line[idx], 10, 64)
 			if err != nil {
@@ -329,29 +323,24 @@ func parseTSVLine(lineString string, header *fpt.BroHeader,
 				break
 			}
 			data.Field(fieldOffset).SetInt(cnt)
-			break
 		case pt.Bool:
 			if line[idx] == "T" {
 				data.Field(fieldOffset).SetBool(true)
 				break
 			}
 			data.Field(fieldOffset).SetBool(false)
-			break
 		case pt.StringSet:
 			tokens := strings.Split(line[idx], ",")
 			tVal := reflect.ValueOf(tokens)
 			data.Field(fieldOffset).Set(tVal)
-			break
 		case pt.EnumSet:
 			tokens := strings.Split(line[idx], ",")
 			tVal := reflect.ValueOf(tokens)
 			data.Field(fieldOffset).Set(tVal)
-			break
 		case pt.StringVector:
 			tokens := strings.Split(line[idx], ",")
 			tVal := reflect.ValueOf(tokens)
 			data.Field(fieldOffset).Set(tVal)
-			break
 		case pt.IntervalVector:
 			tokens := strings.Split(line[idx], ",")
 			floats := make([]float64, len(tokens))
@@ -368,7 +357,6 @@ func parseTSVLine(lineString string, header *fpt.BroHeader,
 			}
 			fVal := reflect.ValueOf(floats)
 			data.Field(fieldOffset).Set(fVal)
-			break
 		default:
 			logger.WithFields(log.Fields{
 				"error": "Unhandled type",

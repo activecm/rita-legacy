@@ -1,14 +1,12 @@
-package beaconfqdn
+package beaconproxy
 
 import (
 	"runtime"
 	"time"
 
-	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
 )
@@ -34,7 +32,7 @@ func (r *repo) CreateIndexes() error {
 	defer session.Close()
 
 	// set collection name
-	collectionName := r.res.Config.T.BeaconFQDN.BeaconFQDNTable
+	collectionName := r.res.Config.T.BeaconProxy.BeaconProxyTable
 
 	// check if collection already exists
 	names, _ := session.DB(r.res.DB.GetSelectedDB()).CollectionNames()
@@ -49,6 +47,7 @@ func (r *repo) CreateIndexes() error {
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"-score"}},
+		{Key: []string{"dst", "dst_network_uuid"}},
 		{Key: []string{"src", "src_network_uuid"}},
 		{Key: []string{"fqdn"}},
 		{Key: []string{"-connection_count"}},
@@ -63,8 +62,8 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert loops through every new hostname ....
-func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
+//Upsert loops through every new fqdn requested from a proxy ....
+func (r *repo) Upsert(proxyHostnameMap map[string]*Input) {
 
 	session := r.res.DB.Session.Copy()
 	defer session.Close()
@@ -73,7 +72,7 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 
 	// stage 5 - write out results
 	writerWorker := newWriter(
-		r.res.Config.T.BeaconFQDN.BeaconFQDNTable,
+		r.res.Config.T.BeaconProxy.BeaconProxyTable,
 		r.res.DB,
 		r.res.Config,
 		r.res.Log,
@@ -117,35 +116,21 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 
 	// progress bar for troubleshooting
 	p := mpb.New(mpb.WithWidth(20))
-	bar := p.AddBar(int64(len(hostnameMap)),
+	bar := p.AddBar(int64(len(proxyHostnameMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] FQDN Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Proxy Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
 	)
 
 	// loop over map entries (each hostname)
-	for _, entry := range hostnameMap {
+	for _, entry := range proxyHostnameMap {
 
 		start := time.Now()
 
-		// check to make sure hostname has resolved ips, skip otherwise
-		if len(entry.ResolvedIPs) > 0 {
-
-			var dstList []bson.M
-			for _, dst := range entry.ResolvedIPs {
-				dstList = append(dstList, dst.AsDst().BSONKey())
-			}
-
-			input := &hostname.FqdnInput{
-				FQDN:        entry.Host,
-				DstBSONList: dstList,
-				ResolvedIPs: entry.ResolvedIPs,
-			}
-
-			dissectorWorker.collect(input)
-		}
+		// pass entry to dissector
+		dissectorWorker.collect(entry)
 
 		// progress bar increment
 		bar.IncrBy(1, time.Since(start))

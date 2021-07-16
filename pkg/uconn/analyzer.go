@@ -68,16 +68,56 @@ func (a *analyzer) start() {
 				datum.Tuples = datum.Tuples[:5]
 			}
 
+			// Tally up the bytes and duration from the open connections.
+			// We will add these at the top level of the current uconn entry
+			// when it's placed in mongo such that we will have an up-to-date
+			// total for open connection values each time we parse another
+			// set of logs. These current values will overwrite any existing values.
+			// The relevant values from the closed connection will be added to the
+			// appropriate chunk in a "dat" and those values will effetively be
+			// removed from the open connection values that we are tracking.
+			for key, connStateEntry := range datum.ConnStateMap {
+				if connStateEntry.Open {
+					datum.OpenBytes += connStateEntry.Bytes
+					datum.OpenDuration += connStateEntry.Duration
+					datum.OpenOrigBytes += connStateEntry.OrigBytes
+
+					//Increment the OpenConnectionCount for each open entry that we have
+					datum.OpenConnectionCount++
+
+					// Only append unique timestamps to OpenTsList.
+					if !int64InSlice(connStateEntry.Ts, datum.OpenTSList) {
+						datum.OpenTSList = append(datum.OpenTSList, connStateEntry.Ts)
+					}
+				} else {
+					// Remove the closed entry so it doesn't appear in the list of open connections in mongo
+					// Interwebs says it is safe to do this operation within a range loop
+					// source: https://stackoverflow.com/questions/23229975/is-it-safe-to-remove-selected-keys-from-map-within-a-range-loop
+					// This will also prevent duplication of data between a previously-opened and closed connection that are
+					// one in the same
+					delete(datum.ConnStateMap, key)
+				}
+			}
+
+			connState := len(datum.ConnStateMap) > 0
+
 			// if this connection qualifies to be a strobe with the current number
 			// of connections in the current datum, don't store bytes and ts.
 			// it will not qualify to be downgraded to a beacon until this chunk is
 			// outdated and removed. If only importing once - still just a strobe.
 			if datum.ConnectionCount >= a.connLimit {
 				query["$set"] = bson.M{
-					"strobe":           true,
-					"cid":              a.chunk,
-					"src_network_name": datum.Hosts.SrcNetworkName,
-					"dst_network_name": datum.Hosts.DstNetworkName,
+					"strobe":                true,
+					"cid":                   a.chunk,
+					"src_network_name":      datum.Hosts.SrcNetworkName,
+					"dst_network_name":      datum.Hosts.DstNetworkName,
+					"open":                  connState,
+					"open_bytes":            datum.OpenBytes,
+					"open_connection_count": datum.OpenConnectionCount,
+					"open_conns":            datum.ConnStateMap,
+					"open_duration":         datum.OpenDuration,
+					"open_orig_bytes":       datum.OpenOrigBytes,
+					"open_ts":               datum.OpenTSList,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
@@ -94,9 +134,16 @@ func (a *analyzer) start() {
 				}
 			} else {
 				query["$set"] = bson.M{
-					"cid":              a.chunk,
-					"src_network_name": datum.Hosts.SrcNetworkName,
-					"dst_network_name": datum.Hosts.DstNetworkName,
+					"cid":                   a.chunk,
+					"src_network_name":      datum.Hosts.SrcNetworkName,
+					"dst_network_name":      datum.Hosts.DstNetworkName,
+					"open":                  connState,
+					"open_bytes":            datum.OpenBytes,
+					"open_connection_count": datum.OpenConnectionCount,
+					"open_conns":            datum.ConnStateMap,
+					"open_duration":         datum.OpenDuration,
+					"open_orig_bytes":       datum.OpenOrigBytes,
+					"open_ts":               datum.OpenTSList,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
@@ -257,4 +304,14 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP data.UniqueIP, extern
 	}
 
 	return output
+}
+
+//int64InSlice ...
+func int64InSlice(a int64, list []int64) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }

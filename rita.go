@@ -9,11 +9,12 @@ import (
 	"github.com/urfave/cli"
 )
 
-// Entry point of ai-hunt
+// Entry point of ac-hunt
 func main() {
 	app := cli.NewApp()
 	app.Name = "rita"
 	app.Usage = "Look for evil needles in big haystacks."
+	app.Flags = []cli.Flag{commands.ConfigFlag}
 
 	cli.VersionPrinter = commands.GetVersionPrinter()
 
@@ -24,6 +25,7 @@ func main() {
 
 	// Define commands used with this application
 	app.Commands = commands.Commands()
+	app.Before = commands.SetConfigFilePath
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	app.Run(os.Args)

@@ -7,7 +7,6 @@ import (
 
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 
 	"strconv"
@@ -22,7 +21,7 @@ type (
 		chunkStr         string         //current chunk (0 if not on rolling analysis)
 		conf             *config.Config // contains details needed to access MongoDB
 		db               *database.DB   // provides access to MongoDB
-		log              *logrus.Logger // logger for writing out errors and warnings
+		log              *log.Logger    // logger for writing out errors and warnings
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan *Input    // holds unanalyzed data
@@ -31,7 +30,7 @@ type (
 )
 
 //newAnalyzer creates a new collector for gathering data
-func newAnalyzer(chunk int, conf *config.Config, db *database.DB, log *logrus.Logger, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, conf *config.Config, db *database.DB, log *log.Logger, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
 		chunkStr:         strconv.Itoa(chunk),
@@ -132,8 +131,8 @@ func (a *analyzer) shouldInsertNewHostRecord(ssn *mgo.Session, host data.UniqueI
 //was queried. Returns the results as an array for MongoDB compatibility
 func buildExplodedDNSArray(dnsQueryCounts map[string]int64) []explodedDNS {
 	// make a new map to store the exploded dns query->count data
-	var explodedDNSMap map[string]int64
-	explodedDNSMap = make(map[string]int64)
+	explodedDNSMap := make(map[string]int64)
+
 	for domain := range dnsQueryCounts {
 		// split name on periods
 		split := strings.Split(domain, ".")

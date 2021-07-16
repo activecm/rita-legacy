@@ -20,15 +20,15 @@ import (
 // a directory named after the selected dataset, or `rita-html-report` if
 // mupltiple were selected, within the current working directory,
 // mongodb must be running to call this command, will exit on any writing error
-func PrintHTML(dbsIn []string, showNetNames bool, res *resources.Resources) error {
+func PrintHTML(dbsIn []string, showNetNames bool, noBrowser bool, res *resources.Resources) error {
 	if len(dbsIn) == 0 {
 		return errors.New("no analyzed databases to report on")
 	}
 
 	var dbs []string
-	for _, db := range dbsIn {
-		dbs = append(dbs, db)
-	}
+
+	dbs = append(dbs, dbsIn...)
+
 	if len(dbs) == 0 {
 		return errors.New("none of the selected databases have been analyzed")
 	}
@@ -80,8 +80,10 @@ func PrintHTML(dbsIn []string, showNetNames bool, res *resources.Resources) erro
 	}
 
 	fmt.Println("[-] Wrote outputs, check " + wd + " for files")
-	os.Chdir("..")
-	open.Run("./" + outFolderString + "/index.html")
+	if !noBrowser {
+		os.Chdir("..")
+		open.Run("./" + outFolderString + "/index.html")
+	}
 	// End db iteration
 	return nil
 }
@@ -172,6 +174,11 @@ func writeDB(db string, wd string, showNetNames bool, res *resources.Resources) 
 	err = printBeaconsFQDN(db, showNetNames, res)
 	if err != nil {
 		fmt.Println("[-] Error writing beaconsFQDN page: " + err.Error())
+	}
+
+	err = printBeaconsProxy(db, showNetNames, res)
+	if err != nil {
+		fmt.Println("[-] Error writing beaconsProxy page: " + err.Error())
 	}
 
 	err = printStrobes(db, showNetNames, res)

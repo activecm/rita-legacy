@@ -82,7 +82,38 @@ Filtering:
     - 10.0.0.0/8 # Private-Use Networks  RFC 1918
     - 172.16.0.0/12 # Private-Use Networks  RFC 1918
     - 192.168.0.0/16 # Private-Use Networks  RFC 1918
+  
+  # Example: HTTPProxyServers: ["192.168.0.1"]
+  # If the environment uses one or more HTTP proxy servers, list those IP
+  # addresses here. In some cases, we can perform additional analysis
+  # when internal systems are contacting external systems with
+  # a proxy server as an intermediary. The additional processing allows
+  # for analyzing the traffic from the internal system to the final destination
+  # (e.g., 192.168.0.5 to somedomain.com).
+  # Without this processing, we will likely see internal systems beaconing 
+  # to the proxy server rather than getting results showing the internal 
+  # systems beaconing to an external system. Note that the efficacy
+  # of the analysis depends on the proxy server configuration, network
+  # topology, and deployment network sensors
+  HTTPProxyServers: []
+  
+  # Example: AlwaysIncludeDomain: ["mydomain.com","*.mydomain.com"]
+  # This functionality overrides the NeverIncludeDomain 
+  # section, making sure that any connection records containing domains
+  # that match this list are kept and not filtered
+  # NOTE: When using wildcards, make sure the added entry is in quotes,
+  #       ie, '*.mydomain.com'. Only subdomain wildcarding 
+  #       (asterisk as the prefix) is supported
+  AlwaysIncludeDomain: []
 
+  # Example: NeverIncludeDomain: ["mydomain.com","*.mydomain.com"]
+  # This functions as a whitelisting setting, and connections involving
+  # ranges entered into this section are filtered out at import time
+  # NOTE: When using wildcards, make sure the added entry is in quotes,
+  #       ie, '*.mydomain.com'. Only subdomain wildcarding 
+  #       (asterisk as the prefix) is supported
+  NeverIncludeDomain: []
+  
 BlackListed:
   Enabled: true
   # These are blacklists built into rita-blacklist. Set these to false
@@ -124,6 +155,19 @@ Beacon:
 BeaconFQDN:
   Enabled: true
   # The default minimum number of connections used for beacons FQDN analysis.
+  # Any two hosts connecting fewer than this number will not be analyzed.
+  # 20 was chosen as it is a little bit less than once per hour in a day,
+  # and allows for any packet loss that could occur.
+
+  # If you choose a lower value, this will significantly increase both
+  # the analysis time and the number of false positives. You can safely
+  # increase this value to improve performance if you are not concerned
+  # about slow beacons.
+  DefaultConnectionThresh: 20
+
+BeaconProxy:
+  Enabled: true
+  # The default minimum number of connections used for beacons proxy analysis.
   # Any two hosts connecting fewer than this number will not be analyzed.
   # 20 was chosen as it is a little bit less than once per hour in a day,
   # and allows for any packet loss that could occur.

@@ -17,8 +17,8 @@ func init() {
 		Usage:     "Print hosts which show signs of C2 software",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
+			ConfigFlag,
 			humanFlag,
-			configFlag,
 			delimFlag,
 			netNamesFlag,
 		},
@@ -33,7 +33,7 @@ func showBeacons(c *cli.Context) error {
 	if db == "" {
 		return cli.NewExitError("Specify a database", -1)
 	}
-	res := resources.InitResources(c.String("config"))
+	res := resources.InitResources(getConfigFilePath(c))
 	res.DB.SelectDB(db)
 
 	data, err := beacon.Results(res, 0)
@@ -72,14 +72,14 @@ func showBeaconsHuman(data []beacon.Result, showNetNames bool) error {
 			"Score", "Source Network", "Destination Network", "Source IP", "Destination IP",
 			"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
 			"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
-			"Size Skew", "Intvl Dispersion", "Size Dispersion",
+			"Size Skew", "Intvl Dispersion", "Size Dispersion", "Total Bytes",
 		}
 	} else {
 		headerFields = []string{
 			"Score", "Source IP", "Destination IP",
 			"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
 			"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
-			"Size Skew", "Intvl Dispersion", "Size Dispersion",
+			"Size Skew", "Intvl Dispersion", "Size Dispersion", "Total Bytes",
 		}
 	}
 
@@ -93,14 +93,14 @@ func showBeaconsHuman(data []beacon.Result, showNetNames bool) error {
 				d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
-				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion), i(d.TotalBytes),
 			}
 		} else {
 			row = []string{
 				f(d.Score), d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
-				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion), i(d.TotalBytes),
 			}
 		}
 		table.Append(row)
@@ -116,14 +116,14 @@ func showBeaconsDelim(data []beacon.Result, delim string, showNetNames bool) err
 			"Score", "Source Network", "Destination Network", "Source IP", "Destination IP",
 			"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
 			"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
-			"Size Skew", "Intvl Dispersion", "Size Dispersion",
+			"Size Skew", "Intvl Dispersion", "Size Dispersion", "Total Bytes",
 		}
 	} else {
 		headerFields = []string{
 			"Score", "Source IP", "Destination IP",
 			"Connections", "Avg. Bytes", "Intvl Range", "Size Range", "Top Intvl",
 			"Top Size", "Top Intvl Count", "Top Size Count", "Intvl Skew",
-			"Size Skew", "Intvl Dispersion", "Size Dispersion",
+			"Size Skew", "Intvl Dispersion", "Size Dispersion", "Total Bytes",
 		}
 	}
 
@@ -138,14 +138,14 @@ func showBeaconsDelim(data []beacon.Result, delim string, showNetNames bool) err
 				d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
-				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion), i(d.TotalBytes),
 			}
 		} else {
 			row = []string{
 				f(d.Score), d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.Ts.Range), i(d.Ds.Range), i(d.Ts.Mode), i(d.Ds.Mode),
 				i(d.Ts.ModeCount), i(d.Ds.ModeCount), f(d.Ts.Skew), f(d.Ds.Skew),
-				i(d.Ts.Dispersion), i(d.Ds.Dispersion),
+				i(d.Ts.Dispersion), i(d.Ds.Dispersion), i(d.TotalBytes),
 			}
 		}
 

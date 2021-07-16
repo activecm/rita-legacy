@@ -18,12 +18,12 @@ func init() {
 		Usage:     "Print strobe information",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
+			ConfigFlag,
 			humanFlag,
 			cli.BoolFlag{
 				Name:  "connection-count, l",
 				Usage: "Sort the strobes by largest connection count.",
 			},
-			configFlag,
 			limitFlag,
 			noLimitFlag,
 			delimFlag,
@@ -35,11 +35,11 @@ func init() {
 				return cli.NewExitError("Specify a database", -1)
 			}
 
-			res := resources.InitResources(c.String("config"))
+			res := resources.InitResources(getConfigFilePath(c))
 			res.DB.SelectDB(db)
 
 			sortDirection := -1
-			if c.Bool("connection-count") == false {
+			if !c.Bool("connection-count") {
 				sortDirection = 1
 			}
 

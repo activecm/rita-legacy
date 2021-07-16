@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,8 +16,8 @@ import (
 func init() {
 	command := cli.Command{
 
-		Name:      "show-long-connections",
-		Usage:     "Print long connections and relevant information",
+		Name:      "show-open-connections",
+		Usage:     "Print open connections and relevant information",
 		ArgsUsage: "<database>",
 		Flags: []cli.Flag{
 			ConfigFlag,
@@ -36,7 +37,7 @@ func init() {
 			res.DB.SelectDB(db)
 
 			thresh := 60 // 1 minute
-			data, err := uconn.LongConnResults(res, thresh, c.Int("limit"), c.Bool("no-limit"))
+			data, err := uconn.OpenConnResults(res, thresh, c.Int("limit"), c.Bool("no-limit"))
 
 			if err != nil {
 				res.Log.Error(err)
@@ -48,13 +49,13 @@ func init() {
 			}
 
 			if c.Bool("human-readable") {
-				err := showConnsHuman(data, c.Bool("network-names"))
+				err := showOpenConnsHuman(data, c.Bool("network-names"))
 				if err != nil {
 					return cli.NewExitError(err.Error(), -1)
 				}
 				return nil
 			}
-			err = showConns(data, c.String("delimiter"), c.Bool("network-names"))
+			err = showOpenConns(data, c.String("delimiter"), c.Bool("network-names"))
 			if err != nil {
 				return cli.NewExitError(err.Error(), -1)
 			}
@@ -64,13 +65,14 @@ func init() {
 	bootstrapCommands(command)
 }
 
-const (
-	day  = time.Minute * 60 * 24
-	year = 365 * day
-)
-
 // https://gist.github.com/harshavardhana/327e0577c4fed9211f65#gistcomment-2557682
-func duration(d time.Duration) string {
+func openDuration(d time.Duration) string {
+
+	const (
+		day  = time.Minute * 60 * 24
+		year = 365 * day
+	)
+
 	if d < day {
 		return d.String()
 	}
@@ -90,13 +92,13 @@ func duration(d time.Duration) string {
 	return b.String()
 }
 
-func showConns(connResults []uconn.LongConnResult, delim string, showNetNames bool) error {
+func showOpenConns(connResults []uconn.OpenConnResult, delim string, showNetNames bool) error {
 
 	var headerFields []string
 	if showNetNames {
-		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "State"}
+		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Bytes", "Zeek UID"}
 	} else {
-		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "State"}
+		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Bytes", "Zeek UID"}
 	}
 
 	// Print the headers and analytic values, separated by a delimiter
@@ -104,29 +106,25 @@ func showConns(connResults []uconn.LongConnResult, delim string, showNetNames bo
 	for _, result := range connResults {
 		var row []string
 
-		// Convert the true/false open/closed state to a nice string
-		state := "closed"
-		if result.Open {
-			state = "open"
-		}
-
 		if showNetNames {
 			row = []string{
 				result.SrcNetworkName,
 				result.DstNetworkName,
 				result.SrcIP,
 				result.DstIP,
-				strings.Join(result.Tuples, " "),
-				f(result.MaxDuration),
-				state,
+				result.Tuple,
+				openDuration(time.Duration(int(result.Duration * float64(time.Second)))),
+				strconv.Itoa(result.Bytes),
+				result.UID,
 			}
 		} else {
 			row = []string{
 				result.SrcIP,
 				result.DstIP,
-				strings.Join(result.Tuples, " "),
-				f(result.MaxDuration),
-				state,
+				result.Tuple,
+				openDuration(time.Duration(int(result.Duration * float64(time.Second)))),
+				strconv.Itoa(result.Bytes),
+				result.UID,
 			}
 		}
 
@@ -135,25 +133,19 @@ func showConns(connResults []uconn.LongConnResult, delim string, showNetNames bo
 	return nil
 }
 
-func showConnsHuman(connResults []uconn.LongConnResult, showNetNames bool) error {
+func showOpenConnsHuman(connResults []uconn.OpenConnResult, showNetNames bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
 
 	var headerFields []string
 	if showNetNames {
-		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "State"}
+		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Bytes", "Zeek UID"}
 	} else {
-		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "State"}
+		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "Bytes", "Zeek UID"}
 	}
 
 	table.SetHeader(headerFields)
 	for _, result := range connResults {
 		var row []string
-
-		// Convert the true/false open/closed state to a nice string
-		state := "closed"
-		if result.Open {
-			state = "open"
-		}
 
 		if showNetNames {
 			row = []string{
@@ -161,17 +153,19 @@ func showConnsHuman(connResults []uconn.LongConnResult, showNetNames bool) error
 				result.DstNetworkName,
 				result.SrcIP,
 				result.DstIP,
-				strings.Join(result.Tuples, " "),
-				duration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
-				state,
+				result.Tuple,
+				openDuration(time.Duration(int(result.Duration * float64(time.Second)))),
+				strconv.Itoa(result.Bytes),
+				result.UID,
 			}
 		} else {
 			row = []string{
 				result.SrcIP,
 				result.DstIP,
-				strings.Join(result.Tuples, " "),
-				duration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
-				state,
+				result.Tuple,
+				openDuration(time.Duration(int(result.Duration * float64(time.Second)))),
+				strconv.Itoa(result.Bytes),
+				result.UID,
 			}
 		}
 

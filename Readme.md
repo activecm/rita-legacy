@@ -71,6 +71,15 @@ Note that any value listed in the `Filtering` section should be in CIDR format. 
       * You may wish to [compile Zeek from source](https://docs.zeek.org/en/master/install/install.html) for performance reasons. [This script](https://github.com/activecm/bro-install) can help automate the process.
       * The automated installer for RITA installs pre-compiled Zeek binaries by default
         * Provide the `--disable-zeek` flag when running the installer if you intend to compile Zeek from source
+      * To take advantage of the feature for monitoring long-running, open connections (default is 1 hour or more), you will need to install our [zeek-open-connections plugin](https://github.com/activecm/zeek-open-connections/). We recommend installing the package with Zeek's package manager _zkg_. Newer versions of Zeek (4.0.0 or greater) will come bundled with _zkg_. If you do not have _zkg_ installed, you can [manually install](https://docs.zeek.org/projects/package-manager/en/stable/quickstart.html) it. Once you have _zkg_ installed, run the following commands to install the package
+        * ```zkg refresh```
+        * ```zkg install zeek/activecm/zeek-open-connections```
+
+        Next, edit your site/local.zeek file so that it contains the following line
+        * ```@load packages ```
+
+        Finally, run the following
+        * ```zeekctl deploy```
 
 #### Importing and Analyzing Data With RITA
 
@@ -83,7 +92,7 @@ RITA can process TSV, JSON, and [JSON streaming](https://github.com/corelight/js
 This is the simplest usage and is great for analyzing a collection of Zeek logs in a single directory. If you expect to have more logs to add to the same analysis later see the next section on Rolling Datasets.
 
 ```
-rita import path/to/your/zeek_logs dataset_name`
+rita import path/to/your/zeek_logs dataset_name
 ```
 
 Every log file in the supplied directory will be imported into a dataset with the given name. However, files in nested directories will not be processed.
@@ -105,6 +114,10 @@ rita import --rolling /opt/zeek/logs/$(date --date='-1 hour' +\%Y-\%m-\%d)/ data
 ```
 
 RITA cycles data into and out of rolling databases in "chunks". You can think of each chunk as one hour, and the default being 24 chunks in a dataset. This gives the ability to always have the most recent 24 hours' worth of data available. But chunks are generic enough to accommodate non-default Zeek logging configurations or data retention times as well. See the [Rolling Datasets](docs/Rolling%20Datasets.md) documentation for advanced options.
+
+
+> :grey_exclamation: **Note:** `dataset_name` is simply a name of your choosing. We recommend a descriptive name such as the hostname or location of where the data was captured. Stick with letters, numbers, and underscores. Periods and other special characters are not allowed.
+
 
 #### Examining Data With RITA
 

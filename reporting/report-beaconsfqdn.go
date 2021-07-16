@@ -48,14 +48,17 @@ func printBeaconsFQDN(db string, showNetNames bool, res *resources.Resources) er
 }
 
 func getBeaconFQDNWriter(beaconsFQDN []beaconfqdn.Result, showNetNames bool) (string, error) {
-	tmpl := "<tr><td>{{printf \"%.3f\" .Score}}</td>"
+	tmpl := "<tr>"
+
+	tmpl += "<td>{{printf \"%.3f\" .Score}}</td>"
+
 	if showNetNames {
 		tmpl += "<td>{{.SrcNetworkName}}</td><td>{{.SrcIP}}</td><td>{{.FQDN}}</td>"
 	} else {
 		tmpl += "<td>{{.SrcIP}}</td><td>{{.FQDN}}</td>"
 	}
 	tmpl += "<td>{{.Connections}}</td><td>{{printf \"%.3f\" .AvgBytes}}</td><td>"
-	tmpl += "{{.Ts.Range}}</td><td>{{.Ds.Range}}</td><td>{{.Ts.Mode}}</td><td>{{.Ds.Mode}}</td><td>{{.Ts.ModeCount}}</td><td>{{.Ds.ModeCount}}<td>"
+	tmpl += "{{.Ts.Range}}</td><td>{{.Ds.Range}}</td><td>{{.Ts.Mode}}</td><td>{{.Ds.Mode}}</td><td>{{.Ts.ModeCount}}</td><td>{{.Ds.ModeCount}}</td><td>"
 	tmpl += "{{printf \"%.3f\" .Ts.Skew}}</td><td>{{printf \"%.3f\" .Ds.Skew}}</td><td>{{.Ts.Dispersion}}</td><td>{{.Ds.Dispersion}}</td>"
 	tmpl += "</tr>\n"
 

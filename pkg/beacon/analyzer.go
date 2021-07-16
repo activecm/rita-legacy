@@ -203,6 +203,7 @@ func (a *analyzer) start() {
 						"$set": bson.M{
 							"connection_count":   res.ConnectionCount,
 							"avg_bytes":          res.TotalBytes / res.ConnectionCount,
+							"total_bytes":        res.TotalBytes,
 							"ts.range":           tsIntervalRange,
 							"ts.mode":            tsMode,
 							"ts.mode_count":      tsModeCount,
@@ -295,7 +296,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 	query := bson.M{}
 
 	// update host table if there is an invalid cert record between pair
-	if icert == true {
+	if icert {
 
 		newFlag := false
 

@@ -74,12 +74,43 @@ func ContainsIP(subnets []*net.IPNet, ip net.IP) bool {
 	return false
 }
 
-// IsIP returns true if string is a valid IP address
-func IsIP(ip string) bool {
-	if net.ParseIP(ip) != nil {
-		return true
+//ContainsDomain checks if a collection of domains contains an IP
+func ContainsDomain(domains []string, host string) bool {
+
+	for _, entry := range domains {
+
+		// check for wildcard
+		if strings.Contains(entry, "*") {
+
+			// trim asterisk from the wildcard domain
+			wildcardDomain := strings.TrimPrefix(entry, "*")
+
+			//This would match a.mydomain.com, b.mydomain.com etc.,
+			if strings.HasSuffix(host, wildcardDomain) {
+				return true
+			}
+
+			// check match of top domain of wildcard
+			// if a user added *.mydomain.com, this will include mydomain.com
+			// in the filtering
+			wildcardDomain = strings.TrimPrefix(wildcardDomain, ".")
+
+			if host == wildcardDomain {
+				return true
+			}
+		} else { // match on exact
+			if host == entry {
+				return true
+			}
+		}
+
 	}
 	return false
+}
+
+// IsIP returns true if string is a valid IP address
+func IsIP(ip string) bool {
+	return net.ParseIP(ip) != nil
 }
 
 //IsIPv4 checks if an ip is ipv4
@@ -101,8 +132,10 @@ var PublicNetworkUUID bson.Binary = bson.Binary{
 	},
 }
 
+//PublicNetworkName is the name bound to publicly routable UniqueIP addresses
 const PublicNetworkName string = "Public"
 
+//UnknownPrivateNetworkUUID ...
 var UnknownPrivateNetworkUUID bson.Binary = bson.Binary{
 	Kind: bson.BinaryUUID,
 	Data: []byte{
@@ -111,4 +144,5 @@ var UnknownPrivateNetworkUUID bson.Binary = bson.Binary{
 	},
 }
 
+//UnknownPrivateNetworkName ...
 const UnknownPrivateNetworkName string = "Unknown Private"

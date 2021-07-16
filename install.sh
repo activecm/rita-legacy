@@ -4,8 +4,9 @@
 # activecountermeasures.com
 
 # CONSTANTS
-_RITA_VERSION="v4.1.0"
-_MONGO_VERSION="3.6"
+_RITA_VERSION="v4.3.0"
+_MONGO_VERSION="4.2"
+_MONGO_MIN_UPDATE_VERSION="4.0"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
 _SUCCESS="\e[92mSUCCESS\e[0m"
@@ -153,9 +154,25 @@ __install() {
 
     if [ "$_INSTALL_MONGO" = "true" ]; then
         if [ "$_MONGO_INSTALLED" = "false" ]; then
-            __load "$_ITEM Installing MongoDB" __install_mongodb
+            __load "$_ITEM Installing MongoDB" __install_mongodb "$_MONGO_VERSION" 
         elif ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_VERSION" ; then
-            __load "$_ITEM Updating MongoDB" __install_mongodb
+
+            # Check that the user wants to upgrade
+            __mongo_upgrade_info
+
+            # Check if the version is less than 4.0. If so, we need to update to 4.0
+            # before going to 4.2
+            if ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_MIN_UPDATE_VERSION"; then
+                printf "$_ITEM Detected Mongo version less than $_MONGO_MIN_UPDATE_VERSION \n"
+                __load "$_ITEM Performing intermediary update of MongoDB" __intermediary_update_mongodb
+            fi
+
+            # Need to stop mongo before updating otherwise we can end up with weird issues,
+            # such as the console version not matching the server version
+            systemctl is-active --quiet mongod && systemctl stop mongod
+
+            __load "$_ITEM Updating MongoDB" __install_mongodb "$_MONGO_VERSION"
+
             # Need to also install all the components of the mongodb-org metapackage for Ubuntu
             __install_packages mongodb-org-mongos mongodb-org-server mongodb-org-shell mongodb-org-tools
         else
@@ -164,6 +181,14 @@ __install() {
 
         if [ "$_MONGO_INSTALLED" = "true" ]; then
             __configure_mongodb
+
+            # Wait for service to come to life
+            printf "$_ITEM Sleeping to give the Mongo service some time to fully start..."
+            sleep 10
+             
+            # Set compatibility version in case we updated Mongo. It's fine to do this even if we didn't
+            # update Mongo...it's just a bit cleaner to do it here to cut down on code redundancy and logic checks
+            __load "$_ITEM Setting Mongo feature compatibility to $_MONGO_VERSION" __update_feature_compatibility "$_MONGO_VERSION"
         fi
     fi
 
@@ -330,22 +355,62 @@ __add_zeek_to_path() {
     _ZEEK_IN_PATH=true
 }
 
+__mongo_upgrade_info() {
+    printf "$_IMPORTANT Mongo is already installed and is version $_MONGO_INSTALLED_VERSION.\n"
+    printf "$_IMPORTANT This will upgrade Mongo to version $_MONGO_VERSION.\n"
+    printf "$_IMPORTANT Note that Mongo must be upgraded to $_MONGO_VERSION for RITA $_RITA_VERSION to work.\n"
+    printf "$_IMPORTANT We suggest creating a backup of your data before upgrading (https://docs.mongodb.com/manual/tutorial/backup-and-restore-tools/).\n"
+    printf "$_QUESTION Would you like to upgrade your Mongo instance [y/N] "
+    read -e
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 0
+    fi
+}
+
+__intermediary_update_mongodb() {
+    # Need to stop mongo before updating otherwise we can end up with weird issues,
+    # such as the console version not matching the server version
+    systemctl is-active --quiet mongod && systemctl stop mongod
+
+    __install_mongodb "$_MONGO_MIN_UPDATE_VERSION"
+
+    # Need to also install all the components of the mongodb-org metapackage for Ubuntu
+    __install_packages mongodb-org-mongos mongodb-org-server mongodb-org-shell mongodb-org-tools
+
+    if [ "$_MONGO_INSTALLED" = "true" ]; then
+        # Star and configure the service so that we can run the command to update feature compatibility
+        __configure_mongodb
+
+        # Wait for service to come to life
+        printf "$_ITEM Sleeping to give the Mongo service some time to fully start..."
+        sleep 10
+
+        # Need to update feature compatibility to 4.0 otherwise things will break when we update
+        # to 4.2
+        __load "$_ITEM Setting feature compatibility in Mongo to $_MONGO_MIN_UPDATE_VERSION" __update_feature_compatibility "$_MONGO_MIN_UPDATE_VERSION"
+    fi
+}
+
+__update_feature_compatibility() {
+    mongo --eval "db.adminCommand( { setFeatureCompatibilityVersion: '$1' } )" > /dev/null
+}
+
 __install_mongodb() {
     case "$_OS" in
         Ubuntu)
-            __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu ${_MONGO_OS_CODENAME}/mongodb-org/${_MONGO_VERSION} multiverse" \
-                "mongodb-org-${_MONGO_VERSION}" \
-                "https://www.mongodb.org/static/pgp/server-${_MONGO_VERSION}.asc"
+            __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu ${_MONGO_OS_CODENAME}/mongodb-org/$1 multiverse" \
+                "mongodb-org-$1" \
+                "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
         CentOS|RedHatEnterprise|RedHatEnterpriseServer)
-            if [ ! -s /etc/yum.repos.d/mongodb-org-${_MONGO_VERSION}.repo ]; then
-                cat << EOF > /etc/yum.repos.d/mongodb-org-${_MONGO_VERSION}.repo
-[mongodb-org-${_MONGO_VERSION}]
+            if [ ! -s /etc/yum.repos.d/mongodb-org-$1.repo ]; then
+                cat << EOF > /etc/yum.repos.d/mongodb-org-$1.repo
+[mongodb-org-$1]
 name=MongoDB Repository
-baseurl=https://repo.mongodb.org/yum/redhat/\$releasever/mongodb-org/${_MONGO_VERSION}/x86_64/
+baseurl=https://repo.mongodb.org/yum/redhat/\$releasever/mongodb-org/$1/x86_64/
 gpgcheck=1
 enabled=1
-gpgkey=https://www.mongodb.org/static/pgp/server-${_MONGO_VERSION}.asc
+gpgkey=https://www.mongodb.org/static/pgp/server-$1.asc
 EOF
             fi
             __freshen_packages
@@ -427,13 +492,6 @@ __gather_OS() {
         printf "$_ITEM This installer supports Ubuntu, CentOS, and RHEL. \n"
         printf "$_IMPORTANT Your operating system is unsupported."
         exit 1
-    fi
-
-    # There is no official repository for Mongo3.6 on Ubuntu 18.04 Bionic.
-    # Documentation recommends using the xenial codename in repos to install Mongo 3.6:
-    # https://linuxconfig.org/how-to-install-latest-mongodb-on-ubuntu-18-04-bionic-beaver-linux
-    if [ "$_MONGO_OS_CODENAME" == "bionic" ]; then
-        _MONGO_OS_CODENAME="xenial"
     fi
 }
 

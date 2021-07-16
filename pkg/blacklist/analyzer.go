@@ -75,6 +75,7 @@ func (a *analyzer) start() {
 				}
 
 				srcHostUpdate := appendBlacklistedDstQuery(a.chunk, blacklistedIP, blUconnData, newBLSrc)
+
 				// set to writer channel
 				a.analyzedCallback(srcHostUpdate)
 			}
@@ -191,18 +192,31 @@ func (a *analyzer) getUniqueConnsforBLDestination(blDestinationIP data.UniqueIP)
 	var blIPs []connectionPeer
 
 	blIPQuery := []bson.M{
-		bson.M{"$match": bson.M{
+		{"$match": bson.M{
 			"dst":              blDestinationIP.IP,
 			"dst_network_uuid": blDestinationIP.NetworkUUID,
 		}},
-		bson.M{"$unwind": "$dat"},
-		bson.M{"$group": bson.M{
+		{"$unwind": "$dat"},
+		{"$group": bson.M{
 			"_id": bson.M{
 				"ip":           "$src",
 				"network_uuid": "$src_network_uuid",
 			},
 			"bl_conn_count":  bson.M{"$sum": "$dat.count"},
 			"bl_total_bytes": bson.M{"$sum": "$dat.tbytes"},
+			// I don't think that either of these fields will ever be more than one value...
+			// ...but just in case. In otherwords, open_bytes and open_connection_count should
+			// really only ever show up as a single value. Using sum here just in case there is
+			// situation that I didn't think of or encounter while testing that results in
+			// either of these values showing up as an array of values. This might not
+			// be necessary but I don't think it hurts
+			"open_bytes":            bson.M{"$sum": "$open_bytes"},
+			"open_connection_count": bson.M{"$sum": "$open_connection_count"},
+		}},
+		{"$project": bson.M{
+			"_id":            1,
+			"bl_conn_count":  bson.M{"$sum": []interface{}{"$bl_conn_count", "$open_connection_count"}},
+			"bl_total_bytes": bson.M{"$sum": []interface{}{"$bl_total_bytes", "$open_bytes"}},
 		}},
 	}
 
@@ -220,18 +234,25 @@ func (a *analyzer) getUniqueConnsforBLSource(blSourceIP data.UniqueIP) []connect
 	var blIPs []connectionPeer
 
 	blIPQuery := []bson.M{
-		bson.M{"$match": bson.M{
+		{"$match": bson.M{
 			"src":              blSourceIP.IP,
 			"src_network_uuid": blSourceIP.NetworkUUID,
 		}},
-		bson.M{"$unwind": "$dat"},
-		bson.M{"$group": bson.M{
+		{"$unwind": "$dat"},
+		{"$group": bson.M{
 			"_id": bson.M{
 				"ip":           "$dst",
 				"network_uuid": "$dst_network_uuid",
 			},
-			"bl_conn_count":  bson.M{"$sum": "$dat.count"},
-			"bl_total_bytes": bson.M{"$sum": "$dat.tbytes"},
+			"bl_conn_count":         bson.M{"$sum": "$dat.count"},
+			"bl_total_bytes":        bson.M{"$sum": "$dat.tbytes"},
+			"open_bytes":            bson.M{"$sum": "$open_bytes"},
+			"open_connection_count": bson.M{"$sum": "$open_connection_count"},
+		}},
+		{"$project": bson.M{
+			"_id":            1,
+			"bl_conn_count":  bson.M{"$sum": []interface{}{"$bl_conn_count", "$open_connection_count"}},
+			"bl_total_bytes": bson.M{"$sum": []interface{}{"$bl_total_bytes", "$open_bytes"}},
 		}},
 	}
 

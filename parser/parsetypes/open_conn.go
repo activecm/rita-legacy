@@ -5,8 +5,8 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
-// Conn provides a data structure for zeek's connection data
-type Conn struct {
+// OpenConn provides a data structure for zeek's open connection data
+type OpenConn struct {
 	// ID is the id coming out of mongodb
 	ID bson.ObjectId `bson:"_id,omitempty"`
 	// TimeStamp of this connection
@@ -60,11 +60,11 @@ type Conn struct {
 }
 
 //TargetCollection returns the mongo collection this entry should be inserted
-func (line *Conn) TargetCollection(config *config.StructureTableCfg) string {
-	return config.ConnTable
+func (line *OpenConn) TargetCollection(config *config.StructureTableCfg) string {
+	return config.OpenConnTable
 }
 
 //ConvertFromJSON performs any extra conversions necessary when reading from JSON
-func (line *Conn) ConvertFromJSON() {
+func (line *OpenConn) ConvertFromJSON() {
 	line.TimeStamp = convertTimestamp(line.TimeStampGeneric)
 }

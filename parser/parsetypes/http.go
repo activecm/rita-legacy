@@ -5,7 +5,7 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
-// HTTP provides a data structure for entries in bro's HTTP log file
+// HTTP provides a data structure for entries in zeek's HTTP log file
 type HTTP struct {
 	// ID is the object id as set by mongodb
 	ID bson.ObjectId `bson:"_id,omitempty"`
