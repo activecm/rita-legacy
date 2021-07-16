@@ -67,12 +67,14 @@ func (a *analyzer) start() {
 				origIPs = origIPs[:200003]
 			}
 
-			if len(datum.Tuples) > 20 {
-				datum.Tuples = datum.Tuples[:20]
+			tuples := datum.Tuples.Items()
+			if len(tuples) > 20 {
+				tuples = tuples[:20]
 			}
 
-			if len(datum.InvalidCerts) > 10 {
-				datum.InvalidCerts = datum.InvalidCerts[:10]
+			invalidCerts := datum.InvalidCerts.Items()
+			if len(invalidCerts) > 10 {
+				invalidCerts = invalidCerts[:10]
 			}
 
 			// create query
@@ -81,8 +83,8 @@ func (a *analyzer) start() {
 					"dat": bson.M{
 						"seen":     datum.Seen,
 						"orig_ips": origIPs,
-						"tuples":   datum.Tuples,
-						"icodes":   datum.InvalidCerts,
+						"tuples":   tuples,
+						"icodes":   invalidCerts,
 						"cid":      a.chunk,
 					},
 				},

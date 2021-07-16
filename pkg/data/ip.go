@@ -204,6 +204,7 @@ func (p UniqueIPPair) BSONKey() bson.M {
 //since it requires less RAM.
 type UniqueIPSet map[string]UniqueIP
 
+//Items returns the UniqueIPs in the set as a slice.
 func (s UniqueIPSet) Items() []UniqueIP {
 	retVal := make([]UniqueIP, 0, len(s))
 	for _, ip := range s {

@@ -65,8 +65,9 @@ func (a *analyzer) start() {
 				origIPs = origIPs[:10]
 			}
 
-			if len(datum.Requests) > 10 {
-				datum.Requests = datum.Requests[:10]
+			requests := datum.Requests.Items()
+			if len(requests) > 10 {
+				requests = requests[:10]
 			}
 
 			// create query
@@ -75,7 +76,7 @@ func (a *analyzer) start() {
 					"dat": bson.M{
 						"seen":     datum.Seen,
 						"orig_ips": origIPs,
-						"hosts":    datum.Requests,
+						"hosts":    requests,
 						"cid":      a.chunk,
 					},
 				},

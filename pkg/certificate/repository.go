@@ -23,8 +23,8 @@ type Input struct {
 	Host         data.UniqueIP
 	Seen         int64
 	OrigIps      data.UniqueIPSet
-	InvalidCerts []string
-	Tuples       []string
+	InvalidCerts data.StringSet
+	Tuples       data.StringSet
 }
 
 //AnalysisView (for reporting)

@@ -8,7 +8,6 @@ import (
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/pkg/useragent"
-	"github.com/activecm/rita/util"
 )
 
 func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults) {
@@ -69,11 +68,7 @@ func updateUseragentsBySSL(srcUniqIP data.UniqueIP, parseSSL *parsetypes.SSL, re
 	retVals.UseragentMap[parseSSL.JA3].OrigIps.Insert(srcUniqIP)
 
 	// ///// UNION DESTINATION HOSTNAME INTO USERAGENT DESTINATIONS /////
-	if !util.StringInSlice(parseSSL.ServerName, retVals.UseragentMap[parseSSL.JA3].Requests) {
-		retVals.UseragentMap[parseSSL.JA3].Requests = append(
-			retVals.UseragentMap[parseSSL.JA3].Requests, parseSSL.ServerName,
-		)
-	}
+	retVals.UseragentMap[parseSSL.JA3].Requests.Insert(parseSSL.ServerName)
 }
 
 func updateUniqueConnectionsBySSL(srcIP, dstIP net.IP, srcDstPair data.UniqueIPPair, srcDstKey string,
@@ -117,9 +112,7 @@ func updateCertificatesBySSL(srcUniqIP data.UniqueIP, dstUniqIP data.UniqueIP, d
 	retVals.CertificateMap[dstKey].Seen++
 
 	// ///// UNION CERTIFICATE STATUS INTO SET OF CERTIFICATE STATUSES FOR DESTINATINO HOST /////
-	if !util.StringInSlice(certStatus, retVals.CertificateMap[dstKey].InvalidCerts) {
-		retVals.CertificateMap[dstKey].InvalidCerts = append(retVals.CertificateMap[dstKey].InvalidCerts, certStatus)
-	}
+	retVals.CertificateMap[dstKey].InvalidCerts.Insert(certStatus)
 
 	// ///// UNION SOURCE HOST INTO SET OF HOSTS WHICH FETCHED THE DESTINATION'S INVALID CERTIFICATE /////
 	retVals.CertificateMap[dstKey].OrigIps.Insert(srcUniqIP)
@@ -130,12 +123,8 @@ func copyServiceTuplesFromUconnToCerts(dstKey, srcDstKey string, retVals ParseRe
 	retVals.CertificateLock.Lock()
 
 	// ///// UNION (PORT PROTOCOL SERVICE) TUPLES FROM UNIQUE CONNECTIONS ENTRY INTO CERTIFICATE ENTRY /////
-	for _, tuple := range retVals.UniqueConnMap[srcDstKey].Tuples {
-		if !util.StringInSlice(tuple, retVals.CertificateMap[dstKey].Tuples) {
-			retVals.CertificateMap[dstKey].Tuples = append(
-				retVals.CertificateMap[dstKey].Tuples, tuple,
-			)
-		}
+	for tuple := range retVals.UniqueConnMap[srcDstKey].Tuples {
+		retVals.CertificateMap[dstKey].Tuples.Insert(tuple)
 	}
 
 	retVals.CertificateLock.Unlock()

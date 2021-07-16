@@ -116,11 +116,7 @@ func updateUniqueConnectionsByConn(srcIP, dstIP net.IP, srcDstPair data.UniqueIP
 	}
 
 	// ///// UNION (PORT PROTOCOL SERVICE) TUPLE INTO SET FOR UNIQUE CONNECTION /////
-	if !util.StringInSlice(tuple, retVals.UniqueConnMap[srcDstKey].Tuples) {
-		retVals.UniqueConnMap[srcDstKey].Tuples = append(
-			retVals.UniqueConnMap[srcDstKey].Tuples, tuple,
-		)
-	}
+	retVals.UniqueConnMap[srcDstKey].Tuples.Insert(tuple)
 
 	// ///// INCREMENT THE CONNECTION COUNT FOR THE UNIQUE CONNECTION /////
 	retVals.UniqueConnMap[srcDstKey].ConnectionCount++
@@ -229,10 +225,6 @@ func updateCertificatesByConn(dstKey string, tuple string, retVals ParseResults)
 	// record, we'll need to update it with the tuples.
 	if _, ok := retVals.CertificateMap[dstKey]; ok {
 		// add tuple to invlaid cert list
-		if !util.StringInSlice(tuple, retVals.CertificateMap[dstKey].Tuples) {
-			retVals.CertificateMap[dstKey].Tuples = append(
-				retVals.CertificateMap[dstKey].Tuples, tuple,
-			)
-		}
+		retVals.CertificateMap[dstKey].Tuples.Insert(tuple)
 	}
 }

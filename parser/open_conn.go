@@ -138,11 +138,7 @@ func updateUniqueConnectionsByOpenConn(srcIP, dstIP net.IP, srcDstPair data.Uniq
 	}
 
 	// ///// UNION (PORT PROTOCOL SERVICE) TUPLE INTO SET FOR UNIQUE CONNECTION /////
-	if !util.StringInSlice(tuple, retVals.UniqueConnMap[srcDstKey].Tuples) {
-		retVals.UniqueConnMap[srcDstKey].Tuples = append(
-			retVals.UniqueConnMap[srcDstKey].Tuples, tuple,
-		)
-	}
+	retVals.UniqueConnMap[srcDstKey].Tuples.Insert(tuple)
 
 	// ///// DETERMINE THE LONGEST DURATION SEEN FOR THIS UNIQUE CONNECTION /////
 	// Replace existing duration if current duration is higher
@@ -229,10 +225,6 @@ func updateCertificatesByOpenConn(dstKey string, tuple string, retVals ParseResu
 	// record, we'll need to update it with the tuples.
 	if _, ok := retVals.CertificateMap[dstKey]; ok {
 		// add tuple to invlaid cert list
-		if !util.StringInSlice(tuple, retVals.CertificateMap[dstKey].Tuples) {
-			retVals.CertificateMap[dstKey].Tuples = append(
-				retVals.CertificateMap[dstKey].Tuples, tuple,
-			)
-		}
+		retVals.CertificateMap[dstKey].Tuples.Insert(tuple)
 	}
 }

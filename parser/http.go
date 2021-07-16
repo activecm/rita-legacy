@@ -65,11 +65,7 @@ func updateUseragentsByHTTP(srcUniqIP data.UniqueIP, parseHTTP *parsetypes.HTTP,
 	retVals.UseragentMap[parseHTTP.UserAgent].OrigIps.Insert(srcUniqIP)
 
 	// ///// UNION DESTINATION HOSTNAME INTO USERAGENT DESTINATIONS /////
-	if !util.StringInSlice(parseHTTP.Host, retVals.UseragentMap[parseHTTP.UserAgent].Requests) {
-		retVals.UseragentMap[parseHTTP.UserAgent].Requests = append(
-			retVals.UseragentMap[parseHTTP.UserAgent].Requests, parseHTTP.Host,
-		)
-	}
+	retVals.UseragentMap[parseHTTP.UserAgent].Requests.Insert(parseHTTP.Host)
 }
 
 func updateProxiedUniqueConnectionsByHTTP(srcProxyFQDNTrio beaconproxy.UniqueSrcProxyHostnameTrio, srcProxyFQDNKey string, parseHTTP *parsetypes.HTTP, retVals ParseResults) {
