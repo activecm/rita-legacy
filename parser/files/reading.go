@@ -127,11 +127,16 @@ func newGzipReader(fileHandle io.ReadCloser) (reader io.Reader, closer func() er
 
 	// return/ pipe the output back out to the caller
 	pipeR, err := gzipCommand.StdoutPipe()
+	if err != nil {
+		cancel() // essentially a no-op.  makes the linter happy tho.
+		return reader, fileHandle.Close, err
+	}
 
 	var cmdStdErr bytes.Buffer
 	gzipCommand.Stderr = &cmdStdErr
 
 	if err := gzipCommand.Start(); err != nil {
+		cancel() // essentially a no-op.  makes the linter happy tho.
 		return reader, fileHandle.Close, err
 	}
 
