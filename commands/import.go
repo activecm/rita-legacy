@@ -260,6 +260,7 @@ func (i *Importer) run() error {
 	}
 
 	/*
+		// Uncomment these lines to enable CPU profiling
 		f, err := os.Create("./cpu.pprof")
 		if err != nil {
 			log.Fatal("could not create CPU profile: ", err)
@@ -270,6 +271,7 @@ func (i *Importer) run() error {
 		}
 		defer pprof.StopCPUProfile()
 	*/
+
 	importer.Run(indexedFiles, i.threads)
 
 	i.res.Log.Infof("Finished importing %v\n", i.importFiles)

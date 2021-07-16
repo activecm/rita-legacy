@@ -18,7 +18,6 @@ import (
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/explodeddns"
-
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/pkg/remover"
@@ -26,7 +25,9 @@ import (
 	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
+
 	"github.com/globalsign/mgo/bson"
+	"github.com/pbnjay/memory"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -52,13 +53,15 @@ type (
 
 //NewFSImporter creates a new file system importer
 func NewFSImporter(res *resources.Resources) *FSImporter {
+	// set batchSize to the max of 4GB or a half of system RAM to prevent running out of memory while importing
+	batchSize := int64(util.MaxUint64(4*(1<<30), (memory.TotalMemory() / 2)))
 	return &FSImporter{
 		filter:         newFilter(res.Config),
 		log:            res.Log,
 		config:         res.Config,
 		database:       res.DB,
 		metaDB:         res.MetaDB,
-		batchSizeBytes: 2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
+		batchSizeBytes: batchSize,
 	}
 }
 
@@ -162,7 +165,6 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 
 		// parse in those files!
 		retVals := fs.parseFiles(indexedFileBatch, threads, fs.log)
-
 		// Set chunk before we continue so if process dies, we still verify with a delete if
 		// any data was written out.
 		fs.metaDB.SetChunk(fs.config.S.Rolling.CurrentChunk, fs.database.GetSelectedDB(), true)

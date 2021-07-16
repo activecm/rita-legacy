@@ -82,6 +82,14 @@ func Max(a int, b int) int {
 	return b
 }
 
+//MaxUint64 returns the larger of two 64 bit unsigned integers
+func MaxUint64(a uint64, b uint64) uint64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 //StringInSlice returns true if the string is an element of the array
 func StringInSlice(value string, list []string) bool {
 	for _, entry := range list {
