@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -68,62 +70,99 @@ func gatherDir(cpath string, logger *log.Logger) []string {
 	return toReturn
 }
 
-// GetFileScanner returns a buffered file scanner for a bro log file
-func GetFileScanner(fileHandle *os.File) (*bufio.Scanner, error) {
+// GetFileScanner returns a buffered file scanner for a bro log file, a function to close the
+// underlying stream and any associated processors, as well as any error that may occur while
+// creating the scanner
+func GetFileScanner(fileHandle *os.File) (scanner *bufio.Scanner, closer func() error, err error) {
+	// by default just close out the underlying file handle
+	closer = fileHandle.Close
+
 	ftype := fileHandle.Name()[len(fileHandle.Name())-3:]
 	if ftype != ".gz" && ftype != "log" {
-		return nil, errors.New("filetype not recognized")
+		return nil, closer, errors.New("filetype not recognized")
 	}
 
-	var scanner *bufio.Scanner
 	if ftype == ".gz" {
-		rdr, err := newGzipReader(fileHandle)
+		var gzipReader io.Reader
+		gzipReader, closer, err = newGzipReader(fileHandle)
 		if err != nil {
-			return nil, err
+			return nil, closer, err
 		}
-		scanner = bufio.NewScanner(rdr)
+		scanner = bufio.NewScanner(gzipReader)
 	} else {
 		scanner = bufio.NewScanner(fileHandle)
 	}
 
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	return scanner, nil
+	return scanner, closer, nil
 }
 
 //newGzipReader returns an un-gzipped byte stream given a gzip compressed byte stream.
 //This method tries to use the system's pigz or gzip implementation before relying on
-//Golang's gzip package (as it is quite slow).
-func newGzipReader(fileHandle io.Reader) (io.Reader, error) {
+//Golang's gzip package (as it is quite slow). Returns stream to read from, a function to
+//close the underlying stream, and any err that may occur when opening the stream.
+func newGzipReader(fileHandle io.ReadCloser) (reader io.Reader, closer func() error, err error) {
+	// by default just close out the underlying file handle
+	// works for built in gzip library and error cases
+	closer = fileHandle.Close
+
 	var gzipPath string
 	if path, err := exec.LookPath("pigz"); err == nil {
 		gzipPath = path
 	} else if path, err := exec.LookPath("gzip"); err == nil {
 		gzipPath = path
 	} else {
-		return gzip.NewReader(fileHandle)
+		// can't find system command, use golang lib, no special closing logic needed other than
+		// to close the underlying file descriptor
+		reader, err = gzip.NewReader(fileHandle)
+		return reader, closer, err
 	}
 
-	pipeR, pipeW := io.Pipe()
-	var cmdStdErr bytes.Buffer
+	// create the subprocess
+	ctx, cancel := context.WithCancel(context.Background())
+	gzipCommand := exec.CommandContext(ctx, gzipPath, "-d", "-c")
 
-	gzipCommand := exec.Command(gzipPath, "-d", "-c")
+	// tell the subprocess to read from the given stream
 	gzipCommand.Stdin = fileHandle
-	gzipCommand.Stdout = pipeW
+
+	// return/ pipe the output back out to the caller
+	pipeR, err := gzipCommand.StdoutPipe()
+
+	var cmdStdErr bytes.Buffer
 	gzipCommand.Stderr = &cmdStdErr
 
 	if err := gzipCommand.Start(); err != nil {
-		return nil, err
+		return reader, fileHandle.Close, err
 	}
 
-	go func() {
-		if err := gzipCommand.Wait(); err != nil {
-			pipeW.CloseWithError(errors.New(err.Error() + ": " + cmdStdErr.String()))
-		} else {
-			pipeW.Close()
-		}
-	}()
+	// update the closer to kill the subprocess in addition to closing the file descriptor
+	closer = func() error {
+		// kill the subprocess, any errors will come out on the read side or during Wait
+		cancel()
+		// close the file that was passed in
+		errFile := fileHandle.Close()
+		// wait for the subprocess to finish out
+		errProc := gzipCommand.Wait()
 
-	return pipeR, nil
+		// add StdErr to the process error if the command returned a nonzero code
+		if errProc != nil && cmdStdErr.Len() > 0 {
+			errProc = fmt.Errorf("%s: %s", errProc.Error(), cmdStdErr.String())
+		}
+
+		// handle return errors up
+		if errProc != nil && errFile != nil {
+			return fmt.Errorf("%s; %s", errProc.Error(), errFile.Error())
+		}
+		if errProc != nil {
+			return errProc
+		}
+		if errFile != nil {
+			return errFile
+		}
+		return nil
+	}
+
+	return pipeR, closer, nil
 }
 
 // scanHeader scans the comment lines out of a bro file and returns a

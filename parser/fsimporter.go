@@ -325,7 +325,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 				}
 
 				// read the file
-				fileScanner, err := files.GetFileScanner(fileHandle)
+				fileScanner, closeScanner, err := files.GetFileScanner(fileHandle)
 				if err != nil {
 					logger.WithFields(log.Fields{
 						"file":  indexedFiles[j].Path,
@@ -372,7 +372,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 					}
 				}
 				indexedFiles[j].ParseTime = time.Now()
-				fileHandle.Close()
+				closeScanner() // handles closing the underlying fileHandle
 				logger.WithFields(log.Fields{
 					"path": indexedFiles[j].Path,
 				}).Info("Finished parsing file")

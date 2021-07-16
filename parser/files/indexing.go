@@ -45,15 +45,14 @@ func newIndexedFile(filePath string, targetDB string, targetCID int,
 	}
 	toReturn.Hash = fHash
 
-	scanner, err := GetFileScanner(fileHandle)
+	scanner, closeScanner, err := GetFileScanner(fileHandle)
+	defer closeScanner() // handles closing the underlying fileHandle (and any associate subprocesses)
 	if err != nil {
-		fileHandle.Close()
 		return toReturn, err
 	}
 
 	header, err := scanTSVHeader(scanner)
 	if err != nil {
-		fileHandle.Close()
 		return toReturn, err
 	}
 	toReturn.SetHeader(header)
@@ -79,7 +78,6 @@ func newIndexedFile(filePath string, targetDB string, targetCID int,
 		}
 	}
 	if broDataFactory == nil {
-		fileHandle.Close()
 		return toReturn, errors.New("could not map file header to parse type")
 	}
 	toReturn.SetBroDataFactory(broDataFactory)
@@ -89,7 +87,6 @@ func newIndexedFile(filePath string, targetDB string, targetCID int,
 	if !toReturn.IsJSON() {
 		fieldMap, err = mapZeekHeaderToParseType(header, broDataFactory, logger)
 		if err != nil {
-			fileHandle.Close()
 			return toReturn, err
 		}
 		toReturn.SetFieldMap(fieldMap)
@@ -104,20 +101,17 @@ func newIndexedFile(filePath string, targetDB string, targetCID int,
 	}
 
 	if line == nil {
-		fileHandle.Close()
 		return toReturn, errors.New("could not parse first line of file")
 	}
 
 	toReturn.TargetCollection = line.TargetCollection(&conf.T.Structure)
 	if toReturn.TargetCollection == "" {
-		fileHandle.Close()
 		return toReturn, errors.New("could not find a target collection for file")
 	}
 
 	toReturn.TargetDatabase = targetDB
 	toReturn.CID = targetCID
 
-	fileHandle.Close()
 	return toReturn, nil
 }
 
