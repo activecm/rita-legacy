@@ -5,6 +5,7 @@ import "html/template"
 //ReportingInfo fills the templates listed in html/template
 type ReportingInfo struct {
 	DB     string
+  LogsGeneratedAt string
 	Writer template.HTML
 }
 
@@ -33,6 +34,7 @@ var dbHeader = `
 	<li><a href="bl-hostnames.html">BL Hostnames</a></li>
 	<li><a href="long-conns.html">Long Connections</a></li>
 	<li><a href="useragents.html">User Agents</a></li>
+  <li><a href="index.html">Time Generated: {{.LogsGeneratedAt}}</a></li>
 	<li style="float:right">
     <a href="https://github.com/activecm/rita" target="_blank">RITA on
 		<img src="../github.svg" title="Icon made by Dave Gandy from www.flaticon.com" id="github">
