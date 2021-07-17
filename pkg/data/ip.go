@@ -35,8 +35,15 @@ func NewUniqueIP(ip net.IP, agentUUID, agentName string) UniqueIP {
 		return u
 	}
 
+	// agent information is optional, provide a fast path to avoid calling uuid.Parse with invalid data
+	if len(agentUUID) == 0 || len(agentName) == 0 {
+		u.NetworkName = util.UnknownPrivateNetworkName
+		u.NetworkUUID = util.UnknownPrivateNetworkUUID
+		return u
+	}
+
 	id, err := uuid.Parse(agentUUID)
-	if err != nil || len(agentUUID) == 0 || len(agentName) == 0 {
+	if err != nil {
 		u.NetworkName = util.UnknownPrivateNetworkName
 		u.NetworkUUID = util.UnknownPrivateNetworkUUID
 		return u
