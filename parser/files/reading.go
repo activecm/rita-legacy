@@ -263,7 +263,7 @@ func mapZeekHeaderToParseType(header *BroHeader, broDataFactory func() pt.BroDat
 	for index, name := range header.Names {
 		fieldInfo, ok := parseTypeFields[name]
 		if !ok {
-			//NOTE: an unmatched field which exists in the log but not the struct
+			//an unmatched field which exists in the log but not the struct
 			//is not a fatal error, so we report it and move on
 			logger.WithFields(log.Fields{
 				"error":         "unmatched field in log",

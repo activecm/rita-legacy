@@ -113,7 +113,7 @@ func (m *MetaDB) SetRollingSettings(db string, chunk int, numchunks int) error {
 			update["cid_list."+strconv.Itoa(i)+".set"] = false
 		}
 	} else if result.TotalChunks > numchunks {
-		// Note: this shouldn't ever get hit because the commands/import.go:setRolling function should fail on this check
+		// This shouldn't ever get hit because the commands/import.go:setRolling function should fail on this check
 		// and prevent it.
 		m.log.Warnf("The total chunk size for existing rolling dataset [ %s ] was set to [ %d ] and is being decreased to [ %d ].",
 			db, result.TotalChunks, numchunks)

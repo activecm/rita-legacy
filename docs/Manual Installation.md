@@ -16,10 +16,10 @@ Installing Zeek is recommended. RITA needs Zeek logs as input so if you already 
 
 #### MongoDB
 
-RITA requires Mongo for storing and processing data. The current recommended version is 3.6, but anything >= 3.2.0 and < 3.7.0 should work.
+RITA requires Mongo for storing and processing data. The current supported version is 4.2, but anything >= 4.0.0 may work.
 
-1. Follow the MongoDB installation guide at https://docs.mongodb.com/v3.6/installation/
-    * Alternatively, this is a direct link to the [download page](https://www.mongodb.com/try/download/community). Be sure to choose version 3.6
+1. Follow the MongoDB installation guide at https://docs.mongodb.com/v4.2/installation/
+    * Alternatively, this is a direct link to the [download page](https://www.mongodb.com/try/download/community). Be sure to choose version 4.2
 1. Ensure MongoDB is running before running RITA.
 
 #### RITA

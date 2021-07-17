@@ -35,7 +35,7 @@ docker-check:
 .PHONY: integration-test
 integration-test: docker-check
 # docker run should only get executed once on initialization using the cache trick
-integration-test: MONGO_EXE = $(shell docker run --rm -d mongo:3.6)
+integration-test: MONGO_EXE = $(shell docker run --rm -d mongo:4.2)
 integration-test: MONGO_ID = $(call cache,MONGO_EXE)
 integration-test: MONGO_IP = $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(MONGO_ID))
 integration-test:

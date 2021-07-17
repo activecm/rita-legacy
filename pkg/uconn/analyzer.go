@@ -193,8 +193,6 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP data.UniqueIP, extern
 	// create query
 	query := bson.M{}
 
-	//TODO: Why do we update old chunks with new max durations??? (https://github.com/activecm/rita/pull/512/files) -LL
-
 	// check if we need to update
 	// we do this before the other queries because otherwise if a max dur
 	// starts out with a high number which reduces over time, it will keep
