@@ -30,10 +30,10 @@ export LOGS=/path/to/your/zeek/logs
 docker-compose run --rm rita import /logs your-dataset
 ```
 
-Note: If you'd like to use a different version of RITA than the default `latest` you can do so using the `VERSION` variable.
+Note: If you'd like to use a specific version of RITA than the default `latest` you can do so using the `VERSION` variable.
 
 ```
-export VERSION=v3.0.6
+export VERSION=v4.3.0
 docker-compose run --rm rita --version
 ```
 
