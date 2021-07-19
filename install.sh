@@ -141,6 +141,7 @@ __install() {
         #Unconditionally installed whether this is a new install or an upgrade
         #Install this before calling __configure_zeek so the modules are in place when "zeekctl deploy" restarts zeek
         __install_ja3
+        __fix_inactivity_timeout
         __enable_ssl_certificate_logging
 
         if [ "$_ZEEK_INSTALLED" = "true" ]; then
@@ -261,40 +262,52 @@ __install_zeek() {
 }
 
 __install_ja3() {
-    local_path=$_ZEEK_PATH/../share/zeek/site/
+    local_path="$_ZEEK_PATH/../share/zeek/site/"
 
-    mkdir -p $local_path/ja3/
+    mkdir -p "$local_path/ja3/"
 
     for one_file in __load__.zeek intel_ja3.zeek ja3.zeek ja3s.zeek ; do
-        if [ ! -e $local_path/ja3/$one_file ]; then
+        if [ ! -e "$local_path/ja3/$one_file" ]; then
             curl -sSL "https://raw.githubusercontent.com/salesforce/ja3/133f2a128b873f9c40e4e65c2b9dc372a801cf24/zeek/$one_file" -o "$local_path/ja3/$one_file"
         fi
     done
 
-    if ! grep -q '^[^#]*@load \./ja3' $local_path/local.zeek ; then
-        echo '' >>$local_path/local.zeek
-        echo '#Load ja3 support libraries' >>$local_path/local.zeek
-        echo '@load ./ja3' >>$local_path/local.zeek
+    if ! grep -q '^[^#]*@load \./ja3' "$local_path/local.zeek" ; then
+        echo '' >>"$local_path/local.zeek"
+        echo '#Load ja3 support libraries' >>"$local_path/local.zeek"
+        echo '@load ./ja3' >>"$local_path/local.zeek"
+    fi
+}
+
+__fix_inactivity_timeout() {
+    local_path="$_ZEEK_PATH/../share/zeek/site/"
+
+    mkdir -p "$local_path"
+
+    if ! grep -q '^[^#]*redef tcp_inactivity_timeout = 60 min;' "$local_path/local.zeek" ; then
+        echo '' >>"$local_path/local.zeek"
+        echo '#Extend inactivity timeout to collect lots of short connections' >>"$local_path/local.zeek"
+        echo 'redef tcp_inactivity_timeout = 60 min;' >>"$local_path/local.zeek"
     fi
 }
 
 __enable_ssl_certificate_logging() {
-    local_path=$_ZEEK_PATH/../share/zeek/site/
+    local_path="$_ZEEK_PATH/../share/zeek/site/"
 
-    mkdir -p $local_path
+    mkdir -p "$local_path"
 
-    if ! grep -q '^[^#]*@load  *protocols/ssl/validate-certs' $local_path/local.zeek ; then
-        echo '' >>$local_path/local.zeek
-        echo '#Enable certificate validation' >>$local_path/local.zeek
-        echo '@load protocols/ssl/validate-certs' >>$local_path/local.zeek
+    if ! grep -q '^[^#]*@load  *protocols/ssl/validate-certs' "$local_path/local.zeek" ; then
+        echo '' >>"$local_path/local.zeek"
+        echo '#Enable certificate validation' >>"$local_path/local.zeek"
+        echo '@load protocols/ssl/validate-certs' >>"$local_path/local.zeek"
     fi
 
-    if ! grep -q '^[^#]*@load  *policy/protocols/ssl/extract-certs-pem' $local_path/local.zeek ; then
-        echo '' >>$local_path/local.zeek
-        echo '#Log certificates' >>$local_path/local.zeek
-        echo '@load policy/protocols/ssl/extract-certs-pem' >>$local_path/local.zeek
-        echo 'redef SSL::extract_certs_pem = ALL_HOSTS;' >>$local_path/local.zeek
-        echo '' >>$local_path/local.zeek
+    if ! grep -q '^[^#]*@load  *policy/protocols/ssl/extract-certs-pem' "$local_path/local.zeek" ; then
+        echo '' >>"$local_path/local.zeek"
+        echo '#Log certificates' >>"$local_path/local.zeek"
+        echo '@load policy/protocols/ssl/extract-certs-pem' >>"$local_path/local.zeek"
+        echo 'redef SSL::extract_certs_pem = ALL_HOSTS;' >>"$local_path/local.zeek"
+        echo '' >>"$local_path/local.zeek"
     fi
 }
 
