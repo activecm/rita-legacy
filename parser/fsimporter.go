@@ -679,7 +679,16 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// check if destination is a proxy server based on HTTP method
 							dstIsProxy := (method == "CONNECT")
 
-							if !dstIsProxy && (fs.filterDomain(fqdn) || fs.filterConnPair(srcIP, dstIP)) {
+							// if the HTTP method is CONNECT, then the srcIP is communicating
+							// to an FQDN through the dstIP proxy. We need to handle that
+							// as a special case here so that we don't filter internal->internal
+							// connections if the dstIP is an internal IP because the dstIP
+							// is an intermediary and not the final destination.
+							if dstIsProxy {
+								if fs.filterDomain(fqdn) || fs.filterSingleIP(srcIP) || fs.filterSingleIP(dstIP) {
+									continue
+								}
+							} else if fs.filterDomain(fqdn) || fs.filterConnPair(srcIP, dstIP) {
 								continue
 							}
 
