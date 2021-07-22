@@ -21,12 +21,6 @@ type testCaseDomain struct {
 	msg    string
 }
 
-type testCaseIsProxyIP struct {
-	ip  string
-	out bool
-	msg string
-}
-
 type testCaseSingleIP struct {
 	ip  string
 	out bool

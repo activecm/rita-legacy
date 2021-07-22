@@ -44,7 +44,6 @@ type (
 		parseThreads         int
 		batchSizeBytes       int64
 		internal             []*net.IPNet
-		httpProxyServers     []*net.IPNet
 		alwaysIncluded       []*net.IPNet
 		neverIncluded        []*net.IPNet
 		alwaysIncludedDomain []string
