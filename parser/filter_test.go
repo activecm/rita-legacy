@@ -33,34 +33,6 @@ type testCaseSingleIP struct {
 	msg string
 }
 
-func TestCheckIfProxyServer(t *testing.T) {
-
-	fsTest := &FSImporter{
-		res:              nil,
-		indexingThreads:  1,
-		parseThreads:     1,
-		httpProxyServers: util.ParseSubnets([]string{"1.1.1.1", "1.1.1.2/32", "1.2.0.0/16"}),
-	}
-
-	// all permutations for possible IP matches/non-matches
-	singleIPNoCIDRFiltered := "1.1.1.1"
-	singleIPCIDRFiltered := "1.1.1.2"
-	cidrRangeFiltered := "1.2.1.1"
-	singleIPNotFiltered := "1.3.1.1"
-
-	testCases := []testCaseIsProxyIP{
-		{singleIPNoCIDRFiltered, true, "IP should match single, non-CIDR notation Proxy IP entry"},
-		{singleIPCIDRFiltered, true, "IP should match CIDR notation (/32) for single Proxy IP entry"},
-		{cidrRangeFiltered, true, "IP should match CIDR notation (/16) for Proxy IP range entry"},
-		{singleIPNotFiltered, false, "IP should not match any Proxy IP entries"},
-	}
-
-	for _, test := range testCases {
-		output := fsTest.checkIfProxyServer(net.ParseIP(test.ip))
-		assert.Equal(t, test.out, output, test.msg)
-	}
-}
-
 func TestFilterConnPairWithInternalSubnets(t *testing.T) {
 
 	fsTest := &FSImporter{
