@@ -683,9 +683,12 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// to an FQDN through the dstIP proxy. We need to handle that
 							// as a special case here so that we don't filter internal->internal
 							// connections if the dstIP is an internal IP because the dstIP
-							// is an intermediary and not the final destination.
+							// is an intermediary and not the final destination. The dstIP filter check
+							// is not included for proxy connections either because it isn't really the
+							// destination and I don't think that it makes sense in this context to check
+							// for it.
 							if dstIsProxy {
-								if fs.filterDomain(fqdn) || fs.filterSingleIP(srcIP) || fs.filterSingleIP(dstIP) {
+								if fs.filterDomain(fqdn) || fs.filterSingleIP(srcIP) {
 									continue
 								}
 							} else if fs.filterDomain(fqdn) || fs.filterConnPair(srcIP, dstIP) {
