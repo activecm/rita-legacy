@@ -10,10 +10,9 @@ import (
 // filter provides methods for excluding IP addresses, domains, and determining proxy servers during the import step
 // based on the user configuration
 type filter struct {
-	internal         []*net.IPNet
-	httpProxyServers []*net.IPNet
-	alwaysIncluded   []*net.IPNet
-	neverIncluded    []*net.IPNet
+	internal       []*net.IPNet
+	alwaysIncluded []*net.IPNet
+	neverIncluded  []*net.IPNet
 
 	alwaysIncludedDomain []string
 	neverIncludedDomain  []string
@@ -22,7 +21,6 @@ type filter struct {
 func newFilter(conf *config.Config) filter {
 	return filter{
 		internal:             util.ParseSubnets(conf.S.Filtering.InternalSubnets),
-		httpProxyServers:     util.ParseSubnets(conf.S.Filtering.HTTPProxyServers),
 		alwaysIncluded:       util.ParseSubnets(conf.S.Filtering.AlwaysInclude),
 		neverIncluded:        util.ParseSubnets(conf.S.Filtering.NeverInclude),
 		alwaysIncludedDomain: conf.S.Filtering.AlwaysIncludeDomain,
@@ -128,8 +126,4 @@ func (fs *filter) filterDomain(domain string) bool {
 
 func (fs *filter) checkIfInternal(host net.IP) bool {
 	return util.ContainsIP(fs.internal, host)
-}
-
-func (fs *filter) checkIfProxyServer(host net.IP) bool {
-	return util.ContainsIP(fs.httpProxyServers, host)
 }
