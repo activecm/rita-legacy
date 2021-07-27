@@ -41,6 +41,7 @@ func (r *repo) CreateIndexes() error {
 
 	// set desired indexes
 	indexes := []mgo.Index{
+		{Key: []string{"$text:host"}, DefaultLanguage: "none"},
 		{Key: []string{"host"}, Unique: true},
 		{Key: []string{"dat.ips.ip", "dat.ips.network_uuid"}},
 	}
