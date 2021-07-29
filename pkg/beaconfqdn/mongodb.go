@@ -86,6 +86,7 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		r.res.Config.S.Rolling.CurrentChunk,
 		r.res.DB,
 		r.res.Config,
+		r.res.Log,
 		writerWorker.collect,
 		writerWorker.close,
 	)
