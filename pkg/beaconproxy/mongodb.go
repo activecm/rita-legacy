@@ -85,6 +85,7 @@ func (r *repo) Upsert(proxyHostnameMap map[string]*Input) {
 		r.res.Config.S.Rolling.CurrentChunk,
 		r.res.DB,
 		r.res.Config,
+		r.res.Log,
 		writerWorker.collect,
 		writerWorker.close,
 	)

@@ -330,6 +330,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 
 	nExactMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
 		Find(maxBeaconMatchExactQuery).Count()
+
 	if err != nil && err != mgo.ErrNotFound {
 		a.log.WithError(err).WithFields(log.Fields{
 			"src":              src.IP,
