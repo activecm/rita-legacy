@@ -80,6 +80,7 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input) {
 		r.res.Config.S.Rolling.CurrentChunk,
 		r.res.DB,
 		r.res.Config,
+		r.res.Log,
 		writerWorker.collect,
 		writerWorker.close,
 	)
