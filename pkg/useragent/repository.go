@@ -11,11 +11,23 @@ type Repository interface {
 	Upsert(useragentMap map[string]*Input)
 }
 
-//update ....
+// upsertInfo captures the parameters needed to call mgo .Update or .Upsert against a collection
+type upsertInfo struct {
+	selector bson.M
+	query    bson.M
+}
+
+// updateWithArrayFiltersInfo captures the parameters needed to call mgo .UpdateWithArrayFilters against a collection
+type updateWithArrayFiltersInfo struct {
+	selector     bson.M
+	query        bson.M
+	arrayFilters []bson.M
+}
+
+// update represents MongoDB updates to be carried out by the writer
 type update struct {
-	selector   bson.M
-	query      bson.M
-	collection string
+	useragent upsertInfo
+	host      updateWithArrayFiltersInfo
 }
 
 //Input ....

@@ -48,17 +48,35 @@ func (w *writer) start() {
 		defer ssn.Close()
 
 		for data := range w.writeChannel {
-
-			info, err := ssn.DB(w.db.GetSelectedDB()).C(data.collection).Upsert(data.selector, data.query)
-			if err != nil ||
-				((info.Updated == 0) && (info.UpsertedId == nil)) {
-				w.log.WithFields(log.Fields{
-					"Module": "useragent",
-					"Info":   info,
-					"Data":   data,
-				}).Error(err)
+			if data.useragent.query != nil {
+				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.UserAgent.UserAgentTable).Upsert(
+					data.useragent.selector, data.useragent.query,
+				)
+				if err != nil ||
+					((info.Updated == 0) && (info.UpsertedId == nil)) {
+					w.log.WithFields(log.Fields{
+						"Module":     "useragent",
+						"Collection": w.conf.T.UserAgent.UserAgentTable,
+						"Info":       info,
+						"Data":       data,
+					}).Error(err)
+				}
 			}
 
+			if data.host.query != nil {
+				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).UpdateWithArrayFilters(
+					data.host.selector, data.host.query, data.host.arrayFilters, false,
+				)
+				if err != nil ||
+					((info.Updated == 0) && (info.UpsertedId == nil)) {
+					w.log.WithFields(log.Fields{
+						"Module":     "useragent",
+						"Collection": w.conf.T.Structure.HostTable,
+						"Info":       info,
+						"Data":       data,
+					}).Error(err)
+				}
+			}
 		}
 		w.writeWg.Done()
 	}()

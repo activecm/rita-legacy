@@ -57,8 +57,6 @@ func (a *analyzer) start() {
 		defer ssn.Close()
 
 		for datum := range a.analysisChannel {
-			// set up writer output
-			var output update
 
 			if len(datum.OrigIps) > 10 {
 				datum.OrigIps = datum.OrigIps[:10]
@@ -82,36 +80,36 @@ func (a *analyzer) start() {
 				"$setOnInsert": bson.M{"ja3": datum.JA3},
 			}
 
-			output.query = query
-
-			output.collection = a.conf.T.UserAgent.UserAgentTable
 			// create selector for output
-			output.selector = bson.M{"user_agent": datum.Name}
+			selector := bson.M{"user_agent": datum.Name}
 
-			// set to writer channel
-			a.analyzedCallback(output)
+			// send to writer channel
+			a.analyzedCallback(update{useragent: upsertInfo{
+				query:    query,
+				selector: selector,
+			}})
 
 			// this is for flagging rarely used j3 and useragent hosts
 			if len(datum.OrigIps) < 5 {
 				maxLeft := 5 - len(datum.OrigIps)
 
 				query := []bson.M{
-					bson.M{"$match": bson.M{"user_agent": datum.Name}},
-					bson.M{"$project": bson.M{
+					{"$match": bson.M{"user_agent": datum.Name}},
+					{"$project": bson.M{
 						"dat.orig_ips.network_name": 0, // drop network_name before UniqueIP comparisons
 					}},
-					bson.M{"$project": bson.M{"ips": "$dat.orig_ips", "user_agent": 1}},
-					bson.M{"$unwind": "$ips"},
-					bson.M{"$unwind": "$ips"}, // not an error, needs to be done twice
-					bson.M{"$group": bson.M{
+					{"$project": bson.M{"ips": "$dat.orig_ips", "user_agent": 1}},
+					{"$unwind": "$ips"},
+					{"$unwind": "$ips"}, // not an error, needs to be done twice
+					{"$group": bson.M{
 						"_id": "$user_agent",
 						"ips": bson.M{"$addToSet": "$ips"},
 					}},
-					bson.M{"$project": bson.M{
+					{"$project": bson.M{
 						"count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
 						"ips":   "$ips",
 					}},
-					bson.M{"$match": bson.M{"count": bson.M{"$lte": maxLeft}}},
+					{"$match": bson.M{"count": bson.M{"$lte": maxLeft}}},
 				}
 
 				var rareSigList struct {
@@ -143,11 +141,10 @@ func (a *analyzer) start() {
 						newRecordFlag = true
 					}
 
-					output := hostQuery(a.chunk, datum.Name, rareSigIP, newRecordFlag)
-					output.collection = a.conf.T.Structure.HostTable
+					updateInfo := hostQuery(a.chunk, datum.Name, rareSigIP, newRecordFlag)
 
 					// set to writer channel
-					a.analyzedCallback(output)
+					a.analyzedCallback(update{host: updateInfo})
 
 				}
 			}
@@ -159,8 +156,8 @@ func (a *analyzer) start() {
 }
 
 //hostQuery ...
-func hostQuery(chunk int, useragentStr string, ip data.UniqueIP, newFlag bool) update {
-	var output update
+func hostQuery(chunk int, useragentStr string, ip data.UniqueIP, newFlag bool) updateWithArrayFiltersInfo {
+	var output updateWithArrayFiltersInfo
 
 	// create query
 	query := bson.M{}
@@ -171,24 +168,29 @@ func hostQuery(chunk int, useragentStr string, ip data.UniqueIP, newFlag bool) u
 				"rsig":  useragentStr,
 				"rsigc": 1,
 				"cid":   chunk,
-			}}
+			},
+		}
+		output.query = query
 
 		// create selector for output ,
-		output.query = query
 		output.selector = ip.BSONKey()
 
 	} else {
 
 		query["$set"] = bson.M{
-			"dat.$.rsigc": 1,
-			"dat.$.cid":   chunk,
+			"dat.$[t].rsigc": 1,
+			"dat.$[t].cid":   chunk,
 		}
+		output.query = query
+
+		output.arrayFilters = []bson.M{{
+			"t.rsig": useragentStr,
+		}}
 
 		// create selector for output
 		// we don't add cid to the selector query because if the useragent string is
 		// already listed, we just want to update it to the most recent chunk instead
 		// of adding more
-		output.query = query
 		output.selector = ip.BSONKey()
 		output.selector["dat.rsig"] = useragentStr
 	}
