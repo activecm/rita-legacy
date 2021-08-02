@@ -199,7 +199,7 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fs.buildBeacons(uconnMap)
 
 		// build or update the FQDN Beacons Table
-		fs.buildFQDNBeacons(hostnameMap)
+		fs.buildFQDNBeacons(hostMap)
 
 		// build or update the Proxy Beacons Table
 		fs.buildProxyBeacons(proxyHostnameMap)
@@ -1211,9 +1211,9 @@ func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input) {
 
 }
 
-func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
+func (fs *FSImporter) buildFQDNBeacons(hostMap map[string]*host.Input) {
 	if fs.res.Config.S.BeaconFQDN.Enabled {
-		if len(hostnameMap) > 0 {
+		if len(hostMap) > 0 {
 			beaconFQDNRepo := beaconfqdn.NewMongoRepository(fs.res)
 
 			err := beaconFQDNRepo.CreateIndexes()
@@ -1222,7 +1222,7 @@ func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
 			}
 
 			// send uconns to beacon analysis
-			beaconFQDNRepo.Upsert(hostnameMap)
+			beaconFQDNRepo.Upsert(hostMap)
 		} else {
 			fmt.Println("\t[!] No FQDN Beacon data to analyze")
 		}

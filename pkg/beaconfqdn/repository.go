@@ -2,7 +2,7 @@ package beaconfqdn
 
 import (
 	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/hostname"
+	"github.com/activecm/rita/pkg/host"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -11,7 +11,7 @@ type (
 	// Repository for host collection
 	Repository interface {
 		CreateIndexes() error
-		Upsert(hostnameMap map[string]*hostname.Input)
+		Upsert(hostMap map[string]*host.Input)
 	}
 
 	updateInfo struct {
@@ -23,6 +23,26 @@ type (
 	update struct {
 		beacon     updateInfo
 		hostBeacon updateInfo
+	}
+
+	// hostnameIPs is used with reverseDNSQueryWithIPs() in order to read in records
+	// from the `hostnames` collection via a MongoDB aggregation
+	hostnameIPs struct {
+		Host        string          `bson:"_id"`
+		ResolvedIPs []data.UniqueIP `bson:"ips"`
+	}
+
+	//fqdnInput represents intermediate state required to perform fqdn beaconing analysis
+	fqdnInput struct {
+		FQDN            string           //A hostname
+		Src             data.UniqueSrcIP // Single src that connected to a hostname
+		ResolvedIPs     data.UniqueIPSet //Set of resolved UniqueIPs associated with a given hostname
+		InvalidCertFlag bool
+		ConnectionCount int64
+		TotalBytes      int64
+		TsList          []int64
+		OrigBytesList   []int64
+		DstBSONList     []bson.M // set of resolved UniqueDstIPs since we need it in that format
 	}
 
 	//TSData ...

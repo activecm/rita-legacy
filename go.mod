@@ -12,6 +12,7 @@ require (
 	github.com/activecm/mgosec v0.1.1
 	github.com/activecm/rita-bl v0.0.0-20200806232046-0db4a39fcf49
 	github.com/blang/semver v3.5.1+incompatible
+	github.com/briandowns/spinner v1.16.0
 	github.com/creasty/defaults v1.3.0
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 	github.com/golang/protobuf v1.3.3 // indirect
@@ -19,7 +20,6 @@ require (
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/safebrowsing v0.0.0-20190214191829-0feabcc2960b // indirect
 	github.com/google/uuid v1.1.2
-	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/olekukonko/tablewriter v0.0.2-0.20190214164707-93462a5dfaa6
 	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
