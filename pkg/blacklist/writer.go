@@ -1,8 +1,9 @@
 package blacklist
 
 import (
-	log "github.com/sirupsen/logrus"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -12,11 +13,11 @@ type (
 	//writer blah blah
 	writer struct { //structure for writing blacklist results to mongo
 		targetCollection string
-		db               *database.DB     // provides access to MongoDB
-		conf             *config.Config   // contains details needed to access MongoDB
-		log              *log.Logger      // main logger for RITA
-		writeChannel     chan hostsUpdate // holds analyzed data
-		writeWg          sync.WaitGroup   // wait for writing to finish
+		db               *database.DB                    // provides access to MongoDB
+		conf             *config.Config                  // contains details needed to access MongoDB
+		log              *log.Logger                     // main logger for RITA
+		writeChannel     chan updateWithArrayFiltersInfo // holds analyzed data
+		writeWg          sync.WaitGroup                  // wait for writing to finish
 	}
 )
 
@@ -27,12 +28,12 @@ func newWriter(targetCollection string, db *database.DB, conf *config.Config, lo
 		db:               db,
 		conf:             conf,
 		log:              log,
-		writeChannel:     make(chan hostsUpdate),
+		writeChannel:     make(chan updateWithArrayFiltersInfo),
 	}
 }
 
 //collect sends a group of results to the writer for writing out to the database
-func (w *writer) collect(data hostsUpdate) {
+func (w *writer) collect(data updateWithArrayFiltersInfo) {
 	w.writeChannel <- data
 }
 
@@ -51,7 +52,9 @@ func (w *writer) start() {
 
 		for data := range w.writeChannel {
 
-			info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.selector, data.query)
+			info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).UpdateWithArrayFilters(
+				data.selector, data.query, data.arrayFilters, false,
+			)
 
 			if err != nil ||
 				((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {

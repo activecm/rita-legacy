@@ -13,19 +13,19 @@ import (
 type (
 	//analyzer : structure for host analysis
 	analyzer struct {
-		chunk            int                //current chunk (0 if not on rolling analysis)
-		chunkStr         string             //current chunk (0 if not on rolling analysis)
-		db               *database.DB       // provides access to MongoDB
-		conf             *config.Config     // contains details needed to access MongoDB
-		analyzedCallback func(hostsUpdate)  // called on each analyzed result
-		closedCallback   func()             // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan data.UniqueIP // holds unanalyzed data
-		analysisWg       sync.WaitGroup     // wait for analysis to finish
+		chunk            int                              //current chunk (0 if not on rolling analysis)
+		chunkStr         string                           //current chunk (0 if not on rolling analysis)
+		db               *database.DB                     // provides access to MongoDB
+		conf             *config.Config                   // contains details needed to access MongoDB
+		analyzedCallback func(updateWithArrayFiltersInfo) // called on each analyzed result
+		closedCallback   func()                           // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan data.UniqueIP               // holds unanalyzed data
+		analysisWg       sync.WaitGroup                   // wait for analysis to finish
 	}
 )
 
 //newAnalyzer creates a new collector for gathering data
-func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(hostsUpdate), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(updateWithArrayFiltersInfo), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
 		chunkStr:         strconv.Itoa(chunk),
@@ -106,35 +106,37 @@ func (a *analyzer) start() {
 }
 
 //appendBlacklistedDstQuery adds a blacklist record to a host which contacted by a blacklisted destination
-func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnData connectionPeer, newFlag bool) hostsUpdate {
-	var output hostsUpdate
-
-	// create query
-	query := bson.M{}
+func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnData connectionPeer,
+	newFlag bool) updateWithArrayFiltersInfo {
+	var output updateWithArrayFiltersInfo
 
 	if newFlag {
 
-		query["$push"] = bson.M{
-			"dat": bson.M{
+		output.query = bson.M{
+			"$push": bson.M{"dat": bson.M{
 				"bl":             blacklistedDst,
 				"bl_out_count":   1,
 				"bl_total_bytes": srcConnData.TotalBytes,
 				"bl_conn_count":  srcConnData.Connections,
 				"cid":            chunk,
-			}}
+			}},
+		}
 
 		// create selector for output
-		output.query = query
 		output.selector = srcConnData.Host.BSONKey()
 
 	} else {
 
-		query["$set"] = bson.M{
-			"dat.$.bl_conn_count":  srcConnData.Connections,
-			"dat.$.bl_total_bytes": srcConnData.TotalBytes,
-			"dat.$.bl_out_count":   1,
-			"dat.$.cid":            chunk,
-		}
+		output.query = bson.M{"$set": bson.M{
+			"dat.$[t].bl_conn_count":  srcConnData.Connections,
+			"dat.$[t].bl_total_bytes": srcConnData.TotalBytes,
+			"dat.$[t].bl_out_count":   1,
+			"dat.$[t].cid":            chunk,
+		}}
+
+		output.arrayFilters = []bson.M{{
+			"t.bl": blacklistedDst.BSONKey(),
+		}}
 
 		// create selector for output
 		output.selector = srcConnData.Host.BSONKey()
@@ -145,35 +147,37 @@ func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnD
 }
 
 //appendBlacklistedSrcQuery adds a blacklist record to a host which was contacted by a blacklisted source
-func appendBlacklistedSrcQuery(chunk int, blacklistedSrc data.UniqueIP, dstConnData connectionPeer, newFlag bool) hostsUpdate {
-	var output hostsUpdate
-
-	// create query
-	query := bson.M{}
+func appendBlacklistedSrcQuery(chunk int, blacklistedSrc data.UniqueIP, dstConnData connectionPeer,
+	newFlag bool) updateWithArrayFiltersInfo {
+	var output updateWithArrayFiltersInfo
 
 	if newFlag {
 
-		query["$push"] = bson.M{
-			"dat": bson.M{
+		output.query = bson.M{
+			"$push": bson.M{"dat": bson.M{
 				"bl":             blacklistedSrc,
 				"bl_in_count":    1,
 				"bl_total_bytes": dstConnData.TotalBytes,
 				"bl_conn_count":  dstConnData.Connections,
 				"cid":            chunk,
-			}}
+			}},
+		}
 
 		// create selector for output
-		output.query = query
 		output.selector = dstConnData.Host.BSONKey()
 
 	} else {
 
-		query["$set"] = bson.M{
-			"dat.$.bl_conn_count":  dstConnData.Connections,
-			"dat.$.bl_total_bytes": dstConnData.TotalBytes,
-			"dat.$.bl_in_count":    1,
-			"dat.$.cid":            chunk,
-		}
+		output.query = bson.M{"$set": bson.M{
+			"dat.$[t].bl_conn_count":  dstConnData.Connections,
+			"dat.$[t].bl_total_bytes": dstConnData.TotalBytes,
+			"dat.$[t].bl_in_count":    1,
+			"dat.$[t].cid":            chunk,
+		}}
+
+		output.arrayFilters = []bson.M{{
+			"t.bl": blacklistedSrc.BSONKey(),
+		}}
 
 		// create selector for output
 		output.selector = dstConnData.Host.BSONKey()

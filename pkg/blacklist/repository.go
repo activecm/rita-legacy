@@ -11,13 +11,15 @@ type Repository interface {
 	Upsert()
 }
 
-//hostsUpdate is used to update the hosts table with blacklisted source and destinations
-type hostsUpdate struct {
-	selector bson.M
-	query    bson.M
+// updateWithArrayFiltersInfo captures the parameters needed to call mgo .UpdateWithArrayFilters against a collection
+type updateWithArrayFiltersInfo struct {
+	selector     bson.M
+	query        bson.M
+	arrayFilters []bson.M
 }
 
-//connectionPeer records how many connections were made to/ from a given host and how many bytes were sent/ received
+//connectionPeer records how many connections were made to/ from a given host and how many bytes were sent/ received.
+//used to read data from MongoBD in getUniqueConnsforBLSource() and getUniqueConnsforBLDestination()
 type connectionPeer struct {
 	Host        data.UniqueIP `bson:"_id"`
 	Connections int           `bson:"bl_conn_count"`

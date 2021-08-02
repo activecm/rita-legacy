@@ -9,11 +9,11 @@ go 1.14
 require (
 	github.com/VividCortex/ewma v1.1.1 // indirect
 	github.com/activecm/mgorus v0.1.1
-	github.com/activecm/mgosec v0.1.1
+	github.com/activecm/mgosec v0.1.2-0.20191108195135-d918492993da
 	github.com/activecm/rita-bl v0.0.0-20200806232046-0db4a39fcf49
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/creasty/defaults v1.3.0
-	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
+	github.com/globalsign/mgo v0.0.0-20190517090918-73267e130ca1
 	github.com/golang/protobuf v1.3.3 // indirect
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring v1.0.0 // indirect
