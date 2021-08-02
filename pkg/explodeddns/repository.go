@@ -1,5 +1,7 @@
 package explodeddns
 
+import "github.com/globalsign/mgo/bson"
+
 // Repository for explodedDNS collection
 type Repository interface {
 	CreateIndexes() error
@@ -7,10 +9,23 @@ type Repository interface {
 	Upsert(domainMap map[string]int)
 }
 
-//update ....
+// upsertInfo captures the parameters needed to call mgo .Update or .Upsert against a collection
+type upsertInfo struct {
+	selector bson.M
+	query    bson.M
+}
+
+// updateWithArrayFiltersInfo captures the parameters needed to call mgo .UpdateWithArrayFilters against a collection
+type updateWithArrayFiltersInfo struct {
+	selector     bson.M
+	query        bson.M
+	arrayFilters []bson.M
+}
+
+// update represents MongoDB updates to be carried out by the writer
 type update struct {
-	selector interface{}
-	query    interface{}
+	newExplodedDNS      upsertInfo
+	existingExplodedDNS updateWithArrayFiltersInfo
 }
 
 //domain ....

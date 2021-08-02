@@ -92,17 +92,13 @@ func (a *analyzer) start() {
 					break
 				}
 
-				var res2 []dns
+				var dbEntries []dns
 
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.ExplodedDNSTable).Find(bson.M{"domain": entry}).All(&res2)
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.ExplodedDNSTable).Find(bson.M{"domain": entry}).All(&dbEntries)
 
 				// if this is a brand NEW domain string and isn't in the exploded dns table:
-				if len(res2) <= 0 {
-
-					// set up writer output
-					var output update
-
-					output.query = bson.M{
+				if len(dbEntries) <= 0 {
+					query := bson.M{
 						"$push": bson.M{"dat": bson.M{
 							"visited": data.count,
 							"cid":     a.chunk,
@@ -116,54 +112,64 @@ func (a *analyzer) start() {
 					}
 
 					// create selector for output
-					output.selector = bson.M{"domain": entry}
+					selector := bson.M{"domain": entry}
 
 					// set to writer channel
-					a.analyzedCallback(output)
+					a.analyzedCallback(update{newExplodedDNS: upsertInfo{
+						query:    query,
+						selector: selector,
+					}})
 
 					// if this domain string is already EXISTING in the exploded dns table:
 				} else {
 
 					// set last updated value
-					lastUpdated := res2[0].CID
-
-					// set up writer output
-					var output update
+					lastUpdated := dbEntries[0].CID
 
 					// we need to find out if we can push to an existing chunk that was
 					// created in the current import or if the last update was before this,
 					// meaning we need to create a new chunk and push it in.
 					if lastUpdated == a.chunk {
 
+						var updateInfo updateWithArrayFiltersInfo
 						// this means, if the full domain is already in the hostnames table,
 						// we've parsed it in on a previous rita import and should not add to the
 						// subdomain count, only the visited count as the subdomain count is unique
 						if alreadyCountedSubsFlag {
-							output.query = bson.M{
-								"$inc": bson.M{"dat.$.visited": data.count},
+							updateInfo.query = bson.M{
+								"$inc": bson.M{"dat.$[t].visited": data.count},
 							}
+							updateInfo.arrayFilters = []bson.M{{
+								"t.visited": bson.M{"$exists": true}, // in case we want to add more kinds of .dat docs
+								"t.cid":     a.chunk,
+							}}
 						} else {
-							output.query = bson.M{
+							updateInfo.query = bson.M{
 								"$inc": bson.M{
-									"subdomain_count": 1,
-									"dat.$.visited":   data.count,
+									"subdomain_count":  1,
+									"dat.$[t].visited": data.count,
 								},
 							}
+							updateInfo.arrayFilters = []bson.M{{
+								"t.visited": bson.M{"$exists": true}, // in case we want to add more kinds of .dat docs
+								"t.cid":     a.chunk,
+							}}
 						}
 
 						// create selector for output
-						output.selector = bson.M{"domain": entry, "dat.cid": a.chunk}
+						updateInfo.selector = bson.M{"domain": entry, "dat.cid": a.chunk}
 
 						// set to writer channel
-						a.analyzedCallback(output)
+						a.analyzedCallback(update{existingExplodedDNS: updateInfo})
 
 					} else { // chunk is outdated, need to make a new one
+						var updateInfo updateWithArrayFiltersInfo
 
 						// this means, if the full domain is already in the hostnames table,
 						// we've parsed it in on a previous rita import and should not add to the
 						// subdomain count, only the visited count as the subdomain count is unique
 						if alreadyCountedSubsFlag {
-							output.query = bson.M{
+							updateInfo.query = bson.M{
 								"$set": bson.M{"cid": a.chunk},
 								"$push": bson.M{"dat": bson.M{
 									"visited": data.count,
@@ -171,7 +177,7 @@ func (a *analyzer) start() {
 								}},
 							}
 						} else {
-							output.query = bson.M{
+							updateInfo.query = bson.M{
 								"$set": bson.M{"cid": a.chunk},
 								"$inc": bson.M{
 									"subdomain_count": 1,
@@ -184,10 +190,10 @@ func (a *analyzer) start() {
 						}
 
 						// create selector for output
-						output.selector = bson.M{"domain": entry}
+						updateInfo.selector = bson.M{"domain": entry}
 
 						// set to writer channel
-						a.analyzedCallback(output)
+						a.analyzedCallback(update{existingExplodedDNS: updateInfo})
 
 					}
 
