@@ -101,7 +101,3 @@ func (fs *FSImporter) filterDomain(domain string) bool {
 	// default to not filter the connection pair
 	return false
 }
-
-func (fs *FSImporter) checkIfProxyServer(host net.IP) bool {
-	return util.ContainsIP(fs.httpProxyServers, host)
-}

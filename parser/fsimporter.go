@@ -44,7 +44,6 @@ type (
 		parseThreads         int
 		batchSizeBytes       int64
 		internal             []*net.IPNet
-		httpProxyServers     []*net.IPNet
 		alwaysIncluded       []*net.IPNet
 		neverIncluded        []*net.IPNet
 		alwaysIncludedDomain []string
@@ -71,7 +70,6 @@ func NewFSImporter(res *resources.Resources,
 		parseThreads:         parseThreads,
 		batchSizeBytes:       2 * (2 << 30), // 2 gigabytes (used to not run out of memory while importing)
 		internal:             util.ParseSubnets(res.Config.S.Filtering.InternalSubnets),
-		httpProxyServers:     util.ParseSubnets(res.Config.S.Filtering.HTTPProxyServers),
 		alwaysIncluded:       util.ParseSubnets(res.Config.S.Filtering.AlwaysInclude),
 		neverIncluded:        util.ParseSubnets(res.Config.S.Filtering.NeverInclude),
 		alwaysIncludedDomain: res.Config.S.Filtering.AlwaysIncludeDomain,
@@ -674,7 +672,30 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// parse host
 							fqdn := parseHTTP.Host
 
-							if fs.filterDomain(fqdn) || fs.filterConnPair(srcIP, dstIP) {
+							// parse method type
+							method := parseHTTP.Method
+
+							// check if destination is a proxy server based on HTTP method
+							dstIsProxy := (method == "CONNECT")
+
+							// if the HTTP method is CONNECT, then the srcIP is communicating
+							// to an FQDN through the dstIP proxy. We need to handle that
+							// as a special case here so that we don't filter internal->internal
+							// connections if the dstIP is an internal IP because the dstIP
+							// is an intermediary and not the final destination.
+							//
+							// The dstIP filter check is not included for proxy connections either
+							// because it isn't really the destination and I don't think that it makes
+							// sense in this context to check for it. If the proxy IP is external,
+							// this will also allow a user to filter results from other modules
+							// (e.g., beacons), where false positives might arise due to the proxy IP
+							// appearing as a destination, while still allowing for processing that
+							// data for the proxy modules
+							if dstIsProxy {
+								if fs.filterDomain(fqdn) || fs.filterSingleIP(srcIP) {
+									continue
+								}
+							} else if fs.filterDomain(fqdn) || fs.filterConnPair(srcIP, dstIP) {
 								continue
 							}
 
@@ -686,15 +707,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// get aggregation keys for ip addresses and connection pair
 							srcProxyFQDNKey := srcProxyFQDNTrio.MapKey()
 
-							// check if destination is a proxy server
-							dstIsProxy := fs.checkIfProxyServer(dstIP)
-
-							// parse method type
-							method := parseHTTP.Method
-
 							// check if internal IP is requesting a connection
 							// through a proxy
-							if method == "CONNECT" && dstIsProxy {
+							if dstIsProxy {
 
 								// Safely store the number of conns for this uconn
 								mutex.Lock()

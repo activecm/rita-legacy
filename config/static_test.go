@@ -102,7 +102,6 @@ var testConfigFullExp = StaticCfg{
 		AlwaysInclude:       []string{"8.8.8.8/32"},
 		NeverInclude:        []string{"8.8.4.4/32"},
 		InternalSubnets:     []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"},
-		HTTPProxyServers:    []string{"1.1.1.1", "1.1.1.2/32", "1.2.0.0/16"},
 		AlwaysIncludeDomain: []string{"bad.com", "google.com", "*.myotherdomain.com"},
 		NeverIncludeDomain:  []string{"good.com", "google.com", "*.mydomain.com"},
 	},
