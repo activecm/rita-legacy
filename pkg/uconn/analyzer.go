@@ -199,12 +199,7 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP data.UniqueIP, extern
 	var resListExactMatch []interface{}
 
 	maxDurMatchExactQuery := localIP.BSONKey()
-	maxDurMatchExactQuery["dat"] = bson.M{
-		"$elemMatch": bson.M{
-			"mdip":         externalIP.BSONKey(),
-			"max_duration": bson.M{"$lte": maxDur},
-		},
-	}
+	maxDurMatchExactQuery = externalIP.InsertPrefixedBSONKey(maxDurMatchExactQuery, "dat.mdip")
 
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchExactQuery).All(&resListExactMatch)
 
