@@ -300,14 +300,12 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 
 		newFlag := false
 
-		var resList []interface{}
-
 		hostSelector := src.BSONKey()
-		hostSelector["dat.icdst"] = dst.BSONKey()
+		hostSelector = dst.InsertPrefixedBSONKey(hostSelector, "dat.icdst")
 
-		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).All(&resList)
+		nExistingEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).Count()
 
-		if len(resList) <= 0 {
+		if nExistingEntries == 0 {
 			newFlag = true
 		}
 
