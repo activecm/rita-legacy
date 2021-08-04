@@ -96,22 +96,22 @@ func (a *analyzer) start() {
 				maxLeft := 5 - len(datum.OrigIps)
 
 				query := []bson.M{
-					bson.M{"$match": bson.M{"user_agent": datum.Name}},
-					bson.M{"$project": bson.M{
+					{"$match": bson.M{"user_agent": datum.Name}},
+					{"$project": bson.M{
 						"dat.orig_ips.network_name": 0, // drop network_name before UniqueIP comparisons
 					}},
-					bson.M{"$project": bson.M{"ips": "$dat.orig_ips", "user_agent": 1}},
-					bson.M{"$unwind": "$ips"},
-					bson.M{"$unwind": "$ips"}, // not an error, needs to be done twice
-					bson.M{"$group": bson.M{
+					{"$project": bson.M{"ips": "$dat.orig_ips", "user_agent": 1}},
+					{"$unwind": "$ips"},
+					{"$unwind": "$ips"}, // not an error, needs to be done twice
+					{"$group": bson.M{
 						"_id": "$user_agent",
 						"ips": bson.M{"$addToSet": "$ips"},
 					}},
-					bson.M{"$project": bson.M{
+					{"$project": bson.M{
 						"count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
 						"ips":   "$ips",
 					}},
-					bson.M{"$match": bson.M{"count": bson.M{"$lte": maxLeft}}},
+					{"$match": bson.M{"count": bson.M{"$lte": maxLeft}}},
 				}
 
 				var rareSigList struct {
@@ -124,22 +124,16 @@ func (a *analyzer) start() {
 
 					newRecordFlag := false // have we created a rare signature entry for this host in this chunk yet?
 
-					type hostEntry struct {
-						CID int `bson:"cid"`
-					}
-
-					var hostEntries []hostEntry
-
 					entryHostQuery := rareSigIP.BSONKey()
 					entryHostQuery["dat.rsig"] = datum.Name
-					//TODO: Consider adding the chunk to the query instead of checking it after the query
+					entryHostQuery["cid"] = a.chunk
 
-					_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(entryHostQuery).All(&hostEntries)
+					nExistingEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(entryHostQuery).Count()
 
 					//TODO: I think there might be a bug here. From what I can tell, if we set the new record flag
 					// when there is a rare signature record from a previous chunk, then we will end up pushing a duplicate
 					// record for each chunk. We should investigate removing this chunk check here. -LL
-					if len(hostEntries) <= 0 || hostEntries[0].CID != a.chunk {
+					if nExistingEntries == 0 {
 						newRecordFlag = true
 					}
 
