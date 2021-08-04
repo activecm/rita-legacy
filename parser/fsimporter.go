@@ -961,7 +961,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							ja3Hash := parseSSL.JA3
 							src := parseSSL.Source
 							dst := parseSSL.Destination
-							host := parseSSL.ServerName
+							hostName := parseSSL.ServerName
 							certStatus := parseSSL.ValidationStatus
 
 							srcIP := net.ParseIP(src)
@@ -972,6 +972,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
 
 							srcDstKey := srcDstPair.MapKey()
+							srcKey := srcUniqIP.MapKey()
 							dstKey := dstUniqIP.MapKey()
 
 							if ja3Hash == "" {
@@ -986,7 +987,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								useragentMap[ja3Hash] = &useragent.Input{
 									Name:     ja3Hash,
 									Seen:     1,
-									Requests: []string{host},
+									Requests: []string{hostName},
 									JA3:      true,
 								}
 								useragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
@@ -998,8 +999,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								useragentMap[ja3Hash].OrigIps.Insert(srcUniqIP)
 
 								// add request string to unique array
-								if !stringInSlice(host, useragentMap[ja3Hash].Requests) {
-									useragentMap[ja3Hash].Requests = append(useragentMap[ja3Hash].Requests, host)
+								if !stringInSlice(hostName, useragentMap[ja3Hash].Requests) {
+									useragentMap[ja3Hash].Requests = append(useragentMap[ja3Hash].Requests, hostName)
 								}
 							}
 
@@ -1007,6 +1008,27 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// Run conn pair through filter to filter out certain connections
 							ignore := fs.filterConnPair(srcIP, dstIP)
 							if !ignore {
+								// Check if the map value is set
+								if _, ok := hostMap[srcKey]; !ok {
+									// create new host record with src and dst
+									hostMap[srcKey] = &host.Input{
+										Host:    srcUniqIP,
+										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
+										IP4:     util.IsIPv4(src),
+										IP4Bin:  util.IPv4ToBinary(srcIP),
+									}
+								}
+
+								// Check if the map value is set
+								if _, ok := hostMap[dstKey]; !ok {
+									// create new host record with src and dst
+									hostMap[dstKey] = &host.Input{
+										Host:    dstUniqIP,
+										IsLocal: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
+										IP4:     util.IsIPv4(dst),
+										IP4Bin:  util.IPv4ToBinary(dstIP),
+									}
+								}
 
 								// Check if uconn map value is set, because this record could
 								// come before a relevant uconns record (or may be the only source
@@ -1018,6 +1040,9 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 										IsLocalSrc: util.ContainsIP(fs.GetInternalSubnets(), srcIP),
 										IsLocalDst: util.ContainsIP(fs.GetInternalSubnets(), dstIP),
 									}
+
+									hostMap[srcKey].CountSrc++
+									hostMap[dstKey].CountDst++
 								}
 
 								//if there's any problem in the certificate, mark it invalid
