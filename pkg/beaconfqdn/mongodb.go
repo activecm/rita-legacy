@@ -190,9 +190,8 @@ func (r *repo) affectedHostnameIPs(hostMap map[string]*host.Input) ([]hostnameIP
 	// provide a fast path for datasets with less than 200,000 hosts
 	if len(hostMap) <= 200000 {
 		return r.affectedHostnameIPsSimple(hostMap)
-	} else {
-		return r.affectedHostnameIPsChunked(hostMap)
 	}
+	return r.affectedHostnameIPsChunked(hostMap)
 }
 
 // affectedHostnameIPsSimple implements affectedHostnameIPs but should only be called with hostMaps with
