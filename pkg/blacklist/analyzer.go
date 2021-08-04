@@ -128,13 +128,10 @@ func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnD
 			"dat.$[t].cid":            chunk,
 		}}
 
-		output.arrayFilters = []bson.M{{
-			"t.bl": blacklistedDst.BSONKey(),
-		}}
+		output.arrayFilters = []bson.M{blacklistedDst.InsertPrefixedBSONKey(bson.M{}, "t.bl")}
 
 		// create selector for output
 		output.selector = srcConnData.Host.BSONKey()
-		output.selector["dat.bl"] = blacklistedDst.BSONKey()
 	}
 
 	return output
@@ -169,13 +166,10 @@ func appendBlacklistedSrcQuery(chunk int, blacklistedSrc data.UniqueIP, dstConnD
 			"dat.$[t].cid":            chunk,
 		}}
 
-		output.arrayFilters = []bson.M{{
-			"t.bl": blacklistedSrc.BSONKey(),
-		}}
+		output.arrayFilters = []bson.M{blacklistedSrc.InsertPrefixedBSONKey(bson.M{}, "t.bl")}
 
 		// create selector for output
 		output.selector = dstConnData.Host.BSONKey()
-		output.selector["dat.bl"] = blacklistedSrc.BSONKey()
 	}
 
 	return output
