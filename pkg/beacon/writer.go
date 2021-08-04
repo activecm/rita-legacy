@@ -66,7 +66,9 @@ func (w *writer) start() {
 				// update hosts table with icert updates
 				if data.hostIcert.query != nil {
 
-					info, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.hostIcert.selector, data.hostIcert.query)
+					info, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).UpdateWithArrayFilters(
+						data.hostIcert.selector, data.hostIcert.query, data.hostIcert.arrayFilters, false,
+					)
 
 					if err != nil ||
 						((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {

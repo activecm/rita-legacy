@@ -12,17 +12,26 @@ type Repository interface {
 	Upsert(uconnMap map[string]*uconn.Input)
 }
 
-type updateInfo struct {
+// upsertInfo captures the parameters needed to call mgo .Update or .Upsert against a collection
+type upsertInfo struct {
 	selector bson.M
 	query    bson.M
 }
 
-//update ....
+// updateWithArrayFiltersInfo captures the parameters needed to call mgo .UpdateWithArrayFilters against a collection
+type updateWithArrayFiltersInfo struct {
+	selector     bson.M
+	query        bson.M
+	arrayFilters []bson.M
+}
+
+// update represents MongoDB updates to be carried out by the writer
+
 type update struct {
-	beacon     updateInfo
-	hostIcert  updateInfo
-	hostBeacon updateInfo
-	uconn      updateInfo
+	beacon     upsertInfo
+	uconn      upsertInfo
+	hostIcert  updateWithArrayFiltersInfo
+	hostBeacon upsertInfo
 }
 
 //TSData ...
@@ -50,7 +59,7 @@ type Result struct {
 	data.UniqueIPPair `bson:",inline"`
 	Connections       int64   `bson:"connection_count"`
 	AvgBytes          float64 `bson:"avg_bytes"`
-	TotalBytes        int64    `bson:"total_bytes"`
+	TotalBytes        int64   `bson:"total_bytes"`
 	Ts                TSData  `bson:"ts"`
 	Ds                DSData  `bson:"ds"`
 	Score             float64 `bson:"score"`

@@ -72,7 +72,7 @@ func (a *analyzer) start() {
 			// the updated conn count
 			if (res.TsList) == nil {
 
-				output.uconn = updateInfo{
+				output.uconn = upsertInfo{
 					// update hosts record
 					query: bson.M{
 						"$set": bson.M{"strobe": true},
@@ -198,7 +198,7 @@ func (a *analyzer) start() {
 				score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
 
 				// update beacon query
-				output.beacon = updateInfo{
+				output.beacon = upsertInfo{
 					query: bson.M{
 						"$set": bson.M{
 							"connection_count":   res.ConnectionCount,
@@ -286,14 +286,11 @@ func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64
 	return result, counts
 }
 
-func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.UniqueIP) updateInfo {
+func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.UniqueIP) updateWithArrayFiltersInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
-	var output updateInfo
-
-	// create query
-	query := bson.M{}
+	var output updateWithArrayFiltersInfo
 
 	// update host table if there is an invalid cert record between pair
 	if icert {
@@ -311,38 +308,40 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 
 		if newFlag {
 
-			query["$push"] = bson.M{
-				"dat": bson.M{
-					"icdst": dst,
-					"icert": 1,
-					"cid":   a.chunk,
-				}}
+			output.query = bson.M{
+				"$push": bson.M{
+					"dat": bson.M{
+						"icdst": dst,
+						"icert": 1,
+						"cid":   a.chunk,
+					},
+				},
+			}
 
-			// create selector for output
-			output.query = query
 			output.selector = src.BSONKey()
 
 		} else {
-
-			query["$set"] = bson.M{
-				"dat.$.icert": 1,
-				"dat.$.cid":   a.chunk,
+			output.query = bson.M{
+				"$set": bson.M{
+					"dat.$[t].icert": 1,
+					"dat.$[t].cid":   a.chunk,
+				},
 			}
 
-			// create selector for output
-			output.query = query
-			output.selector = hostSelector
+			output.arrayFilters = []bson.M{dst.InsertPrefixedBSONKey(bson.M{}, "t.icdst")}
+
+			output.selector = src.BSONKey()
 		}
 	}
 
 	return output
 }
 
-func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.UniqueIP) updateInfo {
+func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.UniqueIP) upsertInfo {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
-	var output updateInfo
+	var output upsertInfo
 
 	// create query
 	query := bson.M{}
