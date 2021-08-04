@@ -355,8 +355,8 @@ func (m *MetaDB) MarkDBAnalyzed(name string, complete bool) error {
 	_, err = ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).
 		Upsert(bson.M{"_id": dbr.ID}, bson.M{
 			"$set": bson.D{
-				{"analyzed", complete},
-				{"analyze_version", versionTag},
+				{Name: "analyzed", Value: complete},
+				{Name: "analyze_version", Value: versionTag},
 			},
 		})
 
@@ -433,14 +433,13 @@ func (m *MetaDB) IsChunkSet(cid int, db string) (bool, error) {
 		},
 	}
 
-	var results []interface{}
-	err := ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(query).All(&results)
+	queryCount, err := ssn.DB(m.config.S.MongoDB.MetaDB).C(m.config.T.Meta.DatabasesTable).Find(query).Count()
 
 	if err != nil {
 		return false, err
 	}
 
-	if len(results) > 0 {
+	if queryCount > 0 {
 		return true, nil
 	}
 
