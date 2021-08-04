@@ -354,7 +354,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 	var resListExactMatch []interface{}
 
 	maxBeaconMatchExactQuery := src.BSONKey()
-	maxBeaconMatchExactQuery["dat.mbdst"] = dst.BSONKey()
+	maxBeaconMatchExactQuery = dst.InsertPrefixedBSONKey(maxBeaconMatchExactQuery, "dat.mbdst")
 
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
 
