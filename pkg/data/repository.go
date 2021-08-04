@@ -77,6 +77,16 @@ func (u UniqueIP) BSONKey() bson.M {
 	return key
 }
 
+//InsertPrefixedBSONKey inserts entries into a given BSON map which may be used to
+//index a given UniqueIP inside of a stored BSON document. Includes IP and NetworkUUID.
+//Returns the updated BSON map.
+//Ex: selector := someIP.InsertPrefixedBSONKey(bson.M{}, "dat.bl")
+func (u UniqueIP) InsertPrefixedBSONKey(query bson.M, prefix string) bson.M {
+	query[prefix+".ip"] = u.IP
+	query[prefix+".network_uuid"] = u.NetworkUUID
+	return query
+}
+
 //UniqueSrcIP is a unique IP which acts as the source in an IP pair
 type UniqueSrcIP struct {
 	SrcIP          string      `bson:"src"`
@@ -102,7 +112,7 @@ func (u UniqueSrcIP) Unpair() UniqueIP {
 	}
 }
 
-//BSONKey generates a BSON map which may be used to index a the source of a UniqueIP pair.
+//BSONKey generates a BSON map which may be used to index the source of a UniqueIP pair.
 //Includes IP and Network UUID.
 func (u UniqueSrcIP) BSONKey() bson.M {
 	key := bson.M{
@@ -111,6 +121,14 @@ func (u UniqueSrcIP) BSONKey() bson.M {
 	}
 	return key
 }
+
+// //InsertPrefixedBSONKey inserts entries into a given BSON map which may be used to index the source
+// //of a UniqueIP pair inside of a stored BSON document. Returns the updated BSON map.
+// func (u UniqueSrcIP) InsertPrefixedBSONKey(query bson.M, prefix string) bson.M {
+// 	query[prefix+".src"] = u.SrcIP
+// 	query[prefix+".src_network_uuid"] = u.SrcNetworkUUID
+// 	return query
+// }
 
 //UniqueDstIP is a unique IP which acts as the destination in an IP Pair
 type UniqueDstIP struct {
@@ -137,7 +155,7 @@ func (u UniqueDstIP) Unpair() UniqueIP {
 	}
 }
 
-//BSONKey generates a BSON map which may be used to index a the destination of a UniqueIP pair.
+//BSONKey generates a BSON map which may be used to index the destination of a UniqueIP pair.
 //Includes IP and Network UUID.
 func (u UniqueDstIP) BSONKey() bson.M {
 	key := bson.M{
@@ -146,6 +164,14 @@ func (u UniqueDstIP) BSONKey() bson.M {
 	}
 	return key
 }
+
+// //InsertPrefixedBSONKey inserts entries into a given BSON map which may be used to index the destination
+// //of a UniqueIP pair inside of a stored BSON document. Returns the updated BSON map.
+// func (u UniqueDstIP) InsertPrefixedBSONKey(query bson.M, prefix string) bson.M {
+// 	query[prefix+".dst"] = u.DstIP
+// 	query[prefix+".dst_network_uuid"] = u.DstNetworkUUID
+// 	return query
+// }
 
 //UniqueIPPair binds a pair of UniqueIPs where direction matters.
 type UniqueIPPair struct {
@@ -198,6 +224,16 @@ func (p UniqueIPPair) BSONKey() bson.M {
 	}
 	return key
 }
+
+// //InsertPrefixedBSONKey inserts entries into a given BSON map which may be used to index
+// //a UniqueIP pair inside of a stored BSON document. Returns the updated BSON map.
+// func (p UniqueIPPair) PrefixedBSONKey(query bson.M, prefix string) bson.M {
+// 	query[prefix+".src"] = p.SrcIP
+// 	query[prefix+".src_network_uuid"] = p.SrcNetworkUUID
+// 	query[prefix+".dst"] = p.DstIP
+// 	query[prefix+".dst_network_uuid"] = p.DstNetworkUUID
+// 	return query
+// }
 
 //UniqueIPSet is a set of UniqueIPs which contains at most one instance of each UniqueIP
 //this implementation is based on a slice of UniqueIPs rather than a map[string]UniqueIP
