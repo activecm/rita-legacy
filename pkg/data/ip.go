@@ -222,17 +222,11 @@ func (s UniqueIPSet) Items() []UniqueIP {
 
 //Insert adds a UniqueIP to the set
 func (s UniqueIPSet) Insert(ip UniqueIP) {
-	if s == nil {
-		s = make(UniqueIPSet)
-	}
 	s[ip.MapKey()] = ip
 }
 
 //Contains checks if a given UniqueIP is in the set
 func (s UniqueIPSet) Contains(ip UniqueIP) bool {
-	if s == nil {
-		return false
-	}
 	_, ok := s[ip.MapKey()]
 	return ok
 }

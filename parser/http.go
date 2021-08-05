@@ -75,7 +75,8 @@ func updateUseragentsByHTTP(srcUniqIP data.UniqueIP, parseHTTP *parsetypes.HTTP,
 
 	if _, ok := retVals.UseragentMap[parseHTTP.UserAgent]; !ok {
 		retVals.UseragentMap[parseHTTP.UserAgent] = &useragent.Input{
-			Name: parseHTTP.UserAgent,
+			Name:    parseHTTP.UserAgent,
+			OrigIps: make(data.UniqueIPSet),
 		}
 	}
 

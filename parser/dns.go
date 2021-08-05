@@ -58,7 +58,9 @@ func updateHostnamesByDNS(srcUniqIP data.UniqueIP, parseDNS *parsetypes.DNS, ret
 
 	if _, ok := retVals.HostnameMap[parseDNS.Query]; !ok {
 		retVals.HostnameMap[parseDNS.Query] = &hostname.Input{
-			Host: parseDNS.Query,
+			Host:        parseDNS.Query,
+			ClientIPs:   make(data.UniqueIPSet),
+			ResolvedIPs: make(data.UniqueIPSet),
 		}
 	}
 

@@ -86,7 +86,7 @@ func (a *analyzer) start() {
 					"avg_bytes":        entry.TotalBytes / entry.ConnectionCount,
 					"connection_count": entry.ConnectionCount,
 					"src_network_name": entry.Src.SrcNetworkName,
-					"resolved_ips":     entry.ResolvedIPs,
+					"resolved_ips":     entry.ResolvedIPs.Items(),
 					"cid":              a.chunk,
 				}
 
@@ -242,7 +242,7 @@ func (a *analyzer) start() {
 					"score":              score,
 					"cid":                a.chunk,
 					"src_network_name":   entry.Src.SrcNetworkName,
-					"resolved_ips":       entry.ResolvedIPs,
+					"resolved_ips":       entry.ResolvedIPs.Items(),
 				}
 
 				// set query
