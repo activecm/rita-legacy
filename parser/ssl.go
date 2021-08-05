@@ -6,8 +6,10 @@ import (
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/pkg/useragent"
+	"github.com/activecm/rita/util"
 )
 
 func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults) {
@@ -23,6 +25,7 @@ func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults
 	srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
 
 	srcDstKey := srcDstPair.MapKey()
+	srcKey := srcUniqIP.MapKey()
 	dstKey := dstUniqIP.MapKey()
 
 	updateUseragentsBySSL(srcUniqIP, parseSSL, retVals)
@@ -36,7 +39,9 @@ func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults
 
 	certificateIsInvalid := certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " "
 
-	updateUniqueConnectionsBySSL(srcIP, dstIP, srcDstPair, srcDstKey, certificateIsInvalid, parseSSL, filter, retVals)
+	newUniqueConnection := updateUniqueConnectionsBySSL(srcIP, dstIP, srcDstPair, srcDstKey, certificateIsInvalid, parseSSL, filter, retVals)
+
+	updateHostsBySSL(srcIP, dstIP, srcUniqIP, dstUniqIP, srcKey, dstKey, newUniqueConnection, filter, retVals)
 
 	if certificateIsInvalid {
 		updateCertificatesBySSL(srcUniqIP, dstUniqIP, dstKey, certStatus, retVals)
@@ -72,15 +77,19 @@ func updateUseragentsBySSL(srcUniqIP data.UniqueIP, parseSSL *parsetypes.SSL, re
 }
 
 func updateUniqueConnectionsBySSL(srcIP, dstIP net.IP, srcDstPair data.UniqueIPPair, srcDstKey string,
-	certificateIsInvalid bool, parseSSL *parsetypes.SSL, filter filter, retVals ParseResults) {
+	certificateIsInvalid bool, parseSSL *parsetypes.SSL, filter filter, retVals ParseResults) (newEntry bool) {
 
 	retVals.UniqueConnLock.Lock()
 	defer retVals.UniqueConnLock.Unlock()
+
+	newEntry = false
 
 	// Check if uconn map value is set, because this record could
 	// come before a relevant uconns record (or may be the only source
 	// for the uconns record)
 	if _, ok := retVals.UniqueConnMap[srcDstKey]; !ok {
+		newEntry = true
+
 		// create new uconn record if it does not exist
 		retVals.UniqueConnMap[srcDstKey] = &uconn.Input{
 			Hosts:      srcDstPair,
@@ -92,6 +101,42 @@ func updateUniqueConnectionsBySSL(srcIP, dstIP net.IP, srcDstPair data.UniqueIPP
 	// ///// SET INVALID CERTIFICATE FLAG FOR UNIQUE CONNECTION /////
 	if certificateIsInvalid {
 		retVals.UniqueConnMap[srcDstKey].InvalidCertFlag = true
+	}
+	return
+}
+
+func updateHostsBySSL(srcIP, dstIP net.IP, srcUniqIP, dstUniqIP data.UniqueIP, srcKey, dstKey string,
+	newUniqueConnection bool, filter filter, retVals ParseResults) {
+
+	retVals.HostLock.Lock()
+	defer retVals.HostLock.Unlock()
+
+	if _, ok := retVals.HostMap[srcKey]; !ok {
+		// create new host record with src and dst
+		retVals.HostMap[srcKey] = &host.Input{
+			Host:    srcUniqIP,
+			IsLocal: filter.checkIfInternal(srcIP),
+			IP4:     util.IsIPv4(srcUniqIP.IP),
+			IP4Bin:  util.IPv4ToBinary(srcIP),
+		}
+	}
+
+	// Check if the map value is set
+	if _, ok := retVals.HostMap[dstKey]; !ok {
+		// create new host record with src and dst
+		retVals.HostMap[dstKey] = &host.Input{
+			Host:    dstUniqIP,
+			IsLocal: filter.checkIfInternal(dstIP),
+			IP4:     util.IsIPv4(dstUniqIP.IP),
+			IP4Bin:  util.IPv4ToBinary(dstIP),
+		}
+	}
+
+	// ///// INCREMENT SOURCE / DESTINATION COUNTERS FOR HOSTS /////
+	// We only want to do this once for each unique connection entry
+	if newUniqueConnection {
+		retVals.HostMap[srcKey].CountSrc++
+		retVals.HostMap[dstKey].CountDst++
 	}
 }
 
