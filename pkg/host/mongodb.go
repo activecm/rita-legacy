@@ -34,6 +34,11 @@ func (r *repo) CreateIndexes() error {
 		{Key: []string{"ip", "network_uuid"}, Unique: true},
 		{Key: []string{"local"}},
 		{Key: []string{"ipv4_binary"}},
+		{Key: []string{"dat.mdip.ip", "dat.mdip.network_uuid"}},
+		{Key: []string{"dat.mbdst.ip", "dat.mbdst.network_uuid"}},
+		{Key: []string{"dat.max_dns.query"}},
+		{Key: []string{"dat.mbfqdn"}},
+		{Key: []string{"dat.mbproxy"}},
 	}
 
 	for _, index := range indexes {
