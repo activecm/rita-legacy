@@ -145,11 +145,7 @@ func writeDB(db string, wd string, showNetNames bool, res *resources.Resources) 
 	}
 	res.DB.SelectDB(db)
 
-	dbMetaInfo, err := res.MetaDB.GetDBMetaInfo(db)
-	if err != nil {
-		return err
-	}
-	maxTime := time.Unix(dbMetaInfo.TsRange.Max, 0).String()
+	maxTime := time.Now().Format(time.RFC1123)
 
 
 	err = writeDBHomePage(db, maxTime)
