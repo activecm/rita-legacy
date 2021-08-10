@@ -82,6 +82,7 @@ func updateUniqueConnectionsByConn(srcIP, dstIP net.IP, srcDstPair data.UniqueIP
 			Hosts:      srcDstPair,
 			IsLocalSrc: filter.checkIfInternal(srcIP),
 			IsLocalDst: filter.checkIfInternal(dstIP),
+			Tuples:     make(data.StringSet),
 		}
 	}
 

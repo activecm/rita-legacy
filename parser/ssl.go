@@ -61,9 +61,10 @@ func updateUseragentsBySSL(srcUniqIP data.UniqueIP, parseSSL *parsetypes.SSL, re
 
 	if _, ok := retVals.UseragentMap[parseSSL.JA3]; !ok {
 		retVals.UseragentMap[parseSSL.JA3] = &useragent.Input{
-			Name:    parseSSL.JA3,
-			JA3:     true,
-			OrigIps: make(data.UniqueIPSet),
+			Name:     parseSSL.JA3,
+			JA3:      true,
+			OrigIps:  make(data.UniqueIPSet),
+			Requests: make(data.StringSet),
 		}
 	}
 
@@ -96,6 +97,7 @@ func updateUniqueConnectionsBySSL(srcIP, dstIP net.IP, srcDstPair data.UniqueIPP
 			Hosts:      srcDstPair,
 			IsLocalSrc: filter.checkIfInternal(srcIP),
 			IsLocalDst: filter.checkIfInternal(dstIP),
+			Tuples:     make(data.StringSet),
 		}
 	}
 
@@ -150,8 +152,10 @@ func updateCertificatesBySSL(srcUniqIP data.UniqueIP, dstUniqIP data.UniqueIP, d
 	if _, ok := retVals.CertificateMap[dstKey]; !ok {
 		// create new uconn record if it does not exist
 		retVals.CertificateMap[dstKey] = &certificate.Input{
-			Host:    dstUniqIP,
-			OrigIps: make(data.UniqueIPSet),
+			Host:         dstUniqIP,
+			OrigIps:      make(data.UniqueIPSet),
+			InvalidCerts: make(data.StringSet),
+			Tuples:       make(data.StringSet),
 		}
 	}
 
