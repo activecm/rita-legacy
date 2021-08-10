@@ -11,7 +11,6 @@ import (
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/util"
-	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 )
@@ -331,7 +330,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 	nExactMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
 		Find(maxBeaconMatchExactQuery).Count()
 
-	if err != nil && err != mgo.ErrNotFound {
+	if err != nil {
 		a.log.WithError(err).WithFields(log.Fields{
 			"src":              src.IP,
 			"src_network_name": src.NetworkName,
@@ -380,7 +379,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 	nLowerMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
 		Find(maxBeaconMatchLowerQuery).Count()
 
-	if err != nil && err != mgo.ErrNotFound {
+	if err != nil {
 		a.log.WithError(err).WithFields(log.Fields{
 			"src":              src.IP,
 			"src_network_name": src.NetworkName,
@@ -407,7 +406,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 		nUpperMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
 			Find(maxBeaconMatchUpperQuery).Count()
 
-		if err != nil && err != mgo.ErrNotFound {
+		if err != nil {
 			a.log.WithError(err).WithFields(log.Fields{
 				"src":              src.IP,
 				"src_network_name": src.NetworkName,
