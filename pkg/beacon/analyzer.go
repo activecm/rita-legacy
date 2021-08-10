@@ -325,8 +325,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 		} else {
 
 			query["$set"] = bson.M{
-				"dat.$.icert": 1,
-				"dat.$.cid":   a.chunk,
+				"dat.$.cid": a.chunk,
 			}
 
 			// create selector for output
