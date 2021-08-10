@@ -336,7 +336,6 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 
 	} else {
 		// otherwise update the existing record
-		// TODO: use an array filter here to only update the specific dat entry for this src/ dst
 		query["$set"] = bson.M{
 			"dat.$.icert": 1,
 			"dat.$.cid":   a.chunk,
