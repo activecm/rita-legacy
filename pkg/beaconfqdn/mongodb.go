@@ -288,42 +288,42 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 }
 
 /*
-		db.getCollection('hostnames').aggregate([
-		{"$match": { "$or": [
-			{
-				"dat.ips.ip": "104.16.107.25",
-				"dat.ips.network_uuid": UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
-			},
-			{
-				"dat.ips.ip" : "104.16.229.152",
-				"dat.ips.network_uuid" : UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
-			},
-		]}},
-		{"$project": {
-			"host": 1,
-			"dat.ips.ip": 1,
-			"dat.ips.network_uuid": 1,
+db.getCollection('hostnames').aggregate([
+	{"$match": { "$or": [
+		{
+			"dat.ips.ip": "104.16.107.25",
+			"dat.ips.network_uuid": UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+		},
+		{
+			"dat.ips.ip" : "104.16.229.152",
+			"dat.ips.network_uuid" : UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+		},
+	]}},
+	{"$project": {
+		"host": 1,
+		"dat.ips.ip": 1,
+		"dat.ips.network_uuid": 1,
+	}},
+	{"$unwind": "$dat"},
+	{"$unwind": "$dat.ips"},
+	{"$group": {
+		"_id": {
+			"host": "$host",
+			"ip": "$dat.ips.ip",
+			"network_uuid": "$dat.ips.network_uuid",
+		},
+	}},
+	{"$group": {
+		"_id": "$_id.host",
+		"ips": {"$push": {
+			"ip": "$_id.ip",
+			"network_uuid": "$_id.network_uuid",
 		}},
-		{"$unwind": "$dat"},
-		{"$unwind": "$dat.ips"},
-		{"$group": {
-			"_id": {
-				"host": "$host",
-				"ip": "$dat.ips.ip",
-				"network_uuid": "$dat.ips.network_uuid",
-			},
-		}},
-		{"$group": {
-			"_id": "$_id.host",
-			"ips": {"$push": {
-				"ip": "$_id.ip",
-				"network_uuid": "$_id.network_uuid",
-			}},
-		}}
-	])
+	}}
+])
 
-	reverseDNSQueryWithIPs returns a MongoDB aggregation which returns the hostnames associated with the given
-	UniqueIPs. Additionally, all of the IPs associated with each hostname are returned.
+reverseDNSQueryWithIPs returns a MongoDB aggregation which returns the hostnames associated with the given
+UniqueIPs. Additionally, all of the IPs associated with each hostname are returned.
 */
 func reverseDNSQueryWithIPs(uniqueIPs []data.UniqueIP) []bson.M {
 	var uniqueIPBsonSelectors []bson.M = make([]bson.M, 0, len(uniqueIPs))
