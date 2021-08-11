@@ -229,6 +229,8 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 
 	// we will need to remove duplicate results from each query of 200,000 hosts, slowing down the process
 	// and consuming more RAM
+
+	// affectedHostnameIPMap maps hostnames to their respective ResolvedIPs
 	var affectedHostnameIPMap map[string][]data.UniqueIP = make(map[string][]data.UniqueIP, len(hostMap)/10)
 
 	for _, host := range hostMap {
@@ -236,10 +238,13 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 			continue
 		}
 
-		if len(externalHosts) == 200000 {
-			reverseDNSagg := reverseDNSQueryWithIPs(externalHosts)
-			externalHosts = nil
+		externalHosts = append(externalHosts, host.Host)
 
+		if len(externalHosts) == 200000 { // we've hit the limit, run the MongoDB query
+			reverseDNSagg := reverseDNSQueryWithIPs(externalHosts)
+			externalHosts = externalHosts[:0] // clear externalHosts to make room for the next chunk
+
+			affectedHostnamesBuffer = nil
 			err := ssn.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable).
 				Pipe(reverseDNSagg).All(&affectedHostnamesBuffer)
 			if err != nil {
@@ -247,20 +252,16 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 			}
 
 			for i := range affectedHostnamesBuffer {
-				if _, ok := affectedHostnameIPMap[affectedHostnamesBuffer[i].Host]; !ok {
-					affectedHostnameIPMap[affectedHostnamesBuffer[i].Host] = affectedHostnamesBuffer[i].ResolvedIPs
-				}
+				affectedHostnameIPMap[affectedHostnamesBuffer[i].Host] = affectedHostnamesBuffer[i].ResolvedIPs
 			}
-			affectedHostnamesBuffer = nil
 		}
-
-		externalHosts = append(externalHosts, host.Host)
 	}
 
-	if len(externalHosts) > 0 {
+	if len(externalHosts) > 0 { // take care of running the MongoDB query for any leftover hosts
 		reverseDNSagg := reverseDNSQueryWithIPs(externalHosts)
 		externalHosts = nil // nolint , we are assigning nil here to allow the GC to free this potentially large array
 
+		affectedHostnamesBuffer = nil
 		err := ssn.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable).
 			Pipe(reverseDNSagg).All(&affectedHostnamesBuffer)
 		if err != nil {
@@ -268,14 +269,12 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 		}
 
 		for i := range affectedHostnamesBuffer {
-			if _, ok := affectedHostnameIPMap[affectedHostnamesBuffer[i].Host]; !ok {
-				affectedHostnameIPMap[affectedHostnamesBuffer[i].Host] = affectedHostnamesBuffer[i].ResolvedIPs
-			}
+			affectedHostnameIPMap[affectedHostnamesBuffer[i].Host] = affectedHostnamesBuffer[i].ResolvedIPs
 		}
-		affectedHostnamesBuffer = nil
 	}
 
-	affectedHostnamesBuffer = make([]hostnameIPs, 0, len(affectedHostnamesBuffer))
+	// convert the map into a slice
+	affectedHostnamesBuffer = make([]hostnameIPs, 0, len(affectedHostnameIPMap))
 	for host, ips := range affectedHostnameIPMap {
 		affectedHostnamesBuffer = append(affectedHostnamesBuffer, hostnameIPs{
 			Host:        host,
