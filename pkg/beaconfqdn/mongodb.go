@@ -197,6 +197,7 @@ func (r *repo) affectedHostnameIPs(hostMap map[string]*host.Input) ([]hostnameIP
 // affectedHostnameIPsSimple implements affectedHostnameIPs but should only be called with hostMaps with
 // roughly less than 200,000 external hosts.
 func (r *repo) affectedHostnameIPsSimple(hostMap map[string]*host.Input) ([]hostnameIPs, error) {
+	// preallocate externalHosts slice assuming at least half of the observed hosts are external
 	var externalHosts []data.UniqueIP = make([]data.UniqueIP, 0, len(hostMap)/2)
 	var affectedHostnamesBuffer []hostnameIPs
 
@@ -221,7 +222,9 @@ func (r *repo) affectedHostnameIPsSimple(hostMap map[string]*host.Input) ([]host
 // and uses more RAM. However, unlike affectedHostnameIPs_simple, affectedHostnameIPs_chunked handles
 // hostMaps of all sizes.
 func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hostnameIPs, error) {
-	var externalHosts []data.UniqueIP = make([]data.UniqueIP, 0, len(hostMap)/2)
+	// preallocate externalHosts slice assuming at least half of the observed hosts are external
+	// util.Min ensures that we don't preallocate more than the maximum allowed number of hosts in a 16MB BSON document
+	var externalHosts []data.UniqueIP = make([]data.UniqueIP, 0, util.Min(200000, len(hostMap)/2))
 	var affectedHostnamesBuffer []hostnameIPs
 
 	ssn := r.res.DB.Session.Copy()
