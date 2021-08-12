@@ -92,7 +92,7 @@ func (a *analyzer) start() {
 
 func blHostRecordExists(hostCollection *mgo.Collection, hostEntryIP, blacklistedIP data.UniqueIP) (bool, error) {
 	entryKey := hostEntryIP.BSONKey()
-	entryKey = blacklistedIP.InsertPrefixedBSONKey(entryKey, "dat.bl")
+	entryKey["dat"] = bson.M{"$elemMatch": blacklistedIP.PrefixedBSONKey("bl")}
 
 	nExistingEntries, err := hostCollection.Find(entryKey).Count()
 
@@ -133,7 +133,7 @@ func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnD
 
 		// create selector for output
 		output.selector = srcConnData.Host.BSONKey()
-		output.selector = blacklistedDst.InsertPrefixedBSONKey(output.selector, "dat.bl")
+		output.selector["dat"] = bson.M{"$elemMatch": blacklistedDst.PrefixedBSONKey("bl")}
 	}
 
 	return output
@@ -173,7 +173,7 @@ func appendBlacklistedSrcQuery(chunk int, blacklistedSrc data.UniqueIP, dstConnD
 
 		// create selector for output
 		output.selector = dstConnData.Host.BSONKey()
-		output.selector = blacklistedSrc.InsertPrefixedBSONKey(output.selector, "dat.bl")
+		output.selector["dat"] = bson.M{"$elemMatch": blacklistedSrc.PrefixedBSONKey("bl")}
 	}
 
 	return output

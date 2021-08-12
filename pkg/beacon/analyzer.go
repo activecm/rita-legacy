@@ -301,7 +301,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 		newFlag := false
 
 		hostSelector := src.BSONKey()
-		hostSelector = dst.InsertPrefixedBSONKey(hostSelector, "dat.icdst")
+		hostSelector["dat"] = bson.M{"$elemMatch": dst.PrefixedBSONKey("icdst")}
 
 		nExistingEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).Count()
 
@@ -353,7 +353,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 	var resListExactMatch []interface{}
 
 	maxBeaconMatchExactQuery := src.BSONKey()
-	maxBeaconMatchExactQuery = dst.InsertPrefixedBSONKey(maxBeaconMatchExactQuery, "dat.mbdst")
+	maxBeaconMatchExactQuery["dat"] = bson.M{"$elemMatch": dst.PrefixedBSONKey("mbdst")}
 
 	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
 
