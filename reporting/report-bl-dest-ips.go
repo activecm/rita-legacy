@@ -9,7 +9,7 @@ import (
 	"github.com/activecm/rita/resources"
 )
 
-func printBLDestIPs(db string, showNetNames bool, res *resources.Resources) error {
+func printBLDestIPs(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {
 	f, err := os.Create("bl-dest-ips.html")
 	if err != nil {
 		return err
@@ -38,5 +38,5 @@ func printBLDestIPs(db string, showNetNames bool, res *resources.Resources) erro
 		return err
 	}
 
-	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
+	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w), LogsGeneratedAt: logsGeneratedAt})
 }

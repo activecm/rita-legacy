@@ -12,7 +12,7 @@ import (
 	"github.com/activecm/rita/resources"
 )
 
-func printBLHostnames(db string, showNetNames bool, res *resources.Resources) error {
+func printBLHostnames(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {
 	f, err := os.Create("bl-hostnames.html")
 	if err != nil {
 		return err
@@ -34,7 +34,7 @@ func printBLHostnames(db string, showNetNames bool, res *resources.Resources) er
 		return err
 	}
 
-	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
+	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w), LogsGeneratedAt: logsGeneratedAt})
 }
 
 func getBLHostnameWriter(results []blacklist.HostnameResult, showNetNames bool) (string, error) {
