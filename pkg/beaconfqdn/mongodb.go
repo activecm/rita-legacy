@@ -214,7 +214,7 @@ func (r *repo) affectedHostnameIPsSimple(hostMap map[string]*host.Input) ([]host
 	externalHosts = nil // nolint ,we are freeing this potentially large array so the GC can claim it during MongoDB IO
 
 	err := ssn.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable).
-		Pipe(reverseDNSagg).All(&affectedHostnamesBuffer)
+		Pipe(reverseDNSagg).AllowDiskUse().All(&affectedHostnamesBuffer)
 	return affectedHostnamesBuffer, err
 }
 
@@ -249,7 +249,7 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 
 			affectedHostnamesBuffer = nil
 			err := ssn.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable).
-				Pipe(reverseDNSagg).All(&affectedHostnamesBuffer)
+				Pipe(reverseDNSagg).AllowDiskUse().All(&affectedHostnamesBuffer)
 			if err != nil {
 				return []hostnameIPs{}, err
 			}
@@ -266,7 +266,7 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 
 		affectedHostnamesBuffer = nil
 		err := ssn.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable).
-			Pipe(reverseDNSagg).All(&affectedHostnamesBuffer)
+			Pipe(reverseDNSagg).AllowDiskUse().All(&affectedHostnamesBuffer)
 		if err != nil {
 			return []hostnameIPs{}, err
 		}
