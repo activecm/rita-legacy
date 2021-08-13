@@ -1,10 +1,8 @@
-package beaconproxy
+package uconnproxy
 
 import (
 	"runtime"
-	"time"
 
-	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
@@ -14,17 +12,12 @@ import (
 
 type repo struct {
 	res *resources.Resources
-	min int64
-	max int64
 }
 
-//NewMongoRepository create new repository
+// NewMongoRepository create new repository
 func NewMongoRepository(res *resources.Resources) Repository {
-	min, max, _ := res.MetaDB.GetTSRange(res.DB.GetSelectedDB())
 	return &repo{
 		res: res,
-		min: min,
-		max: max,
 	}
 }
 
@@ -33,7 +26,7 @@ func (r *repo) CreateIndexes() error {
 	defer session.Close()
 
 	// set collection name
-	collectionName := r.res.Config.T.BeaconProxy.BeaconProxyTable
+	collectionName := r.res.Config.T.Structure.UniqueConnProxyTable
 
 	// check if collection already exists
 	names, _ := session.DB(r.res.DB.GetSelectedDB()).CollectionNames()
@@ -45,13 +38,13 @@ func (r *repo) CreateIndexes() error {
 		}
 	}
 
-	// set desired indexes
 	indexes := []mgo.Index{
-		{Key: []string{"-score"}},
-		{Key: []string{"dst", "dst_network_uuid"}},
-		{Key: []string{"src", "src_network_uuid"}},
+		{Key: []string{"src", "dst", "src_network_uuid", "dst_network_uuid", "fqdn"}, Unique: true},
+		{Key: []string{"src", "src_network_uuid", "fqdn"}},
 		{Key: []string{"fqdn"}},
-		{Key: []string{"-connection_count"}},
+		{Key: []string{"src", "src_network_uuid"}},
+		{Key: []string{"dst", "dst_network_uuid"}},
+		{Key: []string{"$dat.count"}},
 	}
 
 	// create collection
@@ -63,54 +56,22 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert loops through every new fqdn requested from a proxy ....
-func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input) {
-
-	session := r.res.DB.Session.Copy()
-	defer session.Close()
-
+// Upsert loops through every uconnproxy entry
+func (r *repo) Upsert(uconnProxyMap map[string]*Input) {
 	// Create the workers
+	writerWorker := newWriter(r.res.Config.T.Structure.UniqueConnProxyTable, r.res.DB, r.res.Config, r.res.Log)
 
-	// stage 5 - write out results
-	writerWorker := newWriter(
-		r.res.Config.T.BeaconProxy.BeaconProxyTable,
-		r.res.DB,
-		r.res.Config,
-		r.res.Log,
-	)
-
-	// stage 4 - perform the analysis
 	analyzerWorker := newAnalyzer(
-		r.min,
-		r.max,
 		r.res.Config.S.Rolling.CurrentChunk,
+		int64(r.res.Config.S.Strobe.ConnectionLimit),
 		r.res.DB,
 		r.res.Config,
 		writerWorker.collect,
 		writerWorker.close,
 	)
 
-	// stage 3 - sort data
-	sorterWorker := newSorter(
-		r.res.DB,
-		r.res.Config,
-		analyzerWorker.collect,
-		analyzerWorker.close,
-	)
-
-	// stage 2 - get and vet beacon details
-	dissectorWorker := newDissector(
-		int64(r.res.Config.S.Strobe.ConnectionLimit),
-		r.res.DB,
-		r.res.Config,
-		sorterWorker.collect,
-		sorterWorker.close,
-	)
-
-	//kick off the threaded goroutines
+	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
-		dissectorWorker.start()
-		sorterWorker.start()
 		analyzerWorker.start()
 		writerWorker.start()
 	}
@@ -119,26 +80,19 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input) {
 	p := mpb.New(mpb.WithWidth(20))
 	bar := p.AddBar(int64(len(uconnProxyMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Proxy Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Uconn Proxy Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
 	)
 
-	// loop over map entries (each hostname)
+	// loop over map entries
 	for _, entry := range uconnProxyMap {
-
-		start := time.Now()
-
-		// pass entry to dissector
-		dissectorWorker.collect(entry)
-
-		// progress bar increment
+		analyzerWorker.collect(entry)
 		bar.IncrBy(1)
-
 	}
 	p.Wait()
 
 	// start the closing cascade (this will also close the other channels)
-	dissectorWorker.close()
+	analyzerWorker.close()
 }
