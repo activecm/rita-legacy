@@ -71,27 +71,27 @@ func (a *analyzer) start() {
 					"strobe":           true,
 					"cid":              a.chunk,
 					"src_network_name": datum.Hosts.SrcNetworkName,
+					"proxy_ip":         datum.ProxyIP,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
-						"count":     datum.ConnectionCount,
-						"bytes":     []interface{}{},
-						"ts":        []interface{}{},
-						"proxy_ips": datum.ProxyIPs,
-						"cid":       a.chunk,
+						"count": datum.ConnectionCount,
+						"bytes": []interface{}{},
+						"ts":    []interface{}{},
+						"cid":   a.chunk,
 					},
 				}
 			} else {
 				query["$set"] = bson.M{
 					"cid":              a.chunk,
 					"src_network_name": datum.Hosts.SrcNetworkName,
+					"proxy_ip":         datum.ProxyIP,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
-						"count":     datum.ConnectionCount,
-						"ts":        datum.TsList,
-						"proxy_ips": datum.ProxyIPs,
-						"cid":       a.chunk,
+						"count": datum.ConnectionCount,
+						"ts":    datum.TsList,
+						"cid":   a.chunk,
 					},
 				}
 			}

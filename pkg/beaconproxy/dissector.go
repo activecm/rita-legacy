@@ -5,7 +5,6 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/globalsign/mgo/bson"
 )
@@ -76,46 +75,33 @@ func (d *dissector) start() {
 				{"$match": matchNoStrobeKey},
 				{"$limit": 1},
 				{"$project": bson.M{
-					"proxy_ips": "$dat.proxy_ips",
-					"ts":        "$dat.ts",
-					"count":     "$dat.count",
+					"ts":    "$dat.ts",
+					"count": "$dat.count",
 				}},
 				{"$unwind": "$count"},
 				{"$group": bson.M{
-					"_id":       "$_id",
-					"proxy_ips": bson.M{"$first": "$proxy_ips"},
-					"ts":        bson.M{"$first": "$ts"},
-					"count":     bson.M{"$sum": "$count"},
+					"_id":   "$_id",
+					"ts":    bson.M{"$first": "$ts"},
+					"count": bson.M{"$sum": "$count"},
 				}},
 				{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.Beacon.DefaultConnectionThresh}}},
 				{"$unwind": "$ts"},
 				{"$unwind": "$ts"},
 				{"$group": bson.M{
-					"_id":       "$_id",
-					"proxy_ips": bson.M{"$first": "$proxy_ips"},
-					"ts":        bson.M{"$addToSet": "$ts"},
-					"count":     bson.M{"$first": "$count"},
-				}},
-				{"$unwind": "$proxy_ips"},
-				{"$unwind": "$proxy_ips"},
-				{"$group": bson.M{
-					"_id":       "$_id",
-					"proxy_ips": bson.M{"$addToSet": "$proxy_ips"},
-					"ts":        bson.M{"$first": "$ts"},
-					"count":     bson.M{"$first": "$count"},
+					"_id":   "$_id",
+					"ts":    bson.M{"$addToSet": "$ts"},
+					"count": bson.M{"$first": "$count"},
 				}},
 				{"$project": bson.M{
-					"_id":       "$_id",
-					"proxy_ips": 1,
-					"ts":        1,
-					"count":     1,
+					"_id":   "$_id",
+					"ts":    1,
+					"count": 1,
 				}},
 			}
 
 			var res struct {
-				Count    int64            `bson:"count"`
-				ProxyIPs data.UniqueIPSet `bson:"proxy_ips"`
-				Ts       []int64          `bson:"ts"`
+				Count int64   `bson:"count"`
+				Ts    []int64 `bson:"ts"`
 			}
 
 			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnProxyTable).Pipe(uconnProxyFindQuery).AllowDiskUse().One(&res)
@@ -125,7 +111,7 @@ func (d *dissector) start() {
 			if res.Count > 0 {
 				analysisInput := &uconnproxy.Input{
 					Hosts:           datum.Hosts,
-					ProxyIPs:        datum.ProxyIPs,
+					ProxyIP:         datum.ProxyIP,
 					ConnectionCount: res.Count,
 				}
 

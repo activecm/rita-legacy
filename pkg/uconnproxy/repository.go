@@ -38,11 +38,11 @@ type UniqueSrcHostname struct {
 // was attempting to communicate.
 // Contains a list of unique time stamps for the
 // connections out from the Src to the FQDN via the
-// proxy server(s) and a count of the connections.
+// proxy server and a count of the connections.
 type Input struct {
 	Hosts           UniqueSrcHostname
 	TsList          []int64
-	ProxyIPs        data.UniqueIPSet
+	ProxyIP         data.UniqueIP
 	ConnectionCount int64
 }
 

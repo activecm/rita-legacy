@@ -38,14 +38,14 @@ type (
 	//Result represents a beacon proxy between a source IP and
 	// an fqdn.
 	Result struct {
-		FQDN           string           `bson:"fqdn"`
-		SrcIP          string           `bson:"src"`
-		SrcNetworkName string           `bson:"src_network_name"`
-		SrcNetworkUUID bson.Binary      `bson:"src_network_uuid"`
-		Connections    int64            `bson:"connection_count"`
-		Ts             TSData           `bson:"ts"`
-		Score          float64          `bson:"score"`
-		ProxyIPs       data.UniqueIPSet `bson:"proxy_ips"`
+		FQDN           string        `bson:"fqdn"`
+		SrcIP          string        `bson:"src"`
+		SrcNetworkName string        `bson:"src_network_name"`
+		SrcNetworkUUID bson.Binary   `bson:"src_network_uuid"`
+		Connections    int64         `bson:"connection_count"`
+		Ts             TSData        `bson:"ts"`
+		Score          float64       `bson:"score"`
+		ProxyIP        data.UniqueIP `bson:"proxy_ip"`
 	}
 
 	//StrobeResult represents a unique connection with a large amount

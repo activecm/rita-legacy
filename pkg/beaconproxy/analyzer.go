@@ -169,7 +169,7 @@ func (a *analyzer) start() {
 				// update beacon query
 				query["$set"] = bson.M{
 					"connection_count":   entry.ConnectionCount,
-					"proxy_ips":          entry.ProxyIPs,
+					"proxy_ip":           entry.ProxyIP,
 					"src_network_name":   entry.Hosts.SrcNetworkName,
 					"ts.range":           tsIntervalRange,
 					"ts.mode":            tsMode,

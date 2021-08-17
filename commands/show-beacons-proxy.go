@@ -69,14 +69,14 @@ func showBeaconsProxyHuman(data []beaconproxy.Result, showNetNames bool) error {
 	var headerFields []string
 	if showNetNames {
 		headerFields = []string{
-			"Score", "Source Network", "Source IP", "FQDN",
+			"Score", "Source Network", "Source IP", "FQDN", "Proxy Network", "Proxy IP",
 			"Connections", "Intvl Range", "Top Intvl",
 			"Top Intvl Count", "Intvl Skew",
 			"Intvl Dispersion",
 		}
 	} else {
 		headerFields = []string{
-			"Score", "Source IP", "FQDN",
+			"Score", "Source IP", "FQDN", "Proxy IP",
 			"Connections", "Intvl Range", "Top Intvl",
 			"Top Intvl Count", "Intvl Skew",
 			"Intvl Dispersion",
@@ -91,15 +91,15 @@ func showBeaconsProxyHuman(data []beaconproxy.Result, showNetNames bool) error {
 		if showNetNames {
 			row = []string{
 				f(d.Score), d.SrcNetworkName,
-				d.SrcIP, d.FQDN, i(d.Connections),
-				i(d.Ts.Range), i(d.Ts.Mode),
+				d.SrcIP, d.FQDN, d.ProxyIP.NetworkName, d.ProxyIP.IP,
+				i(d.Connections), i(d.Ts.Range), i(d.Ts.Mode),
 				i(d.Ts.ModeCount), f(d.Ts.Skew),
 				i(d.Ts.Dispersion),
 			}
 		} else {
 			row = []string{
-				f(d.Score), d.SrcIP, d.FQDN, i(d.Connections),
-				i(d.Ts.Range), i(d.Ts.Mode),
+				f(d.Score), d.SrcIP, d.FQDN, d.ProxyIP.IP,
+				i(d.Connections), i(d.Ts.Range), i(d.Ts.Mode),
 				i(d.Ts.ModeCount), f(d.Ts.Skew),
 				i(d.Ts.Dispersion),
 			}
@@ -114,14 +114,14 @@ func showBeaconsProxyDelim(data []beaconproxy.Result, delim string, showNetNames
 	var headerFields []string
 	if showNetNames {
 		headerFields = []string{
-			"Score", "Source Network", "Source IP", "FQDN",
+			"Score", "Source Network", "Source IP", "FQDN", "Proxy Network", "Proxy IP",
 			"Connections", "Intvl Range", "Top Intvl",
 			"Top Intvl Count", "Intvl Skew",
 			"Intvl Dispersion",
 		}
 	} else {
 		headerFields = []string{
-			"Score", "Source IP", "FQDN",
+			"Score", "Source IP", "FQDN", "Proxy IP",
 			"Connections", "Intvl Range", "Top Intvl",
 			"Top Intvl Count", "Intvl Skew",
 			"Intvl Dispersion",
@@ -136,15 +136,15 @@ func showBeaconsProxyDelim(data []beaconproxy.Result, delim string, showNetNames
 		if showNetNames {
 			row = []string{
 				f(d.Score), d.SrcNetworkName,
-				d.SrcIP, d.FQDN, i(d.Connections),
-				i(d.Ts.Range), i(d.Ts.Mode),
+				d.SrcIP, d.FQDN, d.ProxyIP.NetworkName, d.ProxyIP.IP,
+				i(d.Connections), i(d.Ts.Range), i(d.Ts.Mode),
 				i(d.Ts.ModeCount), f(d.Ts.Skew),
 				i(d.Ts.Dispersion),
 			}
 		} else {
 			row = []string{
-				f(d.Score), d.SrcIP, d.FQDN, i(d.Connections),
-				i(d.Ts.Range), i(d.Ts.Mode),
+				f(d.Score), d.SrcIP, d.FQDN, d.ProxyIP.IP,
+				i(d.Connections), i(d.Ts.Range), i(d.Ts.Mode),
 				i(d.Ts.ModeCount), f(d.Ts.Skew),
 				i(d.Ts.Dispersion),
 			}
