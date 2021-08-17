@@ -58,11 +58,6 @@ func getBeaconProxyWriter(beaconsProxy []beaconproxy.Result, showNetNames bool) 
 
 	tmpl += "<td>{{.SrcIP}}</td><td>{{.FQDN}}</td>"
 
-	if showNetNames {
-		tmpl += "<td>{{.DstNetworkName}}</td>"
-	}
-
-	tmpl += "<td>{{.DstIP}}</td>"
 	tmpl += "<td>{{.Connections}}</td>"
 	tmpl += "<td>{{.Ts.Range}}</td><td>{{.Ts.Mode}}</td><td>{{.Ts.ModeCount}}</td>"
 	tmpl += "<td>{{printf \"%.3f\" .Ts.Skew}}</td><td>{{.Ts.Dispersion}}</td>"

@@ -23,6 +23,7 @@ type (
 	update struct {
 		beacon     updateInfo
 		hostBeacon updateInfo
+		uconnproxy updateInfo
 	}
 
 	//TSData ...
@@ -35,24 +36,22 @@ type (
 	}
 
 	//Result represents a beacon proxy between a source IP and
-	// an proxy.
+	// an fqdn.
 	Result struct {
-		FQDN           string      `bson:"fqdn"`
-		SrcIP          string      `bson:"src"`
-		SrcNetworkName string      `bson:"src_network_name"`
-		SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
-		DstIP          string      `bson:"dst"`
-		DstNetworkName string      `bson:"dst_network_name"`
-		DstNetworkUUID bson.Binary `bson:"dst_network_uuid"`
-		Connections    int64       `bson:"connection_count"`
-		Ts             TSData      `bson:"ts"`
-		Score          float64     `bson:"score"`
+		FQDN           string           `bson:"fqdn"`
+		SrcIP          string           `bson:"src"`
+		SrcNetworkName string           `bson:"src_network_name"`
+		SrcNetworkUUID bson.Binary      `bson:"src_network_uuid"`
+		Connections    int64            `bson:"connection_count"`
+		Ts             TSData           `bson:"ts"`
+		Score          float64          `bson:"score"`
+		ProxyIPs       data.UniqueIPSet `bson:"proxy_ips"`
 	}
 
 	//StrobeResult represents a unique connection with a large amount
 	//of connections between the hosts
 	StrobeResult struct {
-		data.UniqueIPPair `bson:",inline"`
-		ConnectionCount   int64 `bson:"connection_count"`
+		uconnproxy.UniqueSrcHostname `bson:",inline"`
+		ConnectionCount              int64 `bson:"connection_count"`
 	}
 )

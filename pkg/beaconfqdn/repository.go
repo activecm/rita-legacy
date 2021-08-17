@@ -48,26 +48,27 @@ type (
 	// an FQDN. An FQDN can be comprised of one or more destination IPs.
 	// Contains information on connection delta times and the amount of data transferred
 	Result struct {
-		FQDN           string          `bson:"fqdn"`
-		SrcIP          string          `bson:"src"`
-		SrcNetworkName string          `bson:"src_network_name"`
-		SrcNetworkUUID bson.Binary     `bson:"src_network_uuid"`
-		Connections    int64           `bson:"connection_count"`
-		AvgBytes       float64         `bson:"avg_bytes"`
-		Ts             TSData          `bson:"ts"`
-		Ds             DSData          `bson:"ds"`
-		Score          float64         `bson:"score"`
-		ResolvedIPs    []data.UniqueIP `bson:"resolved_ips"`
+		FQDN           string           `bson:"fqdn"`
+		SrcIP          string           `bson:"src"`
+		SrcNetworkName string           `bson:"src_network_name"`
+		SrcNetworkUUID bson.Binary      `bson:"src_network_uuid"`
+		Connections    int64            `bson:"connection_count"`
+		AvgBytes       float64          `bson:"avg_bytes"`
+		Ts             TSData           `bson:"ts"`
+		Ds             DSData           `bson:"ds"`
+		Score          float64          `bson:"score"`
+		ResolvedIPs    data.UniqueIPSet `bson:"resolved_ips"`
 	}
 
 	//StrobeResult represents a unique connection with a large amount
 	//of connections between the hosts
 	StrobeResult struct {
-		data.UniqueIPPair `bson:",inline"`
-		ConnectionCount   int64 `bson:"connection_count"`
+		uniqueSrcHostnamePair `bson:",inline"`
+		ConnectionCount       int64 `bson:"connection_count"`
 	}
 
-	//uniqueSrcHostnamePair ...
+	//uniqueSrcHostnamePair is used as part of the analysis step for
+	// beacons fqdn. This pair is used for storing results
 	uniqueSrcHostnamePair struct {
 		SrcIP          string      `bson:"src"`
 		SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
@@ -75,9 +76,9 @@ type (
 	}
 )
 
-//BSONKey generates a BSON map which may be used to index a given a unique src
-// fqdn pair
-//Includes IP and Network UUID.
+//BSONKey generates a BSON map which may be used to index a given
+// a unique src and fqdn pair
+// Includes IP and Network UUID.
 func (p uniqueSrcHostnamePair) BSONKey() bson.M {
 	key := bson.M{
 		"src":              p.SrcIP,

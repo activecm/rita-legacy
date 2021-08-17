@@ -707,10 +707,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// disambiguate addresses which are not publicly routable
 							srcUniqIP := data.NewUniqueIP(srcIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
 							dstUniqIP := data.NewUniqueIP(dstIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
-							srcProxyFQDNTrio := uconnproxy.NewUniqueSrcProxyHostnameTrio(srcUniqIP, dstUniqIP, fqdn)
+							srcFQDNPair := uconnproxy.NewUniqueSrcHostname(srcUniqIP, fqdn)
 
-							// get aggregation keys for ip addresses and connection pair
-							srcProxyFQDNKey := srcProxyFQDNTrio.MapKey()
+							// get aggregation keys for src ip addresses and fqdn pair
+							srcFQDNKey := srcFQDNPair.MapKey()
 
 							// check if internal IP is requesting a connection
 							// through a proxy
@@ -722,23 +722,25 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// add client (src) IP to hostname map
 
 								// Check if the map value is set
-								if _, ok := uconnProxyMap[srcProxyFQDNKey]; !ok {
-									// create new host record with src and dst
-									uconnProxyMap[srcProxyFQDNKey] = &uconnproxy.Input{
-										Hosts: srcProxyFQDNTrio,
+								if _, ok := uconnProxyMap[srcFQDNKey]; !ok {
+									// create new uconnProxyMap record with src and fqdn
+									uconnProxyMap[srcFQDNKey] = &uconnproxy.Input{
+										Hosts: srcFQDNPair,
 									}
 								}
 
 								// increment connection count
-								uconnProxyMap[srcProxyFQDNKey].ConnectionCount++
+								uconnProxyMap[srcFQDNKey].ConnectionCount++
 
 								// parse timestamp
 								ts := parseHTTP.TimeStamp
 
 								// add timestamp to unique timestamp list
-								if !int64InSlice(ts, uconnProxyMap[srcProxyFQDNKey].TsList) {
-									uconnProxyMap[srcProxyFQDNKey].TsList = append(uconnProxyMap[srcProxyFQDNKey].TsList, ts)
+								if !int64InSlice(ts, uconnProxyMap[srcFQDNKey].TsList) {
+									uconnProxyMap[srcFQDNKey].TsList = append(uconnProxyMap[srcFQDNKey].TsList, ts)
 								}
+
+								uconnProxyMap[srcFQDNKey].ProxyIPs.Insert(dstUniqIP)
 
 								mutex.Unlock()
 

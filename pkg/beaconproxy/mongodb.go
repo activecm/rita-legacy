@@ -2,7 +2,6 @@ package beaconproxy
 
 import (
 	"runtime"
-	"time"
 
 	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/resources"
@@ -127,9 +126,6 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input) {
 
 	// loop over map entries (each hostname)
 	for _, entry := range uconnProxyMap {
-
-		start := time.Now()
-
 		// pass entry to dissector
 		dissectorWorker.collect(entry)
 
