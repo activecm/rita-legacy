@@ -748,8 +748,8 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								if _, ok := uconnProxyMap[srcFQDNKey]; !ok {
 									// create new uconnProxyMap record with src and fqdn
 									uconnProxyMap[srcFQDNKey] = &uconnproxy.Input{
-										Hosts:   srcFQDNPair,
-										ProxyIP: dstUniqIP,
+										Hosts: srcFQDNPair,
+										Proxy: dstUniqIP,
 									}
 								}
 

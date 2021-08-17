@@ -42,7 +42,7 @@ type UniqueSrcHostname struct {
 type Input struct {
 	Hosts           UniqueSrcHostname
 	TsList          []int64
-	ProxyIP         data.UniqueIP
+	Proxy           data.UniqueIP
 	ConnectionCount int64
 }
 

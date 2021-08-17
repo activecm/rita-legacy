@@ -71,7 +71,7 @@ func (a *analyzer) start() {
 					"strobe":           true,
 					"cid":              a.chunk,
 					"src_network_name": datum.Hosts.SrcNetworkName,
-					"proxy_ip":         datum.ProxyIP,
+					"proxy":            datum.Proxy,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{
@@ -85,7 +85,7 @@ func (a *analyzer) start() {
 				query["$set"] = bson.M{
 					"cid":              a.chunk,
 					"src_network_name": datum.Hosts.SrcNetworkName,
-					"proxy_ip":         datum.ProxyIP,
+					"proxy":            datum.Proxy,
 				}
 				query["$push"] = bson.M{
 					"dat": bson.M{

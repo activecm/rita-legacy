@@ -111,7 +111,7 @@ func (d *dissector) start() {
 			if res.Count > 0 {
 				analysisInput := &uconnproxy.Input{
 					Hosts:           datum.Hosts,
-					ProxyIP:         datum.ProxyIP,
+					Proxy:           datum.Proxy,
 					ConnectionCount: res.Count,
 				}
 

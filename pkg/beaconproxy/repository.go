@@ -45,7 +45,7 @@ type (
 		Connections    int64         `bson:"connection_count"`
 		Ts             TSData        `bson:"ts"`
 		Score          float64       `bson:"score"`
-		ProxyIP        data.UniqueIP `bson:"proxy_ip"`
+		Proxy          data.UniqueIP `bson:"proxy"`
 	}
 
 	//StrobeResult represents a unique connection with a large amount
