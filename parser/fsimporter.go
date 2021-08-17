@@ -677,6 +677,31 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// parse host
 							fqdn := parseHTTP.Host
 
+							// host field isn't always populated.
+							// as a second option, parse out the host from the URI.
+							if fqdn == "" {
+								uri := parseHTTP.URI
+
+								// handle if URI is prefixed with http://, https://, etc.
+								if strings.Contains(uri, "://") {
+									uri = strings.Split(uri, "://")[1]
+								}
+
+								// handle if URI is suffixed with :443, :80, etc.
+								if strings.Contains(uri, ":") {
+									uri = strings.Split(uri, ":")[0]
+								}
+
+								// handle if URI is suffixed with a path like
+								// /index.html, /home, etc.
+								if strings.Contains(uri, "/") {
+									uri = strings.Split(uri, "/")[0]
+								}
+
+								// at this point, the URI should be parsed down to just an FQDN
+								fqdn = uri
+							}
+
 							// parse method type
 							method := parseHTTP.Method
 
@@ -718,8 +743,6 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 								// Safely store the number of conns for this uconn
 								mutex.Lock()
-
-								// add client (src) IP to hostname map
 
 								// Check if the map value is set
 								if _, ok := uconnProxyMap[srcFQDNKey]; !ok {
