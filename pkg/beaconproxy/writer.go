@@ -19,7 +19,7 @@ type (
 	}
 )
 
-//newWriter creates a new writer object to write output data to blacklisted collections
+//newWriter creates a new writer object to write output data to beaconproxy collections
 func newWriter(targetCollection string, db *database.DB, conf *config.Config, log *log.Logger) *writer {
 	return &writer{
 		targetCollection: targetCollection,
