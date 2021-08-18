@@ -67,8 +67,8 @@ func (a *analyzer) start() {
 
 			// create selector pair object
 			selectorPair := data.UniqueSrcFQDNPair{
-				entry.Src.Unpair().AsSrc(),
-				entry.FQDN,
+				UniqueSrcIP: entry.Src,
+				FQDN:        entry.FQDN,
 			}
 
 			// create query
