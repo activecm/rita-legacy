@@ -47,10 +47,12 @@ func (r *repo) CreateIndexes() error {
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"-score"}},
+		{Key: []string{"src", "dst", "fqdn", "src_network_uuid", "dst_network_uuid"}, Unique: true},
 		{Key: []string{"dst", "dst_network_uuid"}},
 		{Key: []string{"src", "src_network_uuid"}},
 		{Key: []string{"fqdn"}},
 		{Key: []string{"-connection_count"}},
+		{Key: []string{"proxy.ip", "proxy.network_uuid"}},
 	}
 
 	// create collection
