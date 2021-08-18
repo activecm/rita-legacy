@@ -28,7 +28,7 @@ type (
 		OpenConnTable        string `default:"openconn"`
 		SSLTable             string `default:"ssl"`
 		UniqueConnTable      string `default:"uconn"`
-		UniqueConnProxyTable string `default:"uconnproxy"`
+		UniqueConnProxyTable string `default:"uconnProxy"`
 	}
 
 	//DNSTableCfg is used to control the dns analysis module
