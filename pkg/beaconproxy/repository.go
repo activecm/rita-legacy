@@ -51,7 +51,7 @@ type (
 	//StrobeResult represents a unique connection with a large amount
 	//of connections between the hosts
 	StrobeResult struct {
-		uconnproxy.UniqueSrcHostname `bson:",inline"`
-		ConnectionCount              int64 `bson:"connection_count"`
+		data.UniqueSrcFQDNPair `bson:",inline"`
+		ConnectionCount        int64 `bson:"connection_count"`
 	}
 )

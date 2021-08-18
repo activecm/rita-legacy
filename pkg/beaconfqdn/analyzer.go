@@ -66,9 +66,8 @@ func (a *analyzer) start() {
 			output := &update{}
 
 			// create selector pair object
-			selectorPair := uniqueSrcHostnamePair{
-				entry.Src.SrcIP,
-				entry.Src.SrcNetworkUUID,
+			selectorPair := data.UniqueSrcFQDNPair{
+				entry.Src.Unpair().AsSrc(),
 				entry.FQDN,
 			}
 

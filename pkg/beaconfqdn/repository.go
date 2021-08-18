@@ -63,27 +63,7 @@ type (
 	//StrobeResult represents a unique connection with a large amount
 	//of connections between the hosts
 	StrobeResult struct {
-		uniqueSrcHostnamePair `bson:",inline"`
-		ConnectionCount       int64 `bson:"connection_count"`
-	}
-
-	//uniqueSrcHostnamePair is used as part of the analysis step for
-	// beacons fqdn. This pair is used for storing results
-	uniqueSrcHostnamePair struct {
-		SrcIP          string      `bson:"src"`
-		SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
-		FQDN           string      `bson:"fqdn"`
+		data.UniqueSrcFQDNPair `bson:",inline"`
+		ConnectionCount        int64 `bson:"connection_count"`
 	}
 )
-
-//BSONKey generates a BSON map which may be used to index a given
-// a unique src and fqdn pair
-// Includes IP and Network UUID.
-func (p uniqueSrcHostnamePair) BSONKey() bson.M {
-	key := bson.M{
-		"src":              p.SrcIP,
-		"src_network_uuid": p.SrcNetworkUUID,
-		"fqdn":             p.FQDN,
-	}
-	return key
-}

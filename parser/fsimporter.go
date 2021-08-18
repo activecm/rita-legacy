@@ -739,7 +739,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// disambiguate addresses which are not publicly routable
 							srcUniqIP := data.NewUniqueIP(srcIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
 							dstUniqIP := data.NewUniqueIP(dstIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
-							srcFQDNPair := uconnproxy.NewUniqueSrcHostname(srcUniqIP, fqdn)
+							srcFQDNPair := data.NewUniqueSrcFQDNPair(srcUniqIP, fqdn)
 
 							// get aggregation keys for src ip addresses and fqdn pair
 							srcFQDNKey := srcFQDNPair.MapKey()
