@@ -679,24 +679,31 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 							// host field isn't always populated.
 							// as a second option, parse out the host from the URI.
+							// This isn't the first choice as it will take longer than
+							// just grabbing the fqdn from the host field
 							if fqdn == "" {
 								uri := parseHTTP.URI
 
-								// handle if URI is prefixed with http://, https://, etc.
-								if strings.Contains(uri, "://") {
-									uri = strings.Split(uri, "://")[1]
-								}
+								minIndex := 0
 
-								// handle if URI is suffixed with :443, :80, etc.
-								if strings.Contains(uri, ":") {
-									uri = strings.Split(uri, ":")[0]
+								// handle if the URI has :// present (e.g., http://, https://, etc.)
+								if protoIndex := strings.Index(uri, "://"); protoIndex != -1 {
+									minIndex = protoIndex + len("://")
 								}
+								uri = uri[minIndex:]
 
-								// handle if URI is suffixed with a path like
-								// /index.html, /home, etc.
-								if strings.Contains(uri, "/") {
-									uri = strings.Split(uri, "/")[0]
+								maxIndex := len(uri)
+								if portIdx := strings.Index(uri, ":"); portIdx > -1 {
+									// Case for if URI has the port number included (e.g., example.com:443).
+									// This will also handle if the URI has a path appended as the path
+									// appears after the port, so this will just lop off the path too.
+									maxIndex = portIdx
+								} else if pathIdx := strings.Index(uri, "/"); pathIdx > -1 {
+									// Case for if the URI did not have a port but had a path
+									// suffixed to it (e.g., example.com/somecoolpath
+									maxIndex = pathIdx
 								}
+								uri = uri[:maxIndex]
 
 								// at this point, the URI should be parsed down to just an FQDN
 								fqdn = uri
