@@ -39,7 +39,7 @@ func (r *repo) CreateIndexes() error {
 	}
 
 	indexes := []mgo.Index{
-		{Key: []string{"src", "src_network_uuid", "fqdn"}, Unique: true},
+		{Key: []string{"src", "fqdn", "src_network_uuid"}, Unique: true},
 		{Key: []string{"fqdn"}},
 		{Key: []string{"src", "src_network_uuid"}},
 		{Key: []string{"$dat.count"}},
