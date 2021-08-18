@@ -242,6 +242,7 @@ func (a *analyzer) start() {
 					"cid":                a.chunk,
 					"src_network_name":   entry.Src.SrcNetworkName,
 					"resolved_ips":       entry.ResolvedIPs,
+					"strobeFQDN":         false,
 				}
 
 				// set query

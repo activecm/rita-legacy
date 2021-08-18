@@ -75,7 +75,7 @@ func (a *analyzer) start() {
 				output.uconnproxy = updateInfo{
 					// update hosts record
 					query: bson.M{
-						"$set": bson.M{"strobe": true},
+						"$set": bson.M{"strobeFQDN": true},
 					},
 					// create selector for output
 					selector: entry.Hosts.BSONKey(),
@@ -183,6 +183,7 @@ func (a *analyzer) start() {
 					"tslist":             entry.TsList,
 					"score":              score,
 					"cid":                a.chunk,
+					"strobeFQDN":         false,
 				}
 
 				// set query
