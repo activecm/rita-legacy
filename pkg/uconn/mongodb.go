@@ -2,7 +2,6 @@ package uconn
 
 import (
 	"runtime"
-	"time"
 
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
@@ -89,9 +88,8 @@ func (r *repo) Upsert(uconnMap map[string]*Input) {
 
 	// loop over map entries
 	for _, entry := range uconnMap {
-		start := time.Now()
 		analyzerWorker.collect(entry)
-		bar.IncrBy(1, time.Since(start))
+		bar.IncrBy(1)
 	}
 	p.Wait()
 
