@@ -2,7 +2,6 @@ package useragent
 
 import (
 	"runtime"
-	"time"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -97,7 +96,6 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 
 	// loop over map entries
 	for _, entry := range userAgentMap {
-		start := time.Now()
 		//Mongo Index key is limited to a size of 1024 https://docs.mongodb.com/v3.4/reference/limits/#index-limitations
 		//  so if the key is too large, we should cut it back, this is rough but
 		//  works. Figured 800 allows some wiggle room, while also not being too large
@@ -105,7 +103,7 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 			entry.Name = entry.Name[:800]
 		}
 		analyzerWorker.collect(entry)
-		bar.IncrBy(1, time.Since(start))
+		bar.IncrBy(1)
 	}
 
 	p.Wait()

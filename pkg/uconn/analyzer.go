@@ -135,6 +135,7 @@ func (a *analyzer) start() {
 				}
 			} else {
 				query["$set"] = bson.M{
+					"strobe":                false,
 					"cid":                   a.chunk,
 					"src_network_name":      datum.Hosts.SrcNetworkName,
 					"dst_network_name":      datum.Hosts.DstNetworkName,

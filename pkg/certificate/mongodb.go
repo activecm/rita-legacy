@@ -2,7 +2,6 @@ package certificate
 
 import (
 	"runtime"
-	"time"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -90,9 +89,8 @@ func (r *repo) Upsert(certMap map[string]*Input) {
 
 	// loop over map entries
 	for _, value := range certMap {
-		start := time.Now()
 		analyzerWorker.collect(value)
-		bar.IncrBy(1, time.Since(start))
+		bar.IncrBy(1)
 	}
 
 	p.Wait()

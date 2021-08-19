@@ -2,10 +2,11 @@ package parser
 
 import (
 	"net"
+	"strings"
 
 	"github.com/activecm/rita/parser/parsetypes"
-	"github.com/activecm/rita/pkg/beaconproxy"
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/util"
 )
@@ -21,6 +22,38 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 
 	// parse host
 	fqdn := parseHTTP.Host
+
+	// host field isn't always populated.
+	// as a second option, parse out the host from the URI.
+	// This isn't the first choice as it will take longer than
+	// just grabbing the fqdn from the host field
+	if fqdn == "" {
+		uri := parseHTTP.URI
+
+		minIndex := 0
+
+		// handle if the URI has :// present (e.g., http://, https://, etc.)
+		if protoIndex := strings.Index(uri, "://"); protoIndex != -1 {
+			minIndex = protoIndex + len("://")
+		}
+		uri = uri[minIndex:]
+
+		maxIndex := len(uri)
+		if portIdx := strings.Index(uri, ":"); portIdx > -1 {
+			// Case for if URI has the port number included (e.g., example.com:443).
+			// This will also handle if the URI has a path appended as the path
+			// appears after the port, so this will just lop off the path too.
+			maxIndex = portIdx
+		} else if pathIdx := strings.Index(uri, "/"); pathIdx > -1 {
+			// Case for if the URI did not have a port but had a path
+			// suffixed to it (e.g., example.com/somecoolpath
+			maxIndex = pathIdx
+		}
+		uri = uri[:maxIndex]
+
+		// at this point, the URI should be parsed down to just an FQDN
+		fqdn = uri
+	}
 
 	// parse method type
 	method := parseHTTP.Method
@@ -50,16 +83,13 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 	// disambiguate addresses which are not publicly routable
 	srcUniqIP := data.NewUniqueIP(srcIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
 	dstUniqIP := data.NewUniqueIP(dstIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
-	srcProxyFQDNTrio := beaconproxy.NewUniqueSrcProxyHostnameTrio(srcUniqIP, dstUniqIP, fqdn)
-
-	// get aggregation keys for ip addresses and connection pair
-	srcProxyFQDNKey := srcProxyFQDNTrio.MapKey()
+	srcFQDNPair := data.NewUniqueSrcFQDNPair(srcUniqIP, fqdn)
 
 	updateUseragentsByHTTP(srcUniqIP, parseHTTP, retVals)
 
 	// check if internal IP is requesting a connection through a proxy
 	if dstIsProxy {
-		updateProxiedUniqueConnectionsByHTTP(srcProxyFQDNTrio, srcProxyFQDNKey, parseHTTP, retVals)
+		updateProxiedUniqueConnectionsByHTTP(srcFQDNPair, dstUniqIP, parseHTTP, retVals)
 	}
 }
 
@@ -91,26 +121,31 @@ func updateUseragentsByHTTP(srcUniqIP data.UniqueIP, parseHTTP *parsetypes.HTTP,
 	retVals.UseragentMap[parseHTTP.UserAgent].Requests.Insert(parseHTTP.Host)
 }
 
-func updateProxiedUniqueConnectionsByHTTP(srcProxyFQDNTrio beaconproxy.UniqueSrcProxyHostnameTrio, srcProxyFQDNKey string, parseHTTP *parsetypes.HTTP, retVals ParseResults) {
+func updateProxiedUniqueConnectionsByHTTP(srcFQDNPair data.UniqueSrcFQDNPair, dstUniqIP data.UniqueIP,
+	parseHTTP *parsetypes.HTTP, retVals ParseResults) {
 
 	retVals.ProxyUniqueConnLock.Lock()
 	defer retVals.ProxyUniqueConnLock.Unlock()
 
-	if _, ok := retVals.ProxyUniqueConnMap[srcProxyFQDNKey]; !ok {
+	// get aggregation keys for src ip addresses and fqdn pair
+	srcFQDNKey := srcFQDNPair.MapKey()
+
+	if _, ok := retVals.ProxyUniqueConnMap[srcFQDNKey]; !ok {
 		// create new host record with src and dst
-		retVals.ProxyUniqueConnMap[srcProxyFQDNKey] = &beaconproxy.Input{
-			Hosts: srcProxyFQDNTrio,
+		retVals.ProxyUniqueConnMap[srcFQDNKey] = &uconnproxy.Input{
+			Hosts: srcFQDNPair,
+			Proxy: dstUniqIP,
 		}
 	}
 
 	// ///// INCREMENT THE CONNECTION COUNT FOR THE PROXIED UNIQUE CONNECTION /////
-	retVals.ProxyUniqueConnMap[srcProxyFQDNKey].ConnectionCount++
+	retVals.ProxyUniqueConnMap[srcFQDNKey].ConnectionCount++
 
 	// ///// UNION TIMESTAMP WITH PROXIED UNIQUE CONNECTION TIMESTAMP SET /////
 	ts := parseHTTP.TimeStamp
-	if !util.Int64InSlice(ts, retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList) {
-		retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList = append(
-			retVals.ProxyUniqueConnMap[srcProxyFQDNKey].TsList, ts,
+	if !util.Int64InSlice(ts, retVals.ProxyUniqueConnMap[srcFQDNKey].TsList) {
+		retVals.ProxyUniqueConnMap[srcFQDNKey].TsList = append(
+			retVals.ProxyUniqueConnMap[srcFQDNKey].TsList, ts,
 		)
 	}
 }

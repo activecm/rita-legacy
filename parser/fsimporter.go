@@ -22,6 +22,7 @@ import (
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/pkg/remover"
 	"github.com/activecm/rita/pkg/uconn"
+	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
@@ -174,6 +175,9 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 
 		// build Uconns table. Must go before beacons.
 		fs.buildUconns(retVals.UniqueConnMap)
+
+		// build uconnsProxy table. Must go before proxy beacons
+		fs.buildUconnsProxy(retVals.ProxyUniqueConnMap)
 
 		// update ts range for dataset (needs to be run before beacons)
 		minTimestamp, maxTimestamp := fs.updateTimestampRange()
@@ -469,6 +473,24 @@ func (fs *FSImporter) buildHostnames(hostnameMap map[string]*hostname.Input) {
 
 }
 
+func (fs *FSImporter) buildUconnsProxy(uconnProxyMap map[string]*uconnproxy.Input) {
+	// non-optional module
+	if len(uconnProxyMap) > 0 {
+		// Set up the database
+		uconnProxyRepo := uconnproxy.NewMongoRepository(fs.database, fs.config, fs.log)
+
+		err := uconnProxyRepo.CreateIndexes()
+		if err != nil {
+			fs.log.Error(err)
+		}
+
+		// send uconnProxyMap to uconnProxy analysis
+		uconnProxyRepo.Upsert(uconnProxyMap)
+	} else {
+		fmt.Println("\t[!] No Proxy Uconn data to analyze")
+	}
+}
+
 func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Input) {
 	// non-optional module
 	if len(uconnMap) > 0 {
@@ -561,9 +583,9 @@ func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input, m
 
 }
 
-func (fs *FSImporter) buildProxyBeacons(proxyHostnameMap map[string]*beaconproxy.Input, minTimestamp, maxTimestamp int64) {
+func (fs *FSImporter) buildProxyBeacons(uconnProxyMap map[string]*uconnproxy.Input, minTimestamp, maxTimestamp int64) {
 	if fs.config.S.BeaconProxy.Enabled {
-		if len(proxyHostnameMap) > 0 {
+		if len(uconnProxyMap) > 0 {
 			beaconProxyRepo := beaconproxy.NewMongoRepository(fs.database, fs.config, fs.log)
 
 			err := beaconProxyRepo.CreateIndexes()
@@ -572,7 +594,7 @@ func (fs *FSImporter) buildProxyBeacons(proxyHostnameMap map[string]*beaconproxy
 			}
 
 			// send uconns to beacon analysis
-			beaconProxyRepo.Upsert(proxyHostnameMap, minTimestamp, maxTimestamp)
+			beaconProxyRepo.Upsert(uconnProxyMap, minTimestamp, maxTimestamp)
 		} else {
 			fmt.Println("\t[!] No Proxy Beacon data to analyze")
 		}

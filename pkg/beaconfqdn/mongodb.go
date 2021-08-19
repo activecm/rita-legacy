@@ -2,7 +2,6 @@ package beaconfqdn
 
 import (
 	"runtime"
-	"time"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -52,6 +51,7 @@ func (r *repo) CreateIndexes() error {
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"-score"}},
+		{Key: []string{"src", "fqdn", "src_network_uuid"}, Unique: true},
 		{Key: []string{"src", "src_network_uuid"}},
 		{Key: []string{"fqdn"}},
 		{Key: []string{"-connection_count"}},
@@ -130,8 +130,6 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input, minTimestamp, maxT
 	// loop over map entries (each hostname)
 	for _, entry := range hostnameMap {
 
-		start := time.Now()
-
 		// check to make sure hostname has resolved ips, skip otherwise
 		if len(entry.ResolvedIPs) > 0 {
 
@@ -150,7 +148,7 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input, minTimestamp, maxT
 		}
 
 		// progress bar increment
-		bar.IncrBy(1, time.Since(start))
+		bar.IncrBy(1)
 
 	}
 	p.Wait()

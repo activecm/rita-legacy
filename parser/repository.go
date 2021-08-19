@@ -3,11 +3,11 @@ package parser
 import (
 	"sync"
 
-	"github.com/activecm/rita/pkg/beaconproxy"
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/pkg/uconn"
+	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/pkg/useragent"
 )
 
@@ -17,7 +17,7 @@ import (
 type ParseResults struct {
 	UniqueConnMap       map[string]*uconn.Input
 	UniqueConnLock      *sync.Mutex
-	ProxyUniqueConnMap  map[string]*beaconproxy.Input
+	ProxyUniqueConnMap  map[string]*uconnproxy.Input
 	ProxyUniqueConnLock *sync.Mutex
 	HostMap             map[string]*host.Input
 	HostLock            *sync.Mutex
@@ -36,7 +36,7 @@ func newParseResults() ParseResults {
 	return ParseResults{
 		UniqueConnMap:       make(map[string]*uconn.Input),
 		UniqueConnLock:      new(sync.Mutex),
-		ProxyUniqueConnMap:  make(map[string]*beaconproxy.Input),
+		ProxyUniqueConnMap:  make(map[string]*uconnproxy.Input),
 		ProxyUniqueConnLock: new(sync.Mutex),
 		HostMap:             make(map[string]*host.Input),
 		HostLock:            new(sync.Mutex),

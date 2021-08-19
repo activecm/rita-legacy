@@ -2,7 +2,6 @@ package host
 
 import (
 	"runtime"
-	"time"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -42,6 +41,11 @@ func (r *repo) CreateIndexes() error {
 		{Key: []string{"ip", "network_uuid"}, Unique: true},
 		{Key: []string{"local"}},
 		{Key: []string{"ipv4_binary"}},
+		{Key: []string{"dat.mdip.ip", "dat.mdip.network_uuid"}},
+		{Key: []string{"dat.mbdst.ip", "dat.mbdst.network_uuid"}},
+		{Key: []string{"dat.max_dns.query"}},
+		{Key: []string{"dat.mbfqdn"}},
+		{Key: []string{"dat.mbproxy"}},
 	}
 
 	for _, index := range indexes {
@@ -86,9 +90,8 @@ func (r *repo) Upsert(hostMap map[string]*Input) {
 
 	// loop over map entries
 	for _, entry := range hostMap {
-		start := time.Now()
 		analyzerWorker.collect(entry)
-		bar.IncrBy(1, time.Since(start))
+		bar.IncrBy(1)
 	}
 	p.Wait()
 
