@@ -2,7 +2,6 @@ package beaconfqdn
 
 import (
 	"runtime"
-	"time"
 
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/resources"
@@ -129,8 +128,6 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 	// loop over map entries (each hostname)
 	for _, entry := range hostnameMap {
 
-		start := time.Now()
-
 		// check to make sure hostname has resolved ips, skip otherwise
 		if len(entry.ResolvedIPs) > 0 {
 
@@ -149,7 +146,7 @@ func (r *repo) Upsert(hostnameMap map[string]*hostname.Input) {
 		}
 
 		// progress bar increment
-		bar.IncrBy(1, time.Since(start))
+		bar.IncrBy(1)
 
 	}
 	p.Wait()

@@ -152,7 +152,7 @@ var BeaconsFQDNNetNamesTempl = dbHeader + `
 var BeaconsProxyTempl = dbHeader + `
 <div class="container">
   <table>
-  <tr><th>Score</th><th>Source</th><th>FQDN</th><th>Proxy IP</th><th>Connections</th>
+  <tr><th>Score</th><th>Source</th><th>FQDN</th><th>Proxy</th><th>Connections</th>
   <th>Intvl. Range</th><th>Intvl. Mode</th><th>Intvl. Mode Count</th>
 	<th>Intvl. Skew</th><th>Intvl. Dispersion</th></tr>
       {{.Writer}}
@@ -165,7 +165,7 @@ var BeaconsProxyNetNamesTempl = dbHeader + `
 <div class="container">
   <table>
   <tr>
-  <tr><th>Score</th><th>Source Network</th><th>Source</th><th>FQDN</th><th>Proxy Network</th><th>Proxy IP</th>
+  <tr><th>Score</th><th>Source Network</th><th>Source</th><th>FQDN</th><th><Proxy Network><th>Proxy</th>
   <th>Connections</th><th>Intvl. Range</th><th>Intvl. Mode</th><th>Intvl. Mode Count</th>
 	<th>Intvl. Skew</th><th>Intvl. Dispersion</th></tr>
   </tr>

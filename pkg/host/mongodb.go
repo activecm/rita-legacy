@@ -2,7 +2,6 @@ package host
 
 import (
 	"runtime"
-	"time"
 
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
@@ -83,9 +82,8 @@ func (r *repo) Upsert(hostMap map[string]*Input) {
 
 	// loop over map entries
 	for _, entry := range hostMap {
-		start := time.Now()
 		analyzerWorker.collect(entry)
-		bar.IncrBy(1, time.Since(start))
+		bar.IncrBy(1)
 	}
 	p.Wait()
 

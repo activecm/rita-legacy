@@ -2,7 +2,6 @@ package beacon
 
 import (
 	"runtime"
-	"time"
 
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/resources"
@@ -119,9 +118,8 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input) {
 
 	// loop over map entries
 	for _, entry := range uconnMap {
-		start := time.Now()
 		dissectorWorker.collect(entry)
-		bar.IncrBy(1, time.Since(start))
+		bar.IncrBy(1)
 	}
 	p.Wait()
 

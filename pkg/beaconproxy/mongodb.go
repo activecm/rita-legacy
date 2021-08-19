@@ -2,8 +2,8 @@ package beaconproxy
 
 import (
 	"runtime"
-	"time"
 
+	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
@@ -47,10 +47,11 @@ func (r *repo) CreateIndexes() error {
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"-score"}},
-		{Key: []string{"dst", "dst_network_uuid"}},
+		{Key: []string{"src", "fqdn", "src_network_uuid"}, Unique: true},
 		{Key: []string{"src", "src_network_uuid"}},
 		{Key: []string{"fqdn"}},
 		{Key: []string{"-connection_count"}},
+		{Key: []string{"proxy.ip", "proxy.network_uuid"}},
 	}
 
 	// create collection
@@ -63,7 +64,7 @@ func (r *repo) CreateIndexes() error {
 }
 
 //Upsert loops through every new fqdn requested from a proxy ....
-func (r *repo) Upsert(proxyHostnameMap map[string]*Input) {
+func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input) {
 
 	session := r.res.DB.Session.Copy()
 	defer session.Close()
@@ -116,7 +117,7 @@ func (r *repo) Upsert(proxyHostnameMap map[string]*Input) {
 
 	// progress bar for troubleshooting
 	p := mpb.New(mpb.WithWidth(20))
-	bar := p.AddBar(int64(len(proxyHostnameMap)),
+	bar := p.AddBar(int64(len(uconnProxyMap)),
 		mpb.PrependDecorators(
 			decor.Name("\t[-] Proxy Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
@@ -125,15 +126,12 @@ func (r *repo) Upsert(proxyHostnameMap map[string]*Input) {
 	)
 
 	// loop over map entries (each hostname)
-	for _, entry := range proxyHostnameMap {
-
-		start := time.Now()
-
+	for _, entry := range uconnProxyMap {
 		// pass entry to dissector
 		dissectorWorker.collect(entry)
 
 		// progress bar increment
-		bar.IncrBy(1, time.Since(start))
+		bar.IncrBy(1)
 
 	}
 	p.Wait()

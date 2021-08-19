@@ -20,6 +20,7 @@ import (
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/explodeddns"
+	"github.com/activecm/rita/pkg/uconnproxy"
 
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
@@ -174,7 +175,7 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fmt.Printf("\t[-] Processing batch %d of %d\n", i+1, len(batchedIndexedFiles))
 
 		// parse in those files!
-		uconnMap, hostMap, explodeddnsMap, hostnameMap, proxyHostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
+		uconnMap, uconnProxyMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap := fs.parseFiles(indexedFileBatch, fs.parseThreads, fs.res.Log)
 
 		// Set chunk before we continue so if process dies, we still verify with a delete if
 		// any data was written out.
@@ -185,6 +186,9 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 
 		// build Uconns table. Must go before beacons.
 		fs.buildUconns(uconnMap)
+
+		// build uconnsProxy table. Must go before proxy beacons
+		fs.buildUconnsProxy(uconnProxyMap)
 
 		// update ts range for dataset (needs to be run before beacons)
 		fs.updateTimestampRange()
@@ -202,7 +206,7 @@ func (fs *FSImporter) Run(indexedFiles []*fpt.IndexedFile) {
 		fs.buildFQDNBeacons(hostnameMap)
 
 		// build or update the Proxy Beacons Table
-		fs.buildProxyBeacons(proxyHostnameMap)
+		fs.buildProxyBeacons(uconnProxyMap)
 
 		// build or update UserAgent table
 		fs.buildUserAgent(useragentMap)
@@ -306,7 +310,7 @@ func batchFilesBySize(indexedFiles []*fpt.IndexedFile, size int64) [][]*fpt.Inde
 //a MongoDB datastore object to store the bro data in, and a logger to report
 //errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads int, logger *log.Logger) (
-	map[string]*uconn.Input, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*beaconproxy.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
+	map[string]*uconn.Input, map[string]*uconnproxy.Input, map[string]*host.Input, map[string]int, map[string]*hostname.Input, map[string]*useragent.Input, map[string]*certificate.Input) {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.res.DB.GetSelectedDB() + " ... ")
 
@@ -315,14 +319,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 
 	hostnameMap := make(map[string]*hostname.Input)
 
-	proxyHostnameMap := make(map[string]*beaconproxy.Input)
-
 	useragentMap := make(map[string]*useragent.Input)
 
 	certMap := make(map[string]*certificate.Input)
 
 	// Counts the number of uconns per source-destination pair
 	uconnMap := make(map[string]*uconn.Input)
+
+	// Counts the number of uconns per source-proxyip-fqdn proxy pair
+	uconnProxyMap := make(map[string]*uconnproxy.Input)
 
 	hostMap := make(map[string]*host.Input)
 
@@ -672,6 +677,38 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// parse host
 							fqdn := parseHTTP.Host
 
+							// host field isn't always populated.
+							// as a second option, parse out the host from the URI.
+							// This isn't the first choice as it will take longer than
+							// just grabbing the fqdn from the host field
+							if fqdn == "" {
+								uri := parseHTTP.URI
+
+								minIndex := 0
+
+								// handle if the URI has :// present (e.g., http://, https://, etc.)
+								if protoIndex := strings.Index(uri, "://"); protoIndex != -1 {
+									minIndex = protoIndex + len("://")
+								}
+								uri = uri[minIndex:]
+
+								maxIndex := len(uri)
+								if portIdx := strings.Index(uri, ":"); portIdx > -1 {
+									// Case for if URI has the port number included (e.g., example.com:443).
+									// This will also handle if the URI has a path appended as the path
+									// appears after the port, so this will just lop off the path too.
+									maxIndex = portIdx
+								} else if pathIdx := strings.Index(uri, "/"); pathIdx > -1 {
+									// Case for if the URI did not have a port but had a path
+									// suffixed to it (e.g., example.com/somecoolpath
+									maxIndex = pathIdx
+								}
+								uri = uri[:maxIndex]
+
+								// at this point, the URI should be parsed down to just an FQDN
+								fqdn = uri
+							}
+
 							// parse method type
 							method := parseHTTP.Method
 
@@ -702,10 +739,10 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 							// disambiguate addresses which are not publicly routable
 							srcUniqIP := data.NewUniqueIP(srcIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
 							dstUniqIP := data.NewUniqueIP(dstIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
-							srcProxyFQDNTrio := beaconproxy.NewUniqueSrcProxyHostnameTrio(srcUniqIP, dstUniqIP, fqdn)
+							srcFQDNPair := data.NewUniqueSrcFQDNPair(srcUniqIP, fqdn)
 
-							// get aggregation keys for ip addresses and connection pair
-							srcProxyFQDNKey := srcProxyFQDNTrio.MapKey()
+							// get aggregation keys for src ip addresses and fqdn pair
+							srcFQDNKey := srcFQDNPair.MapKey()
 
 							// check if internal IP is requesting a connection
 							// through a proxy
@@ -714,25 +751,24 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 								// Safely store the number of conns for this uconn
 								mutex.Lock()
 
-								// add client (src) IP to hostname map
-
 								// Check if the map value is set
-								if _, ok := proxyHostnameMap[srcProxyFQDNKey]; !ok {
-									// create new host record with src and dst
-									proxyHostnameMap[srcProxyFQDNKey] = &beaconproxy.Input{
-										Hosts: srcProxyFQDNTrio,
+								if _, ok := uconnProxyMap[srcFQDNKey]; !ok {
+									// create new uconnProxyMap record with src and fqdn
+									uconnProxyMap[srcFQDNKey] = &uconnproxy.Input{
+										Hosts: srcFQDNPair,
+										Proxy: dstUniqIP,
 									}
 								}
 
 								// increment connection count
-								proxyHostnameMap[srcProxyFQDNKey].ConnectionCount++
+								uconnProxyMap[srcFQDNKey].ConnectionCount++
 
 								// parse timestamp
 								ts := parseHTTP.TimeStamp
 
 								// add timestamp to unique timestamp list
-								if !int64InSlice(ts, proxyHostnameMap[srcProxyFQDNKey].TsList) {
-									proxyHostnameMap[srcProxyFQDNKey].TsList = append(proxyHostnameMap[srcProxyFQDNKey].TsList, ts)
+								if !int64InSlice(ts, uconnProxyMap[srcFQDNKey].TsList) {
+									uconnProxyMap[srcFQDNKey].TsList = append(uconnProxyMap[srcFQDNKey].TsList, ts)
 								}
 
 								mutex.Unlock()
@@ -1066,7 +1102,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*fpt.IndexedFile, parsingThreads
 	}
 	parsingWG.Wait()
 
-	return uconnMap, hostMap, explodeddnsMap, hostnameMap, proxyHostnameMap, useragentMap, certMap
+	return uconnMap, uconnProxyMap, hostMap, explodeddnsMap, hostnameMap, useragentMap, certMap
 }
 
 //buildExplodedDNS .....
@@ -1136,6 +1172,24 @@ func (fs *FSImporter) buildHostnames(hostnameMap map[string]*hostname.Input) {
 		fmt.Println("\t[!] No Hostname data to analyze")
 	}
 
+}
+
+func (fs *FSImporter) buildUconnsProxy(uconnProxyMap map[string]*uconnproxy.Input) {
+	// non-optional module
+	if len(uconnProxyMap) > 0 {
+		// Set up the database
+		uconnProxyRepo := uconnproxy.NewMongoRepository(fs.res)
+
+		err := uconnProxyRepo.CreateIndexes()
+		if err != nil {
+			fs.res.Log.Error(err)
+		}
+
+		// send uconnProxyMap to uconnProxy analysis
+		uconnProxyRepo.Upsert(uconnProxyMap)
+	} else {
+		fmt.Println("\t[!] No Proxy Uconn data to analyze")
+	}
 }
 
 func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Input) {
@@ -1230,9 +1284,9 @@ func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input) {
 
 }
 
-func (fs *FSImporter) buildProxyBeacons(proxyHostnameMap map[string]*beaconproxy.Input) {
+func (fs *FSImporter) buildProxyBeacons(uconnProxyMap map[string]*uconnproxy.Input) {
 	if fs.res.Config.S.BeaconProxy.Enabled {
-		if len(proxyHostnameMap) > 0 {
+		if len(uconnProxyMap) > 0 {
 			beaconProxyRepo := beaconproxy.NewMongoRepository(fs.res)
 
 			err := beaconProxyRepo.CreateIndexes()
@@ -1240,8 +1294,8 @@ func (fs *FSImporter) buildProxyBeacons(proxyHostnameMap map[string]*beaconproxy
 				fs.res.Log.Error(err)
 			}
 
-			// send uconns to beacon analysis
-			beaconProxyRepo.Upsert(proxyHostnameMap)
+			// send proxy uconns to proxy beacon analysis
+			beaconProxyRepo.Upsert(uconnProxyMap)
 		} else {
 			fmt.Println("\t[!] No Proxy Beacon data to analyze")
 		}

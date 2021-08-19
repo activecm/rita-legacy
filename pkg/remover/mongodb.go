@@ -94,8 +94,10 @@ func (r *remover) removeOutdatedCIDs(cid int) error {
 	modules := []string{
 		r.res.Config.T.Beacon.BeaconTable,
 		r.res.Config.T.BeaconFQDN.BeaconFQDNTable,
+		r.res.Config.T.BeaconProxy.BeaconProxyTable,
 		r.res.Config.T.Structure.HostTable,
 		r.res.Config.T.Structure.UniqueConnTable,
+		r.res.Config.T.Structure.UniqueConnProxyTable,
 		r.res.Config.T.DNS.ExplodedDNSTable,
 		r.res.Config.T.DNS.HostnamesTable,
 		r.res.Config.T.Cert.CertificateTable,

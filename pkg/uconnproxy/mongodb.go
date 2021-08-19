@@ -1,4 +1,4 @@
-package hostname
+package uconnproxy
 
 import (
 	"runtime"
@@ -14,7 +14,7 @@ type repo struct {
 	res *resources.Resources
 }
 
-//NewMongoRepository create new repository
+// NewMongoRepository create new repository
 func NewMongoRepository(res *resources.Resources) Repository {
 	return &repo{
 		res: res,
@@ -26,7 +26,7 @@ func (r *repo) CreateIndexes() error {
 	defer session.Close()
 
 	// set collection name
-	collectionName := r.res.Config.T.DNS.HostnamesTable
+	collectionName := r.res.Config.T.Structure.UniqueConnProxyTable
 
 	// check if collection already exists
 	names, _ := session.DB(r.res.DB.GetSelectedDB()).CollectionNames()
@@ -38,10 +38,11 @@ func (r *repo) CreateIndexes() error {
 		}
 	}
 
-	// set desired indexes
 	indexes := []mgo.Index{
-		{Key: []string{"host"}, Unique: true},
-		{Key: []string{"dat.ips.ip", "dat.ips.network_uuid"}},
+		{Key: []string{"src", "fqdn", "src_network_uuid"}, Unique: true},
+		{Key: []string{"fqdn"}},
+		{Key: []string{"src", "src_network_uuid"}},
+		{Key: []string{"$dat.count"}},
 	}
 
 	// create collection
@@ -53,21 +54,21 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert loops through every domain ....
-func (r *repo) Upsert(hostnameMap map[string]*Input) {
-
-	//Create the workers
-	writerWorker := newWriter(r.res.Config.T.DNS.HostnamesTable, r.res.DB, r.res.Config, r.res.Log)
+// Upsert loops through every uconnproxy entry
+func (r *repo) Upsert(uconnProxyMap map[string]*Input) {
+	// Create the workers
+	writerWorker := newWriter(r.res.Config.T.Structure.UniqueConnProxyTable, r.res.DB, r.res.Config, r.res.Log)
 
 	analyzerWorker := newAnalyzer(
 		r.res.Config.S.Rolling.CurrentChunk,
+		int64(r.res.Config.S.Strobe.ConnectionLimit),
 		r.res.DB,
 		r.res.Config,
 		writerWorker.collect,
 		writerWorker.close,
 	)
 
-	//kick off the threaded goroutines
+	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		analyzerWorker.start()
 		writerWorker.start()
@@ -75,29 +76,21 @@ func (r *repo) Upsert(hostnameMap map[string]*Input) {
 
 	// progress bar for troubleshooting
 	p := mpb.New(mpb.WithWidth(20))
-	bar := p.AddBar(int64(len(hostnameMap)),
+	bar := p.AddBar(int64(len(uconnProxyMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Hostname Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Uconn Proxy Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
 	)
 
 	// loop over map entries
-	for _, entry := range hostnameMap {
-		//Mongo Index key is limited to a size of 1024 https://docs.mongodb.com/v3.4/reference/limits/#index-limitations
-		//  so if the key is too large, we should cut it back, this is rough but
-		//  works. Figured 800 allows some wiggle room, while also not being too large
-		if len(entry.Host) > 1024 {
-			entry.Host = entry.Host[:800]
-		}
+	for _, entry := range uconnProxyMap {
 		analyzerWorker.collect(entry)
 		bar.IncrBy(1)
 	}
-
 	p.Wait()
 
 	// start the closing cascade (this will also close the other channels)
 	analyzerWorker.close()
-
 }
