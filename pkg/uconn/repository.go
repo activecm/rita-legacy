@@ -39,11 +39,10 @@ type Input struct {
 	TsList              []int64
 	OrigBytesList       []int64
 	OpenOrigBytes       int64
-	Tuples              []string
-	// InvalidCerts    []string
-	InvalidCertFlag bool
-	UPPSFlag        bool
-	ConnStateMap    map[string]*ConnState
+	Tuples              data.StringSet
+	InvalidCertFlag     bool
+	UPPSFlag            bool
+	ConnStateMap        map[string]*ConnState
 }
 
 //LongConnResult represents a pair of hosts that communicated and

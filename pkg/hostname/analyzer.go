@@ -83,8 +83,8 @@ func (a *analyzer) start() {
 				output.query = bson.M{
 					"$push": bson.M{
 						"dat": bson.M{
-							"ips":     data.ResolvedIPs,
-							"src_ips": data.ClientIPs,
+							"ips":     data.ResolvedIPs.Items(),
+							"src_ips": data.ClientIPs.Items(),
 							"cid":     a.chunk,
 						},
 					},
@@ -97,8 +97,8 @@ func (a *analyzer) start() {
 				output.query = bson.M{
 					"$push": bson.M{
 						"dat": bson.M{
-							"ips":     data.ResolvedIPs,
-							"src_ips": data.ClientIPs,
+							"ips":     data.ResolvedIPs.Items(),
+							"src_ips": data.ClientIPs.Items(),
 							"cid":     a.chunk,
 						},
 					},

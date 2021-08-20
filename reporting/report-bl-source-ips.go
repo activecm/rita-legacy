@@ -12,7 +12,7 @@ import (
 	"github.com/activecm/rita/resources"
 )
 
-func printBLSourceIPs(db string, showNetNames bool, res *resources.Resources) error {
+func printBLSourceIPs(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {
 	f, err := os.Create("bl-source-ips.html")
 	if err != nil {
 		return err
@@ -41,7 +41,7 @@ func printBLSourceIPs(db string, showNetNames bool, res *resources.Resources) er
 		return err
 	}
 
-	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
+	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w), LogsGeneratedAt: logsGeneratedAt})
 }
 
 func getBLIPWriter(results []blacklist.IPResult, showNetNames bool) (string, error) {

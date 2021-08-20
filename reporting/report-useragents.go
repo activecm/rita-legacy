@@ -10,7 +10,7 @@ import (
 	"github.com/activecm/rita/resources"
 )
 
-func printUserAgents(db string, showNetNames bool, res *resources.Resources) error {
+func printUserAgents(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {
 	f, err := os.Create("useragents.html")
 	if err != nil {
 		return err
@@ -30,7 +30,8 @@ func printUserAgents(db string, showNetNames bool, res *resources.Resources) err
 	if err != nil {
 		return err
 	}
-	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
+
+	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w), LogsGeneratedAt: logsGeneratedAt})
 }
 
 func getUserAgentsWriter(agents []useragent.Result) (string, error) {

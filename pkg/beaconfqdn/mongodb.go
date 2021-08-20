@@ -4,42 +4,45 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/host"
-	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
+
 	"github.com/briandowns/spinner"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type repo struct {
-	res *resources.Resources
-	min int64
-	max int64
+	database *database.DB
+	config   *config.Config
+	log      *log.Logger
 }
 
 //NewMongoRepository create new repository
-func NewMongoRepository(res *resources.Resources) Repository {
-	min, max, _ := res.MetaDB.GetTSRange(res.DB.GetSelectedDB())
+func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
-		res: res,
-		min: min,
-		max: max,
+		database: db,
+		config:   conf,
+		log:      logger,
 	}
 }
 
 func (r *repo) CreateIndexes() error {
-	session := r.res.DB.Session.Copy()
+	session := r.database.Session.Copy()
 	defer session.Close()
 
 	// set collection name
-	collectionName := r.res.Config.T.BeaconFQDN.BeaconFQDNTable
+	collectionName := r.config.T.BeaconFQDN.BeaconFQDNTable
 
 	// check if collection already exists
-	names, _ := session.DB(r.res.DB.GetSelectedDB()).CollectionNames()
+	names, _ := session.DB(r.database.GetSelectedDB()).CollectionNames()
 
 	// if collection exists, we don't need to do anything else
 	for _, name := range names {
@@ -51,13 +54,14 @@ func (r *repo) CreateIndexes() error {
 	// set desired indexes
 	indexes := []mgo.Index{
 		{Key: []string{"-score"}},
+		{Key: []string{"src", "fqdn", "src_network_uuid"}, Unique: true},
 		{Key: []string{"src", "src_network_uuid"}},
 		{Key: []string{"fqdn"}},
 		{Key: []string{"-connection_count"}},
 	}
 
 	// create collection
-	err := r.res.DB.CreateCollection(collectionName, indexes)
+	err := r.database.CreateCollection(collectionName, indexes)
 	if err != nil {
 		return err
 	}
@@ -68,44 +72,44 @@ func (r *repo) CreateIndexes() error {
 //Upsert first loops through every new host and determines which hostnames
 //may have been contacted. Then it gathers the associated IPs for each of the
 //hostnames, passing them onto the beacon analysis.
-func (r *repo) Upsert(hostMap map[string]*host.Input) {
-	session := r.res.DB.Session.Copy()
+func (r *repo) Upsert(hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
+	session := r.database.Session.Copy()
 	defer session.Close()
 
 	// Create the workers
 
 	// stage 5 - write out results
 	writerWorker := newWriter(
-		r.res.Config.T.BeaconFQDN.BeaconFQDNTable,
-		r.res.DB,
-		r.res.Config,
-		r.res.Log,
+		r.config.T.BeaconFQDN.BeaconFQDNTable,
+		r.database,
+		r.config,
+		r.log,
 	)
 
 	// stage 4 - perform the analysis
 	analyzerWorker := newAnalyzer(
-		r.min,
-		r.max,
-		r.res.Config.S.Rolling.CurrentChunk,
-		r.res.DB,
-		r.res.Config,
+		minTimestamp,
+		maxTimestamp,
+		r.config.S.Rolling.CurrentChunk,
+		r.database,
+		r.config,
 		writerWorker.collect,
 		writerWorker.close,
 	)
 
 	// stage 3 - sort data
 	sorterWorker := newSorter(
-		r.res.DB,
-		r.res.Config,
+		r.database,
+		r.config,
 		analyzerWorker.collect,
 		analyzerWorker.close,
 	)
 
 	// stage 2 - get and vet beacon details
 	dissectorWorker := newDissector(
-		int64(r.res.Config.S.Strobe.ConnectionLimit),
-		r.res.DB,
-		r.res.Config,
+		int64(r.config.S.Strobe.ConnectionLimit),
+		r.database,
+		r.config,
 		sorterWorker.collect,
 		sorterWorker.close,
 	)
@@ -135,7 +139,7 @@ func (r *repo) Upsert(hostMap map[string]*host.Input) {
 	//   did not constantly issue DNS queries for the hosts they contacted. --LL
 	affectedHostnames, err := r.affectedHostnameIPs(hostMap)
 	if err != nil {
-		r.res.Log.WithError(err).Error("could not determine which hostnames need beacon data updates")
+		r.log.WithError(err).Error("could not determine which hostnames need beacon data updates")
 	}
 
 	s.Stop()
@@ -153,23 +157,25 @@ func (r *repo) Upsert(hostMap map[string]*host.Input) {
 	// loop over map entries (each hostname)
 	for _, entry := range affectedHostnames {
 
-		start := time.Now()
+		// check to make sure hostname has resolved ips, skip otherwise
+		if len(entry.ResolvedIPs) > 0 {
 
-		var dstList []bson.M
-		for _, dst := range entry.ResolvedIPs {
-			dstList = append(dstList, dst.AsDst().BSONKey())
+			var dstList []bson.M
+			for _, dst := range entry.ResolvedIPs {
+				dstList = append(dstList, dst.AsDst().BSONKey())
+			}
+
+			input := &fqdnInput{
+				FQDN:        entry.Host,
+				DstBSONList: dstList,
+				ResolvedIPs: entry.ResolvedIPs,
+			}
+
+			dissectorWorker.collect(input)
 		}
-
-		input := &fqdnInput{
-			FQDN:        entry.Host,
-			DstBSONList: dstList,
-			ResolvedIPs: entry.ResolvedIPs,
-		}
-
-		dissectorWorker.collect(input)
 
 		// progress bar increment
-		bar.IncrBy(1, time.Since(start))
+		bar.IncrBy(1)
 
 	}
 
@@ -201,7 +207,7 @@ func (r *repo) affectedHostnameIPsSimple(hostMap map[string]*host.Input) ([]host
 	var externalHosts []data.UniqueIP = make([]data.UniqueIP, 0, len(hostMap)/2)
 	var affectedHostnamesBuffer []hostnameIPs
 
-	ssn := r.res.DB.Session.Copy()
+	ssn := r.database.Session.Copy()
 	defer ssn.Close()
 
 	for _, host := range hostMap {
@@ -213,7 +219,7 @@ func (r *repo) affectedHostnameIPsSimple(hostMap map[string]*host.Input) ([]host
 	reverseDNSagg := reverseDNSQueryWithIPs(externalHosts)
 	externalHosts = nil // nolint ,we are freeing this potentially large array so the GC can claim it during MongoDB IO
 
-	err := ssn.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable).
+	err := ssn.DB(r.database.GetSelectedDB()).C(r.config.T.DNS.HostnamesTable).
 		Pipe(reverseDNSagg).AllowDiskUse().All(&affectedHostnamesBuffer)
 	return affectedHostnamesBuffer, err
 }
@@ -227,7 +233,7 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 	var externalHosts []data.UniqueIP = make([]data.UniqueIP, 0, util.Min(200000, len(hostMap)/2))
 	var affectedHostnamesBuffer []hostnameIPs
 
-	ssn := r.res.DB.Session.Copy()
+	ssn := r.database.Session.Copy()
 	defer ssn.Close()
 
 	// we will need to remove duplicate results from each query of 200,000 hosts, slowing down the process
@@ -248,7 +254,7 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 			externalHosts = externalHosts[:0] // clear externalHosts to make room for the next chunk
 
 			affectedHostnamesBuffer = nil
-			err := ssn.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable).
+			err := ssn.DB(r.database.GetSelectedDB()).C(r.config.T.DNS.HostnamesTable).
 				Pipe(reverseDNSagg).AllowDiskUse().All(&affectedHostnamesBuffer)
 			if err != nil {
 				return []hostnameIPs{}, err
@@ -265,7 +271,7 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 		externalHosts = nil // nolint , we are assigning nil here to allow the GC to free this potentially large array
 
 		affectedHostnamesBuffer = nil
-		err := ssn.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.DNS.HostnamesTable).
+		err := ssn.DB(r.database.GetSelectedDB()).C(r.config.T.DNS.HostnamesTable).
 			Pipe(reverseDNSagg).AllowDiskUse().All(&affectedHostnamesBuffer)
 		if err != nil {
 			return []hostnameIPs{}, err

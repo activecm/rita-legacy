@@ -11,7 +11,7 @@ type (
 	// Repository for host collection
 	Repository interface {
 		CreateIndexes() error
-		Upsert(hostMap map[string]*host.Input)
+		Upsert(hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64)
 	}
 
 	updateInfo struct {
@@ -36,7 +36,7 @@ type (
 	fqdnInput struct {
 		FQDN            string           //A hostname
 		Src             data.UniqueSrcIP // Single src that connected to a hostname
-		ResolvedIPs     data.UniqueIPSet //Set of resolved UniqueIPs associated with a given hostname
+		ResolvedIPs     []data.UniqueIP  //Set of resolved UniqueIPs associated with a given hostname
 		InvalidCertFlag bool
 		ConnectionCount int64
 		TotalBytes      int64
@@ -83,26 +83,7 @@ type (
 	//StrobeResult represents a unique connection with a large amount
 	//of connections between the hosts
 	StrobeResult struct {
-		data.UniqueIPPair `bson:",inline"`
-		ConnectionCount   int64 `bson:"connection_count"`
-	}
-
-	//uniqueSrcHostnamePair ...
-	uniqueSrcHostnamePair struct {
-		SrcIP          string      `bson:"src"`
-		SrcNetworkUUID bson.Binary `bson:"src_network_uuid"`
-		FQDN           string      `bson:"fqdn"`
+		data.UniqueSrcFQDNPair `bson:",inline"`
+		ConnectionCount        int64 `bson:"connection_count"`
 	}
 )
-
-//BSONKey generates a BSON map which may be used to index a given a unique src
-// fqdn pair
-//Includes IP and Network UUID.
-func (p uniqueSrcHostnamePair) BSONKey() bson.M {
-	key := bson.M{
-		"src":              p.SrcIP,
-		"src_network_uuid": p.SrcNetworkUUID,
-		"fqdn":             p.FQDN,
-	}
-	return key
-}

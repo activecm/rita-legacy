@@ -1,6 +1,6 @@
 // +build integration
 
-package certificate
+package uconnproxy
 
 import (
 	"io/ioutil"
@@ -21,37 +21,29 @@ var testTargetDB = "tmp_test_db"
 
 var testRepo Repository
 
-var testCertificate = map[string]*Input{
-	"Debian APT-HTTP/1.3 (1.2.24)": {
-		Host: data.UniqueIP{
-			IP:          "1.2.3.4",
-			NetworkUUID: util.PublicNetworkUUID,
-			NetworkName: util.PublicNetworkName,
+var testUconn = map[string]*Input{
+	"test": &Input{
+		Hosts: data.UniqueIPPair{
+			SrcIP:          "127.0.0.1",
+			SrcNetworkUUID: util.UnknownPrivateNetworkUUID,
+			SrcNetworkName: util.UnknownPrivateNetworkName,
+			DstIP:          "127.0.0.1",
+			DstNetworkUUID: util.UnknownPrivateNetworkUUID,
+			DstNetworkName: util.UnknownPrivateNetworkName,
 		},
-		InvalidCerts: []string{"I'm an invalid cert!", "me too!"},
-		Seen:         123,
+		ConnectionCount: 12,
+		IsLocalSrc:      true,
+		IsLocalDst:      true,
+		TotalBytes:      123,
+		TsList:          []int64{1234567, 1234567},
+		OrigBytesList:   []int64{12, 12},
+		TotalDuration:   123.0,
+		MaxDuration:     12,
 	},
 }
 
-func init() {
-	testCertificate["Debian APT-HTTP/1.3 (1.2.24)"].OrigIps.Insert(
-		data.UniqueIP{
-			IP:          "5.6.7.8",
-			NetworkUUID: util.PublicNetworkUUID,
-			NetworkName: util.PublicNetworkName,
-		},
-	)
-	testCertificate["Debian APT-HTTP/1.3 (1.2.24)"].OrigIps.Insert(
-		data.UniqueIP{
-			IP:          "9.10.11.12",
-			NetworkUUID: util.PublicNetworkUUID,
-			NetworkName: util.PublicNetworkName,
-		},
-	)
-}
-
 func TestUpsert(t *testing.T) {
-	testRepo.Upsert(testCertificate)
+	testRepo.Upsert(testUconn)
 
 }
 
@@ -64,7 +56,7 @@ func TestMain(m *testing.M) {
 	// Set the main session variable to the temporary MongoDB instance
 	res := resources.InitTestResources()
 
-	testRepo = NewMongoRepository(res.DB, res.Config, res.Log)
+	testRepo = NewMongoRepository(res)
 
 	// Run the test suite
 	retCode := m.Run()

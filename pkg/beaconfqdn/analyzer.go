@@ -65,10 +65,9 @@ func (a *analyzer) start() {
 			output := &update{}
 
 			// create selector pair object
-			selectorPair := uniqueSrcHostnamePair{
-				entry.Src.SrcIP,
-				entry.Src.SrcNetworkUUID,
-				entry.FQDN,
+			selectorPair := data.UniqueSrcFQDNPair{
+				UniqueSrcIP: entry.Src,
+				FQDN:        entry.FQDN,
 			}
 
 			// create query
@@ -242,6 +241,7 @@ func (a *analyzer) start() {
 					"cid":                a.chunk,
 					"src_network_name":   entry.Src.SrcNetworkName,
 					"resolved_ips":       entry.ResolvedIPs,
+					"strobeFQDN":         false,
 				}
 
 				// set query

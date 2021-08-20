@@ -1,4 +1,4 @@
-package fileparsetypes
+package files
 
 import (
 	"time"
@@ -8,7 +8,7 @@ import (
 )
 
 //BroHeader contains the parse information contained within the comment lines
-//of bro files
+//of Zeek files
 type BroHeader struct {
 	Names     []string // Names of fields
 	Types     []string // Types of fields
@@ -19,9 +19,12 @@ type BroHeader struct {
 	ObjType   string   // Object type (comes from #path)
 }
 
-//BroHeaderIndexMap maps the names of bro fields to their indexes in a
-//BroData struct
-type BroHeaderIndexMap map[string]int
+//ZeekHeaderIndexMap maps the indexes of the fields in the ZeekHeader to the respective
+//indexes in the parsetype.BroData structs
+type ZeekHeaderIndexMap struct {
+	NthLogFieldExistsInParseType []bool
+	NthLogFieldParseTypeOffset   []int
+}
 
 //IndexedFile ties a file to a target collection and database
 type IndexedFile struct {
@@ -36,7 +39,7 @@ type IndexedFile struct {
 	ParseTime        time.Time     `bson:"time_complete"`
 	header           *BroHeader
 	broDataFactory   func() pt.BroData
-	fieldMap         BroHeaderIndexMap
+	fieldMap         ZeekHeaderIndexMap
 	json             bool
 }
 
@@ -54,36 +57,36 @@ func (i *IndexedFile) SetJSON() {
 	i.json = true
 }
 
-//SetHeader sets the bro header on the indexed file
+//SetHeader sets the broHeader on the indexed file
 func (i *IndexedFile) SetHeader(header *BroHeader) {
 	i.header = header
 }
 
-//GetHeader retrieves the bro header on the indexed file
+//GetHeader retrieves the broHeader on the indexed file
 func (i *IndexedFile) GetHeader() *BroHeader {
 	return i.header
 }
 
-//SetBroDataFactory sets the function which makes bro data corresponding
-//with this type of bro file
+//SetBroDataFactory sets the function which makes broData corresponding
+//with this type of Zeek file
 func (i *IndexedFile) SetBroDataFactory(broDataFactory func() pt.BroData) {
 	i.broDataFactory = broDataFactory
 }
 
-//GetBroDataFactory retrieves the function which makes bro data corresponding
-//with this type of bro file
+//GetBroDataFactory retrieves the function which makes broData corresponding
+//with this type of Zeek file
 func (i *IndexedFile) GetBroDataFactory() func() pt.BroData {
 	return i.broDataFactory
 }
 
-//SetFieldMap sets the map which maps the names of bro fields to the index
-//in their respective bro data structs
-func (i *IndexedFile) SetFieldMap(fieldMap BroHeaderIndexMap) {
+//SetFieldMap sets the map which maps the indexes of Zeek fields in the log header to the indexes
+//in their respective broData structs
+func (i *IndexedFile) SetFieldMap(fieldMap ZeekHeaderIndexMap) {
 	i.fieldMap = fieldMap
 }
 
-//GetFieldMap retrieves the map which maps the names of bro fields to the index
-//in their respective bro data structs
-func (i *IndexedFile) GetFieldMap() BroHeaderIndexMap {
+//GetFieldMap retrieves the map which maps the indexes of Zeek fields in the log header to the indexes
+//in their respective broData structs
+func (i *IndexedFile) GetFieldMap() ZeekHeaderIndexMap {
 	return i.fieldMap
 }

@@ -24,12 +24,16 @@ var testRepo Repository
 var testUconn = map[string]*Input{
 	"test": &Input{
 		Hosts: data.UniqueIPPair{
-			SrcIP:          "127.0.0.1",
-			SrcNetworkUUID: util.UnknownPrivateNetworkUUID,
-			SrcNetworkName: util.UnknownPrivateNetworkName,
-			DstIP:          "127.0.0.1",
-			DstNetworkUUID: util.UnknownPrivateNetworkUUID,
-			DstNetworkName: util.UnknownPrivateNetworkName,
+			UniqueSrcIP: data.UniqueSrcIP{
+				SrcIP:          "127.0.0.1",
+				SrcNetworkUUID: util.UnknownPrivateNetworkUUID,
+				SrcNetworkName: util.UnknownPrivateNetworkName,
+			},
+			UniqueDstIP: data.UniqueDstIP{
+				DstIP:          "127.0.0.1",
+				DstNetworkUUID: util.UnknownPrivateNetworkUUID,
+				DstNetworkName: util.UnknownPrivateNetworkName,
+			},
 		},
 		ConnectionCount: 12,
 		IsLocalSrc:      true,
@@ -56,7 +60,7 @@ func TestMain(m *testing.M) {
 	// Set the main session variable to the temporary MongoDB instance
 	res := resources.InitTestResources()
 
-	testRepo = NewMongoRepository(res)
+	testRepo = NewMongoRepository(res.DB, res.Config, res.Log)
 
 	// Run the test suite
 	retCode := m.Run()

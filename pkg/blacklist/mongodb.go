@@ -4,30 +4,38 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/resources"
 	"github.com/activecm/rita/util"
+
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type repo struct {
-	res *resources.Resources
+	database *database.DB
+	config   *config.Config
+	log      *log.Logger
 }
 
 //NewMongoRepository create new repository
-func NewMongoRepository(res *resources.Resources) Repository {
+func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
-		res: res,
+		database: db,
+		config:   conf,
+		log:      logger,
 	}
 }
 
 //CreateIndexes sets up the indices needed to find hosts which contacted blacklisted hosts
 func (r *repo) CreateIndexes() error {
-	session := r.res.DB.Session.Copy()
+	session := r.database.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.HostTable)
+	coll := session.DB(r.database.GetSelectedDB()).C(r.config.T.Structure.HostTable)
 
 	// create hosts collection
 	// Desired indexes
@@ -47,18 +55,18 @@ func (r *repo) CreateIndexes() error {
 //Upsert loops through every domain ....
 func (r *repo) Upsert() {
 
-	session := r.res.DB.Session.Copy()
+	session := r.database.Session.Copy()
 	defer session.Close()
 
-	iter := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.HostTable).Find(bson.M{"blacklisted": true}).Iter()
+	iter := session.DB(r.database.GetSelectedDB()).C(r.config.T.Structure.HostTable).Find(bson.M{"blacklisted": true}).Iter()
 
 	//Create the workers
-	writerWorker := newWriter(r.res.Config.T.Structure.HostTable, r.res.DB, r.res.Config, r.res.Log)
+	writerWorker := newWriter(r.config.T.Structure.HostTable, r.database, r.config, r.log)
 
 	analyzerWorker := newAnalyzer(
-		r.res.Config.S.Rolling.CurrentChunk,
-		r.res.DB,
-		r.res.Config,
+		r.config.S.Rolling.CurrentChunk,
+		r.database,
+		r.config,
 		writerWorker.collect,
 		writerWorker.close,
 	)
