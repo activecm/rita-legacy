@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 	// Set the main session variable to the temporary MongoDB instance
 	res := resources.InitTestResources()
 
-	testRepo = NewMongoRepository(res)
+	testRepo = NewMongoRepository(res.DB, res.Config, res.Log)
 
 	// Run the test suite
 	retCode := m.Run()

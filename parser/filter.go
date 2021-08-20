@@ -3,8 +3,33 @@ package parser
 import (
 	"net"
 
+	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/util"
 )
+
+// filter provides methods for excluding IP addresses, domains, and determining proxy servers during the import step
+// based on the user configuration
+type filter struct {
+	internal       []*net.IPNet
+	alwaysIncluded []*net.IPNet
+	neverIncluded  []*net.IPNet
+
+	alwaysIncludedDomain []string
+	neverIncludedDomain  []string
+
+	filterExternalToInternal bool
+}
+
+func newFilter(conf *config.Config) filter {
+	return filter{
+		internal:                 util.ParseSubnets(conf.S.Filtering.InternalSubnets),
+		alwaysIncluded:           util.ParseSubnets(conf.S.Filtering.AlwaysInclude),
+		neverIncluded:            util.ParseSubnets(conf.S.Filtering.NeverInclude),
+		alwaysIncludedDomain:     conf.S.Filtering.AlwaysIncludeDomain,
+		neverIncludedDomain:      conf.S.Filtering.NeverIncludeDomain,
+		filterExternalToInternal: conf.S.Filtering.FilterExternalToInternal,
+	}
+}
 
 // filterConnPair returns true if a connection pair is filtered/excluded.
 // This is determined by the following rules, in order:
@@ -13,7 +38,7 @@ import (
 //   3. Not filtered if InternalSubnets is empty
 //   4. Filtered if both IPs are internal or both are external
 //   5. Not filtered in all other cases
-func (fs *FSImporter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
+func (fs *filter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 	// check if on always included list
 	isSrcIncluded := util.ContainsIP(fs.alwaysIncluded, srcIP)
 	isDstIncluded := util.ContainsIP(fs.alwaysIncluded, dstIP)
@@ -66,7 +91,7 @@ func (fs *FSImporter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 //   1. Not filtered IP is on the AlwaysInclude list
 //   2. Filtered IP is on the NeverInclude list
 //   3. Not filtered in all other cases
-func (fs *FSImporter) filterSingleIP(IP net.IP) bool {
+func (fs *filter) filterSingleIP(IP net.IP) bool {
 	// check if on always included list
 	if util.ContainsIP(fs.alwaysIncluded, IP) {
 		return false
@@ -86,7 +111,7 @@ func (fs *FSImporter) filterSingleIP(IP net.IP) bool {
 //   1. Not filtered if domain is on the AlwaysInclude list
 //   2. Filtered if domain is on the NeverInclude list
 //   5. Not filtered in all other cases
-func (fs *FSImporter) filterDomain(domain string) bool {
+func (fs *filter) filterDomain(domain string) bool {
 	// check if on always included list
 	isDomainIncluded := util.ContainsDomain(fs.alwaysIncludedDomain, domain)
 
@@ -107,6 +132,6 @@ func (fs *FSImporter) filterDomain(domain string) bool {
 	return false
 }
 
-func (fs *FSImporter) checkIfProxyServer(host net.IP) bool {
-	return util.ContainsIP(fs.httpProxyServers, host)
+func (fs *filter) checkIfInternal(host net.IP) bool {
+	return util.ContainsIP(fs.internal, host)
 }

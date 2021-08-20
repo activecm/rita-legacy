@@ -2,39 +2,50 @@ package host
 
 import (
 	"runtime"
-	"time"
 
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/util"
+
 	"github.com/globalsign/mgo"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type repo struct {
-	res *resources.Resources
+	database *database.DB
+	config   *config.Config
+	log      *log.Logger
 }
 
 //NewMongoRepository create new repository
-func NewMongoRepository(res *resources.Resources) Repository {
+func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
-		res: res,
+		database: db,
+		config:   conf,
+		log:      logger,
 	}
 }
 
 func (r *repo) CreateIndexes() error {
-	session := r.res.DB.Session.Copy()
+	session := r.database.Session.Copy()
 	defer session.Close()
 
-	coll := session.DB(r.res.DB.GetSelectedDB()).C(r.res.Config.T.Structure.HostTable)
+	coll := session.DB(r.database.GetSelectedDB()).C(r.config.T.Structure.HostTable)
 
 	// create hosts collection
 	// Desired indexes
 	indexes := []mgo.Index{
-		{Key: []string{"ip"}}, //TODO[AGENT]: Determine if this index is needed
 		{Key: []string{"ip", "network_uuid"}, Unique: true},
 		{Key: []string{"local"}},
 		{Key: []string{"ipv4_binary"}},
+		{Key: []string{"dat.mdip.ip", "dat.mdip.network_uuid"}},
+		{Key: []string{"dat.mbdst.ip", "dat.mbdst.network_uuid"}},
+		{Key: []string{"dat.max_dns.query"}},
+		{Key: []string{"dat.mbfqdn"}},
+		{Key: []string{"dat.mbproxy"}},
 	}
 
 	for _, index := range indexes {
@@ -50,13 +61,13 @@ func (r *repo) CreateIndexes() error {
 func (r *repo) Upsert(hostMap map[string]*Input) {
 
 	//Create the workers
-	writerWorker := newWriter(r.res.Config.T.Structure.HostTable, r.res.DB, r.res.Config, r.res.Log)
+	writerWorker := newWriter(r.config.T.Structure.HostTable, r.database, r.config, r.log)
 
 	analyzerWorker := newAnalyzer(
-		r.res.Config.S.Rolling.CurrentChunk,
-		r.res.Config,
-		r.res.DB,
-		r.res.Log,
+		r.config.S.Rolling.CurrentChunk,
+		r.config,
+		r.database,
+		r.log,
 		writerWorker.collect,
 		writerWorker.close,
 	)
@@ -79,9 +90,8 @@ func (r *repo) Upsert(hostMap map[string]*Input) {
 
 	// loop over map entries
 	for _, entry := range hostMap {
-		start := time.Now()
 		analyzerWorker.collect(entry)
-		bar.IncrBy(1, time.Since(start))
+		bar.IncrBy(1)
 	}
 	p.Wait()
 

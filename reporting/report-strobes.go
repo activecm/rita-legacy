@@ -10,7 +10,7 @@ import (
 	"github.com/activecm/rita/resources"
 )
 
-func printStrobes(db string, showNetNames bool, res *resources.Resources) error {
+func printStrobes(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {
 	f, err := os.Create("strobes.html")
 	if err != nil {
 		return err
@@ -38,7 +38,8 @@ func printStrobes(db string, showNetNames bool, res *resources.Resources) error 
 	if err != nil {
 		return err
 	}
-	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
+
+	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w), LogsGeneratedAt: logsGeneratedAt})
 }
 
 func getStrobesWriter(strobes []beacon.StrobeResult, showNetNames bool) (string, error) {

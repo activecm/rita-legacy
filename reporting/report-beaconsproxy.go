@@ -10,7 +10,7 @@ import (
 	"github.com/activecm/rita/resources"
 )
 
-func printBeaconsProxy(db string, showNetNames bool, res *resources.Resources) error {
+func printBeaconsProxy(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {
 	var w string
 	f, err := os.Create("beaconsproxy.html")
 	if err != nil {
@@ -44,7 +44,7 @@ func printBeaconsProxy(db string, showNetNames bool, res *resources.Resources) e
 		}
 	}
 
-	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
+	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w), LogsGeneratedAt: logsGeneratedAt})
 }
 
 func getBeaconProxyWriter(beaconsProxy []beaconproxy.Result, showNetNames bool) (string, error) {
@@ -59,10 +59,11 @@ func getBeaconProxyWriter(beaconsProxy []beaconproxy.Result, showNetNames bool) 
 	tmpl += "<td>{{.SrcIP}}</td><td>{{.FQDN}}</td>"
 
 	if showNetNames {
-		tmpl += "<td>{{.DstNetworkName}}</td>"
+		tmpl += "<td>{{.Proxy.NetworkName}}</td>"
 	}
 
-	tmpl += "<td>{{.DstIP}}</td>"
+	tmpl += "<td>{{.Proxy.IP}}</td>"
+
 	tmpl += "<td>{{.Connections}}</td>"
 	tmpl += "<td>{{.Ts.Range}}</td><td>{{.Ts.Mode}}</td><td>{{.Ts.ModeCount}}</td>"
 	tmpl += "<td>{{printf \"%.3f\" .Ts.Skew}}</td><td>{{.Ts.Dispersion}}</td>"

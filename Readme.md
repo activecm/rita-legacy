@@ -2,7 +2,7 @@
 
 [![RITA Logo](rita-logo.png)](https://www.activecountermeasures.com/free-tools/rita/)
 
-If you get value out of RITA and would like to go a step further with hunting automation, futuristic visualizations, and data encrichment take a look at [AI-Hunter](https://www.activecountermeasures.com/).
+If you get value out of RITA and would like to go a step further with hunting automation, futuristic visualizations, and data encrichment take a look at [AC-Hunter](https://www.activecountermeasures.com/).
 
 Sponsored by [Active Countermeasures](https://activecountermeasures.com/).
 

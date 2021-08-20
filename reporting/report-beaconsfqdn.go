@@ -10,7 +10,7 @@ import (
 	"github.com/activecm/rita/resources"
 )
 
-func printBeaconsFQDN(db string, showNetNames bool, res *resources.Resources) error {
+func printBeaconsFQDN(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {
 	var w string
 	f, err := os.Create("beaconsfqdn.html")
 	if err != nil {
@@ -44,7 +44,7 @@ func printBeaconsFQDN(db string, showNetNames bool, res *resources.Resources) er
 		}
 	}
 
-	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
+	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w), LogsGeneratedAt: logsGeneratedAt})
 }
 
 func getBeaconFQDNWriter(beaconsFQDN []beaconfqdn.Result, showNetNames bool) (string, error) {

@@ -11,7 +11,7 @@ import (
 	"github.com/activecm/rita/resources"
 )
 
-func printLongConns(db string, showNetNames bool, res *resources.Resources) error {
+func printLongConns(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {
 	f, err := os.Create("long-conns.html")
 	if err != nil {
 		return err
@@ -42,7 +42,8 @@ func printLongConns(db string, showNetNames bool, res *resources.Resources) erro
 	if err != nil {
 		return err
 	}
-	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
+
+	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w), LogsGeneratedAt: logsGeneratedAt})
 }
 
 func getLongConnWriter(conns []uconn.LongConnResult, showNetNames bool) (string, error) {
