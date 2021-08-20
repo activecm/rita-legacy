@@ -1,4 +1,4 @@
-package parser
+package files
 
 import (
 	"crypto/md5"
@@ -12,16 +12,17 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/activecm/rita/database"
-	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	"github.com/activecm/rita/config"
+	"github.com/activecm/rita/parser/parsetypes"
 	pt "github.com/activecm/rita/parser/parsetypes"
-	"github.com/activecm/rita/resources"
 )
 
 //newIndexedFile takes in a file path and the current resource bundle and opens up the
 //file path and parses out some metadata
-func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile, error) {
-	toReturn := new(fpt.IndexedFile)
+func newIndexedFile(filePath string, targetDB string, targetCID int,
+	logger *log.Logger, conf *config.Config) (*IndexedFile, error) {
+
+	toReturn := new(IndexedFile)
 	toReturn.Path = filePath
 
 	fileHandle, err := os.Open(filePath)
@@ -44,15 +45,14 @@ func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile
 	}
 	toReturn.Hash = fHash
 
-	scanner, err := getFileScanner(fileHandle)
+	scanner, closeScanner, err := GetFileScanner(fileHandle)
+	defer closeScanner() // handles closing the underlying fileHandle (and any associate subprocesses)
 	if err != nil {
-		fileHandle.Close()
 		return toReturn, err
 	}
 
 	header, err := scanTSVHeader(scanner)
 	if err != nil {
-		fileHandle.Close()
 		return toReturn, err
 	}
 	toReturn.SetHeader(header)
@@ -61,7 +61,7 @@ func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile
 	if header.ObjType != "" {
 		// TSV log files have the type in a header
 		broDataFactory = pt.NewBroDataFactory(header.ObjType)
-	} else if scanner.Err() == nil && len(scanner.Text()) > 0 && // no error and there is text
+	} else if scanner.Err() == nil && len(scanner.Bytes()) > 0 && // no error and there is text
 		json.Valid(scanner.Bytes()) {
 		toReturn.SetJSON()
 		// check if "_path" is provided in the JSON data
@@ -78,39 +78,40 @@ func newIndexedFile(filePath string, res *resources.Resources) (*fpt.IndexedFile
 		}
 	}
 	if broDataFactory == nil {
-		fileHandle.Close()
 		return toReturn, errors.New("could not map file header to parse type")
 	}
 	toReturn.SetBroDataFactory(broDataFactory)
 
-	var fieldMap fpt.BroHeaderIndexMap
+	var fieldMap ZeekHeaderIndexMap
 	// there is no need for the fieldMap with JSON
 	if !toReturn.IsJSON() {
-		fieldMap, err = mapBroHeaderToParserType(header, broDataFactory, res.Log)
+		fieldMap, err = mapZeekHeaderToParseType(header, broDataFactory, logger)
 		if err != nil {
-			fileHandle.Close()
 			return toReturn, err
 		}
 		toReturn.SetFieldMap(fieldMap)
 	}
 
 	//parse first line
-	line := parseLine(scanner.Text(), header, fieldMap, broDataFactory, toReturn.IsJSON(), res.Log)
+	var line parsetypes.BroData
+	if toReturn.IsJSON() {
+		line = ParseJSONLine(scanner.Bytes(), broDataFactory, logger)
+	} else {
+		line = ParseTSVLine(scanner.Text(), header, fieldMap, broDataFactory, logger)
+	}
+
 	if line == nil {
-		fileHandle.Close()
 		return toReturn, errors.New("could not parse first line of file")
 	}
 
-	toReturn.TargetCollection = line.TargetCollection(&res.Config.T.Structure)
+	toReturn.TargetCollection = line.TargetCollection(&conf.T.Structure)
 	if toReturn.TargetCollection == "" {
-		fileHandle.Close()
 		return toReturn, errors.New("could not find a target collection for file")
 	}
 
-	toReturn.TargetDatabase = res.DB.GetSelectedDB()
-	toReturn.CID = res.Config.S.Rolling.CurrentChunk
+	toReturn.TargetDatabase = targetDB
+	toReturn.CID = targetCID
 
-	fileHandle.Close()
 	return toReturn, nil
 }
 
@@ -133,25 +134,26 @@ func getFileHash(fileHandle *os.File, fInfo os.FileInfo) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(byteset)), nil
 }
 
-//indexFiles takes in a list of bro files, a number of threads, and parses
+//IndexFiles takes in a list of Zeek files, a number of threads, the target database, and target chunk ID and parses
 //some metadata out of the files
-func indexFiles(files []string, indexingThreads int, res *resources.Resources) []*fpt.IndexedFile {
+func IndexFiles(files []string, indexingThreads int, targetDB string, targetCID int,
+	logger *log.Logger, conf *config.Config) []*IndexedFile {
 	n := len(files)
-	output := make([]*fpt.IndexedFile, n)
+	output := make([]*IndexedFile, n)
 	indexingWG := new(sync.WaitGroup)
 
 	for i := 0; i < indexingThreads; i++ {
 		indexingWG.Add(1)
 
-		go func(files []string, indexedFiles []*fpt.IndexedFile,
-			res *resources.Resources, wg *sync.WaitGroup,
+		go func(files []string, indexedFiles []*IndexedFile, targetDB string, targetCID int,
+			logger *log.Logger, conf *config.Config, wg *sync.WaitGroup,
 			start int, jump int, length int) {
 
 			for j := start; j < length; j += jump {
-				indexedFile, err := newIndexedFile(files[j], res)
+				indexedFile, err := newIndexedFile(files[j], targetDB, targetCID, logger, conf)
 				if err != nil {
 					// log file is likely unsupported or empty
-					res.Log.WithFields(log.Fields{
+					logger.WithFields(log.Fields{
 						"file":  files[j],
 						"error": err.Error(),
 					}).Debug("An error was encountered while indexing a file.")
@@ -160,14 +162,14 @@ func indexFiles(files []string, indexingThreads int, res *resources.Resources) [
 				indexedFiles[j] = indexedFile
 			}
 			wg.Done()
-		}(files, output, res, indexingWG, i, indexingThreads, n)
+		}(files, output, targetDB, targetCID, logger, conf, indexingWG, i, indexingThreads, n)
 	}
 
 	indexingWG.Wait()
 
 	// remove all nil values from the slice
 	errCount := 0
-	indexedFiles := make([]*fpt.IndexedFile, 0, len(output))
+	indexedFiles := make([]*IndexedFile, 0, len(output))
 	for _, file := range output {
 		if file != nil {
 			indexedFiles = append(indexedFiles, file)
@@ -181,47 +183,4 @@ func indexFiles(files []string, indexingThreads int, res *resources.Resources) [
 		os.Exit(0)
 	}
 	return indexedFiles
-}
-
-//removeOldFilesFromIndex checks all indexedFiles passed in to ensure
-//that they have not previously been imported into the same database.
-//The files are compared based on their hashes (md5 of first 15000 bytes)
-//and the database they are slated to be imported into.
-func removeOldFilesFromIndex(indexedFiles []*fpt.IndexedFile,
-	metaDatabase *database.MetaDB, logger *log.Logger, targetDatabase string) []*fpt.IndexedFile {
-	var toReturn []*fpt.IndexedFile
-	oldFiles, err := metaDatabase.GetFiles(targetDatabase)
-	if err != nil {
-		logger.WithFields(log.Fields{
-			"error": err.Error(),
-		}).Error("Could not obtain a list of previously parsed files")
-	}
-
-	for _, newFile := range indexedFiles {
-		have := false
-		for _, oldFile := range oldFiles {
-			if oldFile.Hash == newFile.Hash {
-				logger.WithFields(log.Fields{
-					"path":            newFile.Path,
-					"target_database": newFile.TargetDatabase,
-				}).Warning("Refusing to import file into the same database twice")
-				have = true
-				break
-			}
-		}
-
-		if !have {
-			toReturn = append(toReturn, newFile)
-		}
-	}
-	return toReturn
-}
-
-//updateFilesIndex updates the files collection in the metaDB with the newly parsed files
-func updateFilesIndex(indexedFiles []*fpt.IndexedFile, metaDatabase *database.MetaDB,
-	logger *log.Logger) {
-	err := metaDatabase.AddParsedFiles(indexedFiles)
-	if err != nil {
-		logger.Error("Could not update the list of parsed files")
-	}
 }

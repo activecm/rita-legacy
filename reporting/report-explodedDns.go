@@ -10,7 +10,7 @@ import (
 	"github.com/activecm/rita/resources"
 )
 
-func printDNS(db string, showNetNames bool, res *resources.Resources) error {
+func printDNS(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {
 	f, err := os.Create("dns.html")
 	if err != nil {
 		return err
@@ -36,7 +36,7 @@ func printDNS(db string, showNetNames bool, res *resources.Resources) error {
 		return err
 	}
 
-	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w)})
+	return out.Execute(f, &templates.ReportingInfo{DB: db, Writer: template.HTML(w), LogsGeneratedAt: logsGeneratedAt})
 }
 
 func getDNSWriter(results []explodeddns.Result) (string, error) {

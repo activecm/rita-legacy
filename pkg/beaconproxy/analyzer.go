@@ -9,6 +9,7 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/util"
 
 	"github.com/globalsign/mgo/bson"
@@ -17,17 +18,17 @@ import (
 
 type (
 	analyzer struct {
-		tsMin            int64          // min timestamp for the whole dataset
-		tsMax            int64          // max timestamp for the whole dataset
-		chunk            int            //current chunk (0 if not on rolling analysis)
-		chunkStr         string         //current chunk (0 if not on rolling analysis)
-		db               *database.DB   // provides access to MongoDB
-		conf             *config.Config // contains details needed to access MongoDB
-		log              *log.Logger    // main logger for RITA
-		analyzedCallback func(*update)  // called on each analyzed result
-		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *Input    // holds unanalyzed data
-		analysisWg       sync.WaitGroup // wait for analysis to finish
+		tsMin            int64                  // min timestamp for the whole dataset
+		tsMax            int64                  // max timestamp for the whole dataset
+		chunk            int                    //current chunk (0 if not on rolling analysis)
+		chunkStr         string                 //current chunk (0 if not on rolling analysis)
+		db               *database.DB           // provides access to MongoDB
+		conf             *config.Config         // contains details needed to access MongoDB
+		log              *log.Logger            // main logger for RITA
+		analyzedCallback func(*update)          // called on each analyzed result
+		closedCallback   func()                 // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *uconnproxy.Input // holds unanalyzed data
+		analysisWg       sync.WaitGroup         // wait for analysis to finish
 	}
 )
 
@@ -44,12 +45,12 @@ func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.
 		log:              log,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan *Input),
+		analysisChannel:  make(chan *uconnproxy.Input),
 	}
 }
 
 //collect sends a chunk of data to be analyzed
-func (a *analyzer) collect(data *Input) {
+func (a *analyzer) collect(data *uconnproxy.Input) {
 	a.analysisChannel <- data
 }
 
@@ -70,42 +71,32 @@ func (a *analyzer) start() {
 			// set up beacon writer output
 			output := &update{}
 
-			// create selector pair object
-			selectorPair := entry.Hosts
-
-			// create query
-			query := bson.M{}
-
-			// if beacon has turned into a strobe, we will not have any timestamps here,
-			// and need to update beaconProxy table with the strobeFQDN flag.
+			// if uconnproxy has turned into a strobe, we will not have any timestamps here,
+			// and we need to update uconnproxy table with the strobe flag. This is being done
+			// here and not in uconnproxy because uconnproxy doesn't do reads, and doesn't know
+			// the updated conn count
 			if (entry.TsList) == nil {
 
-				// set strobe info
-				query["$set"] = bson.M{
-					"strobeFQDN":       true,
-					"connection_count": entry.ConnectionCount,
-					"dst_network_name": entry.Hosts.DstNetworkName,
-					"src_network_name": entry.Hosts.SrcNetworkName,
-					"cid":              a.chunk,
+				output.uconnproxy = updateInfo{
+					// update hosts record
+					query: bson.M{
+						"$set": bson.M{"strobeFQDN": true},
+					},
+					// create selector for output
+					selector: entry.Hosts.BSONKey(),
 				}
-
-				// unset any beacon calculations since  this
-				// is now a strobe and those would be inaccurate
-				// (this will only apply to chunked imports)
-				query["$unset"] = bson.M{
-					"ts":    1,
-					"ds":    1,
-					"score": 1,
-				}
-
-				// create selector for output
-				output.beacon.query = query
-				output.beacon.selector = selectorPair.BSONKey()
 
 				// set to writer channel
 				a.analyzedCallback(output)
 
 			} else {
+
+				// create selector pair object
+				selectorPair := entry.Hosts.BSONKey()
+
+				// create query
+				query := bson.M{}
+
 				//store the diff slice length since we use it a lot
 				//for timestamps this is one less then the data slice length
 				//since we are calculating the times in between readings
@@ -183,7 +174,7 @@ func (a *analyzer) start() {
 				// update beacon query
 				query["$set"] = bson.M{
 					"connection_count":   entry.ConnectionCount,
-					"dst_network_name":   entry.Hosts.DstNetworkName,
+					"proxy":              entry.Proxy,
 					"src_network_name":   entry.Hosts.SrcNetworkName,
 					"ts.range":           tsIntervalRange,
 					"ts.mode":            tsMode,
@@ -197,21 +188,23 @@ func (a *analyzer) start() {
 					"tslist":             entry.TsList,
 					"score":              score,
 					"cid":                a.chunk,
+					"strobeFQDN":         false,
 				}
 
 				// set query
 				output.beacon.query = query
 
 				// create selector for output
-				output.beacon.selector = selectorPair.BSONKey()
+				output.beacon.selector = selectorPair
 
-				// updates max FQDN beacon score for the source entry in the hosts table
+				// updates max beacon proxy score for the source entry in the hosts table
 				output.hostBeacon = a.hostBeaconQuery(score, entry.Hosts.UniqueSrcIP.Unpair(), entry.Hosts.FQDN)
 
 				// set to writer channel
 				a.analyzedCallback(output)
 			}
 		}
+
 		a.analysisWg.Done()
 	}()
 }

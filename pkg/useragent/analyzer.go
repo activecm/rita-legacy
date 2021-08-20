@@ -60,12 +60,14 @@ func (a *analyzer) start() {
 			// set up writer output
 			var output update
 
-			if len(datum.OrigIps) > 10 {
-				datum.OrigIps = datum.OrigIps[:10]
+			origIPs := datum.OrigIps.Items()
+			if len(origIPs) > 10 {
+				origIPs = origIPs[:10]
 			}
 
-			if len(datum.Requests) > 10 {
-				datum.Requests = datum.Requests[:10]
+			requests := datum.Requests.Items()
+			if len(requests) > 10 {
+				requests = requests[:10]
 			}
 
 			// create query
@@ -73,8 +75,8 @@ func (a *analyzer) start() {
 				"$push": bson.M{
 					"dat": bson.M{
 						"seen":     datum.Seen,
-						"orig_ips": datum.OrigIps,
-						"hosts":    datum.Requests,
+						"orig_ips": origIPs,
+						"hosts":    requests,
 						"cid":      a.chunk,
 					},
 				},
@@ -92,8 +94,8 @@ func (a *analyzer) start() {
 			a.analyzedCallback(output)
 
 			// this is for flagging rarely used j3 and useragent hosts
-			if len(datum.OrigIps) < 5 {
-				maxLeft := 5 - len(datum.OrigIps)
+			if len(origIPs) < 5 {
+				maxLeft := 5 - len(origIPs)
 
 				query := []bson.M{
 					{"$match": bson.M{"user_agent": datum.Name}},

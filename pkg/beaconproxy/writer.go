@@ -19,7 +19,7 @@ type (
 	}
 )
 
-//newWriter creates a new writer object to write output data to blacklisted collections
+//newWriter creates a new writer object to write output data to beaconproxy collections
 func newWriter(targetCollection string, db *database.DB, conf *config.Config, log *log.Logger) *writer {
 	return &writer{
 		targetCollection: targetCollection,
@@ -51,7 +51,7 @@ func (w *writer) start() {
 		for data := range w.writeChannel {
 
 			if data.beacon.query != nil {
-				// update beacons table
+				// update beacons proxy table
 				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.beacon.selector, data.beacon.query)
 
 				if err != nil ||
@@ -63,7 +63,7 @@ func (w *writer) start() {
 					}).Error(err)
 				}
 
-				// update hosts table with max beacon updates
+				// update hosts table with max beacon proxy updates
 				if data.hostBeacon.query != nil {
 					// update hosts table
 					info, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.hostBeacon.selector, data.hostBeacon.query)
@@ -76,6 +76,31 @@ func (w *writer) start() {
 							"Data":   data,
 						}).Error(err)
 					}
+				}
+			}
+
+			if data.uconnproxy.query != nil {
+				// update uconnsproxy table
+				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.UniqueConnProxyTable).Upsert(data.uconnproxy.selector, data.uconnproxy.query)
+
+				if err != nil ||
+					((info.Updated == 0) && (info.UpsertedId == nil)) {
+					w.log.WithFields(log.Fields{
+						"Module": "beaconsProxy",
+						"Info":   info,
+						"Data":   data,
+					}).Error(err)
+				}
+
+				//delete the record (no longer a beacon - its a strobe)
+				info, err = ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).RemoveAll(data.uconnproxy.selector)
+				if err != nil ||
+					((info.Updated == 0) && (info.Removed == 0) && (info.Matched == 0) && (info.UpsertedId == nil)) {
+					w.log.WithFields(log.Fields{
+						"Module": "beaconsProxy",
+						"Info":   info,
+						"Data":   data,
+					}).Error(err)
 				}
 			}
 		}

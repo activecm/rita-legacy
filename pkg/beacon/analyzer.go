@@ -229,6 +229,7 @@ func (a *analyzer) start() {
 							"cid":                a.chunk,
 							"src_network_name":   res.Hosts.SrcNetworkName,
 							"dst_network_name":   res.Hosts.DstNetworkName,
+							"strobe":             false,
 						},
 					},
 					selector: res.Hosts.BSONKey(),

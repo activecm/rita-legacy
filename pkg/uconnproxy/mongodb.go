@@ -1,4 +1,4 @@
-package explodeddns
+package uconnproxy
 
 import (
 	"runtime"
@@ -7,10 +7,9 @@ import (
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo"
+	log "github.com/sirupsen/logrus"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type repo struct {
@@ -19,7 +18,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository create new repository
+// NewMongoRepository create new repository
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -28,13 +27,12 @@ func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger
 	}
 }
 
-//CreateIndexes ....
 func (r *repo) CreateIndexes() error {
 	session := r.database.Session.Copy()
 	defer session.Close()
 
 	// set collection name
-	collectionName := r.config.T.DNS.ExplodedDNSTable
+	collectionName := r.config.T.Structure.UniqueConnProxyTable
 
 	// check if collection already exists
 	names, _ := session.DB(r.database.GetSelectedDB()).CollectionNames()
@@ -46,11 +44,11 @@ func (r *repo) CreateIndexes() error {
 		}
 	}
 
-	// set desired indexes
 	indexes := []mgo.Index{
-		{Key: []string{"domain"}, Unique: true},
-		// {Key: []string{"visited"}},
-		{Key: []string{"subdomain_count"}},
+		{Key: []string{"src", "fqdn", "src_network_uuid"}, Unique: true},
+		{Key: []string{"fqdn"}},
+		{Key: []string{"src", "src_network_uuid"}},
+		{Key: []string{"$dat.count"}},
 	}
 
 	// create collection
@@ -62,21 +60,21 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert loops through every domain ....
-func (r *repo) Upsert(domainMap map[string]int) {
-
-	//Create the workers
-	writerWorker := newWriter(r.config.T.DNS.ExplodedDNSTable, r.database, r.config, r.log)
+// Upsert loops through every uconnproxy entry
+func (r *repo) Upsert(uconnProxyMap map[string]*Input) {
+	// Create the workers
+	writerWorker := newWriter(r.config.T.Structure.UniqueConnProxyTable, r.database, r.config, r.log)
 
 	analyzerWorker := newAnalyzer(
 		r.config.S.Rolling.CurrentChunk,
+		int64(r.config.S.Strobe.ConnectionLimit),
 		r.database,
 		r.config,
 		writerWorker.collect,
 		writerWorker.close,
 	)
 
-	//kick off the threaded goroutines
+	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		analyzerWorker.start()
 		writerWorker.start()
@@ -84,26 +82,19 @@ func (r *repo) Upsert(domainMap map[string]int) {
 
 	// progress bar for troubleshooting
 	p := mpb.New(mpb.WithWidth(20))
-	bar := p.AddBar(int64(len(domainMap)),
+	bar := p.AddBar(int64(len(uconnProxyMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Exploded DNS Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Uconn Proxy Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
 	)
 
 	// loop over map entries
-	for entry, count := range domainMap {
-		//Mongo Index key is limited to a size of 1024 https://docs.mongodb.com/v3.4/reference/limits/#index-limitations
-		//  so if the key is too large, we should cut it back, this is rough but
-		//  works. Figured 800 allows some wiggle room, while also not being too large
-		if len(entry) > 1024 {
-			entry = entry[:800]
-		}
-		analyzerWorker.collect(domain{entry, count})
+	for _, entry := range uconnProxyMap {
+		analyzerWorker.collect(entry)
 		bar.IncrBy(1)
 	}
-
 	p.Wait()
 
 	// start the closing cascade (this will also close the other channels)

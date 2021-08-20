@@ -1,8 +1,9 @@
 package blacklist
 
 import (
-	log "github.com/sirupsen/logrus"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -56,7 +57,7 @@ func (w *writer) start() {
 			if err != nil ||
 				((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
 				w.log.WithFields(log.Fields{
-					"Module": "bl updater",
+					"Module": "bl_updater",
 					"Info":   info,
 					"Data":   data,
 				}).Error(err)

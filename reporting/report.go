@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"time"
 
 	htmlTempl "github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
@@ -112,7 +113,7 @@ func writeHomePage(Dbs []string) error {
 	return out.Execute(f, Dbs)
 }
 
-func writeDBHomePage(db string) error {
+func writeDBHomePage(db string, logsGeneratedAt string) error {
 	f, err := os.Create("index.html")
 	if err != nil {
 		return err
@@ -124,7 +125,7 @@ func writeDBHomePage(db string) error {
 		return err
 	}
 
-	return out.Execute(f, htmlTempl.ReportingInfo{DB: db})
+	return out.Execute(f, htmlTempl.ReportingInfo{DB: db, LogsGeneratedAt: logsGeneratedAt})
 }
 
 func writeDB(db string, wd string, showNetNames bool, res *resources.Resources) error {
@@ -144,53 +145,56 @@ func writeDB(db string, wd string, showNetNames bool, res *resources.Resources) 
 	}
 	res.DB.SelectDB(db)
 
-	err = writeDBHomePage(db)
+	maxTime := time.Now().Format(time.RFC1123)
+
+
+	err = writeDBHomePage(db, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing Home page: " + err.Error())
 	}
 
-	err = printDNS(db, showNetNames, res)
+	err = printDNS(db, showNetNames, res, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing DNS page: " + err.Error())
 	}
-	err = printBLSourceIPs(db, showNetNames, res)
+	err = printBLSourceIPs(db, showNetNames, res, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing blacklist-source page: " + err.Error())
 	}
-	err = printBLDestIPs(db, showNetNames, res)
+	err = printBLDestIPs(db, showNetNames, res, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing blacklist-destination page: " + err.Error())
 	}
-	err = printBLHostnames(db, showNetNames, res)
+	err = printBLHostnames(db, showNetNames, res, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing blacklist-hostnames page: " + err.Error())
 	}
 
-	err = printBeacons(db, showNetNames, res)
+	err = printBeacons(db, showNetNames, res, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing beacons page: " + err.Error())
 	}
 
-	err = printBeaconsFQDN(db, showNetNames, res)
+	err = printBeaconsFQDN(db, showNetNames, res, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing beaconsFQDN page: " + err.Error())
 	}
 
-	err = printBeaconsProxy(db, showNetNames, res)
+	err = printBeaconsProxy(db, showNetNames, res, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing beaconsProxy page: " + err.Error())
 	}
 
-	err = printStrobes(db, showNetNames, res)
+	err = printStrobes(db, showNetNames, res, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing strobes page: " + err.Error())
 	}
 
-	err = printLongConns(db, showNetNames, res)
+	err = printLongConns(db, showNetNames, res, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing long connections page: " + err.Error())
 	}
-	err = printUserAgents(db, showNetNames, res)
+	err = printUserAgents(db, showNetNames, res, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing user agents page: " + err.Error())
 	}

@@ -23,7 +23,7 @@ type Input struct {
 	Name     string
 	Seen     int64
 	OrigIps  data.UniqueIPSet
-	Requests []string
+	Requests data.StringSet
 	JA3      bool
 }
 
