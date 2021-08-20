@@ -54,6 +54,11 @@ func ParseSubnets(subnets []string) (parsedSubnets []*net.IPNet) {
 
 //IPIsPubliclyRoutable checks if an IP address is publicly routable. See privateIPBlocks.
 func IPIsPubliclyRoutable(ip net.IP) bool {
+	// cache IPv4 conversion so it not performed every in every ip.IsXXX method
+	if ipv4 := ip.To4(); ipv4 != nil {
+		ip = ipv4
+	}
+
 	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
 		return false
 	}
@@ -66,6 +71,11 @@ func IPIsPubliclyRoutable(ip net.IP) bool {
 
 //ContainsIP checks if a collection of subnets contains an IP
 func ContainsIP(subnets []*net.IPNet, ip net.IP) bool {
+	// cache IPv4 conversion so it not performed every in every Contains call
+	if ipv4 := ip.To4(); ipv4 != nil {
+		ip = ipv4
+	}
+
 	for _, block := range subnets {
 		if block.Contains(ip) {
 			return true

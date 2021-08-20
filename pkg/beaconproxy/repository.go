@@ -11,7 +11,7 @@ type (
 	// Repository for host collection
 	Repository interface {
 		CreateIndexes() error
-		Upsert(uconnProxyMap map[string]*uconnproxy.Input)
+		Upsert(uconnProxyMap map[string]*uconnproxy.Input, minTimestamp, maxTimestamp int64)
 	}
 
 	updateInfo struct {

@@ -11,7 +11,7 @@ type (
 	// Repository for host collection
 	Repository interface {
 		CreateIndexes() error
-		Upsert(hostnameMap map[string]*hostname.Input)
+		Upsert(hostnameMap map[string]*hostname.Input, minTimestamp, maxTimestamp int64)
 	}
 
 	updateInfo struct {

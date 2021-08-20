@@ -23,14 +23,18 @@ var testTargetDB = "tmp_test_db"
 var testRepo Repository
 
 var testHost = map[string]*uconn.Input{
-	"test": &uconn.Input{
+	"test": {
 		Hosts: data.UniqueIPPair{
-			SrcIP:          "127.0.0.1",
-			SrcNetworkUUID: util.UnknownPrivateNetworkUUID,
-			SrcNetworkName: util.UnknownPrivateNetworkName,
-			DstIP:          "127.0.0.1",
-			DstNetworkUUID: util.UnknownPrivateNetworkUUID,
-			DstNetworkName: util.UnknownPrivateNetworkName,
+			UniqueSrcIP: data.UniqueSrcIP{
+				SrcIP:          "127.0.0.1",
+				SrcNetworkUUID: util.UnknownPrivateNetworkUUID,
+				SrcNetworkName: util.UnknownPrivateNetworkName,
+			},
+			UniqueDstIP: data.UniqueDstIP{
+				DstIP:          "127.0.0.1",
+				DstNetworkUUID: util.UnknownPrivateNetworkUUID,
+				DstNetworkName: util.UnknownPrivateNetworkName,
+			},
 		},
 		ConnectionCount: 12,
 		IsLocalSrc:      true,
@@ -44,7 +48,7 @@ var testHost = map[string]*uconn.Input{
 }
 
 func TestUpsert(t *testing.T) {
-	testRepo.Upsert(testHost)
+	testRepo.Upsert(testHost, 1234560, 1234570)
 }
 
 // TestMain wraps all tests with the needed initialized mock DB and fixtures
@@ -56,7 +60,7 @@ func TestMain(m *testing.M) {
 	// Set the main session variable to the temporary MongoDB instance
 	res := resources.InitTestResources()
 
-	testRepo = NewMongoRepository(res)
+	testRepo = NewMongoRepository(res.DB, res.Config, res.Log)
 
 	// Run the test suite
 	retCode := m.Run()

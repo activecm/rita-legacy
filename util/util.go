@@ -1,8 +1,11 @@
 package util
 
 import (
+	"fmt"
 	"math"
 	"os"
+	"strings"
+	"time"
 )
 
 //TimeFormat stores a correctly formatted timestamp
@@ -79,6 +82,14 @@ func Max(a int, b int) int {
 	return b
 }
 
+//MaxUint64 returns the larger of two 64 bit unsigned integers
+func MaxUint64(a uint64, b uint64) uint64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 //StringInSlice returns true if the string is an element of the array
 func StringInSlice(value string, list []string) bool {
 	for _, entry := range list {
@@ -87,4 +98,41 @@ func StringInSlice(value string, list []string) bool {
 		}
 	}
 	return false
+}
+
+//Int64InSlice returns true if the int64 is an element of the array
+func Int64InSlice(value int64, list []int64) bool {
+	for _, entry := range list {
+		if entry == value {
+			return true
+		}
+	}
+	return false
+}
+
+const (
+	day  = time.Minute * 60 * 24
+	year = 365 * day
+)
+
+// FormatDuration properly prints a given time.Duration
+// https://gist.github.com/harshavardhana/327e0577c4fed9211f65#gistcomment-2557682
+func FormatDuration(d time.Duration) string {
+	if d < day {
+		return d.String()
+	}
+
+	var b strings.Builder
+
+	if d >= year {
+		years := d / year
+		fmt.Fprintf(&b, "%dy", years)
+		d -= years * year
+	}
+
+	days := d / day
+	d -= days * day
+	fmt.Fprintf(&b, "%dd%s", days, d)
+
+	return b.String()
 }

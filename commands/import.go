@@ -232,12 +232,12 @@ func (i *Importer) run() error {
 	}
 	i.res.Config.S.Rolling = rollingCfg
 
-	importer := parser.NewFSImporter(i.res, i.threads, i.threads, i.importFiles)
+	importer := parser.NewFSImporter(i.res)
 	if len(importer.GetInternalSubnets()) == 0 {
 		return cli.NewExitError("Internal subnets are not defined. Please set the InternalSubnets section of the config file.", -1)
 	}
 
-	indexedFiles := importer.CollectFileDetails()
+	indexedFiles := importer.CollectFileDetails(i.importFiles, i.threads)
 	// if no compatible files for import were found, exit
 	if len(indexedFiles) == 0 {
 		return cli.NewExitError("No compatible log files found", -1)
@@ -259,7 +259,20 @@ func (i *Importer) run() error {
 		fmt.Printf("\t[+] Non-rolling database %v will be converted to rolling\n", i.targetDatabase)
 	}
 
-	importer.Run(indexedFiles)
+	/*
+		// Uncomment these lines to enable CPU profiling
+		f, err := os.Create("./cpu.pprof")
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		defer f.Close() // error handling omitted for example
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	*/
+
+	importer.Run(indexedFiles, i.threads)
 
 	i.res.Log.Infof("Finished importing %v\n", i.importFiles)
 
@@ -288,7 +301,7 @@ func (i *Importer) handleDeleteOldData() error {
 
 	// Remove the analysis results for the chunk
 	targetChunk := i.res.Config.S.Rolling.CurrentChunk
-	removerRepo := remover.NewMongoRemover(i.res)
+	removerRepo := remover.NewMongoRemover(i.res.DB, i.res.Config, i.res.Log)
 	err := removerRepo.Remove(targetChunk)
 	if err != nil {
 		return err
