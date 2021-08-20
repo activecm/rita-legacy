@@ -276,8 +276,8 @@ func mapZeekHeaderToParseType(header *BroHeader, broDataFactory func() pt.BroDat
 			err := errors.New("type mismatch found in log")
 			logger.WithFields(log.Fields{
 				"error":         err,
-				"type in log":   header.Types[index],
-				"expected type": fieldInfo.zeekType,
+				"type_in_log":   header.Types[index],
+				"expected_type": fieldInfo.zeekType,
 			})
 			return indexMap, err
 		}
