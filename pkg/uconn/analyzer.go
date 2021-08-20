@@ -64,8 +64,9 @@ func (a *analyzer) start() {
 			// create query
 			query := bson.M{}
 
-			if len(datum.Tuples) > 5 {
-				datum.Tuples = datum.Tuples[:5]
+			tuples := datum.Tuples.Items()
+			if len(tuples) > 5 {
+				tuples = tuples[:5]
 			}
 
 			// Tally up the bytes and duration from the open connections.
@@ -124,7 +125,7 @@ func (a *analyzer) start() {
 						"count":  datum.ConnectionCount,
 						"bytes":  []interface{}{},
 						"ts":     []interface{}{},
-						"tuples": datum.Tuples,
+						"tuples": tuples,
 						"icerts": datum.InvalidCertFlag,
 						"maxdur": datum.MaxDuration,
 						"tbytes": datum.TotalBytes,
@@ -134,6 +135,7 @@ func (a *analyzer) start() {
 				}
 			} else {
 				query["$set"] = bson.M{
+					"strobe":                false,
 					"cid":                   a.chunk,
 					"src_network_name":      datum.Hosts.SrcNetworkName,
 					"dst_network_name":      datum.Hosts.DstNetworkName,
@@ -150,7 +152,7 @@ func (a *analyzer) start() {
 						"count":  datum.ConnectionCount,
 						"bytes":  datum.OrigBytesList,
 						"ts":     datum.TsList,
-						"tuples": datum.Tuples,
+						"tuples": tuples,
 						"icerts": datum.InvalidCertFlag,
 						"maxdur": datum.MaxDuration,
 						"tbytes": datum.TotalBytes,

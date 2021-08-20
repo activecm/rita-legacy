@@ -35,8 +35,15 @@ func NewUniqueIP(ip net.IP, agentUUID, agentName string) UniqueIP {
 		return u
 	}
 
+	// agent information is optional, provide a fast path to avoid calling uuid.Parse with invalid data
+	if len(agentUUID) == 0 || len(agentName) == 0 {
+		u.NetworkName = util.UnknownPrivateNetworkName
+		u.NetworkUUID = util.UnknownPrivateNetworkUUID
+		return u
+	}
+
 	id, err := uuid.Parse(agentUUID)
-	if err != nil || len(agentUUID) == 0 || len(agentName) == 0 {
+	if err != nil {
 		u.NetworkName = util.UnknownPrivateNetworkName
 		u.NetworkUUID = util.UnknownPrivateNetworkUUID
 		return u
@@ -212,23 +219,24 @@ func (p UniqueIPPair) BSONKey() bson.M {
 //UniqueIPSet is a set of UniqueIPs which contains at most one instance of each UniqueIP
 //this implementation is based on a slice of UniqueIPs rather than a map[string]UniqueIP
 //since it requires less RAM.
-type UniqueIPSet []UniqueIP
+type UniqueIPSet map[string]UniqueIP
+
+//Items returns the UniqueIPs in the set as a slice.
+func (s UniqueIPSet) Items() []UniqueIP {
+	retVal := make([]UniqueIP, 0, len(s))
+	for _, ip := range s {
+		retVal = append(retVal, ip)
+	}
+	return retVal
+}
 
 //Insert adds a UniqueIP to the set
-func (s *UniqueIPSet) Insert(ip UniqueIP) {
-	contained := s.Contains(ip)
-	if contained {
-		return
-	}
-	*s = append(*s, ip)
+func (s UniqueIPSet) Insert(ip UniqueIP) {
+	s[ip.MapKey()] = ip
 }
 
 //Contains checks if a given UniqueIP is in the set
 func (s UniqueIPSet) Contains(ip UniqueIP) bool {
-	for i := range s {
-		if s[i].Equal(ip) {
-			return true
-		}
-	}
-	return false
+	_, ok := s[ip.MapKey()]
+	return ok
 }

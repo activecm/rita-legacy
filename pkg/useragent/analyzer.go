@@ -81,12 +81,14 @@ func (a *analyzer) updateUseragentCollection(ssn *mgo.Session, datum *Input) {
 	// set up writer output
 	var output update
 
-	if len(datum.OrigIps) > 10 {
-		datum.OrigIps = datum.OrigIps[:10]
+	origIPs := datum.OrigIps.Items()
+	if len(origIPs) > 10 {
+		origIPs = origIPs[:10]
 	}
 
-	if len(datum.Requests) > 10 {
-		datum.Requests = datum.Requests[:10]
+	requests := datum.Requests.Items()
+	if len(requests) > 10 {
+		requests = requests[:10]
 	}
 
 	// create query
@@ -94,8 +96,8 @@ func (a *analyzer) updateUseragentCollection(ssn *mgo.Session, datum *Input) {
 		"$push": bson.M{
 			"dat": bson.M{
 				"seen":     datum.Seen,
-				"orig_ips": datum.OrigIps,
-				"hosts":    datum.Requests,
+				"orig_ips": origIPs,
+				"hosts":    requests,
 				"cid":      a.chunk,
 			},
 		},
@@ -135,7 +137,7 @@ func (a *analyzer) updateHostsCollection(ssn *mgo.Session, datum *Input) {
 	}
 
 	// merge the two lists of origIPs to get rid of duplicates
-	origIPsUnioned := unionUniqueIPSlices(datum.OrigIps, dbRareSigOrigIPs)
+	origIPsUnioned := unionUniqueIPSlices(datum.OrigIps.Items(), dbRareSigOrigIPs)
 
 	// if we've busted over the limit after unioning the new and old originating IPs together
 	// don't update the host records

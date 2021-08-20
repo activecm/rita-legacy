@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/activecm/rita/config"
-	fpt "github.com/activecm/rita/parser/fileparsetypes"
+	"github.com/activecm/rita/parser/files"
 	"github.com/blang/semver"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
@@ -525,10 +525,10 @@ func (m *MetaDB) GetAnalyzedDatabases() []string {
 // GetFiles gets a list of all IndexedFile objects associated with the given database.
 // If successful return a list of files from the database. On failure return an empty
 // list of files and generate a log message.
-func (m *MetaDB) GetFiles(database string) ([]fpt.IndexedFile, error) {
+func (m *MetaDB) GetFiles(database string) ([]files.IndexedFile, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	var toReturn []fpt.IndexedFile
+	var toReturn []files.IndexedFile
 
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
@@ -544,8 +544,8 @@ func (m *MetaDB) GetFiles(database string) ([]fpt.IndexedFile, error) {
 	return toReturn, nil
 }
 
-//AddParsedFiles adds indexed files to the files the metaDB using the bulk API
-func (m *MetaDB) AddParsedFiles(files []*fpt.IndexedFile) error {
+//AddNewFilesToIndex adds indexed files to the files the metaDB using the bulk API
+func (m *MetaDB) AddNewFilesToIndex(files []*files.IndexedFile) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if len(files) == 0 {
@@ -572,6 +572,41 @@ func (m *MetaDB) AddParsedFiles(files []*fpt.IndexedFile) error {
 		return err
 	}
 	return nil
+}
+
+//FilterOutPreviouslyIndexedFiles checks all indexedFiles passed in to ensure
+//that they have not previously been imported into the same database.
+//The files are compared based on their hashes (md5 of first 15000 bytes)
+//and the database they are slated to be imported into.
+func (m *MetaDB) FilterOutPreviouslyIndexedFiles(indexedFiles []*files.IndexedFile,
+	targetDatabase string) []*files.IndexedFile {
+
+	var toReturn []*files.IndexedFile
+	oldFiles, err := m.GetFiles(targetDatabase)
+	if err != nil {
+		m.log.WithFields(log.Fields{
+			"error": err.Error(),
+		}).Error("Could not obtain a list of previously parsed files")
+	}
+
+	for _, newFile := range indexedFiles {
+		have := false
+		for _, oldFile := range oldFiles {
+			if oldFile.Hash == newFile.Hash {
+				m.log.WithFields(log.Fields{
+					"path":            newFile.Path,
+					"target_database": newFile.TargetDatabase,
+				}).Warning("Refusing to import file into the same database twice")
+				have = true
+				break
+			}
+		}
+
+		if !have {
+			toReturn = append(toReturn, newFile)
+		}
+	}
+	return toReturn
 }
 
 //RemoveFilesByChunk removes FilesTable entries for a given database chunk.

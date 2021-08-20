@@ -8,6 +8,7 @@ import (
 
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
@@ -62,32 +63,6 @@ func init() {
 		},
 	}
 	bootstrapCommands(command)
-}
-
-const (
-	day  = time.Minute * 60 * 24
-	year = 365 * day
-)
-
-// https://gist.github.com/harshavardhana/327e0577c4fed9211f65#gistcomment-2557682
-func duration(d time.Duration) string {
-	if d < day {
-		return d.String()
-	}
-
-	var b strings.Builder
-
-	if d >= year {
-		years := d / year
-		fmt.Fprintf(&b, "%dy", years)
-		d -= years * year
-	}
-
-	days := d / day
-	d -= days * day
-	fmt.Fprintf(&b, "%dd%s", days, d)
-
-	return b.String()
 }
 
 func showConns(connResults []uconn.LongConnResult, delim string, showNetNames bool) error {
@@ -162,7 +137,7 @@ func showConnsHuman(connResults []uconn.LongConnResult, showNetNames bool) error
 				result.SrcIP,
 				result.DstIP,
 				strings.Join(result.Tuples, " "),
-				duration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
+				util.FormatDuration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
 				state,
 			}
 		} else {
@@ -170,7 +145,7 @@ func showConnsHuman(connResults []uconn.LongConnResult, showNetNames bool) error
 				result.SrcIP,
 				result.DstIP,
 				strings.Join(result.Tuples, " "),
-				duration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
+				util.FormatDuration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
 				state,
 			}
 		}

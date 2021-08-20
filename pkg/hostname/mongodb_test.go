@@ -30,18 +30,30 @@ func ipFactory(ip string) data.UniqueIP {
 }
 
 var testHostname = map[string]*Input{
-	"a.b.activecountermeasures.com": &Input{
-		ClientIPs:   data.UniqueIPSet{ipFactory("192.168.1.1")},
-		ResolvedIPs: data.UniqueIPSet{ipFactory("127.0.0.1"), ipFactory("127.0.0.2")}},
-	"x.a.b.activecountermeasures.com": &Input{
-		ClientIPs:   data.UniqueIPSet{ipFactory("192.168.1.1")},
-		ResolvedIPs: data.UniqueIPSet{ipFactory("127.0.0.1"), ipFactory("127.0.0.2")}},
-	"activecountermeasures.com": &Input{
-		ClientIPs:   data.UniqueIPSet{ipFactory("192.168.1.1")},
-		ResolvedIPs: data.UniqueIPSet{}},
-	"google.com": &Input{
-		ClientIPs:   data.UniqueIPSet{ipFactory("192.168.1.1"), ipFactory("192.168.1.2")},
-		ResolvedIPs: data.UniqueIPSet{ipFactory("127.0.0.1"), ipFactory("127.0.0.2"), ipFactory("0.0.0.0")}},
+	"a.b.activecountermeasures.com":   &Input{},
+	"x.a.b.activecountermeasures.com": &Input{},
+	"activecountermeasures.com":       &Input{},
+	"google.com":                      &Input{},
+}
+
+func init() {
+	testHostname["a.b.activecountermeasures.com"].ClientIPs.Insert(ipFactory("192.168.1.1"))
+	testHostname["a.b.activecountermeasures.com"].ResolvedIPs.Insert(ipFactory("127.0.0.1"))
+	testHostname["a.b.activecountermeasures.com"].ResolvedIPs.Insert(ipFactory("127.0.0.2"))
+
+	testHostname["x.a.b.activecountermeasures.com"].ClientIPs.Insert(ipFactory("192.168.1.1"))
+	testHostname["x.a.b.activecountermeasures.com"].ResolvedIPs.Insert(ipFactory("127.0.0.1"))
+	testHostname["x.a.b.activecountermeasures.com"].ResolvedIPs.Insert(ipFactory("127.0.0.2"))
+
+	testHostname["activecountermeasures.com"].ClientIPs.Insert(ipFactory("192.168.1.1"))
+
+	testHostname["google.com"].ClientIPs.Insert(ipFactory("192.168.1.1"))
+	testHostname["google.com"].ClientIPs.Insert(ipFactory("192.168.1.2"))
+
+	testHostname["google.com"].ResolvedIPs.Insert(ipFactory("127.0.0.1"))
+	testHostname["google.com"].ResolvedIPs.Insert(ipFactory("127.0.0.2"))
+	testHostname["google.com"].ResolvedIPs.Insert(ipFactory("0.0.0.0"))
+
 }
 
 func TestUpsert(t *testing.T) {
@@ -57,7 +69,7 @@ func TestMain(m *testing.M) {
 	// Set the main session variable to the temporary MongoDB instance
 	res := resources.InitTestResources()
 
-	testRepo = NewMongoRepository(res)
+	testRepo = NewMongoRepository(res.DB, res.Config, res.Log)
 
 	// Run the test suite
 	retCode := m.Run()
