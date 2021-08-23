@@ -6,36 +6,35 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/hostname"
 	"github.com/globalsign/mgo/bson"
 )
 
 type (
 	dissector struct {
-		connLimit         int64                     // limit for strobe classification
-		db                *database.DB              // provides access to MongoDB
-		conf              *config.Config            // contains details needed to access MongoDB
-		dissectedCallback func(*hostname.FqdnInput) // called on each analyzed result
-		closedCallback    func()                    // called when .close() is called and no more calls to analyzedCallback will be made
-		dissectChannel    chan *hostname.FqdnInput  // holds unanalyzed data
-		dissectWg         sync.WaitGroup            // wait for analysis to finish
+		connLimit         int64            // limit for strobe classification
+		db                *database.DB     // provides access to MongoDB
+		conf              *config.Config   // contains details needed to access MongoDB
+		dissectedCallback func(*fqdnInput) // called on each analyzed result
+		closedCallback    func()           // called when .close() is called and no more calls to analyzedCallback will be made
+		dissectChannel    chan *fqdnInput  // holds unanalyzed data
+		dissectWg         sync.WaitGroup   // wait for analysis to finish
 	}
 )
 
 //newdissector creates a new collector for gathering data
-func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(*hostname.FqdnInput), closedCallback func()) *dissector {
+func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(*fqdnInput), closedCallback func()) *dissector {
 	return &dissector{
 		connLimit:         connLimit,
 		db:                db,
 		conf:              conf,
 		dissectedCallback: dissectedCallback,
 		closedCallback:    closedCallback,
-		dissectChannel:    make(chan *hostname.FqdnInput),
+		dissectChannel:    make(chan *fqdnInput),
 	}
 }
 
 //collect sends a chunk of data to be analyzed
-func (d *dissector) collect(entry *hostname.FqdnInput) {
+func (d *dissector) collect(entry *fqdnInput) {
 	d.dissectChannel <- entry
 }
 
@@ -267,7 +266,7 @@ func (d *dissector) start() {
 			for _, res := range allResults {
 
 				srcCurr := data.UniqueSrcIP{SrcIP: res.Src, SrcNetworkUUID: res.SrcNetworkUUID, SrcNetworkName: res.SrcNetworkName}
-				analysisInput := &hostname.FqdnInput{
+				analysisInput := &fqdnInput{
 					FQDN:            entry.FQDN,
 					Src:             srcCurr,
 					ConnectionCount: res.Count,
