@@ -1,6 +1,7 @@
 package beaconfqdn
 
 import (
+	"fmt"
 	"runtime"
 	"time"
 
@@ -143,6 +144,7 @@ func (r *repo) Upsert(hostMap map[string]*host.Input, minTimestamp, maxTimestamp
 	}
 
 	s.Stop()
+	fmt.Println()
 
 	// progress bar for troubleshooting
 	p := mpb.New(mpb.WithWidth(20))
