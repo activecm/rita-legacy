@@ -448,15 +448,15 @@ func ParseTSVLine(lineString string, header *BroHeader,
 	}
 
 	//handle last field
-	if lineString != header.Empty && lineString != header.Unset {
-		if fieldMap.NthLogFieldExistsInParseType[tokenCounter] {
-			parseTSVField(
-				lineString,
-				header.Types[tokenCounter],
-				data.Field(fieldMap.NthLogFieldParseTypeOffset[tokenCounter]),
-				logger,
-			)
-		}
+	if tokenCounter < len(header.Names) && /* skip field if there is no matching entry in the names header*/
+		lineString != header.Empty && lineString != header.Unset && /* skip field if it is not set */
+		fieldMap.NthLogFieldExistsInParseType[tokenCounter] { /* skip the field if it is not in the parse struct */
+		parseTSVField(
+			lineString,
+			header.Types[tokenCounter],
+			data.Field(fieldMap.NthLogFieldParseTypeOffset[tokenCounter]),
+			logger,
+		)
 	}
 
 	return dat
