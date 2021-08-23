@@ -204,7 +204,11 @@ func (r *repo) affectedHostnameIPs(hostMap map[string]*host.Input) ([]hostnameIP
 // roughly less than 200,000 external hosts.
 func (r *repo) affectedHostnameIPsSimple(hostMap map[string]*host.Input) ([]hostnameIPs, error) {
 	// preallocate externalHosts slice assuming at least half of the observed hosts are external
-	var externalHosts []data.UniqueIP = make([]data.UniqueIP, 0, len(hostMap)/2)
+	// In most implementations of the Go runtime, when the array underlying a slice is
+	// reallocated via append(), the runtime will double the size of the underlying array.
+	// With this assumption in mind, we can assume that externalHosts will be reallocated
+	// only one time at most.
+	externalHosts := make([]data.UniqueIP, 0, len(hostMap)/2)
 	var affectedHostnamesBuffer []hostnameIPs
 
 	ssn := r.database.Session.Copy()
@@ -228,9 +232,13 @@ func (r *repo) affectedHostnameIPsSimple(hostMap map[string]*host.Input) ([]host
 // and uses more RAM. However, unlike affectedHostnameIPs_simple, affectedHostnameIPs_chunked handles
 // hostMaps of all sizes.
 func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hostnameIPs, error) {
-	// preallocate externalHosts slice assuming at least half of the observed hosts are external
-	// util.Min ensures that we don't preallocate more than the maximum allowed number of hosts in a 16MB BSON document
-	var externalHosts []data.UniqueIP = make([]data.UniqueIP, 0, util.Min(200000, len(hostMap)/2))
+	// preallocate externalHosts slice assuming at least half of the observed hosts are external.
+	// util.Min ensures that we don't preallocate more than the maximum allowed number of hosts in a 16MB BSON document.
+	// In most implementations of the Go runtime, when the array underlying a slice is
+	// reallocated via append(), the runtime will double the size of the underlying array.
+	// With this assumption in mind, we can assume that externalHosts will be reallocated
+	// only one time at most.
+	externalHosts := make([]data.UniqueIP, 0, util.Min(200000, len(hostMap)/2))
 	var affectedHostnamesBuffer []hostnameIPs
 
 	ssn := r.database.Session.Copy()
@@ -240,7 +248,9 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 	// and consuming more RAM
 
 	// affectedHostnameIPMap maps hostnames to their respective ResolvedIPs
-	var affectedHostnameIPMap map[string][]data.UniqueIP = make(map[string][]data.UniqueIP, len(hostMap)/10)
+	// affectedHostnameIPMap is preallocated with the assumption that there are roughly
+	// 10 IPs associated with each hostname in the set of logs.
+	affectedHostnameIPMap := make(map[string][]data.UniqueIP, len(hostMap)/10)
 
 	for _, host := range hostMap {
 		if host.IsLocal {
@@ -332,7 +342,7 @@ reverseDNSQueryWithIPs returns a MongoDB aggregation which returns the hostnames
 UniqueIPs. Additionally, all of the IPs associated with each hostname are returned.
 */
 func reverseDNSQueryWithIPs(uniqueIPs []data.UniqueIP) []bson.M {
-	var uniqueIPBsonSelectors []bson.M = make([]bson.M, 0, len(uniqueIPs))
+	uniqueIPBsonSelectors := make([]bson.M, 0, len(uniqueIPs))
 	for i := range uniqueIPs {
 		uniqueIPBsonSelectors = append(uniqueIPBsonSelectors, bson.M{
 			"dat.ips.ip":           uniqueIPs[i].IP,
