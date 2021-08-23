@@ -192,7 +192,7 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 		fs.buildBeacons(retVals.UniqueConnMap, minTimestamp, maxTimestamp)
 
 		// build or update the FQDN Beacons Table
-		fs.buildFQDNBeacons(retVals.HostnameMap, minTimestamp, maxTimestamp)
+		fs.buildFQDNBeacons(retVals.HostMap, minTimestamp, maxTimestamp)
 
 		// build or update the Proxy Beacons Table
 		fs.buildProxyBeacons(retVals.ProxyUniqueConnMap, minTimestamp, maxTimestamp)
@@ -521,7 +521,7 @@ func (fs *FSImporter) buildHosts(hostMap map[string]*host.Input) {
 			fs.log.Error(err)
 		}
 
-		// send uconns to host analysis
+		// add the hosts to the database
 		hostRepo.Upsert(hostMap)
 	} else {
 		fmt.Println("\t[!] No Host data to analyze")
@@ -540,7 +540,7 @@ func (fs *FSImporter) markBlacklistedPeers(hostMap map[string]*host.Input) {
 			fs.log.Error(err)
 		}
 
-		// send uconns to host analysis
+		// send the hosts out for threat intel analysis
 		blacklistRepo.Upsert()
 	}
 }
@@ -564,9 +564,9 @@ func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input, minTimestam
 
 }
 
-func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input, minTimestamp, maxTimestamp int64) {
+func (fs *FSImporter) buildFQDNBeacons(hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
 	if fs.config.S.BeaconFQDN.Enabled {
-		if len(hostnameMap) > 0 {
+		if len(hostMap) > 0 {
 			beaconFQDNRepo := beaconfqdn.NewMongoRepository(fs.database, fs.config, fs.log)
 
 			err := beaconFQDNRepo.CreateIndexes()
@@ -574,8 +574,10 @@ func (fs *FSImporter) buildFQDNBeacons(hostnameMap map[string]*hostname.Input, m
 				fs.log.Error(err)
 			}
 
-			// send uconns to beacon analysis
-			beaconFQDNRepo.Upsert(hostnameMap, minTimestamp, maxTimestamp)
+			// Send the list of hosts out to the FQDN beacon analysis pkg.
+			// The list of external hosts seen in the current set of logs determines
+			// which FQDN beacons need to be updated.
+			beaconFQDNRepo.Upsert(hostMap, minTimestamp, maxTimestamp)
 		} else {
 			fmt.Println("\t[!] No FQDN Beacon data to analyze")
 		}
@@ -593,7 +595,7 @@ func (fs *FSImporter) buildProxyBeacons(uconnProxyMap map[string]*uconnproxy.Inp
 				fs.log.Error(err)
 			}
 
-			// send uconns to beacon analysis
+			// send proxy uconns to beacon analysis
 			beaconProxyRepo.Upsert(uconnProxyMap, minTimestamp, maxTimestamp)
 		} else {
 			fmt.Println("\t[!] No Proxy Beacon data to analyze")

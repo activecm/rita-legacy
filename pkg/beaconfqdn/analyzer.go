@@ -9,7 +9,6 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/util"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
@@ -17,17 +16,17 @@ import (
 
 type (
 	analyzer struct {
-		tsMin            int64                    // min timestamp for the whole dataset
-		tsMax            int64                    // max timestamp for the whole dataset
-		chunk            int                      // current chunk (0 if not on rolling analysis)
-		chunkStr         string                   // current chunk (0 if not on rolling analysis)
-		db               *database.DB             // provides access to MongoDB
-		conf             *config.Config           // contains details needed to access MongoDB
-		log              *log.Logger              // main logger for RITA
-		analyzedCallback func(*update)            // called on each analyzed result
-		closedCallback   func()                   // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *hostname.FqdnInput // holds unanalyzed data
-		analysisWg       sync.WaitGroup           // wait for analysis to finish
+		tsMin            int64           // min timestamp for the whole dataset
+		tsMax            int64           // max timestamp for the whole dataset
+		chunk            int             //current chunk (0 if not on rolling analysis)
+		chunkStr         string          //current chunk (0 if not on rolling analysis)
+		db               *database.DB    // provides access to MongoDB
+		conf             *config.Config  // contains details needed to access MongoDB
+		log              *log.Logger     // main logger for RITA
+		analyzedCallback func(*update)   // called on each analyzed result
+		closedCallback   func()          // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *fqdnInput // holds unanalyzed data
+		analysisWg       sync.WaitGroup  // wait for analysis to finish
 	}
 )
 
@@ -44,12 +43,12 @@ func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.
 		log:              log,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
-		analysisChannel:  make(chan *hostname.FqdnInput),
+		analysisChannel:  make(chan *fqdnInput),
 	}
 }
 
 //collect sends a chunk of data to be analyzed
-func (a *analyzer) collect(data *hostname.FqdnInput) {
+func (a *analyzer) collect(data *fqdnInput) {
 	a.analysisChannel <- data
 }
 
@@ -89,7 +88,7 @@ func (a *analyzer) start() {
 					"avg_bytes":        entry.TotalBytes / entry.ConnectionCount,
 					"connection_count": entry.ConnectionCount,
 					"src_network_name": entry.Src.SrcNetworkName,
-					"resolved_ips":     entry.ResolvedIPs.Items(),
+					"resolved_ips":     entry.ResolvedIPs,
 					"cid":              a.chunk,
 				}
 
@@ -245,7 +244,7 @@ func (a *analyzer) start() {
 					"score":              score,
 					"cid":                a.chunk,
 					"src_network_name":   entry.Src.SrcNetworkName,
-					"resolved_ips":       entry.ResolvedIPs.Items(),
+					"resolved_ips":       entry.ResolvedIPs,
 					"strobeFQDN":         false,
 				}
 
