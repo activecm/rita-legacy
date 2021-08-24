@@ -30,9 +30,10 @@ type testCaseSingleIP struct {
 func TestFilterConnPairWithInternalSubnets(t *testing.T) {
 
 	fsTest := &filter{
-		internal:       util.ParseSubnets([]string{"10.0.0.0/8"}),
-		alwaysIncluded: util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
-		neverIncluded:  util.ParseSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+		internal:                 util.ParseSubnets([]string{"10.0.0.0/8"}),
+		alwaysIncluded:           util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
+		neverIncluded:            util.ParseSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+		filterExternalToInternal: false,
 	}
 
 	// all permutations of being on internal, always, and never lists
@@ -87,8 +88,9 @@ func TestFilterConnPairWithoutInternalSubnets(t *testing.T) {
 
 	fsTest := &filter{
 		// purposely omitting internal subnet definition
-		alwaysIncluded: util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
-		neverIncluded:  util.ParseSubnets([]string{"10.0.0.4/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+		alwaysIncluded:           util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
+		neverIncluded:            util.ParseSubnets([]string{"10.0.0.4/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+		filterExternalToInternal: false,
 	}
 
 	// "internal" here is merely by convention as with no InternalSubnets
@@ -105,6 +107,42 @@ func TestFilterConnPairWithoutInternalSubnets(t *testing.T) {
 		{internal, external, false, "internal to external should not be filtered when InternalSubnets is empty"},
 		{external, internal, false, "external to internal should not be filtered when InternalSubnets is empty"},
 		{external, external, false, "external to external should not be filtered when InternalSubnets is empty"},
+	}
+
+	for _, test := range testCases {
+		output := fsTest.filterConnPair(net.ParseIP(test.src), net.ParseIP(test.dst))
+		assert.Equal(t, test.out, output, test.msg)
+	}
+}
+
+func TestFilterConnPairExternalToInternal(t *testing.T) {
+
+	fsTest := &filter{
+		internal:                 util.ParseSubnets([]string{"10.0.0.0/8"}),
+		alwaysIncluded:           util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
+		filterExternalToInternal: true,
+	}
+
+	// all permutations of being on internal, always, and "alwaysnever"
+	// excluding "never" cases as those shouldn't affect the external to internal
+	// filtering and are tested elsewhere
+	internal := "10.0.0.0"
+	internalAlways := "10.0.0.1"
+	internalAlwaysNever := "10.0.0.3"
+	external := "1.1.1.0"
+	externalAlways := "1.1.1.1"
+	externalAlwaysNever := "1.1.1.3"
+
+	testCases := []testCase{
+		// internal to external cases
+		{internal, external, false, "internal to external should not be filtered"},
+		{internal, externalAlways, false, "AlwaysInclude should not be filtered"},
+		{internal, externalAlwaysNever, false, "AlwaysInclude should override NeverInclude when one IP is in both"},
+
+		// external to internal cases
+		{external, internal, true, "external to internal should be filtered"},
+		{external, internalAlways, false, "AlwaysInclude should not be filtered"},
+		{external, internalAlwaysNever, false, "AlwaysInclude should override NeverInclude when one IP is in both"},
 	}
 
 	for _, test := range testCases {

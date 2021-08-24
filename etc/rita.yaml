@@ -100,6 +100,10 @@ Filtering:
   #       (asterisk as the prefix) is supported
   NeverIncludeDomain: []
 
+  # FilterExternalToInternal will ignore any entries where communication
+  # is occurring from an external host to an internal host
+  FilterExternalToInternal: false
+
 BlackListed:
   Enabled: true
   # These are blacklists built into rita-blacklist. Set these to false

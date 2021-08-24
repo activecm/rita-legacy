@@ -16,15 +16,18 @@ type filter struct {
 
 	alwaysIncludedDomain []string
 	neverIncludedDomain  []string
+
+	filterExternalToInternal bool
 }
 
 func newFilter(conf *config.Config) filter {
 	return filter{
-		internal:             util.ParseSubnets(conf.S.Filtering.InternalSubnets),
-		alwaysIncluded:       util.ParseSubnets(conf.S.Filtering.AlwaysInclude),
-		neverIncluded:        util.ParseSubnets(conf.S.Filtering.NeverInclude),
-		alwaysIncludedDomain: conf.S.Filtering.AlwaysIncludeDomain,
-		neverIncludedDomain:  conf.S.Filtering.NeverIncludeDomain,
+		internal:                 util.ParseSubnets(conf.S.Filtering.InternalSubnets),
+		alwaysIncluded:           util.ParseSubnets(conf.S.Filtering.AlwaysInclude),
+		neverIncluded:            util.ParseSubnets(conf.S.Filtering.NeverInclude),
+		alwaysIncludedDomain:     conf.S.Filtering.AlwaysIncludeDomain,
+		neverIncludedDomain:      conf.S.Filtering.NeverIncludeDomain,
+		filterExternalToInternal: conf.S.Filtering.FilterExternalToInternal,
 	}
 }
 
@@ -71,6 +74,11 @@ func (fs *filter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 
 	// if both addresses are external, filter applies
 	if (!isSrcInternal) && (!isDstInternal) {
+		return true
+	}
+
+	// filter external to internal traffic if the user has specified to do so
+	if fs.filterExternalToInternal && (!isSrcInternal) && isDstInternal {
 		return true
 	}
 
