@@ -6,13 +6,14 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/activecm/rita/pkg/data"
-
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/util"
+
 	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -23,6 +24,7 @@ type (
 		chunkStr         string            //current chunk (0 if not on rolling analysis)
 		db               *database.DB      // provides access to MongoDB
 		conf             *config.Config    // contains details needed to access MongoDB
+		log              *log.Logger       // main logger for RITA
 		analyzedCallback func(*update)     // called on each analyzed result
 		closedCallback   func()            // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan *uconn.Input // holds unanalyzed data
@@ -31,7 +33,8 @@ type (
 )
 
 //newAnalyzer creates a new collector for gathering data
-func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.Config, analyzedCallback func(*update), closedCallback func()) *analyzer {
+func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.Config, log *log.Logger,
+	analyzedCallback func(*update), closedCallback func()) *analyzer {
 	return &analyzer{
 		tsMin:            min,
 		tsMax:            max,
@@ -39,6 +42,7 @@ func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.
 		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
 		conf:             conf,
+		log:              log,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
 		analysisChannel:  make(chan *uconn.Input),
@@ -296,43 +300,44 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 	// create query
 	query := bson.M{}
 
-	// update host table if there is an invalid cert record between pair
-	if icert {
+	// don't update host table if there isn't an invalid cert record between pair
+	if !icert {
+		return updateInfo{}
+	}
 
-		newFlag := false
+	hostSelector := src.BSONKey()
+	hostSelector["dat"] = bson.M{"$elemMatch": dst.PrefixedBSONKey("icdst")}
 
-		hostSelector := src.BSONKey()
-		hostSelector["dat"] = bson.M{"$elemMatch": dst.PrefixedBSONKey("icdst")}
+	nExistingEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).Count()
 
-		nExistingEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).Count()
+	newFlag := false
 
-		if nExistingEntries == 0 {
-			newFlag = true
+	if nExistingEntries == 0 {
+		newFlag = true
+	}
+
+	if newFlag {
+
+		query["$push"] = bson.M{
+			"dat": bson.M{
+				"icdst": dst,
+				"icert": 1,
+				"cid":   a.chunk,
+			}}
+
+		// create selector for output
+		output.query = query
+		output.selector = src.BSONKey()
+
+	} else {
+
+		query["$set"] = bson.M{
+			"dat.$.cid": a.chunk,
 		}
 
-		if newFlag {
-
-			query["$push"] = bson.M{
-				"dat": bson.M{
-					"icdst": dst,
-					"icert": 1,
-					"cid":   a.chunk,
-				}}
-
-			// create selector for output
-			output.query = query
-			output.selector = src.BSONKey()
-
-		} else {
-
-			query["$set"] = bson.M{
-				"dat.$.cid": a.chunk,
-			}
-
-			// create selector for output
-			output.query = query
-			output.selector = hostSelector
-		}
+		// create selector for output
+		output.query = query
+		output.selector = hostSelector
 	}
 
 	return output
@@ -351,15 +356,27 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 	// we do this before the other queries because otherwise if a beacon
 	// starts out with a high score which reduces over time, it will keep
 	// the incorrect high max for that specific destination.
-	var resListExactMatch []interface{}
-
 	maxBeaconMatchExactQuery := src.BSONKey()
 	maxBeaconMatchExactQuery["dat"] = bson.M{"$elemMatch": dst.PrefixedBSONKey("mbdst")}
 
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
+	nExactMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
+		Find(maxBeaconMatchExactQuery).Count()
+
+	if err != nil {
+		a.log.WithError(err).WithFields(log.Fields{
+			"src":              src.IP,
+			"src_network_name": src.NetworkName,
+			"dst":              dst.IP,
+			"dst_network_name": dst.NetworkName,
+		}).Error(
+			"Could not check for existing max ip beacon in hosts collection. " +
+				"Refusing to update source's max ip beacon.",
+		)
+		return updateInfo{}
+	}
 
 	// if we have exact matches, update to new score and return
-	if len(resListExactMatch) > 0 {
+	if nExactMatches > 0 {
 		query["$set"] = bson.M{
 			"dat.$.max_beacon_score": score,
 			"dat.$.mbdst":            dst,
@@ -392,12 +409,24 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 		},
 	}
 	// find matching lower chunks
-	var resListLower []interface{}
+	nLowerMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
+		Find(maxBeaconMatchLowerQuery).Count()
 
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchLowerQuery).All(&resListLower)
+	if err != nil {
+		a.log.WithError(err).WithFields(log.Fields{
+			"src":              src.IP,
+			"src_network_name": src.NetworkName,
+			"dst":              dst.IP,
+			"dst_network_name": dst.NetworkName,
+		}).Error(
+			"Could not check for lower scoring max ip beacon in hosts collection. " +
+				"Refusing to update source's max ip beacon.",
+		)
+		return updateInfo{}
+	}
 
 	// if no matching chunks are found, we will set the new flag
-	if len(resListLower) <= 0 {
+	if nLowerMatches == 0 {
 
 		maxBeaconMatchUpperQuery := src.BSONKey()
 		maxBeaconMatchUpperQuery["dat"] = bson.M{
@@ -408,10 +437,24 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 		}
 
 		// find matching upper chunks
-		var resListUpper []interface{}
-		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchUpperQuery).All(&resListUpper)
+		nUpperMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
+			Find(maxBeaconMatchUpperQuery).Count()
+
+		if err != nil {
+			a.log.WithError(err).WithFields(log.Fields{
+				"src":              src.IP,
+				"src_network_name": src.NetworkName,
+				"dst":              dst.IP,
+				"dst_network_name": dst.NetworkName,
+			}).Error(
+				"Could not check for higher scoring max ip beacon in hosts collection. " +
+					"Refusing to update source's max ip beacon.",
+			)
+			return updateInfo{}
+		}
+
 		// update if no upper chunks are found
-		if len(resListUpper) <= 0 {
+		if nUpperMatches == 0 {
 			newFlag = true
 		}
 	} else {

@@ -11,7 +11,9 @@ import (
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/util"
+
 	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -22,6 +24,7 @@ type (
 		chunkStr         string                 //current chunk (0 if not on rolling analysis)
 		db               *database.DB           // provides access to MongoDB
 		conf             *config.Config         // contains details needed to access MongoDB
+		log              *log.Logger            // main logger for RITA
 		analyzedCallback func(*update)          // called on each analyzed result
 		closedCallback   func()                 // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan *uconnproxy.Input // holds unanalyzed data
@@ -30,7 +33,8 @@ type (
 )
 
 //newAnalyzer creates a new collector for gathering data //
-func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.Config, analyzedCallback func(*update), closedCallback func()) *analyzer {
+func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.Config, log *log.Logger,
+	analyzedCallback func(*update), closedCallback func()) *analyzer {
 	return &analyzer{
 		tsMin:            min,
 		tsMax:            max,
@@ -38,6 +42,7 @@ func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.
 		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
 		conf:             conf,
+		log:              log,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
 		analysisChannel:  make(chan *uconnproxy.Input),
@@ -260,15 +265,26 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 	// we do this before the other queries because otherwise if a beacon
 	// starts out with a high score which reduces over time, it will keep
 	// the incorrect high max for that specific destination.
-	var resListExactMatch []interface{}
-
 	maxBeaconMatchExactQuery := src.BSONKey()
 	maxBeaconMatchExactQuery["dat.mbproxy"] = fqdn
 
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchExactQuery).All(&resListExactMatch)
+	nExactMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
+		Find(maxBeaconMatchExactQuery).Count()
+
+	if err != nil {
+		a.log.WithError(err).WithFields(log.Fields{
+			"src":              src.IP,
+			"src_network_name": src.NetworkName,
+			"fqdn":             fqdn,
+		}).Error(
+			"Could not check for existing max proxy beacon in hosts collection. " +
+				"Refusing to update source's max proxy beacon.",
+		)
+		return updateInfo{}
+	}
 
 	// if we have exact matches, update to new score and return
-	if len(resListExactMatch) > 0 {
+	if nExactMatches > 0 {
 		query["$set"] = bson.M{
 			"dat.$.max_beacon_proxy_score": score,
 			"dat.$.mbproxy":                fqdn,
@@ -301,12 +317,23 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 		},
 	}
 	// find matching lower chunks
-	var resListLower []interface{}
+	nLowerMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
+		Find(maxBeaconMatchLowerQuery).Count()
 
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchLowerQuery).All(&resListLower)
+	if err != nil {
+		a.log.WithError(err).WithFields(log.Fields{
+			"src":              src.IP,
+			"src_network_name": src.NetworkName,
+			"fqdn":             fqdn,
+		}).Error(
+			"Could not check for lower scoring max proxy beacon in hosts collection. " +
+				"Refusing to update source's max proxy beacon.",
+		)
+		return updateInfo{}
+	}
 
 	// if no matching chunks are found, we will set the new flag
-	if len(resListLower) <= 0 {
+	if nLowerMatches == 0 {
 
 		maxBeaconMatchUpperQuery := src.BSONKey()
 		maxBeaconMatchUpperQuery["dat"] = bson.M{
@@ -317,10 +344,23 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string
 		}
 
 		// find matching upper chunks
-		var resListUpper []interface{}
-		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxBeaconMatchUpperQuery).All(&resListUpper)
+		nUpperMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
+			Find(maxBeaconMatchUpperQuery).Count()
+
+		if err != nil {
+			a.log.WithError(err).WithFields(log.Fields{
+				"src":              src.IP,
+				"src_network_name": src.NetworkName,
+				"fqdn":             fqdn,
+			}).Error(
+				"Could not check for higher scoring max proxy beacon in hosts collection. " +
+					"Refusing to update source's max proxy beacon.",
+			)
+			return updateInfo{}
+		}
+
 		// update if no upper chunks are found
-		if len(resListUpper) <= 0 {
+		if nUpperMatches == 0 {
 			newFlag = true
 		}
 	} else {

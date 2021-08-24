@@ -89,6 +89,7 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, minTimestamp, 
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
+		r.log,
 		writerWorker.collect,
 		writerWorker.close,
 	)

@@ -200,9 +200,6 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP data.UniqueIP, extern
 	newFlag := false
 	updateFlag := false
 
-	var resListLower []interface{}
-	var resListUpper []interface{}
-
 	// this query will find any matching chunk that is reporting a lower
 	// max beacon score than the current one we are working with
 	maxDurMatchLowerQuery := localIP.BSONKey()
@@ -222,17 +219,17 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP data.UniqueIP, extern
 	}
 
 	// find matching lower chunks
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchLowerQuery).All(&resListLower)
+	nLowerEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchLowerQuery).Count()
 
 	// update if there are lower entries in this chunk
-	if len(resListLower) > 0 {
+	if nLowerEntries > 0 {
 		updateFlag = true
 	} else {
 		// find matching upper records in this chunk
-		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchUpperQuery).All(&resListUpper)
+		nUpperEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchUpperQuery).Count()
 
 		// create a new entry if there are no bigger entries
-		if len(resListUpper) <= 0 {
+		if nUpperEntries == 0 {
 			newFlag = true
 		}
 	}
