@@ -76,7 +76,7 @@ func (a *analyzer) start() {
 			if datum.IP4 {
 				var output update
 
-				newRecordFlag := a.shouldInsertNewHostRecord(ssn, datum.Host)
+				newRecordFlag := a.shouldInsertNewHostSubdocument(ssn, datum.Host)
 
 				var maxDNSQueryRes explodedDNS
 				// If we have any dns queries for this host, push them to the database
@@ -112,16 +112,14 @@ func (a *analyzer) start() {
 	}()
 }
 
-//shouldInsertNewRecord returns true if a host entry with the current CID does not exist in the database
-func (a *analyzer) shouldInsertNewHostRecord(ssn *mgo.Session, host data.UniqueIP) bool {
-	var hostCIDs []struct {
-		CID int `bson:"cid"`
-	}
+//shouldInsertNewHostSubdocument returns true if a host entry with the current CID does not exist in the database
+func (a *analyzer) shouldInsertNewHostSubdocument(ssn *mgo.Session, host data.UniqueIP) bool {
+	query := host.BSONKey()
+	query["cid"] = a.chunk
 
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(host.BSONKey()).All(&hostCIDs)
+	nEntriesWithCurrentCID, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(query).Count()
 
-	if len(hostCIDs) <= 0 || hostCIDs[0].CID != a.chunk {
-		// fmt.Println("host no results", len(hostCIDs), host.IP)
+	if nEntriesWithCurrentCID == 0 {
 		return true
 	}
 	return false
