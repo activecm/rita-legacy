@@ -82,6 +82,7 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, minTimestamp, maxTimesta
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
+		r.log,
 		writerWorker.collect,
 		writerWorker.close,
 	)

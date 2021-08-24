@@ -94,6 +94,7 @@ func (r *repo) Upsert(hostMap map[string]*host.Input, minTimestamp, maxTimestamp
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
+		r.log,
 		writerWorker.collect,
 		writerWorker.close,
 	)

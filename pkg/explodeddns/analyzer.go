@@ -59,17 +59,14 @@ func (a *analyzer) start() {
 
 			// check if this query string has already been parsed to add to the subdomain count by checking
 			// if the whole string is already in the hostname table.
-			var res []struct {
-				Host string `bson:"host"`
-			}
-
-			_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.HostnamesTable).Find(bson.M{"host": data.name}).All(&res)
+			nHostnameEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.HostnamesTable).
+				Find(bson.M{"host": data.name}).Count()
 
 			// flag to keep track of whether we need to increment the subs count
 			alreadyCountedSubsFlag := false
 
 			// if its already in the hostnames table, we only need to update the visited count
-			if len(res) > 0 {
+			if nHostnameEntries > 0 {
 				alreadyCountedSubsFlag = true
 			}
 
@@ -92,12 +89,13 @@ func (a *analyzer) start() {
 					break
 				}
 
-				var res2 []dns
+				var existingEntries []dns
 
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.ExplodedDNSTable).Find(bson.M{"domain": entry}).All(&res2)
+				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.DNS.ExplodedDNSTable).
+					Find(bson.M{"domain": entry}).All(&existingEntries)
 
 				// if this is a brand NEW domain string and isn't in the exploded dns table:
-				if len(res2) <= 0 {
+				if len(existingEntries) <= 0 {
 
 					// set up writer output
 					var output update
@@ -125,7 +123,7 @@ func (a *analyzer) start() {
 				} else {
 
 					// set last updated value
-					lastUpdated := res2[0].CID
+					lastUpdated := existingEntries[0].CID
 
 					// set up writer output
 					var output update

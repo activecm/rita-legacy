@@ -182,8 +182,7 @@ Strobe:
   # analysis time, increase false positives, but reduce the risk of false negatives.
   # Recommended values for this setting are:
   #    86400 - One connection every second for 24 hours
-  #   250000 - (Default) Good middle of the road value
   #   700000 - Safe max value that is unlikely to cause errors
   # The theoretical limit due to implementation limitations is ~1,048,573
   # but in practice timeouts have occurred at lower values.
-  ConnectionLimit: 250000
+  ConnectionLimit: 86400

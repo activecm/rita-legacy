@@ -122,7 +122,7 @@ type (
 
 	//StrobeStaticCfg controls the maximum number of connections between any two given hosts
 	StrobeStaticCfg struct {
-		ConnectionLimit int `yaml:"ConnectionLimit" default:"250000"`
+		ConnectionLimit int `yaml:"ConnectionLimit" default:"86400"`
 	}
 )
 
