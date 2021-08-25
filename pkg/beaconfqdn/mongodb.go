@@ -146,42 +146,46 @@ func (r *repo) Upsert(hostMap map[string]*host.Input, minTimestamp, maxTimestamp
 	s.Stop()
 	fmt.Println()
 
-	// progress bar for troubleshooting
-	p := mpb.New(mpb.WithWidth(20))
-	bar := p.AddBar(int64(len(affectedHostnames)),
-		mpb.PrependDecorators(
-			decor.Name("\t[-] FQDN Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
-			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
-		),
-		mpb.AppendDecorators(decor.Percentage()),
-	)
+	if len(affectedHostnames) > 0 {
+		// progress bar for troubleshooting
+		p := mpb.New(mpb.WithWidth(20))
+		bar := p.AddBar(int64(len(affectedHostnames)),
+			mpb.PrependDecorators(
+				decor.Name("\t[-] FQDN Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+				decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+			),
+			mpb.AppendDecorators(decor.Percentage()),
+		)
 
-	// loop over map entries (each hostname)
-	for _, entry := range affectedHostnames {
+		// loop over map entries (each hostname)
+		for _, entry := range affectedHostnames {
 
-		// check to make sure hostname has resolved ips, skip otherwise
-		if len(entry.ResolvedIPs) > 0 {
+			// check to make sure hostname has resolved ips, skip otherwise
+			if len(entry.ResolvedIPs) > 0 {
 
-			var dstList []bson.M
-			for _, dst := range entry.ResolvedIPs {
-				dstList = append(dstList, dst.AsDst().BSONKey())
+				var dstList []bson.M
+				for _, dst := range entry.ResolvedIPs {
+					dstList = append(dstList, dst.AsDst().BSONKey())
+				}
+
+				input := &fqdnInput{
+					FQDN:        entry.Host,
+					DstBSONList: dstList,
+					ResolvedIPs: entry.ResolvedIPs,
+				}
+
+				dissectorWorker.collect(input)
 			}
 
-			input := &fqdnInput{
-				FQDN:        entry.Host,
-				DstBSONList: dstList,
-				ResolvedIPs: entry.ResolvedIPs,
-			}
+			// progress bar increment
+			bar.IncrBy(1)
 
-			dissectorWorker.collect(input)
 		}
 
-		// progress bar increment
-		bar.IncrBy(1)
-
+		p.Wait()
+	} else {
+		fmt.Println("\t[!] No FQDN Beacon data to analyze")
 	}
-
-	p.Wait()
 
 	// start the closing cascade (this will also close the other channels)
 	dissectorWorker.close()
