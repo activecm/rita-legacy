@@ -247,7 +247,7 @@ func hostQuery(chunk int, useragentStr string, ip data.UniqueIP, newFlag bool) u
 	query := bson.M{}
 
 	if newFlag {
-		// Add a new rare signature entry
+		// add a new rare signature entry
 		query["$push"] = bson.M{
 			"dat": bson.M{
 				"rsig":  useragentStr,
@@ -260,7 +260,7 @@ func hostQuery(chunk int, useragentStr string, ip data.UniqueIP, newFlag bool) u
 		output.selector = ip.BSONKey()
 
 	} else {
-		// No need to update all of the fields for an existing
+		// no need to update all of the fields for an existing
 		// record; we just need to update the chunk ID
 		query["$set"] = bson.M{
 			"dat.$.cid": chunk,
