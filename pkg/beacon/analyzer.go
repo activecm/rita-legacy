@@ -306,9 +306,10 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 	}
 
 	hostSelector := src.BSONKey()
-	hostSelector["dat.icdst"] = dst.BSONKey()
+	hostSelector["dat"] = bson.M{"$elemMatch": dst.PrefixedBSONKey("icdst")}
 
-	nExactMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).Count()
+	nExistingEntries, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).Count()
+
 	if err != nil {
 		a.log.WithError(err).WithFields(log.Fields{
 			"src":              src.IP,
@@ -322,8 +323,14 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 		return updateInfo{}
 	}
 
-	if nExactMatches == 0 {
-		// if there isn't already a marker for this src/ dst, just push a new record in
+	newFlag := false
+
+	if nExistingEntries == 0 {
+		newFlag = true
+	}
+
+	if newFlag {
+		// add a new entry for invalid beacon cert
 		query["$push"] = bson.M{
 			"dat": bson.M{
 				"icdst": dst,
@@ -336,10 +343,10 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 		output.selector = src.BSONKey()
 
 	} else {
-		// otherwise update the existing record
+		// no need to update all of the fields for an existing
+		// record; we just need to update the chunk ID
 		query["$set"] = bson.M{
-			"dat.$.icert": 1,
-			"dat.$.cid":   a.chunk,
+			"dat.$.cid": a.chunk,
 		}
 
 		// create selector for output
@@ -364,7 +371,7 @@ func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.Un
 	// starts out with a high score which reduces over time, it will keep
 	// the incorrect high max for that specific destination.
 	maxBeaconMatchExactQuery := src.BSONKey()
-	maxBeaconMatchExactQuery["dat.mbdst"] = dst.BSONKey()
+	maxBeaconMatchExactQuery["dat"] = bson.M{"$elemMatch": dst.PrefixedBSONKey("mbdst")}
 
 	nExactMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
 		Find(maxBeaconMatchExactQuery).Count()

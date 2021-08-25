@@ -84,6 +84,16 @@ func (u UniqueIP) BSONKey() bson.M {
 	return key
 }
 
+//PrefixedBSONKey returns a BSON map which may be used to index a given UniqueIP inside of a stored
+//BSON document. Includes IP and NetworkUUID. Returns the updated BSON map.
+//Ex: selector["dat"] = bson.M{"$elemMatch": someIP.PrefixedBSONKey("bl")}
+func (u UniqueIP) PrefixedBSONKey(prefix string) bson.M {
+	query := bson.M{}
+	query[prefix+".ip"] = u.IP
+	query[prefix+".network_uuid"] = u.NetworkUUID
+	return query
+}
+
 //UniqueSrcIP is a unique IP which acts as the source in an IP pair
 type UniqueSrcIP struct {
 	SrcIP          string      `bson:"src"`
@@ -109,7 +119,7 @@ func (u UniqueSrcIP) Unpair() UniqueIP {
 	}
 }
 
-//BSONKey generates a BSON map which may be used to index a the source of a UniqueIP pair.
+//BSONKey generates a BSON map which may be used to index the source of a UniqueIP pair.
 //Includes IP and Network UUID.
 func (u UniqueSrcIP) BSONKey() bson.M {
 	key := bson.M{
@@ -144,7 +154,7 @@ func (u UniqueDstIP) Unpair() UniqueIP {
 	}
 }
 
-//BSONKey generates a BSON map which may be used to index a the destination of a UniqueIP pair.
+//BSONKey generates a BSON map which may be used to index the destination of a UniqueIP pair.
 //Includes IP and Network UUID.
 func (u UniqueDstIP) BSONKey() bson.M {
 	key := bson.M{

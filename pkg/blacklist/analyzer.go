@@ -7,6 +7,7 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
+	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -61,42 +62,26 @@ func (a *analyzer) start() {
 			blSrcUconns := a.getUniqueConnsforBLSource(blacklistedIP)
 
 			for _, blUconnData := range blDstUconns { // update sources which contacted the blacklisted destination
-				var blHostEntries []data.UniqueIP
-				newBLSrc := false
-
-				srcBLKey := blUconnData.Host.BSONKey()
-				srcBLKey["dat.bl"] = blacklistedIP.BSONKey()
-
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(srcBLKey).All(&blHostEntries)
-
-				if !(len(blHostEntries) > 0) {
-					newBLSrc = true
-					// fmt.Println("host no results", blHostEntries, blacklistedIP)
-				}
-
-				srcHostUpdate := appendBlacklistedDstQuery(a.chunk, blacklistedIP, blUconnData, newBLSrc)
+				blDstForSrcExists, _ := blHostRecordExists(
+					ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable), blUconnData.Host, blacklistedIP,
+				)
+				srcHostUpdate := appendBlacklistedDstQuery(
+					a.chunk, blacklistedIP, blUconnData, blDstForSrcExists,
+				)
 
 				// set to writer channel
 				a.analyzedCallback(srcHostUpdate)
 			}
 			for _, blUconnData := range blSrcUconns { // update destinations which were contacted by the blacklisted source
-				var blHostEntries []data.UniqueIP
-				newBLDst := false
+				blSrcForDstExists, _ := blHostRecordExists(
+					ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable), blUconnData.Host, blacklistedIP,
+				)
 
-				dstBLKey := blUconnData.Host.BSONKey()
-				dstBLKey["dat.bl"] = blacklistedIP.BSONKey()
-
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(dstBLKey).All(&blHostEntries)
-
-				if !(len(blHostEntries) > 0) {
-					newBLDst = true
-					// fmt.Println("host no results", blHostEntries, ip)
-				}
-
-				dstHostUpdate := appendBlacklistedSrcQuery(a.chunk, blacklistedIP, blUconnData, newBLDst)
+				newBLSrcForDstUpdate := appendBlacklistedSrcQuery(
+					a.chunk, blacklistedIP, blUconnData, blSrcForDstExists,
+				)
 				// set to writer channel
-				a.analyzedCallback(dstHostUpdate)
-
+				a.analyzedCallback(newBLSrcForDstUpdate)
 			}
 
 		}
@@ -105,14 +90,23 @@ func (a *analyzer) start() {
 	}()
 }
 
+func blHostRecordExists(hostCollection *mgo.Collection, hostEntryIP, blacklistedIP data.UniqueIP) (bool, error) {
+	entryKey := hostEntryIP.BSONKey()
+	entryKey["dat"] = bson.M{"$elemMatch": blacklistedIP.PrefixedBSONKey("bl")}
+
+	nExistingEntries, err := hostCollection.Find(entryKey).Count()
+
+	return nExistingEntries != 0, err
+}
+
 //appendBlacklistedDstQuery adds a blacklist record to a host which contacted by a blacklisted destination
-func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnData connectionPeer, newFlag bool) hostsUpdate {
+func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnData connectionPeer, existsFlag bool) hostsUpdate {
 	var output hostsUpdate
 
 	// create query
 	query := bson.M{}
 
-	if newFlag {
+	if !existsFlag {
 
 		query["$push"] = bson.M{
 			"dat": bson.M{
@@ -122,9 +116,9 @@ func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnD
 				"bl_conn_count":  srcConnData.Connections,
 				"cid":            chunk,
 			}}
+		output.query = query
 
 		// create selector for output
-		output.query = query
 		output.selector = srcConnData.Host.BSONKey()
 
 	} else {
@@ -135,23 +129,24 @@ func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnD
 			"dat.$.bl_out_count":   1,
 			"dat.$.cid":            chunk,
 		}
+		output.query = query
 
 		// create selector for output
 		output.selector = srcConnData.Host.BSONKey()
-		output.selector["dat.bl"] = blacklistedDst.BSONKey()
+		output.selector["dat"] = bson.M{"$elemMatch": blacklistedDst.PrefixedBSONKey("bl")}
 	}
 
 	return output
 }
 
 //appendBlacklistedSrcQuery adds a blacklist record to a host which was contacted by a blacklisted source
-func appendBlacklistedSrcQuery(chunk int, blacklistedSrc data.UniqueIP, dstConnData connectionPeer, newFlag bool) hostsUpdate {
+func appendBlacklistedSrcQuery(chunk int, blacklistedSrc data.UniqueIP, dstConnData connectionPeer, existsFlag bool) hostsUpdate {
 	var output hostsUpdate
 
 	// create query
 	query := bson.M{}
 
-	if newFlag {
+	if !existsFlag {
 
 		query["$push"] = bson.M{
 			"dat": bson.M{
@@ -161,9 +156,9 @@ func appendBlacklistedSrcQuery(chunk int, blacklistedSrc data.UniqueIP, dstConnD
 				"bl_conn_count":  dstConnData.Connections,
 				"cid":            chunk,
 			}}
+		output.query = query
 
 		// create selector for output
-		output.query = query
 		output.selector = dstConnData.Host.BSONKey()
 
 	} else {
@@ -174,10 +169,11 @@ func appendBlacklistedSrcQuery(chunk int, blacklistedSrc data.UniqueIP, dstConnD
 			"dat.$.bl_in_count":    1,
 			"dat.$.cid":            chunk,
 		}
+		output.query = query
 
 		// create selector for output
 		output.selector = dstConnData.Host.BSONKey()
-		output.selector["dat.bl"] = blacklistedSrc.BSONKey()
+		output.selector["dat"] = bson.M{"$elemMatch": blacklistedSrc.PrefixedBSONKey("bl")}
 	}
 
 	return output
