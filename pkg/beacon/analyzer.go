@@ -317,7 +317,7 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 	}
 
 	if newFlag {
-
+		// add a new entry for invalid beacon cert
 		query["$push"] = bson.M{
 			"dat": bson.M{
 				"icdst": dst,
@@ -330,7 +330,8 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 		output.selector = src.BSONKey()
 
 	} else {
-
+		// no need to update all of the fields for an existing
+		// record; we just need to update the chunk ID
 		query["$set"] = bson.M{
 			"dat.$.cid": a.chunk,
 		}
