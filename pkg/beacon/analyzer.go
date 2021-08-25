@@ -308,7 +308,20 @@ func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.Unique
 	hostSelector := src.BSONKey()
 	hostSelector["dat"] = bson.M{"$elemMatch": dst.PrefixedBSONKey("icdst")}
 
-	nExistingEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).Count()
+	nExistingEntries, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).Count()
+
+	if err != nil {
+		a.log.WithError(err).WithFields(log.Fields{
+			"src":              src.IP,
+			"src_network_name": src.NetworkName,
+			"dst":              dst.IP,
+			"dst_network_name": dst.NetworkName,
+		}).Error(
+			"Could not check for existing invalid certificate access marker in hosts collection. " +
+				"Refusing to update source's invalid certificate access marker.",
+		)
+		return updateInfo{}
+	}
 
 	newFlag := false
 
