@@ -194,49 +194,11 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP data.UniqueIP, extern
 	// create query
 	query := bson.M{}
 
-	// check if we need to update
-	// we do this before the other queries because otherwise if a max dur
-	// starts out with a high number which reduces over time, it will keep
-	// the incorrect high max for that specific destination.
-	var resListExactMatch []interface{}
-
-	maxDurMatchExactQuery := localIP.BSONKey()
-	maxDurMatchExactQuery["dat"] = bson.M{
-		"$elemMatch": bson.M{
-			"mdip":         externalIP.BSONKey(),
-			"max_duration": bson.M{"$lte": maxDur},
-		},
-	}
-
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchExactQuery).All(&resListExactMatch)
-
-	// if we have exact matches, update to new score and return
-	if len(resListExactMatch) > 0 {
-
-		// update chunk number
-		query["$set"] = bson.M{
-			"dat.$.cid":          a.chunk,
-			"dat.$.max_duration": maxDur,
-		}
-
-		// create selector for output
-		output.query = query
-
-		// using the same find query we created above will allow us to match and
-		// update the exact chunk we need to update
-		output.selector = maxDurMatchExactQuery
-
-		return output
-	}
-
 	// The below is only for cases where the ip is not currently listed as a max dur
 	// for a source
 	// update max dur
 	newFlag := false
 	updateFlag := false
-
-	var resListLower []interface{}
-	var resListUpper []interface{}
 
 	// this query will find any matching chunk that is reporting a lower
 	// max beacon score than the current one we are working with
@@ -257,17 +219,17 @@ func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP data.UniqueIP, extern
 	}
 
 	// find matching lower chunks
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchLowerQuery).All(&resListLower)
+	nLowerEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchLowerQuery).Count()
 
 	// update if there are lower entries in this chunk
-	if len(resListLower) > 0 {
+	if nLowerEntries > 0 {
 		updateFlag = true
 	} else {
 		// find matching upper records in this chunk
-		_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchUpperQuery).All(&resListUpper)
+		nUpperEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchUpperQuery).Count()
 
 		// create a new entry if there are no bigger entries
-		if len(resListUpper) <= 0 {
+		if nUpperEntries == 0 {
 			newFlag = true
 		}
 	}

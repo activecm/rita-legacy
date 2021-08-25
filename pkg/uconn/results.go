@@ -15,8 +15,8 @@ func LongConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 	var longConnResults []LongConnResult
 
 	longConnQuery := []bson.M{
-		bson.M{"$match": bson.M{"dat.maxdur": bson.M{"$gt": thresh}}},
-		bson.M{"$project": bson.M{
+		{"$match": bson.M{"dat.maxdur": bson.M{"$gt": thresh}}},
+		{"$project": bson.M{
 			"src":              1,
 			"src_network_uuid": 1,
 			"src_network_name": 1,
@@ -27,10 +27,10 @@ func LongConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 			"tuples":           bson.M{"$ifNull": []interface{}{"$dat.tuples", []interface{}{}}},
 			"open":             1,
 		}},
-		bson.M{"$unwind": "$maxdur"},
-		bson.M{"$unwind": "$tuples"},
-		bson.M{"$unwind": "$tuples"}, // not an error, must be done twice
-		bson.M{"$group": bson.M{
+		{"$unwind": "$maxdur"},
+		{"$unwind": "$tuples"},
+		{"$unwind": "$tuples"}, // not an error, must be done twice
+		{"$group": bson.M{
 			"_id":              "$_id",
 			"maxdur":           bson.M{"$max": "$maxdur"},
 			"src":              bson.M{"$first": "$src"},
@@ -42,7 +42,7 @@ func LongConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 			"tuples":           bson.M{"$addToSet": "$tuples"},
 			"open":             bson.M{"$first": "$open"},
 		}},
-		bson.M{"$project": bson.M{
+		{"$project": bson.M{
 			"maxdur":           1,
 			"src":              1,
 			"src_network_uuid": 1,
@@ -53,7 +53,7 @@ func LongConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 			"tuples":           bson.M{"$slice": []interface{}{"$tuples", 5}},
 			"open":             1,
 		}},
-		bson.M{"$sort": bson.M{"maxdur": -1}},
+		{"$sort": bson.M{"maxdur": -1}},
 	}
 
 	if !noLimit {

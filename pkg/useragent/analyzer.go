@@ -7,11 +7,18 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
+	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
 
+// rareSignatureOrigIPsCutoff determines the cutoff for marking a particular IP as having used
+// rare signature on an HTTP(s) connection. If a particular signature/ user agent is associated
+// with less than `rareSignatureOrigIPsCutoff` originating IPs, we mark those IPs as having used
+// a rare signature.
+const rareSignatureOrigIPsCutoff = 5
+
 type (
-	//analyzer : structure for exploded dns analysis
+	//analyzer is a structure for useragent analysis
 	analyzer struct {
 		chunk            int            //current chunk (0 if not on rolling analysis)
 		chunkStr         string         //current chunk (0 if not on rolling analysis)
@@ -57,110 +64,182 @@ func (a *analyzer) start() {
 		defer ssn.Close()
 
 		for datum := range a.analysisChannel {
-			// set up writer output
-			var output update
+			// first we update the useragent collection
+			a.updateUseragentCollection(ssn, datum)
 
-			origIPs := datum.OrigIps.Items()
-			if len(origIPs) > 10 {
-				origIPs = origIPs[:10]
-			}
-
-			requests := datum.Requests.Items()
-			if len(requests) > 10 {
-				requests = requests[:10]
-			}
-
-			// create query
-			query := bson.M{
-				"$push": bson.M{
-					"dat": bson.M{
-						"seen":     datum.Seen,
-						"orig_ips": origIPs,
-						"hosts":    requests,
-						"cid":      a.chunk,
-					},
-				},
-				"$set":         bson.M{"cid": a.chunk},
-				"$setOnInsert": bson.M{"ja3": datum.JA3},
-			}
-
-			output.query = query
-
-			output.collection = a.conf.T.UserAgent.UserAgentTable
-			// create selector for output
-			output.selector = bson.M{"user_agent": datum.Name}
-
-			// set to writer channel
-			a.analyzedCallback(output)
-
-			// this is for flagging rarely used j3 and useragent hosts
-			if len(origIPs) < 5 {
-				maxLeft := 5 - len(origIPs)
-
-				query := []bson.M{
-					{"$match": bson.M{"user_agent": datum.Name}},
-					{"$project": bson.M{
-						"dat.orig_ips.network_name": 0, // drop network_name before UniqueIP comparisons
-					}},
-					{"$project": bson.M{"ips": "$dat.orig_ips", "user_agent": 1}},
-					{"$unwind": "$ips"},
-					{"$unwind": "$ips"}, // not an error, needs to be done twice
-					{"$group": bson.M{
-						"_id": "$user_agent",
-						"ips": bson.M{"$addToSet": "$ips"},
-					}},
-					{"$project": bson.M{
-						"count": bson.M{"$size": bson.M{"$ifNull": []interface{}{"$ips", []interface{}{}}}},
-						"ips":   "$ips",
-					}},
-					{"$match": bson.M{"count": bson.M{"$lte": maxLeft}}},
-				}
-
-				var rareSigList struct {
-					OrigIps []data.UniqueIP `bson:"ips"`
-				}
-
-				_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.UserAgent.UserAgentTable).Pipe(query).AllowDiskUse().One(&rareSigList)
-
-				for _, rareSigIP := range rareSigList.OrigIps {
-
-					newRecordFlag := false // have we created a rare signature entry for this host in this chunk yet?
-
-					type hostEntry struct {
-						CID int `bson:"cid"`
-					}
-
-					var hostEntries []hostEntry
-
-					entryHostQuery := rareSigIP.BSONKey()
-					entryHostQuery["dat.rsig"] = datum.Name
-					//TODO: Consider adding the chunk to the query instead of checking it after the query
-
-					_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(entryHostQuery).All(&hostEntries)
-
-					//TODO: I think there might be a bug here. From what I can tell, if we set the new record flag
-					// when there is a rare signature record from a previous chunk, then we will end up pushing a duplicate
-					// record for each chunk. We should investigate removing this chunk check here. -LL
-					if len(hostEntries) <= 0 || hostEntries[0].CID != a.chunk {
-						newRecordFlag = true
-					}
-
-					output := hostQuery(a.chunk, datum.Name, rareSigIP, newRecordFlag)
-					output.collection = a.conf.T.Structure.HostTable
-
-					// set to writer channel
-					a.analyzedCallback(output)
-
-				}
-			}
-
+			// next we update the hosts collection with rarely used j3 and useragent hosts
+			a.updateHostsCollection(ssn, datum)
 		}
 
 		a.analysisWg.Done()
 	}()
 }
 
-//hostQuery ...
+// updateUseragentCollection inserts the given datum into the useragent collection. The useragent's
+// originating IPs and requested FQDNs are capped in order to prevent hitting the MongoDB document size limits.
+func (a *analyzer) updateUseragentCollection(ssn *mgo.Session, datum *Input) {
+	// set up writer output
+	var output update
+
+	origIPs := datum.OrigIps.Items()
+	if len(origIPs) > 10 {
+		origIPs = origIPs[:10]
+	}
+
+	requests := datum.Requests.Items()
+	if len(requests) > 10 {
+		requests = requests[:10]
+	}
+
+	// create query
+	query := bson.M{
+		"$push": bson.M{
+			"dat": bson.M{
+				"seen":     datum.Seen,
+				"orig_ips": origIPs,
+				"hosts":    requests,
+				"cid":      a.chunk,
+			},
+		},
+		"$set":         bson.M{"cid": a.chunk},
+		"$setOnInsert": bson.M{"ja3": datum.JA3},
+	}
+
+	output.query = query
+
+	output.collection = a.conf.T.UserAgent.UserAgentTable
+	// create selector for output
+	output.selector = bson.M{"user_agent": datum.Name}
+
+	// set to writer channel
+	a.analyzedCallback(output)
+}
+
+// updateHostsCollection updates the hosts collection with rarely used j3 and useragent hosts.
+// The useragent must have been associated with less than `rareSignatureOrigIPsCutoff` originating IPs
+// in order to make it into the hosts collection.
+func (a *analyzer) updateHostsCollection(ssn *mgo.Session, datum *Input) {
+	// if there are too many IPs associated with this signature in the parsed in files, ignore the
+	// rare signature host collection update
+	if len(datum.OrigIps) >= rareSignatureOrigIPsCutoff {
+		return
+	}
+
+	// get the origIPs from the database for the given user agent
+	// since the useragent collection update may not have taken place yet, we need to union in
+	// the new origIPs from the recently parsed in files
+	dbRareSigOrigIPs, _ := a.getOrigIPsForAgentFromDB(ssn, datum.Name)
+
+	// if there are too many IPs associated with this signature in the database, ignore the
+	// rare signature host collection update
+	if len(dbRareSigOrigIPs) >= rareSignatureOrigIPsCutoff {
+		return
+	}
+
+	// merge the two lists of origIPs to get rid of duplicates
+	origIPsUnioned := unionUniqueIPSlices(datum.OrigIps.Items(), dbRareSigOrigIPs)
+
+	// if we've busted over the limit after unioning the new and old originating IPs together
+	// don't update the host records
+	if len(origIPsUnioned) >= rareSignatureOrigIPsCutoff {
+		return
+	}
+
+	// insert host entries for the current parse set
+	for _, rareSigIP := range datum.OrigIps {
+
+		newRecordFlag := false // have we created a rare signature entry for this host in this chunk yet?
+
+		entryHostQuery := rareSigIP.BSONKey()
+		entryHostQuery["dat.rsig"] = datum.Name
+
+		nExistingEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(entryHostQuery).Count()
+
+		if nExistingEntries == 0 {
+			newRecordFlag = true
+		}
+
+		output := hostQuery(a.chunk, datum.Name, rareSigIP, newRecordFlag)
+		output.collection = a.conf.T.Structure.HostTable
+
+		// send update to writer channel
+		a.analyzedCallback(output)
+	}
+}
+
+// unionUniqueIPSlices merges two UniqueIP slices into one while removing duplicates.
+func unionUniqueIPSlices(slice1 []data.UniqueIP, slice2 []data.UniqueIP) []data.UniqueIP {
+	ipsUnionMap := make(map[string]data.UniqueIP)
+	for i := range slice1 {
+		ipsUnionMap[slice1[i].MapKey()] = slice1[i]
+	}
+	for i := range slice2 {
+		ipsUnionMap[slice2[i].MapKey()] = slice2[i]
+	}
+
+	ipsUnionSlice := make([]data.UniqueIP, 0, len(ipsUnionMap))
+
+	for _, ip := range ipsUnionMap {
+		ipsUnionSlice = append(ipsUnionSlice, ip)
+	}
+	return ipsUnionSlice
+}
+
+/*
+getOrigIPsForAgentFromDB returns the originating IPs associated witha given useragent from the database
+
+db.getCollection('useragent').aggregate([
+    {"$match": {"user_agent": "Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.16299.248"}},
+    {"$project": {"ips": "$dat.orig_ips"}},
+    {"$unwind": "$ips"},
+    {"$unwind": "$ips"},
+    {"$group": {
+            "_id": {
+                    "ip" : "$ips.ip",
+                    "network_uuid": "$ips.network_uuid",
+            },
+            "network_name": {"$last": "$ips.network_name"},
+    }},
+    {"$project": {
+		"_id": 0,
+        "ip":           "$_id.ip",
+        "network_uuid": "$_id.network_uuid",
+        "network_name": "$network_name",
+    }},
+])
+*/
+func (a *analyzer) getOrigIPsForAgentFromDB(dbSession *mgo.Session, name string) ([]data.UniqueIP, error) {
+	query := []bson.M{
+		{"$match": bson.M{"user_agent": name}},
+		{"$project": bson.M{"ips": "$dat.orig_ips"}},
+		{"$unwind": "$ips"},
+		{"$unwind": "$ips"}, // not an error, needs to be done twice
+		{"$group": bson.M{
+			"_id": bson.M{
+				"ip":           "$ips.ip",
+				"network_uuid": "$ips.network_uuid",
+			},
+			"network_name": bson.M{"$last": "$ips.network_name"},
+		}},
+		{"$project": bson.M{
+			"_id":          0,
+			"ip":           "$_id.ip",
+			"network_uuid": "$_id.network_uuid",
+			"network_name": "$network_name",
+		}},
+	}
+
+	var dbRareSigOrigIPs []data.UniqueIP
+
+	err := dbSession.DB(a.db.GetSelectedDB()).C(a.conf.T.UserAgent.UserAgentTable).Pipe(query).AllowDiskUse().
+		All(&dbRareSigOrigIPs)
+
+	return dbRareSigOrigIPs, err
+}
+
+//hostQuery formats a MongoDB update which either inserts a new rare signature host
+//record into a host's dat array in the host collection or updates an existing
+//record in the host's dat array for the rare signature with the current chunk id.
 func hostQuery(chunk int, useragentStr string, ip data.UniqueIP, newFlag bool) update {
 	var output update
 
@@ -168,6 +247,7 @@ func hostQuery(chunk int, useragentStr string, ip data.UniqueIP, newFlag bool) u
 	query := bson.M{}
 
 	if newFlag {
+		// add a new rare signature entry
 		query["$push"] = bson.M{
 			"dat": bson.M{
 				"rsig":  useragentStr,
@@ -180,10 +260,10 @@ func hostQuery(chunk int, useragentStr string, ip data.UniqueIP, newFlag bool) u
 		output.selector = ip.BSONKey()
 
 	} else {
-
+		// no need to update all of the fields for an existing
+		// record; we just need to update the chunk ID
 		query["$set"] = bson.M{
-			"dat.$.rsigc": 1,
-			"dat.$.cid":   chunk,
+			"dat.$.cid": chunk,
 		}
 
 		// create selector for output
