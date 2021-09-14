@@ -74,8 +74,10 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 	// (e.g., beacons), where false positives might arise due to the proxy IP
 	// appearing as a destination, while still allowing for processing that
 	// data for the proxy modules
-	if dstIsProxy && (filter.filterDomain(fqdn) || filter.filterSingleIP(srcIP)) {
-		return
+	if dstIsProxy {
+		if filter.filterDomain(fqdn) || filter.filterSingleIP(srcIP) {
+			return
+		}
 	} else if filter.filterDomain(fqdn) || filter.filterConnPair(srcIP, dstIP) {
 		return
 	}
