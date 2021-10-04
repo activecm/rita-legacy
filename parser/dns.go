@@ -38,7 +38,7 @@ func parseDNSEntry(parseDNS *parsetypes.DNS, filter filter, retVals ParseResults
 	// in some of these strings, the empty space will get counted as a domain,
 	// don't add host or increment dns query count if queried domain
 	// is blank or ends in 'in-addr.arpa' or 'ip6.arpa'
-	if (parseDNS.Query != "") && (!strings.HasSuffix(parseDNS.Query, "in-addr.arpa")) && (!strings.HasSuffix(parseDNS.query, "ip6.arpa")) {
+	if (parseDNS.Query != "") && (!strings.HasSuffix(parseDNS.Query, "in-addr.arpa")) && (!strings.HasSuffix(parseDNS.Query, "ip6.arpa")) {
 		updateHostsByDNS(srcIP, srcUniqIP, srcKey, parseDNS, filter, retVals)
 	}
 }
