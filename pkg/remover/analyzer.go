@@ -81,7 +81,7 @@ func (a *analyzer) reduceDNSSubCount(name string) {
 
 		// in some of these strings, the empty space will get counted as a domain,
 		// this was an issue in the old version of exploded dns and caused inaccuracies
-		if (entry == "") || (entry == "in-addr.arpa") {
+		if (entry == "") || (entry == "in-addr.arpa") || (entry == "ip6.arpa") {
 			break
 		}
 

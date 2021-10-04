@@ -60,7 +60,7 @@ func (a *analyzer) start() {
 
 			// in some of these strings, the empty space will get counted as a domain,
 			// this was an issue in the old version of exploded dns and caused inaccuracies
-			if (data.Host == "") || (strings.HasSuffix(data.Host, "in-addr.arpa")) {
+			if (data.Host == "") || (strings.HasSuffix(data.Host, "in-addr.arpa")) || (strings.HasSuffix(data.Host, "ip6.arpa")) {
 				continue
 			}
 
