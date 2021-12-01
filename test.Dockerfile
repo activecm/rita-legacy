@@ -1,6 +1,6 @@
 # use debian instead of alpine because the go race requires glibc
 # https://github.com/golang/go/issues/14481
-FROM golang:1.14
+FROM golang:1.17
 
 RUN apt-get update && apt-get install -y git make ca-certificates wget build-essential
 WORKDIR /go
