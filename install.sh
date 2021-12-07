@@ -4,7 +4,7 @@
 # activecountermeasures.com
 
 # CONSTANTS
-_RITA_VERSION="v4.3.1"
+_RITA_VERSION="v4.5.0"
 _MONGO_VERSION="4.2"
 _MONGO_MIN_UPDATE_VERSION="4.0"
 _NAME=$(basename "${0}")
