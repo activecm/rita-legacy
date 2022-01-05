@@ -245,6 +245,21 @@ __install_zeek() {
         __install_packages zeek-lts
     fi
 
+     if  [ "$_OS" == "Debian" ] && [ "$_OS_CODENAME" == "buster" ] ; then
+        # The openSuse project hosts the Debian package for zeek. 
+        sudo apt-get install cmake make gcc g++ flex bison libpcap-dev libssl-dev python3 python3-dev python3-git python3-semantic-version
+        echo 'deb http://download.opensuse.org/repositories/security:/zeek/Debian_10/ /' | sudo tee /etc/apt/sources.list.d/security:zeek.list
+        curl -fsSL https://download.opensuse.org/repositories/security:zeek/Debian_10/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/security_zeek.gpg > /dev/null
+        __freshen_packages
+        sudo apt install zeek
+    elif [ "$_OS" == "Debian" ] && [ "$_OS_CODENAME" == "bullseye" ] ; then
+        sudo apt-get install cmake make gcc g++ flex bison libpcap-dev libssl-dev python3 python3-dev python3-git python3-semantic-version
+        echo 'deb http://download.opensuse.org/repositories/security:/zeek/Debian_11/ /' | sudo tee /etc/apt/sources.list.d/security:zeek.list
+        curl -fsSL https://download.opensuse.org/repositories/security:zeek/Debian_11/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/security_zeek.gpg > /dev/null
+        __freshen_packages
+        sudo apt install zeek
+    fi
+
 
     if [ -d /opt/zeek/logs/ ]; then		#Standard directory for Zeek logs when installed by Rita
         chmod 2755 /opt/zeek/logs
@@ -415,6 +430,12 @@ __install_mongodb() {
                 "mongodb-org-$1" \
                 "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
+        Debian)
+            __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/debian ${_MONGO_OS_CODENAME}/mongodb-org/$1 multiverse" \
+                "mongodb-org-$1" \
+                "https://www.mongodb.org/static/pgp/server-$1.asc"
+            ;;
+
         CentOS|RedHatEnterprise|RedHatEnterpriseServer)
             if [ ! -s /etc/yum.repos.d/mongodb-org-$1.repo ]; then
                 cat << EOF > /etc/yum.repos.d/mongodb-org-$1.repo
@@ -501,8 +522,8 @@ __gather_OS() {
     _OS_CODENAME="$(lsb_release -cs)"
     _MONGO_OS_CODENAME="$(lsb_release -cs)"
 
-    if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" ]; then
-        printf "$_ITEM This installer supports Ubuntu, CentOS, and RHEL. \n"
+    if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" -a "$_OS" != "Debian"]; then
+        printf "$_ITEM This installer supports Ubuntu, CentOS, RHEL, and Debian. \n"
         printf "$_IMPORTANT Your operating system is unsupported."
         exit 1
     fi
