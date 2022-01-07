@@ -238,26 +238,23 @@ __install_zeek() {
                 "security:zeek" \
                 "https://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/Release.key"
                 ;;
+            Debian)
+                __install_packages cmake make gcc g++ flex bison libpcap-dev libssl-dev python3 python3-dev python3-git python3-semantic-version curl gpg
+                if ["$_OS_CODENAME" == "buster"] ; then
+                    echo 'deb http://download.opensuse.org/repositories/security:/zeek/Debian_10/ /' | sudo tee /etc/apt/sources.list.d/security:zeek.list
+                    curl -fsSL https://download.opensuse.org/repositories/security:zeek/Debian_10/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/security_zeek.gpg > /dev/null
+                    __freshen_packages
+                else
+                   echo 'deb http://download.opensuse.org/repositories/security:/zeek/Debian_11/ /' | sudo tee /etc/apt/sources.list.d/security:zeek.list
+                   curl -fsSL https://download.opensuse.org/repositories/security:zeek/Debian_11/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/security_zeek.gpg > /dev/null
+                   __freshen_packages
+                fi
+                ;;
             CentOS|RedHatEnterprise|RedHatEnterpriseServer)
                 __add_rpm_repo "https://download.opensuse.org/repositories/security:/zeek/CentOS_7/security:zeek.repo"
                 ;;
         esac
         __install_packages zeek-lts
-    fi
-
-     if  [ "$_OS" == "Debian" ] && [ "$_OS_CODENAME" == "buster" ] ; then
-        # The openSuse project hosts the Debian package for zeek. 
-        sudo apt-get install cmake make gcc g++ flex bison libpcap-dev libssl-dev python3 python3-dev python3-git python3-semantic-version
-        echo 'deb http://download.opensuse.org/repositories/security:/zeek/Debian_10/ /' | sudo tee /etc/apt/sources.list.d/security:zeek.list
-        curl -fsSL https://download.opensuse.org/repositories/security:zeek/Debian_10/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/security_zeek.gpg > /dev/null
-        __freshen_packages
-        sudo apt install zeek
-    elif [ "$_OS" == "Debian" ] && [ "$_OS_CODENAME" == "bullseye" ] ; then
-        sudo apt-get install cmake make gcc g++ flex bison libpcap-dev libssl-dev python3 python3-dev python3-git python3-semantic-version
-        echo 'deb http://download.opensuse.org/repositories/security:/zeek/Debian_11/ /' | sudo tee /etc/apt/sources.list.d/security:zeek.list
-        curl -fsSL https://download.opensuse.org/repositories/security:zeek/Debian_11/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/security_zeek.gpg > /dev/null
-        __freshen_packages
-        sudo apt install zeek
     fi
 
 
@@ -522,7 +519,7 @@ __gather_OS() {
     _OS_CODENAME="$(lsb_release -cs)"
     _MONGO_OS_CODENAME="$(lsb_release -cs)"
 
-    if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" -a "$_OS" != "Debian"]; then
+    if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" -a "$_OS" != "Debian" ]; then
         printf "$_ITEM This installer supports Ubuntu, CentOS, RHEL, and Debian. \n"
         printf "$_IMPORTANT Your operating system is unsupported."
         exit 1
