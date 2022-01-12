@@ -242,7 +242,7 @@ __install_zeek() {
             Debian)
                 __install_packages cmake make gcc g++ flex bison libpcap-dev libssl-dev python3 python3-dev python3-git python3-semantic-version swig zlib1g-dev gpg
                 __add_deb_repo  "deb http://download.opensuse.org/repositories/security:/zeek/$_Debian_Release/ /" \
-                "security:zeek.list" \
+                "security:zeek" \
                 "https://download.opensuse.org/repositories/security:zeek/$_Debian_Release/Release.key"
                 __freshen_packages
                 ;;
@@ -524,12 +524,12 @@ __gather_OS() {
 
 # Test if Debian Version 10 or 11
 __gather_debian_num() {
-    if [[ "$_OS" -eq "buster" ]]; then
-        _Debian_Release="Debian_10"
-    elif [[ "$_OS" -eq "bullseye" ]]; then
+    if [[ "$_OS_CODENAME" -eq "buster" ]]; then
+        _Debian_Release="Debian_11"
+    elif [[ "$_OS_CODENAME" -eq "bullseye" ]]; then
         _Debian_Release="Debian_11"
     else
-        _Debian_Release=''
+        _Debian_Release=""
     fi
 }
 
