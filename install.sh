@@ -241,8 +241,9 @@ __install_zeek() {
                 ;;
             Debian)
                 __install_packages cmake make gcc g++ flex bison libpcap-dev libssl-dev python3 python3-dev python3-git python3-semantic-version swig zlib1g-dev gpg
-                echo "deb http://download.opensuse.org/repositories/security:/zeek/$_Debian_Release/ /" | sudo tee /etc/apt/sources.list.d/security:zeek.list
-                curl -fsSL https://download.opensuse.org/repositories/security:zeek/Debian_10/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/security_zeek.gpg > /dev/null
+                __add_deb_repo  "deb http://download.opensuse.org/repositories/security:/zeek/$_Debian_Release/ /" \
+                "security:zeek.list" \
+                "https://download.opensuse.org/repositories/security:zeek/$_Debian_Release/Release.key"
                 __freshen_packages
                 ;;
             CentOS|RedHatEnterprise|RedHatEnterpriseServer)
