@@ -124,6 +124,7 @@ __install() {
 
     # Get system information
     __gather_OS
+    __gather_debian_num
     __bro_installed
     __gather_zeek
     __gather_mongo
@@ -240,15 +241,9 @@ __install_zeek() {
                 ;;
             Debian)
                 __install_packages cmake make gcc g++ flex bison libpcap-dev libssl-dev python3 python3-dev python3-git python3-semantic-version curl gpg
-                if ["$_OS_CODENAME" == "buster"] ; then
-                    echo 'deb http://download.opensuse.org/repositories/security:/zeek/Debian_10/ /' | sudo tee /etc/apt/sources.list.d/security:zeek.list
-                    curl -fsSL https://download.opensuse.org/repositories/security:zeek/Debian_10/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/security_zeek.gpg > /dev/null
-                    __freshen_packages
-                else
-                   echo 'deb http://download.opensuse.org/repositories/security:/zeek/Debian_11/ /' | sudo tee /etc/apt/sources.list.d/security:zeek.list
-                   curl -fsSL https://download.opensuse.org/repositories/security:zeek/Debian_11/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/security_zeek.gpg > /dev/null
-                   __freshen_packages
-                fi
+                echo 'deb http://download.opensuse.org/repositories/security:/zeek/$(_Debian_Release)//' | sudo tee /etc/apt/sources.list.d/security:zeek.list
+                curl -fsSL https://download.opensuse.org/repositories/security:zeek/Debian_10/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/security_zeek.gpg > /dev/null
+                __freshen_packages
                 ;;
             CentOS|RedHatEnterprise|RedHatEnterpriseServer)
                 __add_rpm_repo "https://download.opensuse.org/repositories/security:/zeek/CentOS_7/security:zeek.repo"
@@ -523,6 +518,17 @@ __gather_OS() {
         printf "$_ITEM This installer supports Ubuntu, CentOS, RHEL, and Debian. \n"
         printf "$_IMPORTANT Your operating system is unsupported."
         exit 1
+    fi
+}
+
+# Test if Debian Version 10 or 11
+__gather_debian_num() {
+    if [[ "$_OS" -eq "buster" ]]; then
+        _Debian_Release="Debian_10"
+    elif [[ "$_OS" -eq "bullseye" ]]; then
+        _Debian_Release="Debian_11"
+    else
+        _Debian_Release=''
     fi
 }
 
