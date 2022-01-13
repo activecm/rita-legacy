@@ -424,7 +424,7 @@ __install_mongodb() {
                 "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
         Debian)
-            __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/debian ${_MONGO_OS_CODENAME}/mongodb-org/$1 multiverse" \
+            __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/debian buster/mongodb-org/$1 multiverse" \
                 "mongodb-org-$1" \
                 "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
@@ -450,7 +450,7 @@ EOF
 
 __configure_mongodb() {
     printf "$_IMPORTANT Starting MongoDB and enabling on startup. \n"
-    if [ "$_OS" = "Ubuntu" ]; then
+    if [ "$_OS" = "Ubuntu" || "$_OS" = "Debian" ]; then
         systemctl enable mongod.service > /dev/null
         systemctl daemon-reload > /dev/null
         systemctl start mongod > /dev/null
