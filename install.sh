@@ -423,9 +423,9 @@ __install_mongodb() {
                 "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
         Debian)
-            __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/debian buster/mongodb-org/5.0 main" \
-                "mongodb-org-5.0" \
-                "https://www.mongodb.org/static/pgp/server-5.0.asc"
+            __add_deb_repo "deb  http://repo.mongodb.org/apt/debian buster/mongodb-org/$1 main" \
+                "mongodb-org-$1" \
+                "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
 
         CentOS|RedHatEnterprise|RedHatEnterpriseServer)
@@ -623,7 +623,6 @@ __gather_zeek() {
 __gather_mongo() {
     _MONGO_INSTALLED=false
     __set_mongo_version
-    printf "\nMongo Version: $_MONGO_VERSION"
     if __package_installed mongodb-org; then
         _MONGO_INSTALLED=true
         _MONGO_INSTALLED_VERSION="$(__package_version mongodb-org)"
