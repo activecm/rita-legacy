@@ -5,8 +5,6 @@
 
 # CONSTANTS
 _RITA_VERSION="v4.5.0"
-__set_mongo_version
-printf "\nMongo Version: $_MONGO_VERSION"
 _MONGO_MIN_UPDATE_VERSION="5.0"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
@@ -624,6 +622,8 @@ __gather_zeek() {
 
 __gather_mongo() {
     _MONGO_INSTALLED=false
+    __set_mongo_version
+    printf "\nMongo Version: $_MONGO_VERSION"
     if __package_installed mongodb-org; then
         _MONGO_INSTALLED=true
         _MONGO_INSTALLED_VERSION="$(__package_version mongodb-org)"
