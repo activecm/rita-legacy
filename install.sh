@@ -5,7 +5,8 @@
 
 # CONSTANTS
 _RITA_VERSION="v4.5.0"
-_MONGO_VERSION="5.0"
+_MONGO_VERSION=$(__set_mongo_version)
+printf "\nMongo Version: $_MONGO_VERSION"
 _MONGO_MIN_UPDATE_VERSION="5.0"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
@@ -628,6 +629,16 @@ __gather_mongo() {
         _MONGO_INSTALLED_VERSION="$(__package_version mongodb-org)"
     fi
 }
+
+__set_mongo_version() {
+    if [[ "$_OS" == "Debian" ]]; then
+        echo "5.0"
+    else
+        echo " 4.2"
+    fi
+}
+
+
 
 # USER EXPERIENCE
 
