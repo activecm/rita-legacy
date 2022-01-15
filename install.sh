@@ -449,7 +449,7 @@ EOF
 
 __configure_mongodb() {
     printf "$_IMPORTANT Starting MongoDB and enabling on startup. \n"
-    if [ "$_OS" = "Ubuntu" || "$_OS" = "Debian" ]; then
+    if [ "$_OS" = "Ubuntu" -o "$_OS" = "Debian" ]; then
         systemctl enable mongod.service > /dev/null
         systemctl daemon-reload > /dev/null
         systemctl start mongod > /dev/null
