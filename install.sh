@@ -124,6 +124,7 @@ __install() {
 
     # Get system information
     __gather_OS
+    __gather_debian_num
     __bro_installed
     __gather_zeek
     __gather_mongo
@@ -155,7 +156,7 @@ __install() {
 
     if [ "$_INSTALL_MONGO" = "true" ]; then
         if [ "$_MONGO_INSTALLED" = "false" ]; then
-            __load "$_ITEM Installing MongoDB" __install_mongodb "$_MONGO_VERSION" 
+            __load "$_ITEM Installing MongoDB" __install_mongodb "$_MONGO_VERSION"
         elif ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_VERSION" ; then
 
             # Check that the user wants to upgrade
@@ -186,7 +187,7 @@ __install() {
             # Wait for service to come to life
             printf "$_ITEM Sleeping to give the Mongo service some time to fully start..."
             sleep 10
-             
+
             # Set compatibility version in case we updated Mongo. It's fine to do this even if we didn't
             # update Mongo...it's just a bit cleaner to do it here to cut down on code redundancy and logic checks
             __load "$_ITEM Setting Mongo feature compatibility to $_MONGO_VERSION" __update_feature_compatibility "$_MONGO_VERSION"
@@ -237,6 +238,13 @@ __install_zeek() {
                 __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/ /" \
                 "security:zeek" \
                 "https://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/Release.key"
+                ;;
+            Debian)
+                __install_packages cmake make gcc g++ flex bison libpcap-dev libssl-dev python3 python3-dev python3-git python3-semantic-version swig zlib1g-dev gpg
+                __add_deb_repo  "deb http://download.opensuse.org/repositories/security:/zeek/$_Debian_Release/ /" \
+                "security:zeek" \
+                "https://download.opensuse.org/repositories/security:zeek/$_Debian_Release/Release.key"
+                __freshen_packages
                 ;;
             CentOS|RedHatEnterprise|RedHatEnterpriseServer)
                 __add_rpm_repo "https://download.opensuse.org/repositories/security:/zeek/CentOS_7/security:zeek.repo"
@@ -415,6 +423,13 @@ __install_mongodb() {
                 "mongodb-org-$1" \
                 "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
+        Debian)
+        # Mongodb does not have a release file for Debian 11 "Bullseye" yet.
+            __add_deb_repo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/$1 main" \
+                "mongodb-org-$1" \
+                "https://www.mongodb.org/static/pgp/server-$1.asc"
+            ;;
+
         CentOS|RedHatEnterprise|RedHatEnterpriseServer)
             if [ ! -s /etc/yum.repos.d/mongodb-org-$1.repo ]; then
                 cat << EOF > /etc/yum.repos.d/mongodb-org-$1.repo
@@ -436,7 +451,7 @@ EOF
 
 __configure_mongodb() {
     printf "$_IMPORTANT Starting MongoDB and enabling on startup. \n"
-    if [ "$_OS" = "Ubuntu" ]; then
+    if [ "$_OS" = "Ubuntu" -o "$_OS" = "Debian" ]; then
         systemctl enable mongod.service > /dev/null
         systemctl daemon-reload > /dev/null
         systemctl start mongod > /dev/null
@@ -501,10 +516,21 @@ __gather_OS() {
     _OS_CODENAME="$(lsb_release -cs)"
     _MONGO_OS_CODENAME="$(lsb_release -cs)"
 
-    if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" ]; then
-        printf "$_ITEM This installer supports Ubuntu, CentOS, and RHEL. \n"
+    if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" -a "$_OS" != "Debian" ]; then
+        printf "$_ITEM This installer supports Ubuntu, CentOS, RHEL, and Debian. \n"
         printf "$_IMPORTANT Your operating system is unsupported."
         exit 1
+    fi
+}
+
+# Test if Debian Version 10 or 11
+__gather_debian_num() {
+    if [[ "$_OS_CODENAME" == "buster" ]]; then
+        _Debian_Release="Debian_10"
+    elif [[ "$_OS_CODENAME" == "bullseye" ]]; then
+        _Debian_Release="Debian_11"
+    else
+        _Debian_Release=""
     fi
 }
 
@@ -603,6 +629,7 @@ __gather_mongo() {
         _MONGO_INSTALLED_VERSION="$(__package_version mongodb-org)"
     fi
 }
+
 
 # USER EXPERIENCE
 
