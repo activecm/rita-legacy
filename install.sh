@@ -5,7 +5,8 @@
 
 # CONSTANTS
 _RITA_VERSION="v4.5.0"
-_MONGO_MIN_UPDATE_VERSION="4.2"
+_MONGO_VERSION="4.2"
+_MONGO_MIN_UPDATE_VERSION="4.0"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
 _SUCCESS="\e[92mSUCCESS\e[0m"
@@ -186,7 +187,7 @@ __install() {
             # Wait for service to come to life
             printf "$_ITEM Sleeping to give the Mongo service some time to fully start..."
             sleep 10
-             
+
             # Set compatibility version in case we updated Mongo. It's fine to do this even if we didn't
             # update Mongo...it's just a bit cleaner to do it here to cut down on code redundancy and logic checks
             __load "$_ITEM Setting Mongo feature compatibility to $_MONGO_VERSION" __update_feature_compatibility "$_MONGO_VERSION"
@@ -423,7 +424,7 @@ __install_mongodb() {
                 "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
         Debian)
-            __add_deb_repo "deb  [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/debian buster/mongodb-org/$1 main" \
+            __add_deb_repo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/$1 main" \
                 "mongodb-org-$1" \
                 "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
@@ -631,13 +632,9 @@ __gather_mongo() {
 
 __set_mongo_version() {
     if [[ "$_OS" == "Debian" ]]; then
-        _MONGO_VERSION="5.0"
-    else
-        _MONGO_VERSION="4.2"
+        _MONGO_VERSION="4.4"
     fi
 }
-
-
 
 # USER EXPERIENCE
 
