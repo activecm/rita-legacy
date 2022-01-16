@@ -624,18 +624,12 @@ __gather_zeek() {
 
 __gather_mongo() {
     _MONGO_INSTALLED=false
-    __set_mongo_version
     if __package_installed mongodb-org; then
         _MONGO_INSTALLED=true
         _MONGO_INSTALLED_VERSION="$(__package_version mongodb-org)"
     fi
 }
 
-__set_mongo_version() {
-    if [[ "$_OS" == "Debian" ]]; then
-        _MONGO_VERSION="4.4"
-    fi
-}
 
 # USER EXPERIENCE
 
