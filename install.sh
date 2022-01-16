@@ -156,7 +156,7 @@ __install() {
 
     if [ "$_INSTALL_MONGO" = "true" ]; then
         if [ "$_MONGO_INSTALLED" = "false" ]; then
-            __load "$_ITEM Installing MongoDB" __install_mongodb "$_MONGO_VERSION" 
+            __load "$_ITEM Installing MongoDB" __install_mongodb "$_MONGO_VERSION"
         elif ! __satisfies_version "$_MONGO_INSTALLED_VERSION" "$_MONGO_VERSION" ; then
 
             # Check that the user wants to upgrade
@@ -424,6 +424,7 @@ __install_mongodb() {
                 "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
         Debian)
+        # Mongodb does not have a release file for Debian 11 "Bullseye" yet.
             __add_deb_repo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/$1 main" \
                 "mongodb-org-$1" \
                 "https://www.mongodb.org/static/pgp/server-$1.asc"
