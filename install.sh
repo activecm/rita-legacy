@@ -5,7 +5,7 @@
 
 # CONSTANTS
 _RITA_VERSION="v4.5.0"
-_MONGO_MIN_UPDATE_VERSION="5.0"
+_MONGO_MIN_UPDATE_VERSION="4.2"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
 _SUCCESS="\e[92mSUCCESS\e[0m"
@@ -423,7 +423,7 @@ __install_mongodb() {
                 "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
         Debian)
-            __add_deb_repo "deb  http://repo.mongodb.org/apt/debian buster/mongodb-org/$1 main" \
+            __add_deb_repo "deb  [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/debian buster/mongodb-org/$1 main" \
                 "mongodb-org-$1" \
                 "https://www.mongodb.org/static/pgp/server-$1.asc"
             ;;
@@ -524,7 +524,7 @@ __gather_OS() {
 # Test if Debian Version 10 or 11
 __gather_debian_num() {
     if [[ "$_OS_CODENAME" == "buster" ]]; then
-        _Debian_Release="Debian_11"
+        _Debian_Release="Debian_10"
     elif [[ "$_OS_CODENAME" == "bullseye" ]]; then
         _Debian_Release="Debian_11"
     else
