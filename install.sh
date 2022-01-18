@@ -124,7 +124,6 @@ __install() {
 
     # Get system information
     __gather_OS
-    __gather_debian_num
     __bro_installed
     __gather_zeek
     __gather_mongo
@@ -240,7 +239,14 @@ __install_zeek() {
                 "https://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/Release.key"
                 ;;
             Debian)
-                __install_packages cmake make gcc g++ flex bison libpcap-dev libssl-dev python3 python3-dev python3-git python3-semantic-version swig zlib1g-dev gpg
+                __install_packages gpg
+                if [[ "$_OS_CODENAME" == "buster" ]]; then
+                    _Debian_Release="Debian_10"
+                elif [[ "$_OS_CODENAME" == "bullseye" ]]; then
+                    _Debian_Release="Debian_11"
+                else
+                    _Debian_Release=""
+                fi
                 __add_deb_repo  "deb http://download.opensuse.org/repositories/security:/zeek/$_Debian_Release/ /" \
                 "security:zeek" \
                 "https://download.opensuse.org/repositories/security:zeek/$_Debian_Release/Release.key"
@@ -523,16 +529,6 @@ __gather_OS() {
     fi
 }
 
-# Test if Debian Version 10 or 11
-__gather_debian_num() {
-    if [[ "$_OS_CODENAME" == "buster" ]]; then
-        _Debian_Release="Debian_10"
-    elif [[ "$_OS_CODENAME" == "bullseye" ]]; then
-        _Debian_Release="Debian_11"
-    else
-        _Debian_Release=""
-    fi
-}
 
 __gather_pkg_mgr() {
     # _PKG_MGR = 1: APT: Ubuntu 16.04 and Security Onion (Debian)
