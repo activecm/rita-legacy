@@ -216,7 +216,7 @@ __install_installer_deps() {
     # Update package cache
     __load "$_SUBITEM Updating packages" __freshen_packages
 
-    for pkg in curl coreutils lsb-release yum-utils; do
+    for pkg in curl coreutils lsb-release yum-utils gpg; do
         __load "$_SUBITEM Ensuring $pkg is installed" __install_packages $pkg
     done
 }
@@ -239,7 +239,6 @@ __install_zeek() {
                 "https://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/Release.key"
                 ;;
             Debian)
-                __install_packages gpg
                 if [[ "$_OS_CODENAME" == "buster" ]]; then
                     _Debian_Release="Debian_10"
                 elif [[ "$_OS_CODENAME" == "bullseye" ]]; then
