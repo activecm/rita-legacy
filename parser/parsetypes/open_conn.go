@@ -29,9 +29,9 @@ type OpenConn struct {
 	Service string `bson:"service" bro:"service" brotype:"string" json:"service"`
 	// Duration is the floating point representation of connection length
 	Duration float64 `bson:"duration" bro:"duration" brotype:"interval" json:"duration"`
-	// OrigBytes is the byte count coming from the origin
+	// OrigBytes is the byte count coming from the origin (does not include header, accurate for tcp connections only)
 	OrigBytes int64 `bson:"orig_bytes" bro:"orig_bytes" brotype:"count" json:"orig_bytes"`
-	// RespBytes is the byte count coming in on response
+	// RespBytes is the byte count coming in on response (does not include header, accurate for tcp connections only)
 	RespBytes int64 `bson:"resp_bytes" bro:"resp_bytes" brotype:"count" json:"resp_bytes"`
 	// ConnState has data describing the state of a connection
 	ConnState string `bson:"conn_state" bro:"conn_state" brotype:"string" json:"conn_state"`
@@ -45,11 +45,11 @@ type OpenConn struct {
 	History string `bson:"history"  bro:"history" brotype:"string" json:"history"`
 	// OrigPkts is a count of origin packets
 	OrigPkts int64 `bson:"orig_pkts"  bro:"orig_pkts" brotype:"count" json:"orig_pkts"`
-	// OrigIpBytes is another origin data count
+	// OrigIpBytes is the originator-sent byte count  (includes header, must be used for non-tcp connections)
 	OrigIPBytes int64 `bson:"orig_ip_bytes" bro:"orig_ip_bytes" brotype:"count" json:"orig_ip_bytes"`
 	// RespPkts counts response packets
 	RespPkts int64 `bson:"resp_pkts" bro:"resp_pkts" brotype:"count" json:"resp_pkts"`
-	// RespIpBytes gives the bytecount of response data
+	// RespIPBytes is the response byte count  (includes header, must be used for non-tcp connections)
 	RespIPBytes int64 `bson:"resp_ip_bytes" bro:"resp_ip_bytes" brotype:"count" json:"resp_ip_bytes"`
 	// TunnelParents lists tunnel parents
 	TunnelParents []string `bson:"tunnel_parents" bro:"tunnel_parents" brotype:"set[string]" json:"tunnel_parents"`

@@ -40,7 +40,19 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 	srcDstKey := srcDstPair.MapKey()
 
 	roundedDuration := math.Ceil(parseConn.Duration*10000) / 10000
-	twoWayIPBytes := int64(parseConn.OrigIPBytes + parseConn.RespIPBytes)
+
+	// get bytes passed in both directions
+	// note: use orig_bytes field for tcp only, as it does not include the header
+	// use orig_ip_bytes field for all other protocols as the header+data is the only option
+	var bytesSent, bytesReceived int64
+	if parseConn.Proto == "tcp" {
+		bytesSent = int64(parseConn.OrigBytes)
+		bytesReceived = int64(parseConn.RespBytes)
+	} else {
+		bytesSent = int64(parseConn.OrigIPBytes)
+		bytesReceived = int64(parseConn.RespIPBytes)
+	}
+	twoWayIPBytes := bytesSent + bytesReceived
 
 	var tuple string
 	if parseConn.Service == "" {
@@ -50,7 +62,7 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 	}
 
 	newUniqueConnection, setUPPSFlag := updateUniqueConnectionsByConn(
-		srcIP, dstIP, srcDstPair, srcDstKey, roundedDuration, twoWayIPBytes, tuple, parseConn, filter, retVals,
+		srcIP, dstIP, srcDstPair, srcDstKey, roundedDuration, bytesSent, bytesReceived, twoWayIPBytes, tuple, parseConn, filter, retVals,
 	)
 
 	updateHostsByConn(
@@ -62,7 +74,7 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 }
 
 func updateUniqueConnectionsByConn(srcIP, dstIP net.IP, srcDstPair data.UniqueIPPair, srcDstKey string,
-	roundedDuration float64, twoWayIPBytes int64, tuple string,
+	roundedDuration float64, bytesSent int64, bytesReceived int64, twoWayIPBytes int64, tuple string,
 	parseConn *parsetypes.Conn, filter filter, retVals ParseResults) (newEntry bool, setUPPSFlag bool) {
 
 	retVals.UniqueConnLock.Lock()
@@ -131,7 +143,7 @@ func updateUniqueConnectionsByConn(srcIP, dstIP net.IP, srcDstPair data.UniqueIP
 
 	// ///// APPEND IP BYTES TO UNIQUE CONNECTION BYTES LIST /////
 	retVals.UniqueConnMap[srcDstKey].OrigBytesList = append(
-		retVals.UniqueConnMap[srcDstKey].OrigBytesList, parseConn.OrigIPBytes,
+		retVals.UniqueConnMap[srcDstKey].OrigBytesList, bytesSent,
 	)
 
 	// ///// ADD ORIG BYTES AND RESP BYTES TO UNIQUE CONNECTION TOTAL BYTES COUNTER /////

@@ -40,7 +40,19 @@ func parseOpenConnEntry(parseConn *parsetypes.OpenConn, filter filter, retVals P
 	srcDstKey := srcDstPair.MapKey()
 
 	roundedDuration := math.Ceil(parseConn.Duration*10000) / 10000
-	twoWayIPBytes := int64(parseConn.OrigIPBytes + parseConn.RespIPBytes)
+
+	// get bytes passed in both directions
+	// note: use orig_bytes field for tcp only, as it does not include the header
+	// use orig_ip_bytes field for all other protocols as the header+data is the only option
+	var bytesSent, bytesReceived int64
+	if parseConn.Proto == "tcp" {
+		bytesSent = int64(parseConn.OrigBytes)
+		bytesReceived = int64(parseConn.RespBytes)
+	} else {
+		bytesSent = int64(parseConn.OrigIPBytes)
+		bytesReceived = int64(parseConn.RespIPBytes)
+	}
+	twoWayIPBytes := bytesSent + bytesReceived
 
 	var tuple string
 	if parseConn.Service == "" {
@@ -50,7 +62,7 @@ func parseOpenConnEntry(parseConn *parsetypes.OpenConn, filter filter, retVals P
 	}
 
 	newUniqueConnection, setUPPSFlag := updateUniqueConnectionsByOpenConn(
-		srcIP, dstIP, srcDstPair, srcDstKey, roundedDuration, twoWayIPBytes, tuple, parseConn, filter, retVals,
+		srcIP, dstIP, srcDstPair, srcDstKey, roundedDuration, bytesSent, bytesReceived, twoWayIPBytes, tuple, parseConn, filter, retVals,
 	)
 
 	updateHostsByOpenConn(
@@ -63,7 +75,7 @@ func parseOpenConnEntry(parseConn *parsetypes.OpenConn, filter filter, retVals P
 }
 
 func updateUniqueConnectionsByOpenConn(srcIP, dstIP net.IP, srcDstPair data.UniqueIPPair, srcDstKey string,
-	roundedDuration float64, twoWayIPBytes int64, tuple string,
+	roundedDuration float64, bytesSent int64, bytesReceived int64, twoWayIPBytes int64, tuple string,
 	parseConn *parsetypes.OpenConn, filter filter, retVals ParseResults) (newEntry bool, setUPPSFlag bool) {
 
 	retVals.UniqueConnLock.Lock()
@@ -123,7 +135,7 @@ func updateUniqueConnectionsByOpenConn(srcIP, dstIP net.IP, srcDstPair data.Uniq
 			// stored value for bytes...same for OrigBytes
 			retVals.UniqueConnMap[srcDstKey].ConnStateMap[parseConn.UID].Duration = roundedDuration
 			retVals.UniqueConnMap[srcDstKey].ConnStateMap[parseConn.UID].Bytes = twoWayIPBytes
-			retVals.UniqueConnMap[srcDstKey].ConnStateMap[parseConn.UID].OrigBytes = parseConn.OrigBytes
+			retVals.UniqueConnMap[srcDstKey].ConnStateMap[parseConn.UID].OrigBytes = bytesSent
 		}
 	} else {
 		// No entry was present for a connection with this UID. Create a new
@@ -132,7 +144,7 @@ func updateUniqueConnectionsByOpenConn(srcIP, dstIP net.IP, srcDstPair data.Uniq
 			Bytes:     twoWayIPBytes,
 			Duration:  roundedDuration,
 			Open:      true,
-			OrigBytes: parseConn.OrigBytes,
+			OrigBytes: bytesSent,
 			Ts:        parseConn.TimeStamp, //ts is the timestamp at which the connection was detected
 			Tuple:     tuple,
 		}
