@@ -523,7 +523,7 @@ __gather_OS() {
 
     # Use the Ubuntu 18 package for MongoDB 4.2 on Xenial
     if [ "$_OS" = "Ubuntu" -a "$_MONGO_OS_CODENAME" = "focal" ]; then 
-        _MONGO_OS_CODENAME = "bionic"
+        _MONGO_OS_CODENAME="bionic"
     fi
 
     if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" -a "$_OS" != "Debian" ]; then
