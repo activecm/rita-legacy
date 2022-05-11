@@ -1,11 +1,7 @@
 package uconn
 
 import (
-	"fmt"
-	"os"
 	"runtime"
-	"runtime/pprof"
-	"time"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -72,18 +68,6 @@ func (r *repo) CreateIndexes() error {
 
 //Upsert records the given unique connection data in MongoDB
 func (r *repo) Upsert(uconnMap map[string]*Input) {
-	f, err := os.Create("./bulk-lookup-cpu.pprof")
-	if err != nil {
-		log.Fatal("could not create CPU profile: ", err)
-	}
-	defer f.Close() // error handling omitted for example
-	if err := pprof.StartCPUProfile(f); err != nil {
-		log.Fatal("could not start CPU profile: ", err)
-	}
-	defer pprof.StopCPUProfile()
-
-	startTime := time.Now()
-
 	// Phase 1: Analysis
 
 	// Create the workers for analysis
@@ -185,8 +169,4 @@ func (r *repo) Upsert(uconnMap map[string]*Input) {
 
 	// start the closing cascade (this will also close the other channels)
 	summarizerWorker.close()
-
-	endTime := time.Now()
-	fmt.Printf("Finished uconn analysis: %s\n", endTime.Sub(startTime).Truncate(time.Millisecond))
-
 }
