@@ -49,19 +49,34 @@ func (w *writer) start() {
 		ssn := w.db.Session.Copy()
 		defer ssn.Close()
 
+		bulk := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Bulk()
+		bulk.Unordered()
+		count := 0
+
 		for data := range w.writeChannel {
+			bulk.Upsert(data.selector, data.query)
+			count++
 
-			info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.selector, data.query)
-
-			if err != nil ||
-				((info.Updated == 0) && (info.UpsertedId == nil)) {
-				w.log.WithFields(log.Fields{
-					"Module": "host",
-					"Info":   info,
-					"Data":   data,
-				}).Error(err)
+			if count >= 1000 {
+				info, err := bulk.Run()
+				if err != nil {
+					w.log.WithFields(log.Fields{
+						"Module": "host",
+						"Info":   info,
+					}).Error(err)
+				}
+				count = 0
 			}
 		}
+
+		info, err := bulk.Run()
+		if err != nil {
+			w.log.WithFields(log.Fields{
+				"Module": "host",
+				"Info":   info,
+			}).Error(err)
+		}
+		// count = 0
 		w.writeWg.Done()
 	}()
 }
