@@ -49,38 +49,34 @@ func (w *writer) start() {
 		ssn := w.db.Session.Copy()
 		defer ssn.Close()
 
+		bulk := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Bulk()
+		bulk.Unordered()
+		count := 0
+
 		for data := range w.writeChannel {
+			bulk.Upsert(data.selector, data.query)
+			count += 1
 
-			if data.uconn.query != nil {
-
-				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.uconn.selector, data.uconn.query)
-
-				if err != nil ||
-					((info.Updated == 0) && (info.UpsertedId == nil)) {
+			if count >= 1000 {
+				info, err := bulk.Run()
+				if err != nil {
 					w.log.WithFields(log.Fields{
 						"Module": "uconns",
 						"Info":   info,
-						"Data":   data,
 					}).Error(err)
 				}
-
-			}
-
-			// update hosts table with icert updates
-			if data.hostMaxDur.query != nil {
-
-				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.hostMaxDur.selector, data.hostMaxDur.query)
-
-				if err != nil ||
-					((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
-					w.log.WithFields(log.Fields{
-						"Module": "beacons",
-						"Info":   info,
-						"Data":   data,
-					}).Error(err)
-				}
+				count = 0
 			}
 		}
+
+		info, err := bulk.Run()
+		if err != nil {
+			w.log.WithFields(log.Fields{
+				"Module": "uconns",
+				"Info":   info,
+			}).Error(err)
+		}
+		count = 0
 		w.writeWg.Done()
 	}()
 }

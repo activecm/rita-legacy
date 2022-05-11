@@ -4,8 +4,6 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/activecm/rita/pkg/data"
-
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/globalsign/mgo/bson"
@@ -163,19 +161,9 @@ func (a *analyzer) start() {
 			}
 
 			// assign formatted query to output
-			output.uconn.query = query
+			output.query = query
 
-			output.uconn.selector = datum.Hosts.BSONKey()
-
-			// get maxdur host table update
-			// since we are only updating stats for internal ips (as defined by the
-			// user in the file), we need to customize the query to update based on
-			// which ip in the connection was local.
-			if datum.IsLocalSrc {
-				output.hostMaxDur = a.hostMaxDurQuery(datum.MaxDuration, datum.Hosts.UniqueSrcIP.Unpair(), datum.Hosts.UniqueDstIP.Unpair())
-			} else if datum.IsLocalDst {
-				output.hostMaxDur = a.hostMaxDurQuery(datum.MaxDuration, datum.Hosts.UniqueDstIP.Unpair(), datum.Hosts.UniqueSrcIP.Unpair())
-			}
+			output.selector = datum.Hosts.BSONKey()
 
 			// set to writer channel
 			a.analyzedCallback(output)
@@ -185,90 +173,90 @@ func (a *analyzer) start() {
 	}()
 }
 
-func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP data.UniqueIP, externalIP data.UniqueIP) updateInfo {
-	ssn := a.db.Session.Copy()
-	defer ssn.Close()
+// func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP data.UniqueIP, externalIP data.UniqueIP) updateInfo {
+// 	ssn := a.db.Session.Copy()
+// 	defer ssn.Close()
 
-	var output updateInfo
+// 	var output updateInfo
 
-	// create query
-	query := bson.M{}
+// 	// create query
+// 	query := bson.M{}
 
-	// The below is only for cases where the ip is not currently listed as a max dur
-	// for a source
-	// update max dur
-	newFlag := false
-	updateFlag := false
+// 	// The below is only for cases where the ip is not currently listed as a max dur
+// 	// for a source
+// 	// update max dur
+// 	newFlag := false
+// 	updateFlag := false
 
-	// this query will find any matching chunk that is reporting a lower
-	// max beacon score than the current one we are working with
-	maxDurMatchLowerQuery := localIP.BSONKey()
-	maxDurMatchLowerQuery["dat"] = bson.M{
-		"$elemMatch": bson.M{
-			"cid":          a.chunk,
-			"max_duration": bson.M{"$lte": maxDur},
-		},
-	}
+// 	// this query will find any matching chunk that is reporting a lower
+// 	// max beacon score than the current one we are working with
+// 	maxDurMatchLowerQuery := localIP.BSONKey()
+// 	maxDurMatchLowerQuery["dat"] = bson.M{
+// 		"$elemMatch": bson.M{
+// 			"cid":          a.chunk,
+// 			"max_duration": bson.M{"$lte": maxDur},
+// 		},
+// 	}
 
-	maxDurMatchUpperQuery := localIP.BSONKey()
-	maxDurMatchUpperQuery["dat"] = bson.M{
-		"$elemMatch": bson.M{
-			"cid":          a.chunk,
-			"max_duration": bson.M{"$gte": maxDur},
-		},
-	}
+// 	maxDurMatchUpperQuery := localIP.BSONKey()
+// 	maxDurMatchUpperQuery["dat"] = bson.M{
+// 		"$elemMatch": bson.M{
+// 			"cid":          a.chunk,
+// 			"max_duration": bson.M{"$gte": maxDur},
+// 		},
+// 	}
 
-	// find matching lower chunks
-	nLowerEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchLowerQuery).Count()
+// 	// find matching lower chunks
+// 	nLowerEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchLowerQuery).Count()
 
-	// update if there are lower entries in this chunk
-	if nLowerEntries > 0 {
-		updateFlag = true
-	} else {
-		// find matching upper records in this chunk
-		nUpperEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchUpperQuery).Count()
+// 	// update if there are lower entries in this chunk
+// 	if nLowerEntries > 0 {
+// 		updateFlag = true
+// 	} else {
+// 		// find matching upper records in this chunk
+// 		nUpperEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchUpperQuery).Count()
 
-		// create a new entry if there are no bigger entries
-		if nUpperEntries == 0 {
-			newFlag = true
-		}
-	}
+// 		// create a new entry if there are no bigger entries
+// 		if nUpperEntries == 0 {
+// 			newFlag = true
+// 		}
+// 	}
 
-	// since we didn't find any changeable lower max duration scores, we will
-	// set the condition to push a new entry with the current score listed as the
-	// max beacon ONLY if no matching chunks reporting higher max beacon scores
-	// are found.
+// 	// since we didn't find any changeable lower max duration scores, we will
+// 	// set the condition to push a new entry with the current score listed as the
+// 	// max beacon ONLY if no matching chunks reporting higher max beacon scores
+// 	// are found.
 
-	if newFlag {
+// 	if newFlag {
 
-		query["$push"] = bson.M{
-			"dat": bson.M{
-				"max_duration": maxDur,
-				"mdip":         externalIP,
-				"cid":          a.chunk,
-			}}
+// 		query["$push"] = bson.M{
+// 			"dat": bson.M{
+// 				"max_duration": maxDur,
+// 				"mdip":         externalIP,
+// 				"cid":          a.chunk,
+// 			}}
 
-		// create selector for output
-		output.query = query
-		output.selector = localIP.BSONKey()
+// 		// create selector for output
+// 		output.query = query
+// 		output.selector = localIP.BSONKey()
 
-	} else if updateFlag {
-		query["$set"] = bson.M{
-			"dat.$.max_duration": maxDur,
-			"dat.$.mdip":         externalIP,
-			"dat.$.cid":          a.chunk,
-		}
+// 	} else if updateFlag {
+// 		query["$set"] = bson.M{
+// 			"dat.$.max_duration": maxDur,
+// 			"dat.$.mdip":         externalIP,
+// 			"dat.$.cid":          a.chunk,
+// 		}
 
-		// create selector for output
-		output.query = query
+// 		// create selector for output
+// 		output.query = query
 
-		// using the same find query we created above will allow us to match and
-		// update the exact chunk we need to update
-		output.selector = maxDurMatchLowerQuery
-	}
+// 		// using the same find query we created above will allow us to match and
+// 		// update the exact chunk we need to update
+// 		output.selector = maxDurMatchLowerQuery
+// 	}
 
-	return output
-}
+// 	return output
+// }
 
 //int64InSlice ...
 func int64InSlice(a int64, list []int64) bool {

@@ -11,16 +11,10 @@ type Repository interface {
 	Upsert(uconnMap map[string]*Input)
 }
 
-//updateInfo ....
-type updateInfo struct {
-	selector bson.M
-	query    bson.M
-}
-
 //update ....
 type update struct {
-	uconn      updateInfo
-	hostMaxDur updateInfo
+	selector bson.M
+	query    bson.M
 }
 
 //Input holds aggregated connection information between two hosts in a dataset
