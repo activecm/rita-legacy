@@ -119,9 +119,17 @@ func (r *repo) Upsert(hostMap map[string]*Input) {
 		writerWorker.start()
 	}
 
+	// get local hosts only for the summary
+	var localHosts []*Input
+	for _, entry := range hostMap {
+		if entry.IsLocal {
+			localHosts = append(localHosts, entry)
+		}
+	}
+
 	// progress bar for troubleshooting
 	p = mpb.New(mpb.WithWidth(20))
-	bar = p.AddBar(int64(len(hostMap)),
+	bar = p.AddBar(int64(len(localHosts)),
 		mpb.PrependDecorators(
 			decor.Name("\t[-] Host Analysis (2/2):", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
@@ -130,7 +138,7 @@ func (r *repo) Upsert(hostMap map[string]*Input) {
 	)
 
 	// loop over map entries
-	for _, entry := range hostMap {
+	for _, entry := range localHosts {
 		summarizerWorker.collect(entry)
 		bar.IncrBy(1)
 	}
