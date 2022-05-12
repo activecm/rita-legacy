@@ -9,8 +9,8 @@ import (
 )
 
 type (
-	//writer blah blah
-	writer struct { //structure for writing blacklist results to mongo
+	//writer provides a worker for writing bulk upserts to MongoDB
+	writer struct { //structure for writing results to mongo
 		targetCollection string
 		db               *database.DB   // provides access to MongoDB
 		conf             *config.Config // contains details needed to access MongoDB
@@ -20,7 +20,7 @@ type (
 	}
 )
 
-//newWriter creates a new writer object to write output data to blacklisted collections
+//newWriter creates a new writer object to write output data to collections
 func newWriter(targetCollection string, db *database.DB, conf *config.Config, log *log.Logger) *writer {
 	return &writer{
 		targetCollection: targetCollection,

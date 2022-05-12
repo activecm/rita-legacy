@@ -22,7 +22,7 @@ type (
 	}
 )
 
-//newAnalyzer creates a new collector for parsing hostnames
+//newAnalyzer creates a new analyzer for recording unique connection records
 func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
@@ -35,12 +35,12 @@ func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Confi
 	}
 }
 
-//collect sends a group of domains to be analyzed
+//collect gathers unique connection records for analysis
 func (a *analyzer) collect(datum *Input) {
 	a.analysisChannel <- datum
 }
 
-//close waits for the collector to finish
+//close waits for the analyzer to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
@@ -78,13 +78,13 @@ func mainQuery(datum *Input, strobeLimit int64, chunk int) bson.M {
 		tuples = tuples[:5]
 	}
 
-	ts := datum.TsList
-	bytes := datum.OrigBytesList
-
 	// if this connection qualifies to be a strobe with the current number
 	// of connections in the current datum, don't store bytes and ts.
 	// it will not qualify to be downgraded to a beacon until this chunk is
 	// outdated and removed. If only importing once - still just a strobe.
+	ts := datum.TsList
+	bytes := datum.OrigBytesList
+
 	isStrobe := datum.ConnectionCount >= strobeLimit
 	if isStrobe {
 		ts = []int64{}
@@ -169,7 +169,7 @@ func openConnectionsQuery(datum *Input) bson.M {
 	}
 }
 
-//int64InSlice ...
+//int64InSlice checks if a given int64 is in a slice
 func int64InSlice(a int64, list []int64) bool {
 	for _, b := range list {
 		if b == a {

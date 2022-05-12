@@ -26,7 +26,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository create new repository
+//NewMongoRepository bundles the given resources for updating MongoDB with unique connection data
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -35,6 +35,7 @@ func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger
 	}
 }
 
+//CreateIndexes creates indexes for the uconn collection
 func (r *repo) CreateIndexes() error {
 
 	session := r.database.Session.Copy()
@@ -69,7 +70,7 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert loops through every domain ....
+//Upsert records the given unique connection data in MongoDB
 func (r *repo) Upsert(uconnMap map[string]*Input) {
 	f, err := os.Create("./bulk-lookup-cpu.pprof")
 	if err != nil {
