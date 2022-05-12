@@ -1,7 +1,6 @@
 package uconn
 
 import (
-	"strconv"
 	"sync"
 
 	"github.com/activecm/rita/config"
@@ -10,10 +9,9 @@ import (
 )
 
 type (
-	//analyzer : structure for exploded dns analysis
+	//analyzer records data regarding the connections between pairs of hosts
 	analyzer struct {
 		chunk            int            //current chunk (0 if not on rolling analysis)
-		chunkStr         string         //current chunk (0 if not on rolling analysis)
 		connLimit        int64          // limit for strobe classification
 		db               *database.DB   // provides access to MongoDB
 		conf             *config.Config // contains details needed to access MongoDB
@@ -28,7 +26,6 @@ type (
 func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
-		chunkStr:         strconv.Itoa(chunk),
 		connLimit:        connLimit,
 		db:               db,
 		conf:             conf,
@@ -56,207 +53,121 @@ func (a *analyzer) start() {
 	go func() {
 
 		for datum := range a.analysisChannel {
-			// set up writer output
-			var output update
 
-			// create query
-			query := bson.M{}
+			mainUpdate := mainQuery(datum, a.connLimit, a.chunk)
+			openConnsUpdate := openConnectionsQuery(datum)
 
-			tuples := datum.Tuples.Items()
-			if len(tuples) > 5 {
-				tuples = tuples[:5]
-			}
+			totalUpdate := database.MergeBSONMaps(mainUpdate, openConnsUpdate)
 
-			// Tally up the bytes and duration from the open connections.
-			// We will add these at the top level of the current uconn entry
-			// when it's placed in mongo such that we will have an up-to-date
-			// total for open connection values each time we parse another
-			// set of logs. These current values will overwrite any existing values.
-			// The relevant values from the closed connection will be added to the
-			// appropriate chunk in a "dat" and those values will effetively be
-			// removed from the open connection values that we are tracking.
-			for key, connStateEntry := range datum.ConnStateMap {
-				if connStateEntry.Open {
-					datum.OpenBytes += connStateEntry.Bytes
-					datum.OpenDuration += connStateEntry.Duration
-					datum.OpenOrigBytes += connStateEntry.OrigBytes
-
-					//Increment the OpenConnectionCount for each open entry that we have
-					datum.OpenConnectionCount++
-
-					// Only append unique timestamps to OpenTsList.
-					if !int64InSlice(connStateEntry.Ts, datum.OpenTSList) {
-						datum.OpenTSList = append(datum.OpenTSList, connStateEntry.Ts)
-					}
-				} else {
-					// Remove the closed entry so it doesn't appear in the list of open connections in mongo
-					// Interwebs says it is safe to do this operation within a range loop
-					// source: https://stackoverflow.com/questions/23229975/is-it-safe-to-remove-selected-keys-from-map-within-a-range-loop
-					// This will also prevent duplication of data between a previously-opened and closed connection that are
-					// one in the same
-					delete(datum.ConnStateMap, key)
-				}
-			}
-
-			connState := len(datum.ConnStateMap) > 0
-
-			// if this connection qualifies to be a strobe with the current number
-			// of connections in the current datum, don't store bytes and ts.
-			// it will not qualify to be downgraded to a beacon until this chunk is
-			// outdated and removed. If only importing once - still just a strobe.
-			if datum.ConnectionCount >= a.connLimit {
-				query["$set"] = bson.M{
-					"strobe":                true,
-					"cid":                   a.chunk,
-					"src_network_name":      datum.Hosts.SrcNetworkName,
-					"dst_network_name":      datum.Hosts.DstNetworkName,
-					"open":                  connState,
-					"open_bytes":            datum.OpenBytes,
-					"open_connection_count": datum.OpenConnectionCount,
-					"open_conns":            datum.ConnStateMap,
-					"open_duration":         datum.OpenDuration,
-					"open_orig_bytes":       datum.OpenOrigBytes,
-					"open_ts":               datum.OpenTSList,
-				}
-				query["$push"] = bson.M{
-					"dat": bson.M{
-						"count":  datum.ConnectionCount,
-						"bytes":  []interface{}{},
-						"ts":     []interface{}{},
-						"tuples": tuples,
-						"icerts": datum.InvalidCertFlag,
-						"maxdur": datum.MaxDuration,
-						"tbytes": datum.TotalBytes,
-						"tdur":   datum.TotalDuration,
-						"cid":    a.chunk,
-					},
-				}
-			} else {
-				query["$set"] = bson.M{
-					"strobe":                false,
-					"cid":                   a.chunk,
-					"src_network_name":      datum.Hosts.SrcNetworkName,
-					"dst_network_name":      datum.Hosts.DstNetworkName,
-					"open":                  connState,
-					"open_bytes":            datum.OpenBytes,
-					"open_connection_count": datum.OpenConnectionCount,
-					"open_conns":            datum.ConnStateMap,
-					"open_duration":         datum.OpenDuration,
-					"open_orig_bytes":       datum.OpenOrigBytes,
-					"open_ts":               datum.OpenTSList,
-				}
-				query["$push"] = bson.M{
-					"dat": bson.M{
-						"count":  datum.ConnectionCount,
-						"bytes":  datum.OrigBytesList,
-						"ts":     datum.TsList,
-						"tuples": tuples,
-						"icerts": datum.InvalidCertFlag,
-						"maxdur": datum.MaxDuration,
-						"tbytes": datum.TotalBytes,
-						"tdur":   datum.TotalDuration,
-						"cid":    a.chunk,
-					},
-				}
-			}
-
-			// assign formatted query to output
-			output.query = query
-
-			output.selector = datum.Hosts.BSONKey()
-
-			// set to writer channel
-			a.analyzedCallback(output)
+			a.analyzedCallback(update{
+				selector: datum.Hosts.BSONKey(),
+				query:    totalUpdate,
+			})
 
 		}
 		a.analysisWg.Done()
 	}()
 }
 
-// func (a *analyzer) hostMaxDurQuery(maxDur float64, localIP data.UniqueIP, externalIP data.UniqueIP) updateInfo {
-// 	ssn := a.db.Session.Copy()
-// 	defer ssn.Close()
+//mainQuery records the bulk of the information about the communications between two hosts
+func mainQuery(datum *Input, strobeLimit int64, chunk int) bson.M {
 
-// 	var output updateInfo
+	// Truncate the protocol/ port tuples we store in the database
+	tuples := datum.Tuples.Items()
+	if len(tuples) > 5 {
+		tuples = tuples[:5]
+	}
 
-// 	// create query
-// 	query := bson.M{}
+	ts := datum.TsList
+	bytes := datum.OrigBytesList
 
-// 	// The below is only for cases where the ip is not currently listed as a max dur
-// 	// for a source
-// 	// update max dur
-// 	newFlag := false
-// 	updateFlag := false
+	// if this connection qualifies to be a strobe with the current number
+	// of connections in the current datum, don't store bytes and ts.
+	// it will not qualify to be downgraded to a beacon until this chunk is
+	// outdated and removed. If only importing once - still just a strobe.
+	isStrobe := datum.ConnectionCount >= strobeLimit
+	if isStrobe {
+		ts = []int64{}
+		bytes = []int64{}
+	}
 
-// 	// this query will find any matching chunk that is reporting a lower
-// 	// max beacon score than the current one we are working with
-// 	maxDurMatchLowerQuery := localIP.BSONKey()
-// 	maxDurMatchLowerQuery["dat"] = bson.M{
-// 		"$elemMatch": bson.M{
-// 			"cid":          a.chunk,
-// 			"max_duration": bson.M{"$lte": maxDur},
-// 		},
-// 	}
+	return bson.M{
+		"$set": bson.M{
+			"strobe":           isStrobe,
+			"cid":              chunk,
+			"src_network_name": datum.Hosts.SrcNetworkName,
+			"dst_network_name": datum.Hosts.DstNetworkName,
+		},
+		"$push": bson.M{
+			"dat": bson.M{
+				"$each": []bson.M{{
+					"count":  datum.ConnectionCount,
+					"bytes":  bytes,
+					"ts":     ts,
+					"tuples": tuples,
+					"icerts": datum.InvalidCertFlag,
+					"maxdur": datum.MaxDuration,
+					"tbytes": datum.TotalBytes,
+					"tdur":   datum.TotalDuration,
+					"cid":    chunk,
+				}},
+			},
+		},
+	}
+}
 
-// 	maxDurMatchUpperQuery := localIP.BSONKey()
-// 	maxDurMatchUpperQuery["dat"] = bson.M{
-// 		"$elemMatch": bson.M{
-// 			"cid":          a.chunk,
-// 			"max_duration": bson.M{"$gte": maxDur},
-// 		},
-// 	}
+//openConnectionsQuery records information about connections that are still open between two hosts
+func openConnectionsQuery(datum *Input) bson.M {
+	var bytes int64
+	var duration float64
+	var origBytes int64
+	var connections int64
+	tsList := make([]int64, 0)
 
-// 	// find matching lower chunks
-// 	nLowerEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchLowerQuery).Count()
+	// Tally up the bytes and duration from the open connections.
+	// We will add these at the top level of the current uconn entry
+	// when it's placed in mongo such that we will have an up-to-date
+	// total for open connection values each time we parse another
+	// set of logs. These current values will overwrite any existing values.
+	// The relevant values from the closed connection will be added to the
+	// appropriate chunk in a "dat" and those values will effetively be
+	// removed from the open connection values that we are tracking.
+	for key, connStateEntry := range datum.ConnStateMap {
+		if connStateEntry.Open {
+			bytes += connStateEntry.Bytes
+			duration += connStateEntry.Duration
+			origBytes += connStateEntry.OrigBytes
 
-// 	// update if there are lower entries in this chunk
-// 	if nLowerEntries > 0 {
-// 		updateFlag = true
-// 	} else {
-// 		// find matching upper records in this chunk
-// 		nUpperEntries, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(maxDurMatchUpperQuery).Count()
+			connections++
 
-// 		// create a new entry if there are no bigger entries
-// 		if nUpperEntries == 0 {
-// 			newFlag = true
-// 		}
-// 	}
+			// Only append unique timestamps to OpenTsList.
+			if !int64InSlice(connStateEntry.Ts, tsList) {
+				tsList = append(tsList, connStateEntry.Ts)
+			}
+		} else {
+			// Remove the closed entry so it doesn't appear in the list of open connections in mongo
+			// Interwebs says it is safe to do this operation within a range loop
+			// source: https://stackoverflow.com/questions/23229975/is-it-safe-to-remove-selected-keys-from-map-within-a-range-loop
+			// This will also prevent duplication of data between a previously-opened and closed connection that are
+			// one in the same
+			delete(datum.ConnStateMap, key)
+		}
+	}
 
-// 	// since we didn't find any changeable lower max duration scores, we will
-// 	// set the condition to push a new entry with the current score listed as the
-// 	// max beacon ONLY if no matching chunks reporting higher max beacon scores
-// 	// are found.
+	connState := len(datum.ConnStateMap) > 0
 
-// 	if newFlag {
-
-// 		query["$push"] = bson.M{
-// 			"dat": bson.M{
-// 				"max_duration": maxDur,
-// 				"mdip":         externalIP,
-// 				"cid":          a.chunk,
-// 			}}
-
-// 		// create selector for output
-// 		output.query = query
-// 		output.selector = localIP.BSONKey()
-
-// 	} else if updateFlag {
-// 		query["$set"] = bson.M{
-// 			"dat.$.max_duration": maxDur,
-// 			"dat.$.mdip":         externalIP,
-// 			"dat.$.cid":          a.chunk,
-// 		}
-
-// 		// create selector for output
-// 		output.query = query
-
-// 		// using the same find query we created above will allow us to match and
-// 		// update the exact chunk we need to update
-// 		output.selector = maxDurMatchLowerQuery
-// 	}
-
-// 	return output
-// }
+	return bson.M{
+		"$set": bson.M{
+			"open":                  connState,
+			"open_bytes":            bytes,
+			"open_connection_count": connections,
+			"open_conns":            datum.ConnStateMap,
+			"open_duration":         duration,
+			"open_orig_bytes":       origBytes,
+			"open_ts":               tsList,
+		},
+	}
+}
 
 //int64InSlice ...
 func int64InSlice(a int64, list []int64) bool {
