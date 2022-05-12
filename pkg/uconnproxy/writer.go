@@ -9,8 +9,8 @@ import (
 )
 
 type (
-	//writer blah blah
-	writer struct { //structure for writing proxy beacons  results to mongo
+	//writer provides a worker for writing bulk upserts to MongoDB
+	writer struct { //structure for writing results to mongo
 		targetCollection string
 		db               *database.DB   // provides access to MongoDB
 		conf             *config.Config // contains details needed to access MongoDB
@@ -20,7 +20,7 @@ type (
 	}
 )
 
-//newWriter creates a new writer object to write output data to proxy beacons collections
+//newWriter creates a new writer object to write output data to collections
 func newWriter(targetCollection string, db *database.DB, conf *config.Config, log *log.Logger) *writer {
 	return &writer{
 		targetCollection: targetCollection,
@@ -49,22 +49,34 @@ func (w *writer) start() {
 		ssn := w.db.Session.Copy()
 		defer ssn.Close()
 
+		bulk := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Bulk()
+		bulk.Unordered()
+		count := 0
+
 		for data := range w.writeChannel {
+			bulk.Upsert(data.selector, data.query)
+			count++
 
-			if data.uconnProxy.query != nil {
-
-				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.uconnProxy.selector, data.uconnProxy.query)
-
-				if err != nil ||
-					((info.Updated == 0) && (info.UpsertedId == nil)) {
+			if count >= 1000 {
+				info, err := bulk.Run()
+				if err != nil {
 					w.log.WithFields(log.Fields{
 						"Module": "uconnsproxy",
 						"Info":   info,
-						"Data":   data,
 					}).Error(err)
 				}
+				count = 0
 			}
 		}
+
+		info, err := bulk.Run()
+		if err != nil {
+			w.log.WithFields(log.Fields{
+				"Module": "uconnsproxy",
+				"Info":   info,
+			}).Error(err)
+		}
+		// count = 0
 		w.writeWg.Done()
 	}()
 }

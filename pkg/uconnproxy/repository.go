@@ -11,15 +11,10 @@ type Repository interface {
 	Upsert(uconnProxyMap map[string]*Input)
 }
 
-//updateInfo ....
-type updateInfo struct {
-	selector bson.M
-	query    bson.M
-}
-
 //update ....
 type update struct {
-	uconnProxy updateInfo
+	selector bson.M
+	query    bson.M
 }
 
 //Input structure for sending data
