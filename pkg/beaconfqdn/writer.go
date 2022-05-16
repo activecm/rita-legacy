@@ -9,29 +9,30 @@ import (
 )
 
 type (
-	writer struct {
+	//writer provides a worker for writing bulk upserts to MongoDB
+	writer struct { //structure for writing results to mongo
 		targetCollection string
 		db               *database.DB   // provides access to MongoDB
 		conf             *config.Config // contains details needed to access MongoDB
 		log              *log.Logger    // main logger for RITA
-		writeChannel     chan *update   // holds analyzed data
+		writeChannel     chan update    // holds analyzed data
 		writeWg          sync.WaitGroup // wait for writing to finish
 	}
 )
 
-//newWriter creates a new writer object to write output data to blacklisted collections
+//newWriter creates a new writer object to write output data to collections
 func newWriter(targetCollection string, db *database.DB, conf *config.Config, log *log.Logger) *writer {
 	return &writer{
 		targetCollection: targetCollection,
 		db:               db,
 		conf:             conf,
 		log:              log,
-		writeChannel:     make(chan *update),
+		writeChannel:     make(chan update),
 	}
 }
 
 //collect sends a group of results to the writer for writing out to the database
-func (w *writer) collect(data *update) {
+func (w *writer) collect(data update) {
 	w.writeChannel <- data
 }
 
@@ -44,44 +45,38 @@ func (w *writer) close() {
 //start kicks off a new write thread
 func (w *writer) start() {
 	w.writeWg.Add(1)
-
 	go func() {
 		ssn := w.db.Session.Copy()
 		defer ssn.Close()
 
+		bulk := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Bulk()
+		bulk.Unordered()
+		count := 0
+
 		for data := range w.writeChannel {
+			bulk.Upsert(data.selector, data.query)
+			count++
 
-			if data.beacon.query != nil {
-				// update beacons table
-				info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.beacon.selector, data.beacon.query)
-
-				if err != nil ||
-					((info.Updated == 0) && (info.UpsertedId == nil)) {
+			if count >= 1000 {
+				info, err := bulk.Run()
+				if err != nil {
 					w.log.WithFields(log.Fields{
 						"Module": "beaconsFQDN",
 						"Info":   info,
-						"Data":   data,
 					}).Error(err)
 				}
-
-				// update hosts table with max beacon updates
-				if data.hostBeacon.query != nil {
-
-					// update hosts table
-					info, err = ssn.DB(w.db.GetSelectedDB()).C(w.conf.T.Structure.HostTable).Upsert(data.hostBeacon.selector, data.hostBeacon.query)
-
-					if err != nil ||
-						((info.Updated == 0) && (info.UpsertedId == nil) && (info.Matched == 0)) {
-						w.log.WithFields(log.Fields{
-							"Module": "beaconsFQDN",
-							"Info":   info,
-							"Data":   data,
-						}).Error(err)
-					}
-				}
+				count = 0
 			}
 		}
 
+		info, err := bulk.Run()
+		if err != nil {
+			w.log.WithFields(log.Fields{
+				"Module": "beaconsFQDN",
+				"Info":   info,
+			}).Error(err)
+		}
+		// count = 0
 		w.writeWg.Done()
 	}()
 }

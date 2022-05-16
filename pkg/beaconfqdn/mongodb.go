@@ -77,6 +77,36 @@ func (r *repo) Upsert(hostMap map[string]*host.Input, minTimestamp, maxTimestamp
 	session := r.database.Session.Copy()
 	defer session.Close()
 
+	s := spinner.New(spinner.CharSets[36], 200*time.Millisecond)
+	s.Prefix = "\t[-] Gathering FQDNs for Beacon Analysis ...\t"
+	s.Start()
+
+	// determine which hostnames need their fqdn beacon entries updated by
+	// checking which hostnames are associated with the external IPs we saw in this import run.
+
+	// NOTE: We used to feed the hostnamesMap into the dissector directly. In other words,
+	// for each hostname, we would only aggregate the unique connections for the IPs which were included
+	// in the DNS answers for current run of `rita import`. This had two downsides:
+	// - if an internal host cached the only DNS response for an external host between RITA runs,
+	//   the fqdn beacon would disappear. It should exist until the `hostnames` record rotates out via chunking.
+	// - if we need to parse into the same chunk multiple times due to file size restrictions in the importer,
+	//   we would never aggregate all of the unique connections across parse chunks if the internal hosts
+	//   did not constantly issue DNS queries for the hosts they contacted. --LL
+	affectedHostnames, err := r.affectedHostnameIPs(hostMap)
+	if err != nil {
+		r.log.WithError(err).Error("could not determine which hostnames need beacon data updates")
+	}
+
+	s.Stop()
+	fmt.Println()
+
+	if len(affectedHostnames) == 0 {
+		fmt.Println("\t[!] No FQDN Beacon data to analyze")
+		return
+	}
+
+	// Phase 1: Analysis
+
 	// Create the workers
 
 	// stage 5 - write out results
@@ -116,7 +146,7 @@ func (r *repo) Upsert(hostMap map[string]*host.Input, minTimestamp, maxTimestamp
 		sorterWorker.close,
 	)
 
-	//kick off the threaded goroutines
+	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		dissectorWorker.start()
 		sorterWorker.start()
@@ -124,72 +154,98 @@ func (r *repo) Upsert(hostMap map[string]*host.Input, minTimestamp, maxTimestamp
 		writerWorker.start()
 	}
 
-	s := spinner.New(spinner.CharSets[36], 200*time.Millisecond)
-	s.Prefix = "\t[-] Gathering FQDNs for Beacon Analysis ...\t"
-	s.Start()
+	// progress bar for troubleshooting
+	p := mpb.New(mpb.WithWidth(20))
+	bar := p.AddBar(int64(len(affectedHostnames)),
+		mpb.PrependDecorators(
+			decor.Name("\t[-] FQDN Beacon Analysis (1/2):", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+		),
+		mpb.AppendDecorators(decor.Percentage()),
+	)
 
-	// determine which hostnames need their fqdn beacon entries updated by
-	// checking which hostnames are associated with the external IPs we saw in this import run.
+	// loop over map entries (each hostname)
+	for _, entry := range affectedHostnames {
 
-	// NOTE: We used to feed the hostnamesMap into the dissector directly. In other words,
-	// for each hostname, we would only aggregate the unique connections for the IPs which were included
-	// in the DNS answers for current run of `rita import`. This had two downsides:
-	// - if an internal host cached the only DNS response for an external host between RITA runs,
-	//   the fqdn beacon would disappear. It should exist until the `hostnames` record rotates out via chunking.
-	// - if we need to parse into the same chunk multiple times due to file size restrictions in the importer,
-	//   we would never aggregate all of the unique connections across parse chunks if the internal hosts
-	//   did not constantly issue DNS queries for the hosts they contacted. --LL
-	affectedHostnames, err := r.affectedHostnameIPs(hostMap)
-	if err != nil {
-		r.log.WithError(err).Error("could not determine which hostnames need beacon data updates")
-	}
+		// check to make sure hostname has resolved ips, skip otherwise
+		if len(entry.ResolvedIPs) > 0 {
 
-	s.Stop()
-	fmt.Println()
-
-	if len(affectedHostnames) > 0 {
-		// progress bar for troubleshooting
-		p := mpb.New(mpb.WithWidth(20))
-		bar := p.AddBar(int64(len(affectedHostnames)),
-			mpb.PrependDecorators(
-				decor.Name("\t[-] FQDN Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
-				decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
-			),
-			mpb.AppendDecorators(decor.Percentage()),
-		)
-
-		// loop over map entries (each hostname)
-		for _, entry := range affectedHostnames {
-
-			// check to make sure hostname has resolved ips, skip otherwise
-			if len(entry.ResolvedIPs) > 0 {
-
-				var dstList []bson.M
-				for _, dst := range entry.ResolvedIPs {
-					dstList = append(dstList, dst.AsDst().BSONKey())
-				}
-
-				input := &fqdnInput{
-					FQDN:        entry.Host,
-					DstBSONList: dstList,
-					ResolvedIPs: entry.ResolvedIPs,
-				}
-
-				dissectorWorker.collect(input)
+			var dstList []bson.M
+			for _, dst := range entry.ResolvedIPs {
+				dstList = append(dstList, dst.AsDst().BSONKey())
 			}
 
-			// progress bar increment
-			bar.IncrBy(1)
+			input := &fqdnInput{
+				FQDN:        entry.Host,
+				DstBSONList: dstList,
+				ResolvedIPs: entry.ResolvedIPs,
+			}
 
+			dissectorWorker.collect(input)
 		}
 
-		p.Wait()
-	} else {
-		fmt.Println("\t[!] No FQDN Beacon data to analyze")
+		// progress bar increment
+		bar.IncrBy(1)
+
 	}
+
+	p.Wait()
 
 	// start the closing cascade (this will also close the other channels)
 	dissectorWorker.close()
+
+	// Phase 2: Summary
+
+	// initialize a new writer for the summarizer
+	writerWorker = newWriter(
+		r.config.T.Structure.HostTable,
+		r.database,
+		r.config,
+		r.log,
+	)
+
+	summarizerWorker := newSummarizer(
+		r.config.S.Rolling.CurrentChunk,
+		r.database,
+		r.config,
+		r.log,
+		writerWorker.collect,
+		writerWorker.close,
+	)
+
+	// kick off the threaded goroutines
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		summarizerWorker.start()
+		writerWorker.start()
+	}
+
+	// get local hosts only for the summary
+	var localHosts []data.UniqueIP
+	for _, entry := range hostMap {
+		if entry.IsLocal {
+			localHosts = append(localHosts, entry.Host)
+		}
+	}
+
+	// add a progress bar for troubleshooting
+	p = mpb.New(mpb.WithWidth(20))
+	bar = p.AddBar(int64(len(localHosts)),
+		mpb.PrependDecorators(
+			decor.Name("\t[-] FQDN Beacon Analysis (2/2):", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+		),
+		mpb.AppendDecorators(decor.Percentage()),
+	)
+
+	// loop over the local hosts that need to be summarized
+	for _, localHost := range localHosts {
+		summarizerWorker.collect(localHost)
+		bar.IncrBy(1)
+	}
+	p.Wait()
+
+	// start the closing cascade (this will also close the other channels)
+	summarizerWorker.close()
 }
 
 // affectedHostnameIPs gathers all of the hostnames associated with the external IPs which generated

@@ -10,18 +10,19 @@ import (
 )
 
 type (
+	//dissector gathers all of the unique connection details between a host and a fqdn
 	dissector struct {
 		connLimit         int64            // limit for strobe classification
 		db                *database.DB     // provides access to MongoDB
 		conf              *config.Config   // contains details needed to access MongoDB
-		dissectedCallback func(*fqdnInput) // called on each analyzed result
+		dissectedCallback func(*fqdnInput) // gathered unique connection details are sent to this callback
 		closedCallback    func()           // called when .close() is called and no more calls to analyzedCallback will be made
-		dissectChannel    chan *fqdnInput  // holds unanalyzed data
+		dissectChannel    chan *fqdnInput  // holds data to be processed
 		dissectWg         sync.WaitGroup   // wait for analysis to finish
 	}
 )
 
-//newdissector creates a new collector for gathering data
+//newdissector creates a new dissector for gathering data
 func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(*fqdnInput), closedCallback func()) *dissector {
 	return &dissector{
 		connLimit:         connLimit,
@@ -33,19 +34,18 @@ func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissect
 	}
 }
 
-//collect sends a chunk of data to be analyzed
+//collect gathers a resolved FQDN to obtain unique connection data for
 func (d *dissector) collect(entry *fqdnInput) {
 	d.dissectChannel <- entry
 }
 
-//close waits for the collector to finish
+//close waits for the dissector to finish
 func (d *dissector) close() {
 	close(d.dissectChannel)
 	d.dissectWg.Wait()
 	d.closedCallback()
 }
 
-//start kicks off a new analysis thread
 /*
 db.getCollection('uconn').aggregate([
     {"$match": {
@@ -131,6 +131,7 @@ db.getCollection('uconn').aggregate([
     }},
 ])
 */
+//start kicks off a new dissector thread
 func (d *dissector) start() {
 	d.dissectWg.Add(1)
 
@@ -276,24 +277,19 @@ func (d *dissector) start() {
 
 				// check if beacon has become a strobe
 				if analysisInput.ConnectionCount > d.connLimit {
-
-					// set to sorter channel
 					d.dissectedCallback(analysisInput)
 
 				} else { // otherwise, parse timestamps and orig ip bytes
-
 					analysisInput.TsList = res.Ts
 					analysisInput.OrigBytesList = res.Bytes
 
-					// send to sorter channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
+					// the analysis worker requires that we have over UNIQUE 3 timestamps
+					// we drop the input here since it is the earliest place in the pipeline to do so
 					if len(analysisInput.TsList) > 3 {
 						d.dissectedCallback(analysisInput)
 					}
-
 				}
-
 			}
-
 		}
 
 		d.dissectWg.Done()
