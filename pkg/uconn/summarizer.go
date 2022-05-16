@@ -60,8 +60,9 @@ func (s *summarizer) start() {
 
 		for datum := range s.summaryChannel {
 			uconnCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.UniqueConnTable)
+			hostCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.HostTable)
 
-			maxDurUpdate, err := maxDurationQuery(datum, uconnCollection, s.chunk)
+			maxDurQuery, err := maxDurationQuery(datum, uconnCollection, s.chunk)
 			if err != nil {
 				s.log.WithFields(log.Fields{
 					"Module": "uconns",
@@ -70,12 +71,27 @@ func (s *summarizer) start() {
 				continue
 			}
 
-			totalUpdate := maxDurUpdate
+			totalHostQuery := maxDurQuery
 
-			s.summarizedCallback(update{
-				selector: datum.BSONKey(),
-				query:    totalUpdate,
-			})
+			if len(totalHostQuery) > 0 {
+				s.summarizedCallback(update{
+					selector: datum.BSONKey(),
+					query:    totalHostQuery,
+				})
+			}
+
+			invalidCertUpdates, err := invalidCertUpdates(datum, uconnCollection, hostCollection, s.chunk)
+			if err != nil {
+				s.log.WithFields(log.Fields{
+					"Module": "uconns",
+					"Data":   datum,
+				}).Error(err)
+				continue
+			}
+
+			for _, update := range invalidCertUpdates {
+				s.summarizedCallback(update)
+			}
 		}
 		s.summaryWg.Done()
 	}()
@@ -90,6 +106,9 @@ func maxDurationQuery(datum data.UniqueIP, uconnColl *mgo.Collection, chunk int)
 	mdipQuery := maxDurationPipeline(datum, chunk)
 
 	err := uconnColl.Pipe(mdipQuery).One(&maxDurIP)
+	if err == mgo.ErrNotFound {
+		return bson.M{}, nil
+	}
 	if err != nil {
 		return bson.M{}, err
 	}
@@ -174,5 +193,71 @@ func maxDurationPipeline(host data.UniqueIP, chunk int) []bson.M {
 			"maxdur": -1,
 		}},
 		{"$limit": 1},
+	}
+}
+
+func invalidCertUpdates(datum data.UniqueIP, uconnColl *mgo.Collection, hostColl *mgo.Collection, chunk int) ([]update, error) {
+
+	var updates []update
+
+	icertQuery := invalidCertPipeline(datum, chunk)
+	var icertPeer data.UniqueIP
+	icertPeerIter := uconnColl.Pipe(icertQuery).Iter()
+	for icertPeerIter.Next(&icertPeer) {
+		hostEntryExistsSelector := datum.BSONKey()
+		hostEntryExistsSelector["dat"] = bson.M{"$elemMatch": icertPeer.PrefixedBSONKey("icdst")}
+		nExistingEntries, err := hostColl.Find(hostEntryExistsSelector).Count()
+		if err != nil {
+			return updates, err
+		}
+
+		if nExistingEntries > 0 {
+			updates = append(updates, update{
+				selector: hostEntryExistsSelector,
+				query: bson.M{
+					"$set": bson.M{
+						"dat.$.cid": chunk,
+					},
+				},
+			})
+		} else {
+			updates = append(updates, update{
+				selector: datum.BSONKey(),
+				query: bson.M{"$push": bson.M{
+					"dat": bson.M{
+						"icdst": icertPeer,
+						"icert": 1,
+						"cid":   chunk,
+					},
+				}},
+			})
+		}
+	}
+	if err := icertPeerIter.Close(); err != nil {
+		return updates, err
+	}
+
+	return updates, nil
+}
+
+func invalidCertPipeline(host data.UniqueIP, chunk int) []bson.M {
+	return []bson.M{
+		{"$match": bson.M{
+			// match the host IP/ network
+			"src":              host.IP,
+			"src_network_uuid": host.NetworkUUID,
+			"dat": bson.M{
+				"$elemMatch": bson.M{
+					"cid":    chunk,
+					"icerts": true,
+				},
+			},
+		}},
+		// drop unnecessary data
+		{"$project": bson.M{
+			"ip":           "$dst",
+			"network_uuid": "$dst_network_uuid",
+			"network_name": "$dst_network_name",
+		}},
 	}
 }
