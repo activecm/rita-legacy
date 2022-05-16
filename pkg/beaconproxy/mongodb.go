@@ -5,10 +5,12 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/util"
 
 	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
 
@@ -75,11 +77,11 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, minTimestamp, 
 	// Create the workers
 
 	// stage 5 - write out results
-	writerWorker := newWriter(
-		r.config.T.BeaconProxy.BeaconProxyTable,
+	writerWorker := newMgoBulkWriter(
 		r.database,
 		r.config,
 		r.log,
+		"beaconsProxy",
 	)
 
 	// stage 4 - perform the analysis
@@ -111,7 +113,7 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, minTimestamp, 
 		sorterWorker.close,
 	)
 
-	//kick off the threaded goroutines
+	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		dissectorWorker.start()
 		sorterWorker.start()
@@ -123,7 +125,7 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, minTimestamp, 
 	p := mpb.New(mpb.WithWidth(20))
 	bar := p.AddBar(int64(len(uconnProxyMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Proxy Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Proxy Beacon Analysis (1/2):", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
@@ -142,4 +144,67 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, minTimestamp, 
 
 	// start the closing cascade (this will also close the other channels)
 	dissectorWorker.close()
+
+	// Phase 2: Summary
+
+	// initialize a new writer for the summarizer
+	writerWorker = newMgoBulkWriter(r.database, r.config, r.log, "beaconsProxy")
+	summarizerWorker := newSummarizer(
+		r.config.S.Rolling.CurrentChunk,
+		r.database,
+		r.config,
+		r.log,
+		writerWorker.collect,
+		writerWorker.close,
+	)
+
+	// kick off the threaded goroutines
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		summarizerWorker.start()
+		writerWorker.start()
+	}
+
+	// grab the local hosts we have seen during the current analysis period
+	ssn := r.database.Session.Copy()
+	defer ssn.Close()
+
+	localHostQuery := ssn.DB(r.database.GetSelectedDB()).C(r.config.T.Structure.HostTable).Find(
+		bson.M{"local": true, "cid": r.config.S.Rolling.CurrentChunk},
+	)
+
+	numLocalHost, err := localHostQuery.Count()
+	if err != nil {
+		r.log.WithFields(log.Fields{
+			"Module": "beaconsProxy",
+		}).Error(err)
+	}
+
+	// add a progress bar for troubleshooting
+	p = mpb.New(mpb.WithWidth(20))
+	bar = p.AddBar(int64(numLocalHost),
+		mpb.PrependDecorators(
+			decor.Name("\t[-] Proxy Beacon Analysis (2/2):", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+		),
+		mpb.AppendDecorators(decor.Percentage()),
+	)
+
+	var localHost data.UniqueIP
+	localHostIter := localHostQuery.Iter()
+
+	// loop over the local hosts that need to be summarized
+	for localHostIter.Next(&localHost) {
+		summarizerWorker.collect(localHost)
+		bar.IncrBy(1)
+	}
+	if err := localHostIter.Close(); err != nil {
+		r.log.WithFields(log.Fields{
+			"Module": "beaconProxy",
+		}).Error(err)
+	}
+
+	p.Wait()
+
+	// start the closing cascade (this will also close the other channels)
+	summarizerWorker.close()
 }
