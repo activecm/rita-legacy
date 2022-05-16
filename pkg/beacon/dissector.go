@@ -10,18 +10,19 @@ import (
 )
 
 type (
+	//dissector gathers all of the unique connection details between pairs of hosts
 	dissector struct {
 		connLimit         int64              // limit for strobe classification
 		db                *database.DB       // provides access to MongoDB
 		conf              *config.Config     // contains details needed to access MongoDB
-		dissectedCallback func(*uconn.Input) // called on each analyzed result
-		closedCallback    func()             // called when .close() is called and no more calls to analyzedCallback will be made
-		dissectChannel    chan *uconn.Input  // holds unanalyzed data
-		dissectWg         sync.WaitGroup     // wait for analysis to finish
+		dissectedCallback func(*uconn.Input) // gathered unique connection details are sent to this callback
+		closedCallback    func()             // called when .close() is called and no more calls to dissectedCallback will be made
+		dissectChannel    chan *uconn.Input  // holds data to be processed
+		dissectWg         sync.WaitGroup     // wait for dissector to finish
 	}
 )
 
-//newdissector creates a new collector for gathering data
+//newDissector creates a new dissector for gathering data
 func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(*uconn.Input), closedCallback func()) *dissector {
 	return &dissector{
 		connLimit:         connLimit,
@@ -33,19 +34,19 @@ func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissect
 	}
 }
 
-//collect sends a chunk of data to be analyzed
+//collect gathers a pair of hosts to obtain unique connection data for
 func (d *dissector) collect(datum *uconn.Input) {
 	d.dissectChannel <- datum
 }
 
-//close waits for the collector to finish
+//close waits for the dissector to finish
 func (d *dissector) close() {
 	close(d.dissectChannel)
 	d.dissectWg.Wait()
 	d.closedCallback()
 }
 
-//start kicks off a new analysis thread
+//start kicks off a new dissector thread
 func (d *dissector) start() {
 	d.dissectWg.Add(1)
 	go func() {
@@ -82,7 +83,6 @@ func (d *dissector) start() {
 					"bytes":  "$dat.bytes",
 					"count":  "$dat.count",
 					"tbytes": "$dat.tbytes",
-					"icerts": "$dat.icerts",
 				}},
 				{"$unwind": "$count"},
 				{"$group": bson.M{
@@ -91,7 +91,6 @@ func (d *dissector) start() {
 					"bytes":  bson.M{"$first": "$bytes"},
 					"count":  bson.M{"$sum": "$count"},
 					"tbytes": bson.M{"$first": "$tbytes"},
-					"icerts": bson.M{"$first": "$icerts"},
 				}},
 				{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.Beacon.DefaultConnectionThresh}}},
 				{"$unwind": "$tbytes"},
@@ -101,7 +100,6 @@ func (d *dissector) start() {
 					"bytes":  bson.M{"$first": "$bytes"},
 					"count":  bson.M{"$first": "$count"},
 					"tbytes": bson.M{"$sum": "$tbytes"},
-					"icerts": bson.M{"$first": "$icerts"},
 				}},
 				{"$unwind": "$ts"},
 				{"$unwind": "$ts"},
@@ -111,7 +109,6 @@ func (d *dissector) start() {
 					"bytes":  bson.M{"$first": "$bytes"},
 					"count":  bson.M{"$first": "$count"},
 					"tbytes": bson.M{"$first": "$tbytes"},
-					"icerts": bson.M{"$first": "$icerts"},
 				}},
 				{"$unwind": "$bytes"},
 				{"$unwind": "$bytes"},
@@ -121,16 +118,6 @@ func (d *dissector) start() {
 					"bytes":  bson.M{"$push": "$bytes"},
 					"count":  bson.M{"$first": "$count"},
 					"tbytes": bson.M{"$first": "$tbytes"},
-					"icerts": bson.M{"$first": "$icerts"},
-				}},
-				{"$unwind": "$icerts"},
-				{"$group": bson.M{
-					"_id":    "$_id",
-					"ts":     bson.M{"$first": "$ts"},
-					"bytes":  bson.M{"$first": "$bytes"},
-					"count":  bson.M{"$first": "$count"},
-					"tbytes": bson.M{"$first": "$tbytes"},
-					"icerts": bson.M{"$push": "$icerts"},
 				}},
 				{"$project": bson.M{
 					"_id":    "$_id",
@@ -138,7 +125,6 @@ func (d *dissector) start() {
 					"bytes":  1,
 					"count":  1,
 					"tbytes": 1,
-					"icerts": bson.M{"$anyElementTrue": []interface{}{"$icerts"}},
 				}},
 			}
 
@@ -147,7 +133,6 @@ func (d *dissector) start() {
 				Ts     []int64 `bson:"ts"`
 				Bytes  []int64 `bson:"bytes"`
 				TBytes int64   `bson:"tbytes"`
-				ICerts bool    `bson:"icerts"`
 			}
 
 			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnTable).Pipe(uconnFindQuery).AllowDiskUse().One(&res)
@@ -159,28 +144,22 @@ func (d *dissector) start() {
 					Hosts:           datum.Hosts,
 					ConnectionCount: res.Count,
 					TotalBytes:      res.TBytes,
-					InvalidCertFlag: res.ICerts,
 				}
 
 				// check if uconn has become a strobe
 				if analysisInput.ConnectionCount > d.connLimit {
-
-					// set to sorter channel
 					d.dissectedCallback(analysisInput)
 
 				} else { // otherwise, parse timestamps and orig ip bytes
-
 					analysisInput.TsList = res.Ts
 					analysisInput.OrigBytesList = res.Bytes
-
-					// send to sorter channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
+					// the analysis worker requires that we have over UNIQUE 3 timestamps
+					// we drop the input here since it is the earliest place in the pipeline to do so
 					if len(analysisInput.TsList) > 3 {
 						d.dissectedCallback(analysisInput)
 					}
-
 				}
 			}
-
 		}
 		d.dissectWg.Done()
 	}()
