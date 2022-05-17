@@ -189,7 +189,7 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 		fs.buildHostnames(retVals.HostnameMap)
 
 		// build or update Beacons table
-		fs.buildBeacons(retVals.UniqueConnMap, minTimestamp, maxTimestamp)
+		fs.buildBeacons(retVals.UniqueConnMap, retVals.HostMap, minTimestamp, maxTimestamp)
 
 		// build or update the FQDN Beacons Table
 		fs.buildFQDNBeacons(retVals.HostMap, minTimestamp, maxTimestamp)
@@ -545,7 +545,7 @@ func (fs *FSImporter) markBlacklistedPeers(hostMap map[string]*host.Input) {
 	}
 }
 
-func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input, minTimestamp, maxTimestamp int64) {
+func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
 	if fs.config.S.Beacon.Enabled {
 		if len(uconnMap) > 0 {
 			beaconRepo := beacon.NewMongoRepository(fs.database, fs.config, fs.log)
@@ -556,7 +556,7 @@ func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input, minTimestam
 			}
 
 			// send uconns to beacon analysis
-			beaconRepo.Upsert(uconnMap, minTimestamp, maxTimestamp)
+			beaconRepo.Upsert(uconnMap, hostMap, minTimestamp, maxTimestamp)
 		} else {
 			fmt.Println("\t[!] No Beacon data to analyze")
 		}
