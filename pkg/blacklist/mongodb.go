@@ -1,13 +1,14 @@
 package blacklist
 
 import (
-	"fmt"
 	"runtime"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/util"
+	"github.com/vbauerster/mpb"
+	"github.com/vbauerster/mpb/decor"
 
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
@@ -21,7 +22,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository create new repository
+//NewMongoRepository bundles the given resources for updating MongoDB with threat intel data
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -30,7 +31,7 @@ func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger
 	}
 }
 
-//CreateIndexes sets up the indices needed to find hosts which contacted blacklisted hosts
+//CreateIndexes sets up the indices needed to find hosts which contacted unsafe hosts
 func (r *repo) CreateIndexes() error {
 	session := r.database.Session.Copy()
 	defer session.Close()
@@ -52,41 +53,73 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert loops through every domain ....
+//Upsert creates threat intel records in the host collection for the hosts which
+//contacted hosts which have been marked unsafe
 func (r *repo) Upsert() {
 
-	session := r.database.Session.Copy()
-	defer session.Close()
-
-	iter := session.DB(r.database.GetSelectedDB()).C(r.config.T.Structure.HostTable).Find(bson.M{"blacklisted": true}).Iter()
-
-	//Create the workers
+	// Create the workers
 	writerWorker := newWriter(r.config.T.Structure.HostTable, r.database, r.config, r.log)
 
 	analyzerWorker := newAnalyzer(
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
+		r.log,
 		writerWorker.collect,
 		writerWorker.close,
 	)
 
-	//kick off the threaded goroutines
+	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		analyzerWorker.start()
 		writerWorker.start()
 	}
 
-	var res data.UniqueIP
-	fmt.Println("\t[-] Updating blacklisted peers ...")
-	// loop over map entries
-	for iter.Next(&res) {
+	// ensure the worker closing cascade fires when we exit this method
+	defer analyzerWorker.close()
 
-		analyzerWorker.collect(res)
+	// grab all of the unsafe hosts we have ever seen
+	// NOTE: we cannot use the (hostMap map[string]*host.Input)
+	// since we are creating peer statistic summaries for the entire
+	// observation period not just this import session
+	session := r.database.Session.Copy()
+	defer session.Close()
 
+	unsafeHostsQuery := session.DB(r.database.GetSelectedDB()).C(r.config.T.Structure.HostTable).Find(bson.M{"blacklisted": true})
+
+	numUnsafeHosts, err := unsafeHostsQuery.Count()
+	if err != nil {
+		r.log.WithFields(log.Fields{
+			"Module": "bl_updater",
+		}).Error(err)
+	}
+	if numUnsafeHosts == 0 {
+		// fmt.Println("\t[!] No blacklisted hosts to update")
+		return
 	}
 
-	// start the closing cascade (this will also close the other channels)
-	analyzerWorker.close()
+	// add a progress bar for troubleshooting
+	p := mpb.New(mpb.WithWidth(20))
+	bar := p.AddBar(int64(numUnsafeHosts),
+		mpb.PrependDecorators(
+			decor.Name("\t[-] Updating blacklisted peers:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+		),
+		mpb.AppendDecorators(decor.Percentage()),
+	)
+
+	var unsafeHost data.UniqueIP
+	unsafeHostIter := unsafeHostsQuery.Iter()
+	for unsafeHostIter.Next(&unsafeHost) {
+		analyzerWorker.collect(unsafeHost)
+		bar.IncrBy(1)
+	}
+	if err := unsafeHostIter.Close(); err != nil {
+		r.log.WithFields(log.Fields{
+			"Module": "bl_updater",
+		}).Error(err)
+	}
+
+	p.Wait()
 
 }
