@@ -9,23 +9,25 @@ import (
 )
 
 type (
-	//writer blah blah
-	writer struct { //structure for writing blacklist results to mongo
-		db           *database.DB   // provides access to MongoDB
-		conf         *config.Config // contains details needed to access MongoDB
-		log          *log.Logger    // main logger for RITA
-		writeChannel chan update    // holds analyzed data
-		writeWg      sync.WaitGroup // wait for writing to finish
+	//writer provides a worker for writing bulk upserts to MongoDB
+	writer struct { //structure for writing results to mongo
+		targetCollection string
+		db               *database.DB   // provides access to MongoDB
+		conf             *config.Config // contains details needed to access MongoDB
+		log              *log.Logger    // main logger for RITA
+		writeChannel     chan update    // holds analyzed data
+		writeWg          sync.WaitGroup // wait for writing to finish
 	}
 )
 
-//newWriter creates a new writer object to write output data to blacklisted collections
-func newWriter(db *database.DB, conf *config.Config, log *log.Logger) *writer {
+//newWriter creates a new writer object to write output data to collections
+func newWriter(targetCollection string, db *database.DB, conf *config.Config, log *log.Logger) *writer {
 	return &writer{
-		db:           db,
-		conf:         conf,
-		log:          log,
-		writeChannel: make(chan update),
+		targetCollection: targetCollection,
+		db:               db,
+		conf:             conf,
+		log:              log,
+		writeChannel:     make(chan update),
 	}
 }
 
@@ -47,19 +49,34 @@ func (w *writer) start() {
 		ssn := w.db.Session.Copy()
 		defer ssn.Close()
 
+		bulk := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Bulk()
+		bulk.Unordered()
+		count := 0
+
 		for data := range w.writeChannel {
+			bulk.Upsert(data.selector, data.query)
+			count++
 
-			info, err := ssn.DB(w.db.GetSelectedDB()).C(data.collection).Upsert(data.selector, data.query)
-			if err != nil ||
-				((info.Updated == 0) && (info.UpsertedId == nil)) {
-				w.log.WithFields(log.Fields{
-					"Module": "cert",
-					"Info":   info,
-					"Data":   data,
-				}).Error(err)
+			if count >= 1000 {
+				info, err := bulk.Run()
+				if err != nil {
+					w.log.WithFields(log.Fields{
+						"Module": "cert",
+						"Info":   info,
+					}).Error(err)
+				}
+				count = 0
 			}
-
 		}
+
+		info, err := bulk.Run()
+		if err != nil {
+			w.log.WithFields(log.Fields{
+				"Module": "cert",
+				"Info":   info,
+			}).Error(err)
+		}
+		// count = 0
 		w.writeWg.Done()
 	}()
 }
