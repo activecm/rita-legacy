@@ -38,12 +38,12 @@ func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Log
 	}
 }
 
-//collect sends a group of domains to be summarized
+//collect collects an internal host to be summarized
 func (s *summarizer) collect(datum data.UniqueIP) {
 	s.summaryChannel <- datum
 }
 
-//close waits for the collector to finish
+//close waits for the summarizer to finish
 func (s *summarizer) close() {
 	close(s.summaryChannel)
 	s.summaryWg.Wait()
@@ -64,10 +64,12 @@ func (s *summarizer) start() {
 
 			maxDurQuery, err := maxDurationQuery(datum, uconnCollection, s.chunk)
 			if err != nil {
-				s.log.WithFields(log.Fields{
-					"Module": "uconns",
-					"Data":   datum,
-				}).Error(err)
+				if err != mgo.ErrNotFound {
+					s.log.WithFields(log.Fields{
+						"Module": "uconns",
+						"Data":   datum,
+					}).Error(err)
+				}
 				continue
 			}
 
@@ -106,9 +108,6 @@ func maxDurationQuery(datum data.UniqueIP, uconnColl *mgo.Collection, chunk int)
 	mdipQuery := maxDurationPipeline(datum, chunk)
 
 	err := uconnColl.Pipe(mdipQuery).One(&maxDurIP)
-	if err == mgo.ErrNotFound {
-		return bson.M{}, nil
-	}
 	if err != nil {
 		return bson.M{}, err
 	}
@@ -145,7 +144,7 @@ func maxDurationPipeline(host data.UniqueIP, chunk int) []bson.M {
 			// match uconn records which have been updated this chunk
 			"dat.cid": chunk,
 		}},
-		// drop unecessary data
+		// drop unnecessary data
 		{"$project": bson.M{
 			"peer": bson.M{
 				"ip": bson.M{
@@ -225,9 +224,11 @@ func invalidCertUpdates(datum data.UniqueIP, uconnColl *mgo.Collection, hostColl
 				selector: datum.BSONKey(),
 				query: bson.M{"$push": bson.M{
 					"dat": bson.M{
-						"icdst": icertPeer,
-						"icert": 1,
-						"cid":   chunk,
+						"$each": []bson.M{{
+							"icdst": icertPeer,
+							"icert": 1,
+							"cid":   chunk,
+						}},
 					},
 				}},
 			})

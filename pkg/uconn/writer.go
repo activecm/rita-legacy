@@ -55,7 +55,7 @@ func (w *writer) start() {
 
 		for data := range w.writeChannel {
 			bulk.Upsert(data.selector, data.query)
-			count += 1
+			count++
 
 			if count >= 1000 {
 				info, err := bulk.Run()
@@ -76,7 +76,7 @@ func (w *writer) start() {
 				"Info":   info,
 			}).Error(err)
 		}
-		count = 0
+		// count = 0
 		w.writeWg.Done()
 	}()
 }

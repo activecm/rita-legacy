@@ -54,7 +54,7 @@ func (r *repo) CreateIndexes() error {
 		{Key: []string{"src", "dst", "src_network_uuid", "dst_network_uuid"}, Unique: true},
 		{Key: []string{"src", "src_network_uuid"}},
 		{Key: []string{"dst", "dst_network_uuid"}},
-		{Key: []string{"$dat.count"}},
+		{Key: []string{"dat.count"}},
 	}
 
 	// create collection
