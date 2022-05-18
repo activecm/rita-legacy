@@ -2,6 +2,7 @@ package beaconproxy
 
 import (
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
@@ -12,7 +13,7 @@ type (
 	// Repository for host collection
 	Repository interface {
 		CreateIndexes() error
-		Upsert(uconnProxyMap map[string]*uconnproxy.Input, minTimestamp, maxTimestamp int64)
+		Upsert(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64)
 	}
 
 	mgoBulkAction func(*mgo.Bulk) int

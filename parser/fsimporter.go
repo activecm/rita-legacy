@@ -195,7 +195,7 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 		fs.buildFQDNBeacons(retVals.HostMap, minTimestamp, maxTimestamp)
 
 		// build or update the Proxy Beacons Table
-		fs.buildProxyBeacons(retVals.ProxyUniqueConnMap, minTimestamp, maxTimestamp)
+		fs.buildProxyBeacons(retVals.ProxyUniqueConnMap, retVals.HostMap, minTimestamp, maxTimestamp)
 
 		// build or update UserAgent table
 		fs.buildUserAgent(retVals.UseragentMap)
@@ -585,7 +585,7 @@ func (fs *FSImporter) buildFQDNBeacons(hostMap map[string]*host.Input, minTimest
 
 }
 
-func (fs *FSImporter) buildProxyBeacons(uconnProxyMap map[string]*uconnproxy.Input, minTimestamp, maxTimestamp int64) {
+func (fs *FSImporter) buildProxyBeacons(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
 	if fs.config.S.BeaconProxy.Enabled {
 		if len(uconnProxyMap) > 0 {
 			beaconProxyRepo := beaconproxy.NewMongoRepository(fs.database, fs.config, fs.log)
@@ -596,7 +596,7 @@ func (fs *FSImporter) buildProxyBeacons(uconnProxyMap map[string]*uconnproxy.Inp
 			}
 
 			// send proxy uconns to beacon analysis
-			beaconProxyRepo.Upsert(uconnProxyMap, minTimestamp, maxTimestamp)
+			beaconProxyRepo.Upsert(uconnProxyMap, hostMap, minTimestamp, maxTimestamp)
 		} else {
 			fmt.Println("\t[!] No Proxy Beacon data to analyze")
 		}
