@@ -6,10 +6,10 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/util"
 
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
 
@@ -66,8 +66,9 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert records the given unique connection data in MongoDB
-func (r *repo) Upsert(uconnMap map[string]*Input) {
+//Upsert records the given unique connection data in MongoDB. Summaries are
+//created for the given local hosts in MongoDB.
+func (r *repo) Upsert(uconnMap map[string]*Input, hostMap map[string]*host.Input) {
 	// Phase 1: Analysis
 
 	// Create the workers for analysis
@@ -128,23 +129,16 @@ func (r *repo) Upsert(uconnMap map[string]*Input) {
 	}
 
 	// grab the local hosts we have seen during the current analysis period
-	ssn := r.database.Session.Copy()
-	defer ssn.Close()
-
-	localHostQuery := ssn.DB(r.database.GetSelectedDB()).C(r.config.T.Structure.HostTable).Find(
-		bson.M{"local": true, "cid": r.config.S.Rolling.CurrentChunk},
-	)
-
-	numLocalHost, err := localHostQuery.Count()
-	if err != nil {
-		r.log.WithFields(log.Fields{
-			"Module": "uconns",
-		}).Error(err)
+	var localHosts []data.UniqueIP
+	for _, entry := range hostMap {
+		if entry.IsLocal {
+			localHosts = append(localHosts, entry.Host)
+		}
 	}
 
 	// add a progress bar for troubleshooting
 	p = mpb.New(mpb.WithWidth(20))
-	bar = p.AddBar(int64(numLocalHost),
+	bar = p.AddBar(int64(len(localHosts)),
 		mpb.PrependDecorators(
 			decor.Name("\t[-] Unique Connection Analysis (2/2):", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
@@ -152,19 +146,12 @@ func (r *repo) Upsert(uconnMap map[string]*Input) {
 		mpb.AppendDecorators(decor.Percentage()),
 	)
 
-	var localHost data.UniqueIP
-	localHostIter := localHostQuery.Iter()
-
 	// loop over the local hosts that need to be summarized
-	for localHostIter.Next(&localHost) {
+	for _, localHost := range localHosts {
 		summarizerWorker.collect(localHost)
 		bar.IncrBy(1)
 	}
-	if err := localHostIter.Close(); err != nil {
-		r.log.WithFields(log.Fields{
-			"Module": "uconns",
-		}).Error(err)
-	}
+
 	p.Wait()
 
 	// start the closing cascade (this will also close the other channels)

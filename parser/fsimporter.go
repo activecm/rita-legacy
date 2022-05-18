@@ -174,7 +174,7 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 		fs.buildHosts(retVals.HostMap)
 
 		// build Uconns table. Must go before beacons.
-		fs.buildUconns(retVals.UniqueConnMap)
+		fs.buildUconns(retVals.UniqueConnMap, retVals.HostMap)
 
 		// build uconnsProxy table. Must go before proxy beacons
 		fs.buildUconnsProxy(retVals.ProxyUniqueConnMap)
@@ -491,7 +491,7 @@ func (fs *FSImporter) buildUconnsProxy(uconnProxyMap map[string]*uconnproxy.Inpu
 	}
 }
 
-func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Input) {
+func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Input, hostMap map[string]*host.Input) {
 	// non-optional module
 	if len(uconnMap) > 0 {
 		// Set up the database
@@ -503,7 +503,7 @@ func (fs *FSImporter) buildUconns(uconnMap map[string]*uconn.Input) {
 		}
 
 		// send uconns to uconn analysis
-		uconnRepo.Upsert(uconnMap)
+		uconnRepo.Upsert(uconnMap, hostMap)
 	} else {
 		fmt.Println("\t[!] No Uconn data to analyze")
 		fmt.Printf("\t\t[!!] No local network traffic found, please check ")

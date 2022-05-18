@@ -2,13 +2,14 @@ package uconn
 
 import (
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/host"
 	"github.com/globalsign/mgo/bson"
 )
 
 // Repository for uconn collection
 type Repository interface {
 	CreateIndexes() error
-	Upsert(uconnMap map[string]*Input)
+	Upsert(uconnMap map[string]*Input, hostMap map[string]*host.Input)
 }
 
 //update ....
