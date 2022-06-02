@@ -183,7 +183,6 @@ func (a *analyzer) start() {
 						"tslist":             entry.TsList,
 						"score":              score,
 						"cid":                a.chunk,
-						"strobeFQDN":         false,
 					},
 				}
 
