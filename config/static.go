@@ -75,7 +75,6 @@ type (
 	//BlacklistedStaticCfg is used to control the blacklisted analysis module
 	BlacklistedStaticCfg struct {
 		Enabled            bool     `yaml:"Enabled" default:"true"`
-		UseDNSBH           bool     `yaml:"MalwareDomains.com" default:"true"`
 		UseFeodo           bool     `yaml:"feodotracker.abuse.ch" default:"true"`
 		BlacklistDatabase  string   `yaml:"BlacklistDatabase" default:"rita-bl"`
 		IPBlacklists       []string `yaml:"CustomIPBlacklists" default:"[]"`

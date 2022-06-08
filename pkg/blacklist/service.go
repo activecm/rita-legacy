@@ -96,10 +96,6 @@ func buildBlacklistReferenceCollection(db *database.DB, conf *config.Config, log
 func getSourceLists(conf *config.Config) []list.List {
 	//build up the lists
 	var blacklists []list.List
-	//use prebuilt lists
-	if conf.S.Blacklisted.UseDNSBH {
-		blacklists = append(blacklists, lists.NewDNSBHList())
-	}
 	if conf.S.Blacklisted.UseFeodo {
 		blacklists = append(blacklists, lists.NewFeodoList())
 	}
