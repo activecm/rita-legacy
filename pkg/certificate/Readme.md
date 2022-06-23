@@ -20,6 +20,7 @@ Inputs:
 - `ParseResults.CertificateMap` created by `FSImporter`
     - Field: `Host`
         - Type: data.UniqueIP
+
 Outputs:
 - MongoDB `cert` collection:
     - Field: `ip`

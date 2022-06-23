@@ -169,6 +169,8 @@ Inputs:
 - `ParseResults.HostMap` created by `FSImporter`
     - Field: `IsLocal`
         - Type: bool
+    - Field: `Host`
+        - Type: data.UniqueIP
 - MongoDB `beaconProxy` collection:
     - Field: `src`
         - Type: string
