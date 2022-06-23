@@ -57,7 +57,9 @@ func (w *writer) start() {
 			bulk.Upsert(data.selector, data.query)
 			count++
 
-			if count >= 1000 {
+			// limit the buffer to 500 to prevent hitting 16MB limit
+			// 1000 breaks this limit, hitting 17MB at times
+			if count >= 500 {
 				info, err := bulk.Run()
 				if err != nil {
 					w.log.WithFields(log.Fields{

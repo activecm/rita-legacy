@@ -63,7 +63,9 @@ func (w *mgoBulkWriter) start() {
 
 				bulkBufferLengths[tgtColl] += bulkCallback(bulkBuffer)
 
-				if bulkBufferLengths[tgtColl] >= 1000 {
+				// limit the buffer to 500 to prevent hitting 16MB limit
+				// 1000 breaks this limit, hitting 17MB at times
+				if bulkBufferLengths[tgtColl] >= 500 {
 					info, err := bulkBuffer.Run()
 					if err != nil {
 						w.log.WithFields(log.Fields{
