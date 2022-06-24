@@ -363,18 +363,18 @@ Inputs:
         - Type: float64
 
 Outputs:
-    - Array Field: `dat`
-        - Object Field: `mbfqdn`
-            - Field: `ip`
-                - Type: string
-            - Field: `network_uuid`
-                - Type: UUID
-            - Field: `network_name`
-                - Type: string
-        - Field: `max_beacon_fqdn_score`
-            - Type: int
-        - Field: `cid`
-            - Type: int
+- Array Field: `dat`
+    - Object Field: `mbfqdn`
+        - Field: `ip`
+            - Type: string
+        - Field: `network_uuid`
+            - Type: UUID
+        - Field: `network_name`
+            - Type: string
+    - Field: `max_beacon_fqdn_score`
+        - Type: int
+    - Field: `cid`
+        - Type: int
 
 After building the `beaconFQDN` collection, RITA finds the FQDN with the highest beacon score for each of the internal hosts.
 
