@@ -59,7 +59,7 @@ func (w *writer) start() {
 
 			// limit the buffer to 500 to prevent hitting 16MB limit
 			// 1000 breaks this limit, hitting 17MB at times
-			if count >= 500 {
+			if count >= 1 {
 				info, err := bulk.Run()
 				if err != nil {
 					w.log.WithFields(log.Fields{
