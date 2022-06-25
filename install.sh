@@ -521,6 +521,11 @@ __gather_OS() {
     _OS_CODENAME="$(lsb_release -cs)"
     _MONGO_OS_CODENAME="$(lsb_release -cs)"
 
+    # Use the Ubuntu 18 package for MongoDB 4.2 on Xenial
+    if [ "$_OS" = "Ubuntu" -a "$_MONGO_OS_CODENAME" = "focal" ]; then 
+        _MONGO_OS_CODENAME="bionic"
+    fi
+
     if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" -a "$_OS" != "Debian" ]; then
         printf "$_ITEM This installer supports Ubuntu, CentOS, RHEL, and Debian. \n"
         printf "$_IMPORTANT Your operating system is unsupported."
