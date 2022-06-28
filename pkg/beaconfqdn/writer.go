@@ -5,6 +5,7 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -51,15 +52,29 @@ func (w *writer) start() {
 
 		bulk := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Bulk()
 		bulk.Unordered()
-		count := 0
+
+		var count int
+		var sizeBuffer []byte
+		var sizeBytes int64
 
 		for data := range w.writeChannel {
-			bulk.Upsert(data.selector, data.query)
-			count++
 
-			// limit the buffer to 500 to prevent hitting 16MB limit
-			// 1000 breaks this limit, hitting 17MB at times
-			if count >= 1 {
+			// we keep track of record sizes since the documents coming out of the
+			// FQDN analysis can get rather larger (see the ds.bytes field in particular)
+			var actionSize int64
+
+			sizeBuffer, _ = bson.MarshalBuffer(data.selector, sizeBuffer)
+			actionSize = actionSize + int64(len(sizeBuffer))
+			sizeBuffer = sizeBuffer[:0]
+
+			sizeBuffer, _ = bson.MarshalBuffer(data.query, sizeBuffer)
+			actionSize = actionSize + int64(len(sizeBuffer))
+			sizeBuffer = sizeBuffer[:0]
+
+			// Break up bulk writes such that each batch is at most 1000 documents
+			// and is smaller than 16MB. We use 15MB here instead of 16 since
+			// there is document size overhead beyond just the selectors and queries.
+			if count+1 == 501 || sizeBytes+actionSize >= 15*1000*1000 {
 				info, err := bulk.Run()
 				if err != nil {
 					w.log.WithFields(log.Fields{
@@ -68,7 +83,12 @@ func (w *writer) start() {
 					}).Error(err)
 				}
 				count = 0
+				sizeBytes = 0
 			}
+
+			bulk.Upsert(data.selector, data.query)
+			count++
+			sizeBytes += actionSize
 		}
 
 		info, err := bulk.Run()
@@ -79,6 +99,7 @@ func (w *writer) start() {
 			}).Error(err)
 		}
 		// count = 0
+		// sizeBytes = 0
 		w.writeWg.Done()
 	}()
 }
