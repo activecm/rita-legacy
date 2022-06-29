@@ -99,9 +99,11 @@ func tlsQuery(datum *TLSInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit in
 
 	var bytes []int64
 	var totalTwoWayBytes int64
+	var totalDuration float64
 	for _, zeekRecord := range zeekRecords {
 		bytes = append(bytes, zeekRecord.Conn.OrigBytes)
 		totalTwoWayBytes = totalTwoWayBytes + zeekRecord.Conn.OrigBytes + zeekRecord.Conn.RespBytes
+		totalDuration += zeekRecord.Conn.Duration
 	}
 
 	isStrobe := datum.ConnectionCount >= strobeLimit
@@ -123,6 +125,7 @@ func tlsQuery(datum *TLSInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit in
 						"bytes":     bytes,
 						"count":     datum.ConnectionCount,
 						"tbytes":    totalTwoWayBytes,
+						"tdur":      totalDuration,
 						"dst_ips":   datum.RespondingIPs.Items(),
 						"dst_ports": datum.RespondingPorts.Items(),
 						"cid":       chunk,
@@ -151,9 +154,11 @@ func httpQuery(datum *HTTPInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit 
 
 	var bytes []int64
 	var totalTwoWayBytes int64
+	var totalDuration float64
 	for _, zeekRecord := range zeekRecords {
 		bytes = append(bytes, zeekRecord.Conn.OrigBytes)
 		totalTwoWayBytes = totalTwoWayBytes + zeekRecord.Conn.OrigBytes + zeekRecord.Conn.RespBytes
+		totalDuration += zeekRecord.Conn.Duration
 	}
 
 	isStrobe := datum.ConnectionCount >= strobeLimit
@@ -175,6 +180,7 @@ func httpQuery(datum *HTTPInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit 
 						"bytes":     bytes,
 						"count":     datum.ConnectionCount,
 						"tbytes":    totalTwoWayBytes,
+						"tdur":      totalDuration,
 						"dst_ips":   datum.RespondingIPs.Items(),
 						"dst_ports": datum.RespondingPorts.Items(),
 						"cid":       chunk,
