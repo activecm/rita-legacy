@@ -59,6 +59,8 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 	)
 
 	updateCertificatesByConn(dstKey, tuple, retVals)
+
+	updateZeekUIDRecordsByConn(parseConn.UID, parseConn.OrigIPBytes, retVals)
 }
 
 func updateUniqueConnectionsByConn(srcIP, dstIP net.IP, srcDstPair data.UniqueIPPair, srcDstKey string,
@@ -228,4 +230,21 @@ func updateCertificatesByConn(dstKey string, tuple string, retVals ParseResults)
 		// add tuple to invlaid cert list
 		retVals.CertificateMap[dstKey].Tuples.Insert(tuple)
 	}
+}
+
+func updateZeekUIDRecordsByConn(uid string, origIPBytes int64, retVals ParseResults) {
+	// Don't do any work if the UID is missing
+	if len(uid) == 0 {
+		return
+	}
+
+	retVals.ZeekUIDLock.Lock()
+	defer retVals.ZeekUIDLock.Unlock()
+
+	// ///// CREATE UID RECORD IN MAP IF IT DOES NOT EXIST /////
+	if _, ok := retVals.ZeekUIDMap[uid]; !ok {
+		retVals.ZeekUIDMap[uid] = &data.ZeekUIDRecord{}
+	}
+
+	retVals.ZeekUIDMap[uid].Conn.OrigBytes = origIPBytes
 }
