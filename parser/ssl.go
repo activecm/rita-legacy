@@ -33,7 +33,7 @@ func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults
 	srcKey := srcUniqIP.MapKey()
 	dstKey := dstUniqIP.MapKey()
 
-	srcFQDNKey := srcDstPair.MapKey()
+	srcFQDNKey := srcFQDNPair.MapKey()
 
 	updateUseragentsBySSL(srcUniqIP, parseSSL, retVals)
 
@@ -124,13 +124,19 @@ func updateTLSConnectionsBySSL(srcIP net.IP, dstUniqIP data.UniqueIP, srcFQDNPai
 	retVals.TLSConnMap[srcFQDNKey].RespondingCertInvalid = certificateIsInvalid
 
 	// ///// UNION RESPONDING CERTIFICATE SUBJECT INTO TLS SUBJECTS /////
-	retVals.TLSConnMap[srcFQDNKey].Subjects.Insert(parseSSL.Subject)
+	if len(parseSSL.Subject) > 0 {
+		retVals.TLSConnMap[srcFQDNKey].Subjects.Insert(parseSSL.Subject)
+	}
 
 	// ///// UNION CLIENT JA3 HASH INTO TLS JA3 SET /////
-	retVals.TLSConnMap[srcFQDNKey].JA3s.Insert(parseSSL.JA3)
+	if len(parseSSL.JA3) > 0 {
+		retVals.TLSConnMap[srcFQDNKey].JA3s.Insert(parseSSL.JA3)
+	}
 
 	// ///// UNION SERVER JA3S HASH INTO TLS JA3S SET /////
-	retVals.TLSConnMap[srcFQDNKey].JA3Ss.Insert(parseSSL.JA3S)
+	if len(parseSSL.JA3S) > 0 {
+		retVals.TLSConnMap[srcFQDNKey].JA3Ss.Insert(parseSSL.JA3S)
+	}
 
 	// ///// APPEND ZEEK RECORD UID INTO TLS UID SET /////
 	// This allows us to link conn record information to this

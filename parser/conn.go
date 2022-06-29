@@ -60,7 +60,7 @@ func parseConnEntry(parseConn *parsetypes.Conn, filter filter, retVals ParseResu
 
 	updateCertificatesByConn(dstKey, tuple, retVals)
 
-	updateZeekUIDRecordsByConn(parseConn.UID, parseConn.OrigIPBytes, retVals)
+	updateZeekUIDRecordsByConn(parseConn.UID, parseConn.OrigIPBytes, parseConn.RespBytes, retVals)
 }
 
 func updateUniqueConnectionsByConn(srcIP, dstIP net.IP, srcDstPair data.UniqueIPPair, srcDstKey string,
@@ -232,7 +232,7 @@ func updateCertificatesByConn(dstKey string, tuple string, retVals ParseResults)
 	}
 }
 
-func updateZeekUIDRecordsByConn(uid string, origIPBytes int64, retVals ParseResults) {
+func updateZeekUIDRecordsByConn(uid string, origIPBytes int64, respIPBytes int64, retVals ParseResults) {
 	// Don't do any work if the UID is missing
 	if len(uid) == 0 {
 		return
@@ -247,4 +247,5 @@ func updateZeekUIDRecordsByConn(uid string, origIPBytes int64, retVals ParseResu
 	}
 
 	retVals.ZeekUIDMap[uid].Conn.OrigBytes = origIPBytes
+	retVals.ZeekUIDMap[uid].Conn.RespBytes = respIPBytes
 }

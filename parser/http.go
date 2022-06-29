@@ -172,6 +172,8 @@ func updateHTTPConnectionsByHTTP(srcIP net.IP, dstUniqIP data.UniqueIP, srcFQDNP
 			Timestamps:      make(data.Int64Set),
 			RespondingIPs:   make(data.UniqueIPSet),
 			RespondingPorts: make(data.IntSet),
+			Methods:         make(data.StringSet),
+			UserAgents:      make(data.StringSet),
 		}
 
 		retVals.HTTPConnMap[srcFQDNKey] = inputVal
@@ -188,6 +190,12 @@ func updateHTTPConnectionsByHTTP(srcIP net.IP, dstUniqIP data.UniqueIP, srcFQDNP
 
 	// ///// UNION DESTINATION PORT INTO HTTP RESPONDING PORTS /////
 	retVals.HTTPConnMap[srcFQDNKey].RespondingPorts.Insert(parseHTTP.DestinationPort)
+
+	// ///// UNION METHOD INTO HTTP METHODS /////
+	retVals.HTTPConnMap[srcFQDNKey].Methods.Insert(parseHTTP.Method)
+
+	// ///// UNION USERAGENT INTO HTTP USERAGENTS /////
+	retVals.HTTPConnMap[srcFQDNKey].UserAgents.Insert(parseHTTP.UserAgent)
 
 	// ///// APPEND ZEEK RECORD UID INTO HTTP UID SET /////
 	// This allows us to link conn record information to this

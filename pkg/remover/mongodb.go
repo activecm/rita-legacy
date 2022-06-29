@@ -105,6 +105,7 @@ func (r *remover) removeOutdatedCIDs(cid int) error {
 		r.config.T.Structure.HostTable,
 		r.config.T.Structure.UniqueConnTable,
 		r.config.T.Structure.UniqueConnProxyTable,
+		r.config.T.Structure.SNIConnTable,
 		r.config.T.DNS.ExplodedDNSTable,
 		r.config.T.DNS.HostnamesTable,
 		r.config.T.Cert.CertificateTable,

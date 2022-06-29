@@ -1,6 +1,30 @@
 package sniconn
 
-import "github.com/activecm/rita/pkg/data"
+import (
+	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/host"
+	"github.com/globalsign/mgo/bson"
+)
+
+// Repository for uconn collection
+type Repository interface {
+	CreateIndexes() error
+	Upsert(tlsMap map[string]*TLSInput, httpMap map[string]*HTTPInput, zeekUIDMap map[string]*data.ZeekUIDRecord, hostMap map[string]*host.Input)
+}
+
+// update represents a MongoDB update
+type update struct {
+	selector bson.M
+	query    bson.M
+}
+
+type linkedInput struct {
+	TLS            *TLSInput
+	TLSZeekRecords []*data.ZeekUIDRecord
+
+	HTTP            *HTTPInput
+	HTTPZeekRecords []*data.ZeekUIDRecord
+}
 
 type TLSInput struct {
 	Hosts data.UniqueSrcFQDNPair
@@ -29,6 +53,9 @@ type HTTPInput struct {
 	Timestamps      data.Int64Set
 	RespondingIPs   data.UniqueIPSet
 	RespondingPorts data.IntSet
+
+	Methods    data.StringSet
+	UserAgents data.StringSet
 
 	ZeekUIDs []string
 }
@@ -62,8 +89,13 @@ ssl log links a timestamp, uuid, conn tuple, sni
 		avg_bytes:
 	}
 
+	http: {
+		strobe:
+		cid:
+	}
+
 	dat: []{
-		http_host: {
+		http: {
 			ts: []
 			bytes: []
 			count:
@@ -76,7 +108,7 @@ ssl log links a timestamp, uuid, conn tuple, sni
 			// user_agents: []
 			// methods: []
 		}
-		tls_sni: {
+		tls: {
 			ts: []
 			bytes: []
 			count:

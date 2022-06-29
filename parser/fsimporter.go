@@ -17,10 +17,12 @@ import (
 	"github.com/activecm/rita/pkg/beaconproxy"
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/explodeddns"
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/pkg/remover"
+	"github.com/activecm/rita/pkg/sniconn"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/pkg/useragent"
@@ -178,6 +180,8 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 
 		// build uconnsProxy table. Must go before proxy beacons
 		fs.buildUconnsProxy(retVals.ProxyUniqueConnMap)
+
+		fs.buildSNIConns(retVals.TLSConnMap, retVals.HTTPConnMap, retVals.ZeekUIDMap, retVals.HostMap)
 
 		// update ts range for dataset (needs to be run before beacons)
 		minTimestamp, maxTimestamp := fs.updateTimestampRange()
@@ -471,6 +475,22 @@ func (fs *FSImporter) buildHostnames(hostnameMap map[string]*hostname.Input) {
 		fmt.Println("\t[!] No Hostname data to analyze")
 	}
 
+}
+
+func (fs *FSImporter) buildSNIConns(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*sniconn.HTTPInput,
+	zeekUIDMap map[string]*data.ZeekUIDRecord, hostMap map[string]*host.Input) {
+	if len(tlsMap) != 0 || len(httpMap) != 0 {
+		sniconnRepo := sniconn.NewMongoRepository(fs.database, fs.config, fs.log)
+
+		err := sniconnRepo.CreateIndexes()
+		if err != nil {
+			fs.log.Error(err)
+		}
+
+		sniconnRepo.Upsert(tlsMap, httpMap, zeekUIDMap, hostMap)
+	} else {
+		fmt.Println("\t[!] No TLS SNI or HTTP host data to analyze")
+	}
 }
 
 func (fs *FSImporter) buildUconnsProxy(uconnProxyMap map[string]*uconnproxy.Input) {
