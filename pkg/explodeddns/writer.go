@@ -9,8 +9,8 @@ import (
 )
 
 type (
-	//writer blah blah
-	writer struct { //structure for writing blacklist results to mongo
+	//writer provides a worker for writing bulk upserts to MongoDB
+	writer struct { //structure for writing results to mongo
 		targetCollection string
 		db               *database.DB   // provides access to MongoDB
 		conf             *config.Config // contains details needed to access MongoDB
@@ -20,7 +20,7 @@ type (
 	}
 )
 
-//newWriter creates a new writer object to write output data to blacklisted collections
+//newWriter creates a new writer object to write output data to collections
 func newWriter(targetCollection string, db *database.DB, conf *config.Config, log *log.Logger) *writer {
 	return &writer{
 		targetCollection: targetCollection,
@@ -49,19 +49,36 @@ func (w *writer) start() {
 		ssn := w.db.Session.Copy()
 		defer ssn.Close()
 
+		bulk := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Bulk()
+		bulk.Unordered()
+		count := 0
+
 		for data := range w.writeChannel {
+			bulk.Upsert(data.selector, data.query)
+			count++
 
-			info, err := ssn.DB(w.db.GetSelectedDB()).C(w.targetCollection).Upsert(data.selector, data.query)
-
-			if err != nil ||
-				((info.Updated == 0) && (info.UpsertedId == nil)) {
-				w.log.WithFields(log.Fields{
-					"Module": "dns",
-					"Info":   info,
-					"Data":   data,
-				}).Error(err)
+			// limit the buffer to 500 to prevent hitting 16MB limit
+			// 1000 breaks this limit, hitting 17MB at times
+			if count >= 500 {
+				info, err := bulk.Run()
+				if err != nil {
+					w.log.WithFields(log.Fields{
+						"Module": "dns",
+						"Info":   info,
+					}).Error(err)
+				}
+				count = 0
 			}
 		}
+
+		info, err := bulk.Run()
+		if err != nil {
+			w.log.WithFields(log.Fields{
+				"Module": "dns",
+				"Info":   info,
+			}).Error(err)
+		}
+		// count = 0
 		w.writeWg.Done()
 	}()
 }

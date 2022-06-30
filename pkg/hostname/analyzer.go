@@ -1,22 +1,24 @@
 package hostname
 
 import (
-	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type (
 	//analyzer : structure for exploded dns analysis
 	analyzer struct {
 		chunk            int            //current chunk (0 if not on rolling analysis)
-		chunkStr         string         //current chunk (0 if not on rolling analysis)
 		db               *database.DB   // provides access to MongoDB
 		conf             *config.Config // contains details needed to access MongoDB
+		log              *log.Logger    // logger for writing out errors and warnings
 		analyzedCallback func(update)   // called on each analyzed result
 		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan *Input    // holds unanalyzed data
@@ -25,12 +27,12 @@ type (
 )
 
 //newAnalyzer creates a new collector for parsing hostnames
-func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
-		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
 		conf:             conf,
+		log:              log,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
 		analysisChannel:  make(chan *Input),
@@ -56,64 +58,65 @@ func (a *analyzer) start() {
 		ssn := a.db.Session.Copy()
 		defer ssn.Close()
 
-		for data := range a.analysisChannel {
+		for datum := range a.analysisChannel {
 
 			// in some of these strings, the empty space will get counted as a domain,
 			// this was an issue in the old version of exploded dns and caused inaccuracies
-			if (data.Host == "") || (strings.HasSuffix(data.Host, "in-addr.arpa")) {
+			if (datum.Host == "") || (strings.HasSuffix(datum.Host, "in-addr.arpa")) {
 				continue
 			}
 
-			// set blacklisted Flag
-			blacklistFlag := false
+			mainUpdate := mainQuery(datum, a.chunk)
 
-			// check ip against blacklist
-			blCount, _ := ssn.DB(a.conf.S.Blacklisted.BlacklistDatabase).C("hostname").Find(bson.M{"index": data.Host}).Count()
-			// check if hostname is blacklisted
-			if blCount > 0 {
-				blacklistFlag = true
+			blUpdate, err := blQuery(datum, ssn, a.conf.S.Blacklisted.BlacklistDatabase) // TODO: Move to BL package
+			if err != nil {
+				a.log.WithFields(log.Fields{
+					"Module": "hostname",
+					"Data":   datum.Host,
+				}).Error(err)
 			}
 
-			// set up writer output
-			var output update
+			totalUpdate := database.MergeBSONMaps(mainUpdate, blUpdate)
 
-			// create query
-			if blacklistFlag {
-				// flag as blacklisted if blacklisted
-				output.query = bson.M{
-					"$push": bson.M{
-						"dat": bson.M{
-							"ips":     data.ResolvedIPs.Items(),
-							"src_ips": data.ClientIPs.Items(),
-							"cid":     a.chunk,
-						},
-					},
-					"$set": bson.M{
-						"blacklisted": true,
-						"cid":         a.chunk,
-					},
-				}
-			} else {
-				output.query = bson.M{
-					"$push": bson.M{
-						"dat": bson.M{
-							"ips":     data.ResolvedIPs.Items(),
-							"src_ips": data.ClientIPs.Items(),
-							"cid":     a.chunk,
-						},
-					},
-					"$set": bson.M{"cid": a.chunk},
-				}
-			}
-
-			// create selector for output
-			output.selector = bson.M{"host": data.Host}
-
-			// set to writer channel
-			a.analyzedCallback(output)
-
+			a.analyzedCallback(update{
+				selector: bson.M{"host": datum.Host},
+				query:    totalUpdate,
+			})
 		}
 
 		a.analysisWg.Done()
 	}()
+}
+
+//mainQuery records the IPs which the hostname resolved to and the IPs which
+//queried for the the hostname
+func mainQuery(datum *Input, chunk int) bson.M {
+	return bson.M{
+		"$set": bson.M{
+			"cid": chunk,
+		},
+
+		"$push": bson.M{
+			"dat": bson.M{
+				"$each": []bson.M{{
+					"ips":     datum.ResolvedIPs.Items(),
+					"src_ips": datum.ClientIPs.Items(),
+					"cid":     chunk,
+				}},
+			},
+		},
+	}
+}
+
+//blQuery marks the given hostname as blacklisted or not
+func blQuery(datum *Input, ssn *mgo.Session, blDB string) (bson.M, error) {
+	// check if blacklisted destination
+	blCount, err := ssn.DB(blDB).C("hostname").Find(bson.M{"index": datum.Host}).Count()
+	blacklisted := blCount > 0
+
+	return bson.M{
+		"$set": bson.M{
+			"blacklisted": blacklisted,
+		},
+	}, err
 }

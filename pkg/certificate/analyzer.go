@@ -1,7 +1,6 @@
 package certificate
 
 import (
-	"strconv"
 	"sync"
 
 	"github.com/activecm/rita/config"
@@ -10,10 +9,9 @@ import (
 )
 
 type (
-	//analyzer : structure for exploded dns analysis
+	//analyzer is a structure for invalid certificate analysis
 	analyzer struct {
-		chunk            int            //current chunk (0 if not on rolling analysis)
-		chunkStr         string         //current chunk (0 if not on rolling analysis)
+		chunk            int            // current chunk (0 if not on rolling analysis)
 		db               *database.DB   // provides access to MongoDB
 		conf             *config.Config // contains details needed to access MongoDB
 		analyzedCallback func(update)   // called on each analyzed result
@@ -23,11 +21,11 @@ type (
 	}
 )
 
-//newAnalyzer creates a new collector for parsing hostnames
+//newAnalyzer creates a new analyzer for recording connections that were made
+//with invalid certificates
 func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
-		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
@@ -36,12 +34,12 @@ func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallba
 	}
 }
 
-//collect sends a group of domains to be analyzed
+//collect gathers invalid certificate connection records for analysis
 func (a *analyzer) collect(datum *Input) {
 	a.analysisChannel <- datum
 }
 
-//close waits for the collector to finish
+//close waits for the analyzer to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
@@ -56,9 +54,6 @@ func (a *analyzer) start() {
 		defer ssn.Close()
 
 		for datum := range a.analysisChannel {
-			// set up writer output
-			var output update
-
 			// cap the list to an arbitrary amount (hopefully smaller than the 16 MB document size cap)
 			// anything approaching this limit will cause performance issues in software that depends on rita
 			// anything tuncated over this limit won't be visible as an IP connecting to an invalid cert
@@ -77,8 +72,8 @@ func (a *analyzer) start() {
 				invalidCerts = invalidCerts[:10]
 			}
 
-			// create query
-			query := bson.M{
+			// create certificateQuery
+			certificateQuery := bson.M{
 				"$push": bson.M{
 					"dat": bson.M{
 						"seen":     datum.Seen,
@@ -94,15 +89,11 @@ func (a *analyzer) start() {
 				},
 			}
 
-			output.query = query
-
-			output.collection = a.conf.T.Cert.CertificateTable
-
-			output.selector = datum.Host.BSONKey()
-
 			// set to writer channel
-			a.analyzedCallback(output)
-
+			a.analyzedCallback(update{
+				selector: datum.Host.BSONKey(),
+				query:    certificateQuery,
+			})
 		}
 
 		a.analysisWg.Done()

@@ -3,22 +3,19 @@ package host
 import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/pkg/data"
 
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 
-	"strconv"
 	"strings"
 	"sync"
 )
 
 type (
-	//analyzer : structure for host analysis
+	//analyzer provides analysis of host records
 	analyzer struct {
 		chunk            int            //current chunk (0 if not on rolling analysis)
-		chunkStr         string         //current chunk (0 if not on rolling analysis)
 		conf             *config.Config // contains details needed to access MongoDB
 		db               *database.DB   // provides access to MongoDB
 		log              *log.Logger    // logger for writing out errors and warnings
@@ -33,7 +30,6 @@ type (
 func newAnalyzer(chunk int, conf *config.Config, db *database.DB, log *log.Logger, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
-		chunkStr:         strconv.Itoa(chunk),
 		conf:             conf,
 		log:              log,
 		db:               db,
@@ -63,66 +59,94 @@ func (a *analyzer) start() {
 		defer ssn.Close()
 
 		for datum := range a.analysisChannel {
-			// blacklisted flag
-			blacklisted := false
-
-			// check if blacklisted destination
-			blCount, _ := ssn.DB(a.conf.S.Blacklisted.BlacklistDatabase).C("ip").Find(bson.M{"index": datum.Host.IP}).Count()
-			if blCount > 0 {
-				blacklisted = true
+			if !datum.IP4 { // we currently only handle IPv4 addresses
+				continue
 			}
 
-			// update src of connection in hosts table
-			if datum.IP4 {
-				var output update
+			mainUpdate := mainQuery(datum, a.chunk)
 
-				newRecordFlag := a.shouldInsertNewHostSubdocument(ssn, datum.Host)
-
-				var maxDNSQueryRes explodedDNS
-				// If we have any dns queries for this host, push them to the database
-				// and retrieve the max dns query count object.
-				// If there aren't any explodedDNS results, max_dns will be set to
-				// {"query": "", count: 0}.
-				if len(datum.DNSQueryCount) > 0 {
-					// update the host record with the new exploded dns results
-					explodedDNSEntries := buildExplodedDNSArray(datum.DNSQueryCount)
-					a.writeExplodedDNSEntries(ssn, datum.Host, explodedDNSEntries, newRecordFlag)
-
-					// determine the  max dns query count query
-					maxDNSQuery := maxDNSQueryCountQuery(datum.Host)
-					err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Pipe(maxDNSQuery).AllowDiskUse().One(&maxDNSQueryRes)
-					// log erros
-					if err != nil {
-						a.log.WithFields(log.Fields{
-							"Module": "host",
-							"Data":   maxDNSQuery,
-						}).Error(err)
-					}
-				}
-
-				output = standardQuery(a.chunk, a.chunkStr, datum.Host, datum.IsLocal, datum.IP4, datum.IP4Bin, datum.MaxDuration, maxDNSQueryRes, datum.UntrustedAppConnCount, datum.CountSrc, datum.CountDst, blacklisted, newRecordFlag)
-
-				// set to writer channel
-				a.analyzedCallback(output)
-
+			blUpdate, err := blQuery(datum, ssn, a.conf.S.Blacklisted.BlacklistDatabase) // TODO: Move to BL package
+			if err != nil {
+				a.log.WithFields(log.Fields{
+					"Module": "host",
+					"Data":   datum.Host,
+				}).Error(err)
 			}
 
+			connCountsUpdate := connCountsQuery(datum, a.chunk)
+			expDNSUpdate := explodedDNSQuery(datum, a.chunk)
+
+			totalUpdate := database.MergeBSONMaps(mainUpdate, blUpdate, connCountsUpdate, expDNSUpdate)
+
+			a.analyzedCallback(update{
+				selector: datum.Host.BSONKey(),
+				query:    totalUpdate,
+			})
 		}
 		a.analysisWg.Done()
 	}()
 }
 
-//shouldInsertNewHostSubdocument returns true if a host entry with the current CID does not exist in the database
-func (a *analyzer) shouldInsertNewHostSubdocument(ssn *mgo.Session, host data.UniqueIP) bool {
-	query := host.BSONKey()
-	query["cid"] = a.chunk
-
-	nEntriesWithCurrentCID, _ := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(query).Count()
-
-	if nEntriesWithCurrentCID == 0 {
-		return true
+//mainQuery sets the top level host information
+func mainQuery(datum *Input, chunk int) bson.M {
+	return bson.M{
+		"$set": bson.M{
+			"cid":          chunk,
+			"local":        datum.IsLocal,
+			"ipv4":         datum.IP4,
+			"ipv4_binary":  datum.IP4Bin,
+			"network_name": datum.Host.NetworkName,
+		},
 	}
-	return false
+}
+
+//blQuery marks the given host as blacklisted or not
+func blQuery(datum *Input, ssn *mgo.Session, blDB string) (bson.M, error) {
+	// check if blacklisted destination
+	blCount, err := ssn.DB(blDB).C("ip").Find(bson.M{"index": datum.Host.IP}).Count()
+	blacklisted := blCount > 0
+
+	return bson.M{
+		"$set": bson.M{
+			"blacklisted": blacklisted,
+		},
+	}, err
+}
+
+//connCountsQuery records the number of connections this host has been a part of
+func connCountsQuery(datum *Input, chunk int) bson.M {
+	return bson.M{
+		"$push": bson.M{
+			"dat": bson.M{
+				"$each": []bson.M{{
+					"count_src":  datum.CountSrc,
+					"count_dst":  datum.CountDst,
+					"upps_count": datum.UntrustedAppConnCount,
+					"cid":        chunk,
+				}},
+			},
+		},
+	}
+}
+
+//explodedDNSQuery records the result of the individual host's exploded dns analysis for this chunk
+func explodedDNSQuery(datum *Input, chunk int) bson.M {
+	if len(datum.DNSQueryCount) == 0 {
+		return bson.M{}
+	}
+
+	// update the host record with the new exploded dns results
+	explodedDNSEntries := buildExplodedDNSArray(datum.DNSQueryCount)
+	return bson.M{
+		"$push": bson.M{
+			"dat": bson.M{
+				"$each": []bson.M{{
+					"exploded_dns": explodedDNSEntries,
+					"cid":          chunk,
+				}},
+			},
+		},
+	}
 }
 
 //buildExplodedDNSArray generates exploded dns query results given how many times each full fqdn
@@ -158,153 +182,4 @@ func buildExplodedDNSArray(dnsQueryCounts map[string]int64) []explodedDNS {
 		explodedDNSEntries = append(explodedDNSEntries, explodedDNSEntry)
 	}
 	return explodedDNSEntries
-}
-
-//writeExplodedDNSEntries pushes the explodedDNS results for the current import session into a host entry int the database
-func (a *analyzer) writeExplodedDNSEntries(ssn *mgo.Session, host data.UniqueIP, explodedDNSEntries []explodedDNS, newRecordFlag bool) {
-
-	// push the host exploded dns results into this host's dat array
-	var input update
-	// create selectors for input
-	// if this is a new host, only use the host as the selector
-	if newRecordFlag {
-		input.selector = host.BSONKey()
-	} else {
-		// if this is an existing host, use the host & cid as the selectors
-		input.selector = host.BSONKey()
-		input.selector["dat.cid"] = a.chunk
-	}
-	input.query = bson.M{
-		"$push": bson.M{
-			"dat": bson.M{
-				"exploded_dns": explodedDNSEntries,
-				"cid":          a.chunk,
-			},
-		},
-	}
-
-	// upsert these exploded dns entries
-	info, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Upsert(input.selector, input.query)
-
-	// log errors
-	if err != nil ||
-		((info.Updated == 0) && (info.UpsertedId == nil)) {
-		a.log.WithFields(log.Fields{
-			"Module": "host",
-			"Info":   info,
-			"Data":   input,
-		}).Error(err)
-	}
-}
-
-// db.getCollection('host').aggregate([
-//     {"$match": {
-//         "ip": "HOST IP",
-//         "network_uuid": UUID(),
-//     }},
-//     {"$unwind": "$dat"},
-//     {"$unwind": "$dat.exploded_dns"},
-//
-//     {"$project": {
-//         "exploded_dns": "$dat.exploded_dns"
-//     }},
-//     {"$group": {
-//         "_id": "$exploded_dns.query",
-// 				 "query": {"$first": "$exploded_dns.query"}
-//         "count": {"$sum": "$exploded_dns.count"}
-//     }},
-//     {"$project": {
-//      	"_id": 0,
-// 	      "query": 1,
-// 	      "count": 1,
-//     }},
-//     {"$sort": {"count": -1}},
-//     {"$limit": 1}
-// ])
-func maxDNSQueryCountQuery(host data.UniqueIP) []bson.M {
-	query := []bson.M{
-		{"$match": bson.M{
-			"ip":           host.IP,
-			"network_uuid": host.NetworkUUID,
-		}},
-		{"$unwind": "$dat"},
-		{"$unwind": "$dat.exploded_dns"},
-		{"$project": bson.M{
-			"exploded_dns": "$dat.exploded_dns",
-		}},
-		{"$group": bson.M{
-			"_id":   "$exploded_dns.query",
-			"query": bson.M{"$first": "$exploded_dns.query"},
-			"count": bson.M{"$sum": "$exploded_dns.count"},
-		}},
-		{"$project": bson.M{
-			"_id":   0,
-			"query": 1,
-			"count": 1,
-		}},
-		{"$sort": bson.M{"count": -1}},
-		{"$limit": 1},
-	}
-	return query
-}
-
-//standardQuery ...
-func standardQuery(chunk int, chunkStr string, ip data.UniqueIP, local bool, ip4 bool, ip4bin int64, maxdur float64, maxDNSQueryCount explodedDNS, untrustedACC int64, countSrc int, countDst int, blacklisted bool, newFlag bool) update {
-	var output update
-
-	// create query
-	query := bson.M{
-		"$set": bson.M{
-			"blacklisted":  blacklisted,
-			"cid":          chunk,
-			"local":        local,
-			"ipv4":         ip4,
-			"ipv4_binary":  ip4bin,
-			"network_name": ip.NetworkName,
-		},
-	}
-	if newFlag {
-
-		query["$push"] = bson.M{
-			"dat": bson.M{
-				"$each": []bson.M{
-					{
-						"count_src":  countSrc,
-						"count_dst":  countDst,
-						"upps_count": untrustedACC,
-						"cid":        chunk,
-					},
-					{
-						"max_dns": maxDNSQueryCount,
-						"cid":     chunk,
-					},
-				},
-			}}
-
-		// create selector for output ,
-		output.query = query
-		output.selector = ip.BSONKey()
-
-	} else {
-
-		query["$inc"] = bson.M{
-			"dat.$.count_src":  countSrc,
-			"dat.$.count_dst":  countDst,
-			"dat.$.upps_count": untrustedACC,
-		}
-
-		query["$push"] = bson.M{
-			"dat": bson.M{
-				"max_dns": maxDNSQueryCount,
-				"cid":     chunk,
-			},
-		}
-
-		// create selector for output
-		output.query = query
-		output.selector = ip.BSONKey()
-		output.selector["dat.cid"] = chunk
-	}
-
-	return output
 }

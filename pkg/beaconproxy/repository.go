@@ -2,7 +2,9 @@ package beaconproxy
 
 import (
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/uconnproxy"
+	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -11,20 +13,12 @@ type (
 	// Repository for host collection
 	Repository interface {
 		CreateIndexes() error
-		Upsert(uconnProxyMap map[string]*uconnproxy.Input, minTimestamp, maxTimestamp int64)
+		Upsert(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64)
 	}
 
-	updateInfo struct {
-		selector bson.M
-		query    bson.M
-	}
+	mgoBulkAction func(*mgo.Bulk) int
 
-	//update ....
-	update struct {
-		beacon     updateInfo
-		hostBeacon updateInfo
-		uconnproxy updateInfo
-	}
+	mgoBulkActions map[string]mgoBulkAction
 
 	//TSData ...
 	TSData struct {

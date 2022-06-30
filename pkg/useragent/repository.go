@@ -13,9 +13,8 @@ type Repository interface {
 
 //update ....
 type update struct {
-	selector   bson.M
-	query      bson.M
-	collection string
+	selector bson.M
+	query    bson.M
 }
 
 //Input ....

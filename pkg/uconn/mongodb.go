@@ -5,6 +5,8 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/util"
 
 	"github.com/globalsign/mgo"
@@ -20,7 +22,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository create new repository
+//NewMongoRepository bundles the given resources for updating MongoDB with unique connection data
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -29,6 +31,7 @@ func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger
 	}
 }
 
+//CreateIndexes creates indexes for the uconn collection
 func (r *repo) CreateIndexes() error {
 
 	session := r.database.Session.Copy()
@@ -51,7 +54,7 @@ func (r *repo) CreateIndexes() error {
 		{Key: []string{"src", "dst", "src_network_uuid", "dst_network_uuid"}, Unique: true},
 		{Key: []string{"src", "src_network_uuid"}},
 		{Key: []string{"dst", "dst_network_uuid"}},
-		{Key: []string{"$dat.count"}},
+		{Key: []string{"dat.count"}},
 	}
 
 	// create collection
@@ -63,10 +66,12 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert loops through every domain ....
-func (r *repo) Upsert(uconnMap map[string]*Input) {
+//Upsert records the given unique connection data in MongoDB. Summaries are
+//created for the given local hosts in MongoDB.
+func (r *repo) Upsert(uconnMap map[string]*Input, hostMap map[string]*host.Input) {
+	// Phase 1: Analysis
 
-	//Create the workers
+	// Create the workers for analysis
 	writerWorker := newWriter(r.config.T.Structure.UniqueConnTable, r.database, r.config, r.log)
 
 	analyzerWorker := newAnalyzer(
@@ -78,7 +83,7 @@ func (r *repo) Upsert(uconnMap map[string]*Input) {
 		writerWorker.close,
 	)
 
-	//kick off the threaded goroutines
+	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		analyzerWorker.start()
 		writerWorker.start()
@@ -88,7 +93,7 @@ func (r *repo) Upsert(uconnMap map[string]*Input) {
 	p := mpb.New(mpb.WithWidth(20))
 	bar := p.AddBar(int64(len(uconnMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Uconn Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Unique Connection Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
@@ -103,4 +108,52 @@ func (r *repo) Upsert(uconnMap map[string]*Input) {
 
 	// start the closing cascade (this will also close the other channels)
 	analyzerWorker.close()
+
+	// Phase 2: Summary
+
+	// initialize a new writer for the summarizer
+	writerWorker = newWriter(r.config.T.Structure.HostTable, r.database, r.config, r.log)
+	summarizerWorker := newSummarizer(
+		r.config.S.Rolling.CurrentChunk,
+		r.database,
+		r.config,
+		r.log,
+		writerWorker.collect,
+		writerWorker.close,
+	)
+
+	// kick off the threaded goroutines
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		summarizerWorker.start()
+		writerWorker.start()
+	}
+
+	// grab the local hosts we have seen during the current analysis period
+	var localHosts []data.UniqueIP
+	for _, entry := range hostMap {
+		if entry.IsLocal {
+			localHosts = append(localHosts, entry.Host)
+		}
+	}
+
+	// add a progress bar for troubleshooting
+	p = mpb.New(mpb.WithWidth(20))
+	bar = p.AddBar(int64(len(localHosts)),
+		mpb.PrependDecorators(
+			decor.Name("\t[-] Unique Connection Aggregation:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+		),
+		mpb.AppendDecorators(decor.Percentage()),
+	)
+
+	// loop over the local hosts that need to be summarized
+	for _, localHost := range localHosts {
+		summarizerWorker.collect(localHost)
+		bar.IncrBy(1)
+	}
+
+	p.Wait()
+
+	// start the closing cascade (this will also close the other channels)
+	summarizerWorker.close()
 }

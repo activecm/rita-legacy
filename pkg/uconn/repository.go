@@ -2,47 +2,37 @@ package uconn
 
 import (
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/host"
 	"github.com/globalsign/mgo/bson"
 )
 
 // Repository for uconn collection
 type Repository interface {
 	CreateIndexes() error
-	Upsert(uconnMap map[string]*Input)
-}
-
-//updateInfo ....
-type updateInfo struct {
-	selector bson.M
-	query    bson.M
+	Upsert(uconnMap map[string]*Input, hostMap map[string]*host.Input)
 }
 
 //update ....
 type update struct {
-	uconn      updateInfo
-	hostMaxDur updateInfo
+	selector bson.M
+	query    bson.M
 }
 
 //Input holds aggregated connection information between two hosts in a dataset
 type Input struct {
-	Hosts               data.UniqueIPPair
-	OpenConnectionCount int64
-	ConnectionCount     int64
-	IsLocalSrc          bool
-	IsLocalDst          bool
-	OpenBytes           int64
-	TotalBytes          int64
-	MaxDuration         float64
-	OpenDuration        float64
-	TotalDuration       float64
-	OpenTSList          []int64
-	TsList              []int64
-	OrigBytesList       []int64
-	OpenOrigBytes       int64
-	Tuples              data.StringSet
-	InvalidCertFlag     bool
-	UPPSFlag            bool
-	ConnStateMap        map[string]*ConnState
+	Hosts           data.UniqueIPPair
+	ConnectionCount int64
+	IsLocalSrc      bool
+	IsLocalDst      bool
+	TotalBytes      int64
+	MaxDuration     float64
+	TotalDuration   float64
+	TsList          []int64
+	OrigBytesList   []int64
+	Tuples          data.StringSet
+	InvalidCertFlag bool
+	UPPSFlag        bool
+	ConnStateMap    map[string]*ConnState
 }
 
 //LongConnResult represents a pair of hosts that communicated and

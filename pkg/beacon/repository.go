@@ -2,28 +2,20 @@ package beacon
 
 import (
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/uconn"
-	"github.com/globalsign/mgo/bson"
+	"github.com/globalsign/mgo"
 )
 
 // Repository for host collection
 type Repository interface {
 	CreateIndexes() error
-	Upsert(uconnMap map[string]*uconn.Input, minTimestamp, maxTimestamp int64)
+	Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64)
 }
 
-type updateInfo struct {
-	selector bson.M
-	query    bson.M
-}
+type mgoBulkAction func(*mgo.Bulk) int
 
-//update ....
-type update struct {
-	beacon     updateInfo
-	hostIcert  updateInfo
-	hostBeacon updateInfo
-	uconn      updateInfo
-}
+type mgoBulkActions map[string]mgoBulkAction
 
 //TSData ...
 type TSData struct {

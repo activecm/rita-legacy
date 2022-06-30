@@ -19,7 +19,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository create new repository
+//NewMongoRepository bundles the given resources for updating MongoDB with exploded DNS data
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -28,7 +28,7 @@ func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger
 	}
 }
 
-//CreateIndexes ....
+//CreateIndexes creates indexes for the explodedDns collection
 func (r *repo) CreateIndexes() error {
 	session := r.database.Session.Copy()
 	defer session.Close()
@@ -62,7 +62,7 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert loops through every domain ....
+//Upsert records the given dns query count data in MongoDB
 func (r *repo) Upsert(domainMap map[string]int) {
 
 	//Create the workers

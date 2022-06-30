@@ -3,7 +3,6 @@ package beaconfqdn
 import (
 	"math"
 	"sort"
-	"strconv"
 	"sync"
 
 	"github.com/activecm/rita/config"
@@ -15,29 +14,29 @@ import (
 )
 
 type (
+	//analyzer handles calculating statistical measures of the distributions of the
+	//timestamps and data sizes from one host to the set of hosts associated with an fqdn
 	analyzer struct {
 		tsMin            int64           // min timestamp for the whole dataset
 		tsMax            int64           // max timestamp for the whole dataset
-		chunk            int             //current chunk (0 if not on rolling analysis)
-		chunkStr         string          //current chunk (0 if not on rolling analysis)
+		chunk            int             // current chunk (0 if not on rolling analysis)
 		db               *database.DB    // provides access to MongoDB
 		conf             *config.Config  // contains details needed to access MongoDB
 		log              *log.Logger     // main logger for RITA
-		analyzedCallback func(*update)   // called on each analyzed result
+		analyzedCallback func(update)    // called on each analyzed result
 		closedCallback   func()          // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan *fqdnInput // holds unanalyzed data
 		analysisWg       sync.WaitGroup  // wait for analysis to finish
 	}
 )
 
-//newAnalyzer creates a new collector for gathering data //
+//newAnalyzer creates a new analyzer for calculating the beacon statistics of src IP -> fqdn connections
 func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.Config, log *log.Logger,
-	analyzedCallback func(*update), closedCallback func()) *analyzer {
+	analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		tsMin:            min,
 		tsMax:            max,
 		chunk:            chunk,
-		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
 		conf:             conf,
 		log:              log,
@@ -47,12 +46,12 @@ func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.
 	}
 }
 
-//collect sends a chunk of data to be analyzed
+//collect gathers sorted src -> fqdn connection data for analysis
 func (a *analyzer) collect(data *fqdnInput) {
 	a.analysisChannel <- data
 }
 
-//close waits for the collector to finish
+//close waits for the analyzer to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
@@ -65,8 +64,6 @@ func (a *analyzer) start() {
 
 	go func() {
 		for entry := range a.analysisChannel {
-			// set up beacon writer output
-			output := &update{}
 
 			// create selector pair object
 			selectorPair := data.UniqueSrcFQDNPair{
@@ -80,7 +77,6 @@ func (a *analyzer) start() {
 			// if beacon has turned into a strobe, we will not have any timestamps here,
 			// and need to update beaconFQDN table with the strobeFQDN flag.
 			if (entry.TsList) == nil {
-
 				// set strobe info
 				query["$set"] = bson.M{
 					"strobeFQDN":       true,
@@ -101,12 +97,10 @@ func (a *analyzer) start() {
 					"score": 1,
 				}
 
-				// create selector for output
-				output.beacon.query = query
-				output.beacon.selector = selectorPair.BSONKey()
-
-				// set to writer channel
-				a.analyzedCallback(output)
+				a.analyzedCallback(update{
+					selector: selectorPair.BSONKey(),
+					query:    query,
+				})
 
 			} else {
 				//store the diff slice length since we use it a lot
@@ -248,19 +242,11 @@ func (a *analyzer) start() {
 					"strobeFQDN":         false,
 				}
 
-				// set query
-				output.beacon.query = query
-
-				// create selector for output
-				output.beacon.selector = selectorPair.BSONKey()
-
-				// updates max FQDN beacon score for the source entry in the hosts table
-				output.hostBeacon = a.hostBeaconQuery(score, entry.Src.Unpair(), entry.FQDN)
-
-				// set to writer channel
-				a.analyzedCallback(output)
+				a.analyzedCallback(update{
+					selector: selectorPair.BSONKey(),
+					query:    query,
+				})
 			}
-
 		}
 
 		a.analysisWg.Done()
@@ -308,156 +294,4 @@ func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64
 		counts[last]++
 	}
 	return result, counts
-}
-
-func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, fqdn string) updateInfo {
-	ssn := a.db.Session.Copy()
-	defer ssn.Close()
-
-	var output updateInfo
-
-	// create query
-	query := bson.M{}
-
-	// check if we need to update
-	// we do this before the other queries because otherwise if a beacon
-	// starts out with a high score which reduces over time, it will keep
-	// the incorrect high max for that specific destination.
-	maxBeaconMatchExactQuery := src.BSONKey()
-	maxBeaconMatchExactQuery["dat.mbfqdn"] = fqdn
-
-	nExactMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
-		Find(maxBeaconMatchExactQuery).Count()
-
-	if err != nil {
-		a.log.WithError(err).WithFields(log.Fields{
-			"src":              src.IP,
-			"src_network_name": src.NetworkName,
-			"fqdn":             fqdn,
-		}).Error(
-			"Could not check for existing max fqdn beacon in hosts collection. " +
-				"Refusing to update source's max fqdn beacon.",
-		)
-		return updateInfo{}
-	}
-
-	// if we have exact matches, update to new score and return
-	if nExactMatches > 0 {
-		query["$set"] = bson.M{
-			"dat.$.max_beacon_fqdn_score": score,
-			"dat.$.mbfqdn":                fqdn,
-			"dat.$.cid":                   a.chunk,
-		}
-
-		// create selector for output
-		output.query = query
-
-		// using the same find query we created above will allow us to match and
-		// update the exact chunk we need to update
-		output.selector = maxBeaconMatchExactQuery
-
-		return output
-	}
-
-	// The below is only for cases where the ip is not currently listed as a max beacon
-	// for a source
-	// update max beacon score
-	newFlag := false
-	updateFlag := false
-
-	// this query will find any matching chunk that is reporting a lower
-	// max beacon score than the current one we are working with
-	maxBeaconMatchLowerQuery := src.BSONKey()
-	maxBeaconMatchLowerQuery["dat"] = bson.M{
-		"$elemMatch": bson.M{
-			"cid":                   a.chunk,
-			"max_beacon_fqdn_score": bson.M{"$lte": score},
-		},
-	}
-	// find matching lower chunks
-	nLowerMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
-		Find(maxBeaconMatchLowerQuery).Count()
-
-	if err != nil {
-		a.log.WithError(err).WithFields(log.Fields{
-			"src":              src.IP,
-			"src_network_name": src.NetworkName,
-			"fqdn":             fqdn,
-		}).Error(
-			"Could not check for lower scoring max fqdn beacon in hosts collection. " +
-				"Refusing to update source's max fqdn beacon.",
-		)
-		return updateInfo{}
-	}
-
-	// if no matching chunks are found, we will set the new flag
-	if nLowerMatches == 0 {
-
-		maxBeaconMatchUpperQuery := src.BSONKey()
-		maxBeaconMatchUpperQuery["dat"] = bson.M{
-			"$elemMatch": bson.M{
-				"cid":                   a.chunk,
-				"max_beacon_fqdn_score": bson.M{"$gte": score},
-			},
-		}
-
-		// find matching upper chunks
-		nUpperMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
-			Find(maxBeaconMatchUpperQuery).Count()
-
-		if err != nil {
-			a.log.WithError(err).WithFields(log.Fields{
-				"src":              src.IP,
-				"src_network_name": src.NetworkName,
-				"fqdn":             fqdn,
-			}).Error(
-				"Could not check for higher scoring max fqdn beacon in hosts collection. " +
-					"Refusing to update source's max fqdn beacon.",
-			)
-			return updateInfo{}
-		}
-
-		// update if no upper chunks are found
-		if nUpperMatches == 0 {
-			newFlag = true
-		}
-	} else {
-		updateFlag = true
-	}
-
-	// since we didn't find any changeable lower max beacon scores, we will
-	// set the condition to push a new entry with the current score listed as the
-	// max beacon ONLY if no matching chunks reporting higher max beacon scores
-	// are found.
-
-	if newFlag {
-
-		query["$push"] = bson.M{
-			"dat": bson.M{
-				"max_beacon_fqdn_score": score,
-				"mbfqdn":                fqdn,
-				"cid":                   a.chunk,
-			}}
-
-		// create selector for output
-		output.query = query
-		output.selector = src.BSONKey()
-
-	} else if updateFlag {
-
-		query["$set"] = bson.M{
-			"dat.$.max_beacon_fqdn_score": score,
-			"dat.$.mbfqdn":                fqdn,
-			"dat.$.cid":                   a.chunk,
-		}
-
-		// create selector for output
-		output.query = query
-
-		// using the same find query we created above will allow us to match and
-		// update the exact chunk we need to update
-		output.selector = maxBeaconMatchLowerQuery
-	}
-
-	return output
 }
