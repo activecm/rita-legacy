@@ -21,6 +21,7 @@ type (
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
 		BeaconFQDN   BeaconFQDNStaticCfg  `yaml:"BeaconFQDN"`
 		BeaconProxy  BeaconProxyStaticCfg `yaml:"BeaconProxy"`
+		BeaconSNI    BeaconSNIStaticCfg   `yaml:"BeaconSNI"`
 		DNS          DNSStaticCfg         `yaml:"DNS"`
 		UserAgent    UserAgentStaticCfg   `yaml:"UserAgent"`
 		Bro          BroStaticCfg         `yaml:"Bro"` // kept in for MetaDB backwards compatibility
@@ -96,6 +97,12 @@ type (
 
 	//BeaconProxyStaticCfg is used to control the proxy beaconing analysis module
 	BeaconProxyStaticCfg struct {
+		Enabled                 bool `yaml:"Enabled" default:"true"`
+		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
+	}
+
+	//BeaconSNIStaticCfg is used to control the SNI beaconing analysis module
+	BeaconSNIStaticCfg struct {
 		Enabled                 bool `yaml:"Enabled" default:"true"`
 		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
 	}

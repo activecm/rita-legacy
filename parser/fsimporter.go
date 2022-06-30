@@ -15,6 +15,7 @@ import (
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/pkg/beaconfqdn"
 	"github.com/activecm/rita/pkg/beaconproxy"
+	"github.com/activecm/rita/pkg/beaconsni"
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/data"
@@ -181,6 +182,7 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 		// build uconnsProxy table. Must go before proxy beacons
 		fs.buildUconnsProxy(retVals.ProxyUniqueConnMap)
 
+		// build SNIconns table. Must go before SNI beacons
 		fs.buildSNIConns(retVals.TLSConnMap, retVals.HTTPConnMap, retVals.ZeekUIDMap, retVals.HostMap)
 
 		// update ts range for dataset (needs to be run before beacons)
@@ -200,6 +202,9 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 
 		// build or update the Proxy Beacons Table
 		fs.buildProxyBeacons(retVals.ProxyUniqueConnMap, retVals.HostMap, minTimestamp, maxTimestamp)
+
+		// build or update SNI Beacons Table
+		fs.buildSNIBeacons(retVals.TLSConnMap, retVals.HTTPConnMap, retVals.HostMap, minTimestamp, maxTimestamp)
 
 		// build or update UserAgent table
 		fs.buildUserAgent(retVals.UseragentMap)
@@ -489,7 +494,7 @@ func (fs *FSImporter) buildSNIConns(tlsMap map[string]*sniconn.TLSInput, httpMap
 
 		sniconnRepo.Upsert(tlsMap, httpMap, zeekUIDMap, hostMap)
 	} else {
-		fmt.Println("\t[!] No TLS SNI or HTTP host data to analyze")
+		fmt.Println("\t[!] No TLS or HTTP connections to analyze")
 	}
 }
 
@@ -622,6 +627,24 @@ func (fs *FSImporter) buildProxyBeacons(uconnProxyMap map[string]*uconnproxy.Inp
 		}
 	}
 
+}
+
+func (fs *FSImporter) buildSNIBeacons(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*sniconn.HTTPInput, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
+	if fs.config.S.BeaconSNI.Enabled {
+		if len(tlsMap) > 0 || len(httpMap) > 0 {
+			beaconSNIRepo := beaconsni.NewMongoRepository(fs.database, fs.config, fs.log)
+
+			err := beaconSNIRepo.CreateIndexes()
+			if err != nil {
+				fs.log.Error(err)
+			}
+
+			// send SNI conns to beacon analysis
+			beaconSNIRepo.Upsert(tlsMap, httpMap, hostMap, minTimestamp, maxTimestamp)
+		} else {
+			fmt.Println("\t[!] No TLS or HTTP Beacon data to analyze")
+		}
+	}
 }
 
 //buildUserAgent .....
