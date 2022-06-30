@@ -8,19 +8,10 @@ import (
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/util"
+	"github.com/globalsign/mgo"
+	log "github.com/sirupsen/logrus"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
-
-	// 	"runtime"
-	// 	"github.com/activecm/rita/config"
-	// 	"github.com/activecm/rita/database"
-	// 	"github.com/activecm/rita/pkg/data"
-	// 	"github.com/activecm/rita/pkg/host"
-	// 	"github.com/activecm/rita/util"
-	// 	"github.com/globalsign/mgo"
-	// 	"github.com/vbauerster/mpb"
-	// 	"github.com/vbauerster/mpb/decor"
-	log "github.com/sirupsen/logrus"
 )
 
 type repo struct {
@@ -38,42 +29,43 @@ func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger
 	}
 }
 
-// CreateIndexes creates indexes for the uconn collection
+// CreateIndexes creates indexes for the SNIconn collection
 func (r *repo) CreateIndexes() error {
+	session := r.database.Session.Copy()
+	defer session.Close()
 
-	// 	session := r.database.Session.Copy()
-	// 	defer session.Close()
+	// set collection name
+	collectionName := r.config.T.Structure.SNIConnTable
 
-	// 	// set collection name
-	// 	collectionName := r.config.T.Structure.UniqueConnTable
+	// check if collection already exists
+	names, _ := session.DB(r.database.GetSelectedDB()).CollectionNames()
 
-	// 	// check if collection already exists
-	// 	names, _ := session.DB(r.database.GetSelectedDB()).CollectionNames()
+	// if collection exists, we don't need to do anything else
+	for _, name := range names {
+		if name == collectionName {
+			return nil
+		}
+	}
 
-	// 	// if collection exists, we don't need to do anything else
-	// 	for _, name := range names {
-	// 		if name == collectionName {
-	// 			return nil
-	// 		}
-	// 	}
+	// set desired indexes
+	indexes := []mgo.Index{
+		{Key: []string{"src", "fqdn", "src_network_uuid"}, Unique: true},
+		{Key: []string{"src", "src_network_uuid"}},
+		{Key: []string{"fqdn"}},
+		{Key: []string{"dat.http.count"}},
+		{Key: []string{"dat.tls.count"}},
+	}
 
-	// 	indexes := []mgo.Index{
-	// 		{Key: []string{"src", "dst", "src_network_uuid", "dst_network_uuid"}, Unique: true},
-	// 		{Key: []string{"src", "src_network_uuid"}},
-	// 		{Key: []string{"dst", "dst_network_uuid"}},
-	// 		{Key: []string{"dat.count"}},
-	// 	}
-
-	// 	// create collection
-	// 	err := r.database.CreateCollection(collectionName, indexes)
-	// 	if err != nil {
-	// 		return err
-	// 	}
+	// create collection
+	err := r.database.CreateCollection(collectionName, indexes)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-//Upsert records the given unique connection data in MongoDB. Summaries are
+//Upsert records the given sni connection data in MongoDB. Summaries are
 //created for the given local hosts in MongoDB.
 func (r *repo) Upsert(tlsMap map[string]*TLSInput, httpMap map[string]*HTTPInput, zeekUIDMap map[string]*data.ZeekUIDRecord, hostMap map[string]*host.Input) {
 
@@ -104,7 +96,7 @@ func (r *repo) Upsert(tlsMap map[string]*TLSInput, httpMap map[string]*HTTPInput
 	p := mpb.New(mpb.WithWidth(20))
 	bar := p.AddBar(int64(len(linkedInputMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] SNI Connection Analysis (1/2):", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] SNI Connection Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
@@ -178,7 +170,9 @@ func linkInputMaps(tlsMap map[string]*TLSInput, httpMap map[string]*HTTPInput, z
 
 		var tlsZeekRecords []*data.ZeekUIDRecord
 		for _, zeekUID := range tlsValue.ZeekUIDs {
-			tlsZeekRecords = append(tlsZeekRecords, zeekUIDMap[zeekUID])
+			if zeekRecord, ok := zeekUIDMap[zeekUID]; ok {
+				tlsZeekRecords = append(tlsZeekRecords, zeekRecord)
+			}
 		}
 
 		linkedMap[tlsKey].TLS = tlsValue
@@ -192,7 +186,9 @@ func linkInputMaps(tlsMap map[string]*TLSInput, httpMap map[string]*HTTPInput, z
 
 		var httpZeekRecords []*data.ZeekUIDRecord
 		for _, zeekUID := range httpValue.ZeekUIDs {
-			httpZeekRecords = append(httpZeekRecords, zeekUIDMap[zeekUID])
+			if zeekRecord, ok := zeekUIDMap[zeekUID]; ok {
+				httpZeekRecords = append(httpZeekRecords, zeekRecord)
+			}
 		}
 
 		linkedMap[httpKey].HTTP = httpValue

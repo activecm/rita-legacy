@@ -114,8 +114,7 @@ func tlsQuery(datum *TLSInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit in
 
 	return bson.M{
 		"$set": bson.M{
-			"tls.strobe": isStrobe,
-			"tls.cid":    chunk,
+			"tls.cid": chunk,
 		},
 		"$push": bson.M{
 			"dat": bson.M{
@@ -123,6 +122,7 @@ func tlsQuery(datum *TLSInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit in
 					"tls": bson.M{
 						"ts":        ts,
 						"bytes":     bytes,
+						"strobe":    isStrobe,
 						"count":     datum.ConnectionCount,
 						"tbytes":    totalTwoWayBytes,
 						"tdur":      totalDuration,
@@ -169,8 +169,7 @@ func httpQuery(datum *HTTPInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit 
 
 	return bson.M{
 		"$set": bson.M{
-			"http.strobe": isStrobe,
-			"http.cid":    chunk,
+			"http.cid": chunk,
 		},
 		"$push": bson.M{
 			"dat": bson.M{
@@ -178,6 +177,7 @@ func httpQuery(datum *HTTPInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit 
 					"http": bson.M{
 						"ts":        ts,
 						"bytes":     bytes,
+						"strobe":    isStrobe,
 						"count":     datum.ConnectionCount,
 						"tbytes":    totalTwoWayBytes,
 						"tdur":      totalDuration,
