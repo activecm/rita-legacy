@@ -161,6 +161,10 @@ func updateProxiedUniqueConnectionsByHTTP(srcFQDNPair data.UniqueSrcFQDNPair, ds
 func updateHTTPConnectionsByHTTP(srcIP net.IP, dstUniqIP data.UniqueIP, srcFQDNPair data.UniqueSrcFQDNPair, srcFQDNKey string,
 	parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResults) {
 
+	if len(srcFQDNPair.FQDN) == 0 {
+		return // don't record HTTP connections when the FQDN is missing
+	}
+
 	retVals.HTTPConnLock.Lock()
 	defer retVals.HTTPConnLock.Unlock()
 

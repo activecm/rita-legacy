@@ -90,6 +90,10 @@ func updateUseragentsBySSL(srcUniqIP data.UniqueIP, parseSSL *parsetypes.SSL, re
 func updateTLSConnectionsBySSL(srcIP net.IP, dstUniqIP data.UniqueIP, srcFQDNPair data.UniqueSrcFQDNPair, srcFQDNKey string,
 	certificateIsInvalid bool, parseSSL *parsetypes.SSL, filter filter, retVals ParseResults) {
 
+	if len(srcFQDNPair.FQDN) == 0 {
+		return // don't record TLS SNI connections when the SNI is missing
+	}
+
 	retVals.TLSConnLock.Lock()
 	defer retVals.TLSConnLock.Unlock()
 
