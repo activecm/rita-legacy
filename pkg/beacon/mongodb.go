@@ -117,7 +117,7 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host
 	p := mpb.New(mpb.WithWidth(20))
 	bar := p.AddBar(int64(len(uconnMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Beacon Analysis (1/2):", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
@@ -164,7 +164,7 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host
 	p = mpb.New(mpb.WithWidth(20))
 	bar = p.AddBar(int64(len(localHosts)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Beacon Analysis (2/2):", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Beacon Aggregation:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),

@@ -85,7 +85,7 @@ func (r *repo) Upsert(hostMap map[string]*Input) {
 	p := mpb.New(mpb.WithWidth(20))
 	bar := p.AddBar(int64(len(hostMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Host Analysis (1/2):", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Host Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
@@ -132,7 +132,7 @@ func (r *repo) Upsert(hostMap map[string]*Input) {
 	p = mpb.New(mpb.WithWidth(20))
 	bar = p.AddBar(int64(len(localHosts)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Host Analysis (2/2):", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Host Aggregation:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),

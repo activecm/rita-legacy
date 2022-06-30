@@ -126,7 +126,7 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[st
 	p := mpb.New(mpb.WithWidth(20))
 	bar := p.AddBar(int64(len(uconnProxyMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Proxy Beacon Analysis (1/2):", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Proxy Beacon Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
@@ -177,7 +177,7 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[st
 	p = mpb.New(mpb.WithWidth(20))
 	bar = p.AddBar(int64(len(localHosts)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] Proxy Beacon Analysis (2/2):", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] Proxy Beacon Aggregation:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),

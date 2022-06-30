@@ -103,7 +103,7 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 	p := mpb.New(mpb.WithWidth(20))
 	bar := p.AddBar(int64(len(userAgentMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] UserAgent Analysis (1/2):", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] UserAgent Analysis:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
@@ -143,7 +143,7 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 	p = mpb.New(mpb.WithWidth(20))
 	bar = p.AddBar(int64(len(userAgentMap)),
 		mpb.PrependDecorators(
-			decor.Name("\t[-] UserAgent Analysis (2/2):", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.Name("\t[-] UserAgent Aggregation:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
 		),
 		mpb.AppendDecorators(decor.Percentage()),
