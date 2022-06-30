@@ -59,7 +59,7 @@ func (s *summarizer) start() {
 		defer ssn.Close()
 
 		for datum := range s.summaryChannel {
-			useragentCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.UniqueConnTable)
+			useragentCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.UserAgent.UserAgentTable)
 			hostCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.HostTable)
 
 			// if there are too many IPs associated with this signature in the parsed in files, ignore the
