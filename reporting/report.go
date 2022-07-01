@@ -147,7 +147,6 @@ func writeDB(db string, wd string, showNetNames bool, res *resources.Resources) 
 
 	maxTime := time.Now().Format(time.RFC1123)
 
-
 	err = writeDBHomePage(db, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing Home page: " + err.Error())
@@ -183,6 +182,11 @@ func writeDB(db string, wd string, showNetNames bool, res *resources.Resources) 
 	err = printBeaconsProxy(db, showNetNames, res, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing beaconsProxy page: " + err.Error())
+	}
+
+	err = printBeaconsSNI(db, showNetNames, res, maxTime)
+	if err != nil {
+		fmt.Println("[-] Error writing beaconsSNI page: " + err.Error())
 	}
 
 	err = printStrobes(db, showNetNames, res, maxTime)
