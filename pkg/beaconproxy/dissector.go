@@ -84,7 +84,7 @@ func (d *dissector) start() {
 					"ts":    bson.M{"$first": "$ts"},
 					"count": bson.M{"$sum": "$count"},
 				}},
-				{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.Beacon.DefaultConnectionThresh}}},
+				{"$match": bson.M{"count": bson.M{"$gt": d.conf.S.BeaconProxy.DefaultConnectionThresh}}},
 				{"$unwind": "$ts"},
 				{"$unwind": "$ts"},
 				{"$group": bson.M{
