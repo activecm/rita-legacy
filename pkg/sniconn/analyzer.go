@@ -62,7 +62,7 @@ func (a *analyzer) start() {
 				selector = datum.HTTP.Hosts
 			}
 
-			netNameUpdate := netNameQuery(selector)
+			netNameUpdate := mainQuery(selector, a.chunk)
 			tlsUpdate := tlsQuery(datum.TLS, datum.TLSZeekRecords, a.connLimit, a.chunk)
 			httpUpdate := httpQuery(datum.HTTP, datum.HTTPZeekRecords, a.connLimit, a.chunk)
 
@@ -78,10 +78,11 @@ func (a *analyzer) start() {
 	}()
 }
 
-func netNameQuery(selector data.UniqueSrcFQDNPair) bson.M {
+func mainQuery(selector data.UniqueSrcFQDNPair, chunk int) bson.M {
 	return bson.M{
 		"$set": bson.M{
 			"src_network_name": selector.SrcNetworkName,
+			"cid":              chunk,
 		},
 	}
 }

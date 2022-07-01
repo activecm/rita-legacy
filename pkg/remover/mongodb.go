@@ -102,6 +102,7 @@ func (r *remover) removeOutdatedCIDs(cid int) error {
 		r.config.T.Beacon.BeaconTable,
 		r.config.T.BeaconFQDN.BeaconFQDNTable,
 		r.config.T.BeaconProxy.BeaconProxyTable,
+		r.config.T.BeaconSNI.BeaconSNITable,
 		r.config.T.Structure.HostTable,
 		r.config.T.Structure.UniqueConnTable,
 		r.config.T.Structure.UniqueConnProxyTable,
