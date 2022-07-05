@@ -6,7 +6,7 @@
 This package records the details of the connections made between IP addresses and server name indicators (SNIs). Server name indicators are pulled from application layer (TCP/IP) protocols and usually fully qualified domain names (FQDNs). RITA refers to the set of connections from one host to a collection of others related by a shared SNI using the term "SNI connection" or "sniconn" for short.
 
 This package records the following:
-- Each (source IP, SNI) that communicated
+- Each source IP address and destination SNI that communicated
 - How many times the source IP connected to the SNI using HTTP and TLS
     - SNI connections with connectino counts exceeding the limit defined in the RTIA configuration are marked as "strobes"
 - The total amount of time the source was connected to the SNI using HTTP and TLS
@@ -93,6 +93,25 @@ The current chunk ID is recorded in this subdocument in order to track when the 
 
 Multiple subdocuments may be produced by a single run `rita import` if the import session had to be broken into several sessions due to resource considerations.
 
+### TLS Strobe Designation
+Inputs:
+- `Config.S.Strobe.ConnectionLimit`
+    - Type: int
+- `ParseResults.TLSConnMap` created by `FSImporter`
+    - Field: `ConnectionCount`
+        - Type: int
+
+Outputs:
+- MongoDB `SNIconn` collection:
+    - Array Field: `dat`
+        - Object Field: `tls`
+            - Field: `strobe`
+                - Type: bool
+
+This field is included in same `dat.tls` subdocument as the destination IP addresses described above.
+
+If the number of TLS connections from the source to the destination in the set of network logs under consideration is greater than the strobe connection limit, the SNI connection is marked as a strobe. These hosts can be considered to have been in constant communication.
+
 ### TLS Connection Statistics
 Inputs:
 - `ParseResults.TLSConnMap` created by `FSImporter`
@@ -156,6 +175,8 @@ These fields are included in same `dat.tls` subdocument as the destination IP ad
 The individual timestamps of the connections from the source to the destination are unioned together and stored in MongoDB. Additionally, the number of bytes the source sent to the destination in each of the connections is stored. The `beaconSNI` package takes these outputs as input.
 
 In order to gather all of the connection timestamps across chunked imports, the `ts` arrays from each of the `dat.tls` documents must be unioned together. Similarly, in order to gather all of the data sizes across chunked imports, the `bytes` arrays from each of the `dat.tls` subdocuments must be concatenated.
+
+If a connection is marked as a strobe, these fields may be missing or empty.
 
 ### TLS Connection Details
 Inputs:
@@ -222,6 +243,25 @@ The current chunk ID is recorded in this subdocument in order to track when the 
 
 Multiple subdocuments may be produced by a single run `rita import` if the import session had to be broken into several sessions due to resource considerations.
 
+### HTTP Strobe Designation
+Inputs:
+- `Config.S.Strobe.ConnectionLimit`
+    - Type: int
+- `ParseResults.HTTPConnMap` created by `FSImporter`
+    - Field: `ConnectionCount`
+        - Type: int
+
+Outputs:
+- MongoDB `SNIconn` collection:
+    - Array Field: `dat`
+        - Object Field: `http`
+            - Field: `strobe`
+                - Type: bool
+
+This field is included in same `dat.http` subdocument as the destination IP addresses described above.
+
+If the number of TLS connections from the source to the destination in the set of network logs under consideration is greater than the strobe connection limit, the SNI connection is marked as a strobe. These hosts can be considered to have been in constant communication.
+
 ### HTTP Connection Statistics
 Inputs:
 - `ParseResults.HTTPConnMap` created by `FSImporter`
@@ -286,6 +326,8 @@ These fields are included in same `dat.http` subdocument as the destination IP a
 The individual timestamps of the connections from the source to the destination are unioned together and stored in MongoDB. Additionally, the number of bytes the source sent to the destination in each of the connections is stored. The `beaconSNI` package takes these outputs as input.
 
 In order to gather all of the connection timestamps across chunked imports, the `ts` arrays from each of the `dat.http` documents must be unioned together. Similarly, in order to gather all of the data sizes across chunked imports, the `bytes` arrays from each of the `dat.http` subdocuments must be concatenated.
+
+If a connection is marked as a strobe, these fields may be missing or empty.
 
 ### HTTP Connection Details
 Inputs:
