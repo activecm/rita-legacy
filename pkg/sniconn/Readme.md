@@ -353,3 +353,32 @@ The HTTP methods sent in the HTTP connections from the source to the destination
 The HTTP user agents sent in the HTTP connections from the source to the destination are stored in the `user_agents` field.
 
 Multiple subdocuments may be produced by a single run `rita import` if the import session had to be broken into several sessions due to resource considerations. In order to return the whole set of HTTP methods or user agents, these arrays in the `http` subdocuments must be unioned together.
+
+### SNI Beacon Strobe Designation
+Inputs:
+- `Config.S.Strobe.ConnectionLimit`
+    - Type: int
+- MongoDB `SNIconn` collection:
+    - Array Field: `dat`
+        - Object Field: `tls`
+            - Field: `count`
+                - Type: int
+        - Object Field: `http`
+            - Field: `count`
+                - Type: int
+
+Outputs:
+- MongoDB `SNIconn` collection:
+    - Array Field: `dat`
+        - Object Field: `beacon`
+            - Field: `strobe`
+                - Type: bool
+            - Field: `cid`
+                - Type: int
+
+During the beaconSNI connection analysis, the connections over HTTP and TLS are gathered together. If the total number of connections exceeds the strobe limit, the beaconSNI package will insert a new subdocument into the pair's `SNIconn` record. 
+
+This document is only created if neither `dat.tls.strobe` nor `dat.http.strobe` have been set to true. As a result, the following fields must all be queried when searching for SNI connection strobes:
+- `dat.tls.strobe`
+- `dat.http.strobe`
+- `dat.beacon.strobe`
