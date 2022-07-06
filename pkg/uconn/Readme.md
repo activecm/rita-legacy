@@ -269,7 +269,7 @@ After building the unique connections collection, RITA checks if any of the inte
 
 The current chunk ID is recorded in this subdocument in order to track when the entry was created.
 
-### Longest Connection Summary
+### Max Total Connection Time Summary
 
 Inputs: 
 - `ParseResults.HostMap` created by `FSImporter`
@@ -291,7 +291,7 @@ Inputs:
     - Field: `dst_network_name`
         - Type: string
     - Array Field: `dat`
-        - Field: `maxdur`
+        - Field: `tdur`
             - Type: float64
         - Field: `cid`
             - Type: int
@@ -313,8 +313,10 @@ Outputs:
 
 After building the unique connections collection, RITA finds the external hosts which spent the most amount of time connected to each of the internal hosts.
 
-The `host` record's `dat.mdip` field stores the external IP address of the unique connection with the highest `dat.maxdur` in which the internal host took part. The `dat.max_duration` field stores the associated `dat.maxdur` value. This analysis only considers unique connections updated in the current chunk.
+The `dat.tdur` field in the `uconn` collection records how long the connections between the pair of hosts lasted during each import session. In order to find the unique connection involving this host with the longest duration, the sum of the `dat.tdur` entries must be taken.
+
+The `host` record's `dat.mdip` field stores the external IP address of the unique connection which maximizes this sum. The `dat.max_duration` field stores the sum of the associated `dat.tdur` values. This analysis only considers unique connections updated in the current chunk.
 
 The current chunk ID is recorded in this subdocument in order to track when the entry was created.
 
-Multiple subdocuments may be produced by a single run `rita import` if the import session had to be broken into several sessions due to resource considerations. In order to return the longest connection made by an internal host, the maximum of the these subdocuments must be taken.
+Multiple subdocuments may be produced by a single run `rita import` if the import session had to be broken into several sessions due to resource considerations. In order to return the external host with the most connection time to an internal host, the maximum of the these subdocuments must be taken.
