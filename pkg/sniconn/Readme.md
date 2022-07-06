@@ -181,6 +181,8 @@ If a connection is marked as a strobe, these fields may be missing or empty.
 ### TLS Connection Details
 Inputs:
 - `ParseResults.TLSConnMap` created by `FSImporter`
+    - Field: `RespondingCertInvalid`
+        - Type: bool
     - Field: `Subjects`
         - Type: data.StringSet
     - Field: `JA3s`
@@ -192,6 +194,8 @@ Outputs:
 - MongoDB `SNIconn` collection:
     - Array Field: `dat`
         - Object Field: `tls`
+            - Field: `dst_cert_invalid`
+                - Type: bool
             - Array Field: `subjects`
                 - Type: string
             - Array Field: `ja3`
@@ -200,6 +204,8 @@ Outputs:
                 - Type: string
 
 These fields are included in same `dat.tls` subdocument as the destination IP addresses described above.
+
+If any of the certificates presented by the TLS servers responding to the SNI are invalid, the `dst_cert_invalid` flag will be set to `true`.
 
 The subject lines from the TLS certificates presented by the TLS servers respnding to the SNI are stored in the `subjects` field.
 

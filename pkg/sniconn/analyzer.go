@@ -131,9 +131,10 @@ func tlsQuery(datum *TLSInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit in
 						"dst_ports": datum.RespondingPorts.Items(),
 						"cid":       chunk,
 
-						"subjects": datum.Subjects.Items(),
-						"ja3":      datum.JA3s.Items(),
-						"ja3s":     datum.JA3Ss.Items(),
+						"dst_cert_invalid": datum.RespondingCertInvalid,
+						"subjects":         datum.Subjects.Items(),
+						"ja3":              datum.JA3s.Items(),
+						"ja3s":             datum.JA3Ss.Items(),
 					},
 				}},
 			},
