@@ -62,7 +62,7 @@ func (s *summarizer) start() {
 			uconnCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.UniqueConnTable)
 			hostCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.HostTable)
 
-			maxDurQuery, err := maxDurationQuery(datum, uconnCollection, s.chunk)
+			maxTotalDurQuery, err := maxTotalDurationQuery(datum, uconnCollection, s.chunk)
 			if err != nil {
 				if err != mgo.ErrNotFound {
 					s.log.WithFields(log.Fields{
@@ -73,7 +73,7 @@ func (s *summarizer) start() {
 				continue
 			}
 
-			totalHostQuery := maxDurQuery
+			totalHostQuery := maxTotalDurQuery
 
 			if len(totalHostQuery) > 0 {
 				s.summarizedCallback(update{
@@ -99,13 +99,13 @@ func (s *summarizer) start() {
 	}()
 }
 
-func maxDurationQuery(datum data.UniqueIP, uconnColl *mgo.Collection, chunk int) (bson.M, error) {
+func maxTotalDurationQuery(datum data.UniqueIP, uconnColl *mgo.Collection, chunk int) (bson.M, error) {
 	var maxDurIP struct {
-		Peer   data.UniqueIP `bson:"peer"`
-		MaxDur float64       `bson:"maxdur"`
+		Peer        data.UniqueIP `bson:"peer"`
+		MaxTotalDur float64       `bson:"tdur"`
 	}
 
-	mdipQuery := maxDurationPipeline(datum, chunk)
+	mdipQuery := maxTotalDurationPipeline(datum, chunk)
 
 	err := uconnColl.Pipe(mdipQuery).One(&maxDurIP)
 	if err != nil {
@@ -115,9 +115,13 @@ func maxDurationQuery(datum data.UniqueIP, uconnColl *mgo.Collection, chunk int)
 	return bson.M{
 		"$push": bson.M{
 			"dat": bson.M{
+				// NOTE: While "max_total_duration" would be a better name for this database field,
+				// "max_duration" is used to preserve database schema compatibility.
+				// This analysis previously tracked the longest individual connection for each internal host
+				// and stored the result in the `host` collection with the key `dat.max_duration`.
 				"$each": []bson.M{{
 					"mdip":         maxDurIP.Peer,
-					"max_duration": maxDurIP.MaxDur,
+					"max_duration": maxDurIP.MaxTotalDur,
 					"cid":          chunk,
 				}},
 			},
@@ -125,7 +129,7 @@ func maxDurationQuery(datum data.UniqueIP, uconnColl *mgo.Collection, chunk int)
 	}, nil
 }
 
-func maxDurationPipeline(host data.UniqueIP, chunk int) []bson.M {
+func maxTotalDurationPipeline(host data.UniqueIP, chunk int) []bson.M {
 	return []bson.M{
 		{"$match": bson.M{
 			// match the host IP/ network
@@ -169,8 +173,8 @@ func maxDurationPipeline(host data.UniqueIP, chunk int) []bson.M {
 					},
 				},
 			},
-			"dat.cid":    1,
-			"dat.maxdur": 1,
+			"dat.cid":  1,
+			"dat.tdur": 1,
 		}},
 		// drop dat records that are not from this chunk
 		{"$project": bson.M{
@@ -184,12 +188,12 @@ func maxDurationPipeline(host data.UniqueIP, chunk int) []bson.M {
 		}},
 		// for each peer, combine the records that match the current chunk
 		{"$project": bson.M{
-			"peer":   1,
-			"maxdur": bson.M{"$max": "$dat.maxdur"},
+			"peer": 1,
+			"tdur": bson.M{"$max": "$dat.tdur"},
 		}},
 		// find the peer with the maximum duration
 		{"$sort": bson.M{
-			"maxdur": -1,
+			"tdur": -1,
 		}},
 		{"$limit": 1},
 	}
