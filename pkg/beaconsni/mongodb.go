@@ -56,6 +56,7 @@ func (r *repo) CreateIndexes() error {
 		{Key: []string{"src", "fqdn", "src_network_uuid"}, Unique: true},
 		{Key: []string{"src", "src_network_uuid"}},
 		{Key: []string{"fqdn"}},
+		{Key: []string{"responding_ips.ip", "responding_ips.network_uuid"}},
 		{Key: []string{"-connection_count"}},
 	}
 

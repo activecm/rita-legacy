@@ -19,6 +19,7 @@ type mgoBulkActions map[string]mgoBulkAction
 
 type dissectorResults struct {
 	Hosts           data.UniqueSrcFQDNPair
+	RespondingIPs   []data.UniqueIP
 	ConnectionCount int64
 	TotalBytes      int64
 	TsList          []int64

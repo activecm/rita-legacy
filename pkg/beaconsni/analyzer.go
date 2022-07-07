@@ -232,6 +232,7 @@ func (a *analyzer) start() {
 						"score":              score,
 						"cid":                a.chunk,
 						"src_network_name":   res.Hosts.SrcNetworkName,
+						"responding_ips":     res.RespondingIPs,
 					},
 				}
 

@@ -33,10 +33,14 @@ Outputs:
         - Type: string
     - Field: `fqdn`
         - Type: string
+    - Array Field: `responding_ips`
+        - Type: string
 
 The `src` field records the string representation of the IP address of the source of a SNI connection as seen in the network logs. Similarly, the field `fqdn` specifies the server name indicator/ fully qualified domain name of the destination of a SNI connection as seen in the network logs. The `src_network_uuid` and `src_network_name` fields have been introduced to disambiguate hosts using the same private IP address on separate networks.
 
 These fields are used to select an individual entry in the `SNIconn` collection. All of the other outputs described here use the `src`, `src_network_uuid`, and `fqdn` fields as selectors when updating `beaconSNI` collection entries in MongoDB.
+
+The `responding_ips` field stores the set of IP addresses of the TLS and HTTP servers responding to the requests for the `fqdn`.
 
 ### Chunk ID
 Inputs: 
