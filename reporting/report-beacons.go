@@ -57,9 +57,8 @@ func getBeaconWriter(beacons []beacon.Result, showNetNames bool) (string, error)
 	} else {
 		tmpl += "<td>{{.SrcIP}}</td><td>{{.DstIP}}</td>"
 	}
-	tmpl += "<td>{{.Connections}}</td><td>{{printf \"%.3f\" .AvgBytes}}</td><td>"
-	tmpl += "{{.Ts.Range}}</td><td>{{.Ds.Range}}</td><td>{{.Ts.Mode}}</td><td>{{.Ds.Mode}}</td><td>{{.Ts.ModeCount}}</td><td>{{.Ds.ModeCount}}</td><td>"
-	tmpl += "{{printf \"%.3f\" .Ts.Skew}}</td><td>{{printf \"%.3f\" .Ds.Skew}}</td><td>{{.Ts.Dispersion}}</td><td>{{.Ds.Dispersion}}</td><td>{{.TotalBytes}}</td>"
+	tmpl += "<td>{{.Connections}}</td><td>{{printf \"%.3f\" .AvgBytes}}</td><td>{{.TotalBytes}}</td><td>{{printf \"%.3f\" .Ts.Score}}</td>"
+	tmpl += "<td>{{printf \"%.3f\" .Ds.Score}}</td><td>{{printf \"%.3f\" .DurScore}}</td><td>{{printf \"%.3f\" .HistScore}}</td>"
 	tmpl += "</tr>\n"
 
 	out, err := template.New("beacon").Parse(tmpl)

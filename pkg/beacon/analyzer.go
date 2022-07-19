@@ -203,7 +203,6 @@ func (a *analyzer) start() {
 				}
 
 				// calculate histogram score
-				sort.Sort(util.SortableInt64(res.TsList))
 				bucketList, freqList, freqCount, histScore := getTsHistogramScore(a.tsMin, a.tsMax, res.TsList)
 
 				// calculate overall beacon score
