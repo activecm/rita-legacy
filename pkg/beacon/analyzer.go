@@ -3,43 +3,42 @@ package beacon
 import (
 	"math"
 	"sort"
-	"strconv"
 	"sync"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/util"
 
+	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 )
 
 type (
+	//analyzer handles calculating statistical measures of the distributions of the
+	//timestamps and data sizes between pairs of hosts
 	analyzer struct {
-		tsMin            int64             // min timestamp for the whole dataset
-		tsMax            int64             // max timestamp for the whole dataset
-		chunk            int               //current chunk (0 if not on rolling analysis)
-		chunkStr         string            //current chunk (0 if not on rolling analysis)
-		db               *database.DB      // provides access to MongoDB
-		conf             *config.Config    // contains details needed to access MongoDB
-		log              *log.Logger       // main logger for RITA
-		analyzedCallback func(*update)     // called on each analyzed result
-		closedCallback   func()            // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *uconn.Input // holds unanalyzed data
-		analysisWg       sync.WaitGroup    // wait for analysis to finish
+		tsMin            int64                // min timestamp for the whole dataset
+		tsMax            int64                // max timestamp for the whole dataset
+		chunk            int                  // current chunk (0 if not on rolling analysis)
+		db               *database.DB         // provides access to MongoDB
+		conf             *config.Config       // contains details needed to access MongoDB
+		log              *log.Logger          // main logger for RITA
+		analyzedCallback func(mgoBulkActions) // analysis results are sent to this callback as MongoDB bulk actions
+		closedCallback   func()               // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *uconn.Input    // holds unanalyzed unique connection data
+		analysisWg       sync.WaitGroup       // wait for analysis to finish
 	}
 )
 
-//newAnalyzer creates a new collector for gathering data
+//newAnalyzer creates a new analyzer for calculating the beacon statistics of unique connections
 func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.Config, log *log.Logger,
-	analyzedCallback func(*update), closedCallback func()) *analyzer {
+	analyzedCallback func(mgoBulkActions), closedCallback func()) *analyzer {
 	return &analyzer{
 		tsMin:            min,
 		tsMax:            max,
 		chunk:            chunk,
-		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
 		conf:             conf,
 		log:              log,
@@ -49,12 +48,12 @@ func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.
 	}
 }
 
-//collect sends a chunk of data to be analyzed
+//collect gathers sorted unique connection data for analysis
 func (a *analyzer) collect(data *uconn.Input) {
 	a.analysisChannel <- data
 }
 
-//close waits for the collector to finish
+//close waits for the analyzer to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
@@ -67,29 +66,30 @@ func (a *analyzer) start() {
 	go func() {
 
 		for res := range a.analysisChannel {
-
-			output := &update{}
-
 			// if uconn has turned into a strobe, we will not have any timestamps here,
 			// and need to update uconn table with the strobe flag. This is being done
 			// here and not in uconns because uconns doesn't do reads, and doesn't know
 			// the updated conn count
 			if (res.TsList) == nil {
-
-				output.uconn = updateInfo{
-					// update hosts record
-					query: bson.M{
-						"$set": bson.M{"strobe": true},
+				// copy variables to be used by bulk callback to prevent capturing by reference
+				pairSelector := res.Hosts.BSONKey()
+				update := mgoBulkActions{
+					a.conf.T.Structure.UniqueConnTable: func(b *mgo.Bulk) int {
+						b.Upsert(
+							pairSelector,
+							bson.M{
+								"$set": bson.M{"strobe": true},
+							},
+						)
+						return 1
 					},
-					// create selector for output
-					selector: res.Hosts.BSONKey(),
+					a.conf.T.Beacon.BeaconTable: func(b *mgo.Bulk) int {
+						b.Remove(pairSelector)
+						return 1
+					},
 				}
-
-				// set to writer channel
-				a.analyzedCallback(output)
-
+				a.analyzedCallback(update)
 			} else {
-
 				//store the diff slice length since we use it a lot
 				//for timestamps this is one less then the data slice length
 				//since we are calculating the times in between readings
@@ -211,53 +211,51 @@ func (a *analyzer) start() {
 					(duration*a.conf.S.Beacon.DurWeight)+
 					(histScore*a.conf.S.Beacon.HistWeight))*1000) / 1000
 
-				// update beacon query
-				output.beacon = updateInfo{
-					query: bson.M{
-						"$set": bson.M{
-							"strobe":             false,
-							"cid":                a.chunk,
-							"src_network_name":   res.Hosts.SrcNetworkName,
-							"dst_network_name":   res.Hosts.DstNetworkName,
-							"connection_count":   res.ConnectionCount,
-							"avg_bytes":          res.TotalBytes / res.ConnectionCount,
-							"total_bytes":        res.TotalBytes,
-							"ts.range":           tsIntervalRange,
-							"ts.mode":            tsMode,
-							"ts.mode_count":      tsModeCount,
-							"ts.intervals":       intervals,
-							"ts.interval_counts": intervalCounts,
-							"ts.dispersion":      tsMadm,
-							"ts.skew":            tsSkew,
-							"ts.conns_score":     tsConnCountScore,
-							"ts.score":           tsScore,
-							"ds.range":           dsRange,
-							"ds.mode":            dsMode,
-							"ds.mode_count":      dsModeCount,
-							"ds.sizes":           dsSizes,
-							"ds.counts":          dsCounts,
-							"ds.dispersion":      dsMadm,
-							"ds.skew":            dsSkew,
-							"ds.score":           dsScore,
-							"duration_score":     duration,
-							"bucketlist":         bucketList,
-							"freqlist":           freqList,
-							"freqcount":          freqCount,
-							"hist_score":         histScore,
-							"score":              score,
-						},
+				// copy variables to be used by bulk callback to prevent capturing by reference
+				pairSelector := res.Hosts.BSONKey()
+				beaconQuery := bson.M{
+					"$set": bson.M{
+						"connection_count":   res.ConnectionCount,
+						"avg_bytes":          res.TotalBytes / res.ConnectionCount,
+						"total_bytes":        res.TotalBytes,
+						"ts.range":           tsIntervalRange,
+						"ts.mode":            tsMode,
+						"ts.mode_count":      tsModeCount,
+						"ts.intervals":       intervals,
+						"ts.interval_counts": intervalCounts,
+						"ts.dispersion":      tsMadm,
+						"ts.skew":            tsSkew,
+						"ts.conns_score":     tsConnCountScore,
+						"ts.score":           tsScore,
+						"ds.range":           dsRange,
+						"ds.mode":            dsMode,
+						"ds.mode_count":      dsModeCount,
+						"ds.sizes":           dsSizes,
+						"ds.counts":          dsCounts,
+						"ds.dispersion":      dsMadm,
+						"ds.skew":            dsSkew,
+						"ds.score":           dsScore,
+						"duration_score":     duration,
+						"bucketlist":         bucketList,
+						"freqlist":           freqList,
+						"freqcount":          freqCount,
+						"hist_score":         histScore,
+						"score":              score,
+						"cid":                a.chunk,
+						"src_network_name":   res.Hosts.SrcNetworkName,
+						"dst_network_name":   res.Hosts.DstNetworkName,
 					},
-					selector: res.Hosts.BSONKey(),
 				}
 
-				output.hostIcert = a.hostIcertQuery(res.InvalidCertFlag, res.Hosts.UniqueSrcIP.Unpair(), res.Hosts.UniqueDstIP.Unpair())
-				output.hostBeacon = a.hostBeaconQuery(score, res.Hosts.UniqueSrcIP.Unpair(), res.Hosts.UniqueDstIP.Unpair())
+				update := mgoBulkActions{
+					a.conf.T.Beacon.BeaconTable: func(b *mgo.Bulk) int {
+						b.Upsert(pairSelector, beaconQuery)
+						return 1
+					},
+				}
 
-				// set to writer channel
-				a.analyzedCallback(output)
-
+				a.analyzedCallback(update)
 			}
-
 		}
 		a.analysisWg.Done()
 	}()
@@ -422,225 +420,4 @@ func createHistogram(bucketList []int64, tsList []int64) ([]int, map[int]int, fl
 
 	return freqList, freqCount, cv
 
-}
-
-func (a *analyzer) hostIcertQuery(icert bool, src data.UniqueIP, dst data.UniqueIP) updateInfo {
-	ssn := a.db.Session.Copy()
-	defer ssn.Close()
-
-	var output updateInfo
-
-	// create query
-	query := bson.M{}
-
-	// don't update host table if there isn't an invalid cert record between pair
-	if !icert {
-		return updateInfo{}
-	}
-
-	hostSelector := src.BSONKey()
-	hostSelector["dat"] = bson.M{"$elemMatch": dst.PrefixedBSONKey("icdst")}
-
-	nExistingEntries, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).Find(hostSelector).Count()
-
-	if err != nil {
-		a.log.WithError(err).WithFields(log.Fields{
-			"src":              src.IP,
-			"src_network_name": src.NetworkName,
-			"dst":              dst.IP,
-			"dst_network_name": dst.NetworkName,
-		}).Error(
-			"Could not check for existing invalid certificate access marker in hosts collection. " +
-				"Refusing to update source's invalid certificate access marker.",
-		)
-		return updateInfo{}
-	}
-
-	newFlag := false
-
-	if nExistingEntries == 0 {
-		newFlag = true
-	}
-
-	if newFlag {
-		// add a new entry for invalid beacon cert
-		query["$push"] = bson.M{
-			"dat": bson.M{
-				"icdst": dst,
-				"icert": 1,
-				"cid":   a.chunk,
-			}}
-
-		// create selector for output
-		output.query = query
-		output.selector = src.BSONKey()
-
-	} else {
-		// no need to update all of the fields for an existing
-		// record; we just need to update the chunk ID
-		query["$set"] = bson.M{
-			"dat.$.cid": a.chunk,
-		}
-
-		// create selector for output
-		output.query = query
-		output.selector = hostSelector
-	}
-
-	return output
-}
-
-func (a *analyzer) hostBeaconQuery(score float64, src data.UniqueIP, dst data.UniqueIP) updateInfo {
-	ssn := a.db.Session.Copy()
-	defer ssn.Close()
-
-	var output updateInfo
-
-	// create query
-	query := bson.M{}
-
-	// check if we need to update
-	// we do this before the other queries because otherwise if a beacon
-	// starts out with a high score which reduces over time, it will keep
-	// the incorrect high max for that specific destination.
-	maxBeaconMatchExactQuery := src.BSONKey()
-	maxBeaconMatchExactQuery["dat"] = bson.M{"$elemMatch": dst.PrefixedBSONKey("mbdst")}
-
-	nExactMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
-		Find(maxBeaconMatchExactQuery).Count()
-
-	if err != nil {
-		a.log.WithError(err).WithFields(log.Fields{
-			"src":              src.IP,
-			"src_network_name": src.NetworkName,
-			"dst":              dst.IP,
-			"dst_network_name": dst.NetworkName,
-		}).Error(
-			"Could not check for existing max ip beacon in hosts collection. " +
-				"Refusing to update source's max ip beacon.",
-		)
-		return updateInfo{}
-	}
-
-	// if we have exact matches, update to new score and return
-	if nExactMatches > 0 {
-		query["$set"] = bson.M{
-			"dat.$.max_beacon_score": score,
-			"dat.$.mbdst":            dst,
-			"dat.$.cid":              a.chunk,
-		}
-
-		// create selector for output
-		output.query = query
-
-		// using the same find query we created above will allow us to match and
-		// update the exact chunk we need to update
-		output.selector = maxBeaconMatchExactQuery
-
-		return output
-	}
-
-	// The below is only for cases where the ip is not currently listed as a max beacon
-	// for a source
-	// update max beacon score
-	newFlag := false
-	updateFlag := false
-
-	// this query will find any matching chunk that is reporting a lower
-	// max beacon score than the current one we are working with
-	maxBeaconMatchLowerQuery := src.BSONKey()
-	maxBeaconMatchLowerQuery["dat"] = bson.M{
-		"$elemMatch": bson.M{
-			"cid":              a.chunk,
-			"max_beacon_score": bson.M{"$lte": score},
-		},
-	}
-	// find matching lower chunks
-	nLowerMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
-		Find(maxBeaconMatchLowerQuery).Count()
-
-	if err != nil {
-		a.log.WithError(err).WithFields(log.Fields{
-			"src":              src.IP,
-			"src_network_name": src.NetworkName,
-			"dst":              dst.IP,
-			"dst_network_name": dst.NetworkName,
-		}).Error(
-			"Could not check for lower scoring max ip beacon in hosts collection. " +
-				"Refusing to update source's max ip beacon.",
-		)
-		return updateInfo{}
-	}
-
-	// if no matching chunks are found, we will set the new flag
-	if nLowerMatches == 0 {
-
-		maxBeaconMatchUpperQuery := src.BSONKey()
-		maxBeaconMatchUpperQuery["dat"] = bson.M{
-			"$elemMatch": bson.M{
-				"cid":              a.chunk,
-				"max_beacon_score": bson.M{"$gte": score},
-			},
-		}
-
-		// find matching upper chunks
-		nUpperMatches, err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable).
-			Find(maxBeaconMatchUpperQuery).Count()
-
-		if err != nil {
-			a.log.WithError(err).WithFields(log.Fields{
-				"src":              src.IP,
-				"src_network_name": src.NetworkName,
-				"dst":              dst.IP,
-				"dst_network_name": dst.NetworkName,
-			}).Error(
-				"Could not check for higher scoring max ip beacon in hosts collection. " +
-					"Refusing to update source's max ip beacon.",
-			)
-			return updateInfo{}
-		}
-
-		// update if no upper chunks are found
-		if nUpperMatches == 0 {
-			newFlag = true
-		}
-	} else {
-		updateFlag = true
-	}
-
-	// since we didn't find any changeable lower max beacon scores, we will
-	// set the condition to push a new entry with the current score listed as the
-	// max beacon ONLY if no matching chunks reporting higher max beacon scores
-	// are found.
-
-	if newFlag {
-
-		query["$push"] = bson.M{
-			"dat": bson.M{
-				"max_beacon_score": score,
-				"mbdst":            dst,
-				"cid":              a.chunk,
-			}}
-
-		// create selector for output
-		output.query = query
-		output.selector = src.BSONKey()
-
-	} else if updateFlag {
-
-		query["$set"] = bson.M{
-			"dat.$.max_beacon_score": score,
-			"dat.$.mbdst":            dst,
-			"dat.$.cid":              a.chunk,
-		}
-
-		// create selector for output
-		output.query = query
-
-		// using the same find query we created above will allow us to match and
-		// update the exact chunk we need to update
-		output.selector = maxBeaconMatchLowerQuery
-	}
-
-	return output
 }

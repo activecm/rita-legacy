@@ -56,55 +56,50 @@ func (a *analyzer) start() {
 	go func() {
 
 		for datum := range a.analysisChannel {
-			// set up writer output
-			var output update
 
-			// create query
-			query := bson.M{}
+			mainUpdate := mainQuery(datum, a.connLimit, a.chunk)
 
-			// if this connection qualifies to be a strobe with the current number
-			// of connections in the current datum, don't store bytes and ts.
-			// it will not qualify to be downgraded to a proxy beacon until this chunk is
-			// outdated and removed. If only importing once - still just a strobe.
-			if datum.ConnectionCount >= a.connLimit {
-				query["$set"] = bson.M{
-					"strobe":           true,
-					"cid":              a.chunk,
-					"src_network_name": datum.Hosts.SrcNetworkName,
-					"proxy":            datum.Proxy,
-				}
-				query["$push"] = bson.M{
-					"dat": bson.M{
-						"count": datum.ConnectionCount,
-						"bytes": []interface{}{},
-						"ts":    []interface{}{},
-						"cid":   a.chunk,
-					},
-				}
-			} else {
-				query["$set"] = bson.M{
-					"strobe":           false,
-					"cid":              a.chunk,
-					"src_network_name": datum.Hosts.SrcNetworkName,
-					"proxy":            datum.Proxy,
-				}
-				query["$push"] = bson.M{
-					"dat": bson.M{
-						"count": datum.ConnectionCount,
-						"ts":    datum.TsList,
-						"cid":   a.chunk,
-					},
-				}
-			}
+			totalUpdate := mainUpdate
 
-			// assign formatted query to output
-			output.uconnProxy.query = query
-
-			output.uconnProxy.selector = datum.Hosts.BSONKey()
-
-			// set to writer channel
-			a.analyzedCallback(output)
+			a.analyzedCallback(update{
+				selector: datum.Hosts.BSONKey(),
+				query:    totalUpdate,
+			})
 		}
 		a.analysisWg.Done()
 	}()
+}
+
+//mainQuery records the bulk of the information about communications between two hosts
+//over an HTTP proxy
+func mainQuery(datum *Input, strobeLimit int64, chunk int) bson.M {
+
+	// if this connection qualifies to be a strobe with the current number
+	// of connections in the current datum, don't store ts.
+	// it will not qualify to be downgraded to a proxy beacon until this chunk is
+	// outdated and removed. If only importing once - still just a strobe.
+	ts := datum.TsList
+
+	isStrobe := datum.ConnectionCount >= strobeLimit
+	if isStrobe {
+		ts = []int64{}
+	}
+
+	return bson.M{
+		"$set": bson.M{
+			"strobe":           isStrobe,
+			"cid":              chunk,
+			"src_network_name": datum.Hosts.SrcNetworkName,
+			"proxy":            datum.Proxy,
+		},
+		"$push": bson.M{
+			"dat": bson.M{
+				"$each": []bson.M{{
+					"count": datum.ConnectionCount,
+					"ts":    ts,
+					"cid":   chunk,
+				}},
+			},
+		},
+	}
 }

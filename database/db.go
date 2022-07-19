@@ -182,3 +182,48 @@ func (d *DB) AggregateCollection(sourceCollection string,
 	}
 	return iter
 }
+
+// MergeBSONMaps recursively merges several bson.M objects into a single map.
+// When merging slices of maps with the same associated key, the slices are concatenated.
+// If two or more maps define the same key and they are not both bson.M objects,
+// a panic occurs. It should be known ahead of time whether keys will conflict
+// before calling this function.
+func MergeBSONMaps(maps ...bson.M) bson.M {
+	result := bson.M{}
+	for _, mapToMerge := range maps {
+		for keyToMerge, valueToMerge := range mapToMerge {
+			// handle new keys
+			currVal, currValExists := result[keyToMerge]
+			if !currValExists {
+				result[keyToMerge] = valueToMerge
+				continue
+			}
+
+			// handle merging child maps
+			currValMap, currValIsMap := currVal.(bson.M)
+			mapToMerge, valueToMergeIsMap := valueToMerge.(bson.M)
+			if currValIsMap && valueToMergeIsMap {
+				result[keyToMerge] = MergeBSONMaps(currValMap, mapToMerge)
+				continue
+			}
+
+			// handle merging arrays of maps
+			currValMapSlice, currValIsMapSlice := currVal.([]bson.M)
+			mapSliceToMerge, valueToMergeIsMapSlice := valueToMerge.([]bson.M)
+			if currValIsMapSlice && valueToMergeIsMapSlice {
+				result[keyToMerge] = append(currValMapSlice, mapSliceToMerge...)
+				continue
+			}
+
+			// maps cannot be merged due to a type mismatch or overwriting issue
+			panic(fmt.Sprintf(
+				"BSON maps could not be merged due to conflicting key value pairs:\n"+
+					"\tKey: %s\n\tValue 1: %s\n\tValue 2: %s\n",
+				keyToMerge, currVal, valueToMerge,
+			))
+			//return nil
+		}
+	}
+
+	return result
+}

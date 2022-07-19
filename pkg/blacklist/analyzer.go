@@ -1,7 +1,6 @@
 package blacklist
 
 import (
-	"strconv"
 	"sync"
 
 	"github.com/activecm/rita/config"
@@ -9,41 +8,42 @@ import (
 	"github.com/activecm/rita/pkg/data"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
-	//analyzer : structure for host analysis
+	//analyzer is a structure for marking the peers of unsafe hosts in the host collection
 	analyzer struct {
 		chunk            int                //current chunk (0 if not on rolling analysis)
-		chunkStr         string             //current chunk (0 if not on rolling analysis)
 		db               *database.DB       // provides access to MongoDB
 		conf             *config.Config     // contains details needed to access MongoDB
-		analyzedCallback func(hostsUpdate)  // called on each analyzed result
+		log              *log.Logger        // main logger for RITA
+		analyzedCallback func(update)       // called on each analyzed result
 		closedCallback   func()             // called when .close() is called and no more calls to analyzedCallback will be made
 		analysisChannel  chan data.UniqueIP // holds unanalyzed data
 		analysisWg       sync.WaitGroup     // wait for analysis to finish
 	}
 )
 
-//newAnalyzer creates a new collector for gathering data
-func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(hostsUpdate), closedCallback func()) *analyzer {
+//newAnalyzer creates a new analyzer for summarizing connections to unsafe hosts in the host collection
+func newAnalyzer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
-		chunkStr:         strconv.Itoa(chunk),
 		db:               db,
 		conf:             conf,
+		log:              log,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
 		analysisChannel:  make(chan data.UniqueIP),
 	}
 }
 
-//collect sends a chunk of data to be analyzed
+//collect gathers hosts that are known to be unsafe as input to the analyzer
 func (a *analyzer) collect(datum data.UniqueIP) {
 	a.analysisChannel <- datum
 }
 
-//close waits for the collector to finish
+//close waits for the analyzer to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
@@ -58,29 +58,51 @@ func (a *analyzer) start() {
 		defer ssn.Close()
 
 		for blacklistedIP := range a.analysisChannel {
-			blDstUconns := a.getUniqueConnsforBLDestination(blacklistedIP)
-			blSrcUconns := a.getUniqueConnsforBLSource(blacklistedIP)
+			blDstUconns, err := a.getUniqueConnsforBLDestination(blacklistedIP)
+			if err != nil {
+				a.log.WithFields(log.Fields{
+					"Module": "bl_updater",
+					"IP":     blacklistedIP,
+				}).Error(err)
+			}
+			blSrcUconns, err := a.getUniqueConnsforBLSource(blacklistedIP)
+			if err != nil {
+				a.log.WithFields(log.Fields{
+					"Module": "bl_updater",
+					"IP":     blacklistedIP,
+				}).Error(err)
+			}
 
 			for _, blUconnData := range blDstUconns { // update sources which contacted the blacklisted destination
-				blDstForSrcExists, _ := blHostRecordExists(
+				blDstForSrcExists, err := blHostRecordExists(
 					ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable), blUconnData.Host, blacklistedIP,
 				)
+				if err != nil {
+					a.log.WithFields(log.Fields{
+						"Module": "bl_updater",
+						"IP":     blacklistedIP,
+					}).Error(err)
+				}
 				srcHostUpdate := appendBlacklistedDstQuery(
 					a.chunk, blacklistedIP, blUconnData, blDstForSrcExists,
 				)
 
-				// set to writer channel
 				a.analyzedCallback(srcHostUpdate)
 			}
 			for _, blUconnData := range blSrcUconns { // update destinations which were contacted by the blacklisted source
-				blSrcForDstExists, _ := blHostRecordExists(
+				blSrcForDstExists, err := blHostRecordExists(
 					ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.HostTable), blUconnData.Host, blacklistedIP,
 				)
+				if err != nil {
+					a.log.WithFields(log.Fields{
+						"Module": "bl_updater",
+						"IP":     blacklistedIP,
+					}).Error(err)
+				}
 
 				newBLSrcForDstUpdate := appendBlacklistedSrcQuery(
 					a.chunk, blacklistedIP, blUconnData, blSrcForDstExists,
 				)
-				// set to writer channel
 				a.analyzedCallback(newBLSrcForDstUpdate)
 			}
 
@@ -90,6 +112,7 @@ func (a *analyzer) start() {
 	}()
 }
 
+//blHostRecrodExists checks if a the hostEntryIP has previously been marked as the peer of the given blacklistedIP
 func blHostRecordExists(hostCollection *mgo.Collection, hostEntryIP, blacklistedIP data.UniqueIP) (bool, error) {
 	entryKey := hostEntryIP.BSONKey()
 	entryKey["dat"] = bson.M{"$elemMatch": blacklistedIP.PrefixedBSONKey("bl")}
@@ -100,8 +123,8 @@ func blHostRecordExists(hostCollection *mgo.Collection, hostEntryIP, blacklisted
 }
 
 //appendBlacklistedDstQuery adds a blacklist record to a host which contacted by a blacklisted destination
-func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnData connectionPeer, existsFlag bool) hostsUpdate {
-	var output hostsUpdate
+func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnData connectionPeer, existsFlag bool) update {
+	var output update
 
 	// create query
 	query := bson.M{}
@@ -140,8 +163,8 @@ func appendBlacklistedDstQuery(chunk int, blacklistedDst data.UniqueIP, srcConnD
 }
 
 //appendBlacklistedSrcQuery adds a blacklist record to a host which was contacted by a blacklisted source
-func appendBlacklistedSrcQuery(chunk int, blacklistedSrc data.UniqueIP, dstConnData connectionPeer, existsFlag bool) hostsUpdate {
-	var output hostsUpdate
+func appendBlacklistedSrcQuery(chunk int, blacklistedSrc data.UniqueIP, dstConnData connectionPeer, existsFlag bool) update {
+	var output update
 
 	// create query
 	query := bson.M{}
@@ -181,7 +204,7 @@ func appendBlacklistedSrcQuery(chunk int, blacklistedSrc data.UniqueIP, dstConnD
 
 //getUniqueConnsforBLDestination returns the IP addresses that contacted a given blacklisted IP along with the number
 //of connections and bytes sent
-func (a *analyzer) getUniqueConnsforBLDestination(blDestinationIP data.UniqueIP) []connectionPeer {
+func (a *analyzer) getUniqueConnsforBLDestination(blDestinationIP data.UniqueIP) ([]connectionPeer, error) {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -216,14 +239,17 @@ func (a *analyzer) getUniqueConnsforBLDestination(blDestinationIP data.UniqueIP)
 		}},
 	}
 
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.UniqueConnTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
+	err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.UniqueConnTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
+	if err == mgo.ErrNotFound {
+		err = nil
+	}
 
-	return blIPs
+	return blIPs, err
 }
 
 //getUniqueConnsforBLSource returns the IP addresses that a given blacklisted IP contacted along with the number
 //of connections and bytes sent
-func (a *analyzer) getUniqueConnsforBLSource(blSourceIP data.UniqueIP) []connectionPeer {
+func (a *analyzer) getUniqueConnsforBLSource(blSourceIP data.UniqueIP) ([]connectionPeer, error) {
 	ssn := a.db.Session.Copy()
 	defer ssn.Close()
 
@@ -252,7 +278,10 @@ func (a *analyzer) getUniqueConnsforBLSource(blSourceIP data.UniqueIP) []connect
 		}},
 	}
 
-	_ = ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.UniqueConnTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
+	err := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.UniqueConnTable).Pipe(blIPQuery).AllowDiskUse().All(&blIPs)
+	if err == mgo.ErrNotFound {
+		err = nil
+	}
 
-	return blIPs
+	return blIPs, err
 }

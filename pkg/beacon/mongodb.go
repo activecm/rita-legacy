@@ -5,6 +5,8 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/util"
 
@@ -65,15 +67,16 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert loops through every new uconn ....
-func (r *repo) Upsert(uconnMap map[string]*uconn.Input, minTimestamp, maxTimestamp int64) {
+//Upsert derives beacon statistics from the given unique connections and creates summaries
+//for the given local hosts. The results are pushed to MongoDB.
+func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
 
 	//Create the workers
-	writerWorker := newWriter(
-		r.config.T.Beacon.BeaconTable,
+	writerWorker := newMgoBulkWriter(
 		r.database,
 		r.config,
 		r.log,
+		"beacon",
 	)
 
 	analyzerWorker := newAnalyzer(
@@ -119,7 +122,6 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, minTimestamp, maxTimesta
 		),
 		mpb.AppendDecorators(decor.Percentage()),
 	)
-
 	// loop over map entries
 	for _, entry := range uconnMap {
 		dissectorWorker.collect(entry)
@@ -129,4 +131,53 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, minTimestamp, maxTimesta
 
 	// start the closing cascade (this will also close the other channels)
 	dissectorWorker.close()
+
+	// Phase 2: Summary
+
+	// initialize a new writer for the summarizer
+	writerWorker = newMgoBulkWriter(r.database, r.config, r.log, "beacon")
+	summarizerWorker := newSummarizer(
+		r.config.S.Rolling.CurrentChunk,
+		r.database,
+		r.config,
+		r.log,
+		writerWorker.collect,
+		writerWorker.close,
+	)
+
+	// kick off the threaded goroutines
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		summarizerWorker.start()
+		writerWorker.start()
+	}
+
+	// grab the local hosts we have seen during the current analysis period
+	// get local hosts only for the summary
+	var localHosts []data.UniqueIP
+	for _, entry := range hostMap {
+		if entry.IsLocal {
+			localHosts = append(localHosts, entry.Host)
+		}
+	}
+
+	// add a progress bar for troubleshooting
+	p = mpb.New(mpb.WithWidth(20))
+	bar = p.AddBar(int64(len(localHosts)),
+		mpb.PrependDecorators(
+			decor.Name("\t[-] Beacon Aggregation:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+		),
+		mpb.AppendDecorators(decor.Percentage()),
+	)
+
+	// loop over the local hosts that need to be summarized
+	for _, localHost := range localHosts {
+		summarizerWorker.collect(localHost)
+		bar.IncrBy(1)
+	}
+
+	p.Wait()
+
+	// start the closing cascade (this will also close the other channels)
+	summarizerWorker.close()
 }

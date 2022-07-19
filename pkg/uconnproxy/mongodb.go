@@ -18,7 +18,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-// NewMongoRepository create new repository
+//NewMongoRepository bundles the given resources for updating MongoDB with proxy connection data
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -27,6 +27,7 @@ func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger
 	}
 }
 
+//CreateIndexes creates indexes for the uconnProxy collection
 func (r *repo) CreateIndexes() error {
 	session := r.database.Session.Copy()
 	defer session.Close()
@@ -48,7 +49,7 @@ func (r *repo) CreateIndexes() error {
 		{Key: []string{"src", "fqdn", "src_network_uuid"}, Unique: true},
 		{Key: []string{"fqdn"}},
 		{Key: []string{"src", "src_network_uuid"}},
-		{Key: []string{"$dat.count"}},
+		{Key: []string{"dat.count"}},
 	}
 
 	// create collection
@@ -60,7 +61,7 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-// Upsert loops through every uconnproxy entry
+// Upsert records the given proxy connection data in MongoDB
 func (r *repo) Upsert(uconnProxyMap map[string]*Input) {
 	// Create the workers
 	writerWorker := newWriter(r.config.T.Structure.UniqueConnProxyTable, r.database, r.config, r.log)

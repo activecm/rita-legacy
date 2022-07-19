@@ -20,7 +20,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository create new repository
+//NewMongoRepository bundles the given resources for updating MongoDB with rare signature data
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -29,6 +29,7 @@ func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger
 	}
 }
 
+//CreateIndexes creates indexes for the useragent collection
 func (r *repo) CreateIndexes() error {
 	session := r.database.Session.Copy()
 	defer session.Close()
@@ -62,9 +63,23 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
+//Upsert records the given useragent data in MongoDB
 func (r *repo) Upsert(userAgentMap map[string]*Input) {
-	//Create the workers
+
+	// 1st Phase: Analysis
+
+	for _, entry := range userAgentMap {
+		//Mongo Index key is limited to a size of 1024 https://docs.mongodb.com/v3.4/reference/limits/#index-limitations
+		//  so if the key is too large, we should cut it back, this is rough but
+		//  works. Figured 800 allows some wiggle room, while also not being too large
+		if len(entry.Name) > 1024 {
+			entry.Name = entry.Name[:800]
+		}
+	}
+
+	// Create the workers
 	writerWorker := newWriter(
+		r.config.T.UserAgent.UserAgentTable,
 		r.database,
 		r.config,
 		r.log,
@@ -78,7 +93,7 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 		writerWorker.close,
 	)
 
-	//kick off the threaded goroutines
+	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		analyzerWorker.start()
 		writerWorker.start()
@@ -96,12 +111,6 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 
 	// loop over map entries
 	for _, entry := range userAgentMap {
-		//Mongo Index key is limited to a size of 1024 https://docs.mongodb.com/v3.4/reference/limits/#index-limitations
-		//  so if the key is too large, we should cut it back, this is rough but
-		//  works. Figured 800 allows some wiggle room, while also not being too large
-		if len(entry.Name) > 1024 {
-			entry.Name = entry.Name[:800]
-		}
 		analyzerWorker.collect(entry)
 		bar.IncrBy(1)
 	}
@@ -110,4 +119,43 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 
 	// start the closing cascade (this will also close the other channels)
 	analyzerWorker.close()
+
+	// 2nd Phase: Summarize
+
+	// initialize a new writer for the summarizer
+	writerWorker = newWriter(r.config.T.Structure.HostTable, r.database, r.config, r.log)
+	summarizerWorker := newSummarizer(
+		r.config.S.Rolling.CurrentChunk,
+		r.database,
+		r.config,
+		r.log,
+		writerWorker.collect,
+		writerWorker.close,
+	)
+
+	// kick off the threaded goroutines
+	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
+		summarizerWorker.start()
+		writerWorker.start()
+	}
+
+	// progress bar for troubleshooting
+	p = mpb.New(mpb.WithWidth(20))
+	bar = p.AddBar(int64(len(userAgentMap)),
+		mpb.PrependDecorators(
+			decor.Name("\t[-] UserAgent Aggregation:", decor.WC{W: 30, C: decor.DidentRight}),
+			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
+		),
+		mpb.AppendDecorators(decor.Percentage()),
+	)
+
+	// loop over map entries
+	for _, entry := range userAgentMap {
+		summarizerWorker.collect(entry)
+		bar.IncrBy(1)
+	}
+	p.Wait()
+
+	// start the closing cascade (this will also close the other channels)
+	summarizerWorker.close()
 }

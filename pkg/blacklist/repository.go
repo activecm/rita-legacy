@@ -11,8 +11,8 @@ type Repository interface {
 	Upsert()
 }
 
-//hostsUpdate is used to update the hosts table with blacklisted source and destinations
-type hostsUpdate struct {
+//update is used to update the hosts table with blacklisted source and destinations
+type update struct {
 	selector bson.M
 	query    bson.M
 }

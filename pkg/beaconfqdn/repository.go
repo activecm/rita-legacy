@@ -14,15 +14,9 @@ type (
 		Upsert(hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64)
 	}
 
-	updateInfo struct {
+	update struct {
 		selector bson.M
 		query    bson.M
-	}
-
-	//update ....
-	update struct {
-		beacon     updateInfo
-		hostBeacon updateInfo
 	}
 
 	// hostnameIPs is used with reverseDNSQueryWithIPs() in order to read in records
