@@ -203,7 +203,7 @@ func (a *analyzer) start() {
 				}
 
 				// calculate histogram score
-				bucketList, freqList, freqCount, histScore := getTsHistogramScore(a.tsMin, a.tsMax, res.TsList)
+				bucketDivs, freqList, freqCount, histScore := getTsHistogramScore(a.tsMin, a.tsMax, res.TsList)
 
 				// calculate overall beacon score
 				score := math.Ceil(((tsScore*a.conf.S.Beacon.TsWeight)+
@@ -236,9 +236,9 @@ func (a *analyzer) start() {
 						"ds.skew":            dsSkew,
 						"ds.score":           dsScore,
 						"duration_score":     duration,
-						"bucketlist":         bucketList,
-						"freqlist":           freqList,
-						"freqcount":          freqCount,
+						"bucket_divs":        bucketDivs,
+						"freq_list":          freqList,
+						"freq_count":         freqCount,
 						"hist_score":         histScore,
 						"score":              score,
 						"cid":                a.chunk,
@@ -304,15 +304,16 @@ func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64
 	return result, counts
 }
 
-//getTsHistogramScore
+//getTsHistogramScore calculates two potential scores based on the histogram of connections for the
+// host pair and takes the max of the two scores.
 func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, map[int]int, float64) {
 
 	// get bucket list
 	// we currently look at a 24 hour period
-	bucketList := createBuckets(min, max, 24)
+	bucketDivs := createBuckets(min, max, 24)
 
 	// use timestamps to get freqencies for buckets
-	freqList, freqCount, freqCV := createHistogram(bucketList, tsList)
+	freqList, freqCount, freqCV := createHistogram(bucketDivs, tsList)
 
 	// calculate first potential score
 	// histograms with bigger flat sections will score higher, up to 4 flat sections
@@ -331,38 +332,44 @@ func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, 
 		score2 = 1.0
 	}
 
-	return bucketList, freqList, freqCount, math.Max(score1, score2)
+	return bucketDivs, freqList, freqCount, math.Max(score1, score2)
 
 }
 
 //createBuckets
-func createBuckets(min int64, max int64, total int64) []int64 {
+func createBuckets(min int64, max int64, size int64) []int64 {
+	// Set number of dividers. Since the dividers include the endpoints,
+	// number of dividers will be one more than the number of desired buckets
+	total := size + 1
 
 	// declare list
-	bucketList := make([]int64, total)
+	bucketDivs := make([]int64, total)
 
 	// calculate step size
 	step := (max - min) / (total - 1)
 
 	// set first bucket value to min timestamp
-	bucketList[0] = min
+	bucketDivs[0] = min
 
 	// create evenly spaced timestamp buckets
 	for i := int64(1); i < total; i++ {
-		bucketList[i] = min + (i * step)
+		bucketDivs[i] = min + (i * step)
 	}
 
 	// set first bucket value to max timestamp
-	bucketList[total-1] = max
+	bucketDivs[total-1] = max
 
-	return bucketList
+	return bucketDivs
 }
 
-func createHistogram(bucketList []int64, tsList []int64) ([]int, map[int]int, float64) {
-
+//createHistogram
+func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, float64) {
 	i := 0
-	bucket := bucketList[i+1]
-	freqList := make([]int, len(bucketList)-1)
+	bucket := bucketDivs[i+1]
+
+	// calculate the number of connections that occurred within the time span represented
+	// by each bucket
+	freqList := make([]int, len(bucketDivs)-1)
 
 	// loop over sorted timestamp list
 	for _, entry := range tsList {
@@ -374,10 +381,10 @@ func createHistogram(bucketList []int64, tsList []int64) ([]int, map[int]int, fl
 		}
 
 		// find the next bucket this value will fall under
-		for j := i + 1; j < len(bucketList)-1; j++ {
-			if entry < bucketList[j+1] {
+		for j := i + 1; j < len(bucketDivs)-1; j++ {
+			if entry < bucketDivs[j+1] {
 				i = j
-				bucket = bucketList[j+1]
+				bucket = bucketDivs[j+1]
 				break
 			}
 		}
@@ -388,7 +395,7 @@ func createHistogram(bucketList []int64, tsList []int64) ([]int, map[int]int, fl
 		freqList[i]++
 	}
 
-	// make a fequency count map
+	// make a fequency count map to track how often each value in freqList appears
 	freqCount := make(map[int]int)
 	total := 0
 

@@ -71,13 +71,13 @@ func showBeaconsHuman(data []beacon.Result, showNetNames bool) error {
 		headerFields = []string{
 			"Score", "Source Network", "Destination Network", "Source IP", "Destination IP",
 			"Connections", "Avg. Bytes", "Total Bytes", "TS Score", "DS Score", "Dur Score",
-			"Hist Score",
+			"Hist Score", "Top Intvl",
 		}
 	} else {
 		headerFields = []string{
 			"Score", "Source IP", "Destination IP",
 			"Connections", "Avg. Bytes", "Total Bytes", "TS Score", "DS Score", "Dur Score",
-			"Hist Score",
+			"Hist Score", "Top Intvl",
 		}
 	}
 
@@ -89,13 +89,13 @@ func showBeaconsHuman(data []beacon.Result, showNetNames bool) error {
 			row = []string{
 				f(d.Score), d.SrcNetworkName, d.DstNetworkName,
 				d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes), i(d.TotalBytes),
-				f(d.Ts.Score), f(d.Ds.Score), f(d.DurScore), f(d.HistScore),
+				f(d.Ts.Score), f(d.Ds.Score), f(d.DurScore), f(d.HistScore), i(d.Ts.Mode),
 			}
 		} else {
 			row = []string{
 				f(d.Score), d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.TotalBytes), f(d.Ts.Score), f(d.Ds.Score), f(d.DurScore),
-				f(d.HistScore),
+				f(d.HistScore), i(d.Ts.Mode),
 			}
 		}
 		table.Append(row)
@@ -110,13 +110,13 @@ func showBeaconsDelim(data []beacon.Result, delim string, showNetNames bool) err
 		headerFields = []string{
 			"Score", "Source Network", "Destination Network", "Source IP", "Destination IP",
 			"Connections", "Avg. Bytes", "Total Bytes", "TS Score", "DS Score", "Dur Score",
-			"Hist Score",
+			"Hist Score", "Top Intvl",
 		}
 	} else {
 		headerFields = []string{
 			"Score", "Source IP", "Destination IP",
 			"Connections", "Avg. Bytes", "Total Bytes", "TS Score", "DS Score", "Dur Score",
-			"Hist Score",
+			"Hist Score", "Top Intvl",
 		}
 	}
 
@@ -129,13 +129,13 @@ func showBeaconsDelim(data []beacon.Result, delim string, showNetNames bool) err
 			row = []string{
 				f(d.Score), d.SrcNetworkName, d.DstNetworkName,
 				d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes), i(d.TotalBytes),
-				f(d.Ts.Score), f(d.Ds.Score), f(d.DurScore), f(d.HistScore),
+				f(d.Ts.Score), f(d.Ds.Score), f(d.DurScore), f(d.HistScore), i(d.Ts.Mode),
 			}
 		} else {
 			row = []string{
 				f(d.Score), d.SrcIP, d.DstIP, i(d.Connections), f(d.AvgBytes),
 				i(d.TotalBytes), f(d.Ts.Score), f(d.Ds.Score), f(d.DurScore),
-				f(d.HistScore),
+				f(d.HistScore), i(d.Ts.Mode),
 			}
 		}
 

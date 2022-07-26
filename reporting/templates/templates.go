@@ -97,6 +97,7 @@ var BeaconsTempl = dbHeader + `
   <table>
   <tr><th>Score</th><th>Source</th><th>Destination</th><th>Connections</th><th>Avg. Bytes</th>
   <th>Total Bytes</th><th>TS Score</th><th>DS Score</th><th>Dur. Score</th><th>Hist. Score</th>
+  <th>Top Intvl</th>
 	</tr>
       {{.Writer}}
   </table>
@@ -110,7 +111,7 @@ var BeaconsNetNamesTempl = dbHeader + `
   <tr>
 	<th>Score</th><th>Source Network</th><th>Destination Network</th><th>Source</th><th>Destination</th>
 	<th>Connections</th><th>Avg. Bytes</th><th>Total Bytes</th><th>TS Score</th><th>DS Score</th>
-	<th>Dur. Score</th><th>Hist. Score</th>
+	<th>Dur. Score</th><th>Hist. Score</th><th>Top Intvl</th>
   </tr>
 	{{.Writer}}
   </table>
