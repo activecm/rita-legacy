@@ -78,7 +78,7 @@ func (a *analyzer) start() {
 							pairSelector,
 							bson.M{"$push": bson.M{
 								"dat": []bson.M{{
-									"beacon": bson.M{
+									"merged": bson.M{
 										"strobe": true,
 										"cid":    a.chunk,
 									},

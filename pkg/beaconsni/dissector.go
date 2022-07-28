@@ -62,7 +62,7 @@ func (d *dissector) start() {
 			// already had its counts and stats updated.
 			matchNoStrobeKey["dat.tls.strobe"] = bson.M{"$ne": true}
 			matchNoStrobeKey["dat.http.strobe"] = bson.M{"$ne": true}
-			matchNoStrobeKey["dat.beacon.strobe"] = bson.M{"$ne": true}
+			matchNoStrobeKey["dat.merged.strobe"] = bson.M{"$ne": true}
 
 			sniconnFindQuery := []bson.M{
 				{"$match": matchNoStrobeKey},
