@@ -111,54 +111,6 @@ func (r *repo) Upsert(tlsMap map[string]*TLSInput, httpMap map[string]*HTTPInput
 
 	// start the closing cascade (this will also close the other channels)
 	analyzerWorker.close()
-
-	// 	// Phase 2: Summary
-
-	// 	// initialize a new writer for the summarizer
-	// 	writerWorker = newWriter(r.config.T.Structure.HostTable, r.database, r.config, r.log)
-	// 	summarizerWorker := newSummarizer(
-	// 		r.config.S.Rolling.CurrentChunk,
-	// 		r.database,
-	// 		r.config,
-	// 		r.log,
-	// 		writerWorker.collect,
-	// 		writerWorker.close,
-	// 	)
-
-	// 	// kick off the threaded goroutines
-	// 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
-	// 		summarizerWorker.start()
-	// 		writerWorker.start()
-	// 	}
-
-	// 	// grab the local hosts we have seen during the current analysis period
-	// 	var localHosts []data.UniqueIP
-	// 	for _, entry := range hostMap {
-	// 		if entry.IsLocal {
-	// 			localHosts = append(localHosts, entry.Host)
-	// 		}
-	// 	}
-
-	// 	// add a progress bar for troubleshooting
-	// 	p = mpb.New(mpb.WithWidth(20))
-	// 	bar = p.AddBar(int64(len(localHosts)),
-	// 		mpb.PrependDecorators(
-	// 			decor.Name("\t[-] Unique Connection Analysis (2/2):", decor.WC{W: 30, C: decor.DidentRight}),
-	// 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
-	// 		),
-	// 		mpb.AppendDecorators(decor.Percentage()),
-	// 	)
-
-	// 	// loop over the local hosts that need to be summarized
-	// 	for _, localHost := range localHosts {
-	// 		summarizerWorker.collect(localHost)
-	// 		bar.IncrBy(1)
-	// 	}
-
-	// 	p.Wait()
-
-	// 	// start the closing cascade (this will also close the other channels)
-	// 	summarizerWorker.close()
 }
 
 func linkInputMaps(tlsMap map[string]*TLSInput, httpMap map[string]*HTTPInput, zeekUIDMap map[string]*data.ZeekUIDRecord) map[string]*linkedInput {

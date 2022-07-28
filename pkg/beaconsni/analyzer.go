@@ -65,10 +65,10 @@ func (a *analyzer) start() {
 	go func() {
 
 		for res := range a.analysisChannel {
-			// if uconn has turned into a strobe, we will not have any timestamps here,
-			// and need to update uconn table with the strobe flag. This is being done
-			// here and not in uconns because uconns doesn't do reads, and doesn't know
-			// the updated conn count
+			// if SNIconn has turned into a strobe, we will not have any timestamps here,
+			// and need to update the SNIconn table with the strobe flag. This is being done
+			// here and not in SNIconns because beaconSNI merges the connections from multiple protocols
+			// together whereas SNIconn tracks the strobe status separately.
 			if (res.TsList) == nil {
 				// copy variables to be used by bulk callback to prevent capturing by reference
 				pairSelector := res.Hosts.BSONKey()

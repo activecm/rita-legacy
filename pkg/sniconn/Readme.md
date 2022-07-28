@@ -384,7 +384,7 @@ Outputs:
 
 During the beaconSNI connection analysis, the connections over HTTP and TLS are gathered together. If the total number of connections exceeds the strobe limit, the beaconSNI package will insert a new subdocument into the pair's `SNIconn` record. 
 
-This document is only created if neither `dat.tls.strobe` nor `dat.http.strobe` have been set to true. As a result, the following fields must all be queried when searching for SNI connection strobes:
+The `dat.beacon` subdocument and accompanying `cid` are only created if neither `dat.tls.strobe` nor `dat.http.strobe` have been set to true. As a result, the following fields must all be queried when searching for SNI connection strobes:
 - `dat.tls.strobe`
 - `dat.http.strobe`
 - `dat.beacon.strobe`

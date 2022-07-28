@@ -5,7 +5,7 @@
 ---
 This package analyzes connections between IP addresses and server name indicators (SNIs) for signs of regular, programmatic communication.
  
-This pckage records the following:
+This package records the following:
 - Each source IP address and destination SNI that communicated
 - Summary statistics of the connections between the pair
 - Timestamp beaconing statistics
@@ -24,7 +24,7 @@ Inputs:
         - Type: data.UniqueSrcFQDNPair
 
 Outputs:
-- MongoDB `SNIconn` collection:
+- MongoDB `beaconSNI` collection:
     - Field: `src`
         - Type: string
     - Field: `src_network_uuid`
@@ -33,14 +33,10 @@ Outputs:
         - Type: string
     - Field: `fqdn`
         - Type: string
-    - Array Field: `responding_ips`
-        - Type: string
 
-The `src` field records the string representation of the IP address of the source of a SNI connection as seen in the network logs. Similarly, the field `fqdn` specifies the server name indicator/ fully qualified domain name of the destination of a SNI connection as seen in the network logs. The `src_network_uuid` and `src_network_name` fields have been introduced to disambiguate hosts using the same private IP address on separate networks.
+The `src` field records the string representation of the IP address of the source of a SNI beacon as seen in the network logs. Similarly, the field `fqdn` specifies the server name indicator/ fully qualified domain name of the destination of a SNI beacon as seen in the network logs. The `src_network_uuid` and `src_network_name` fields have been introduced to disambiguate hosts using the same private IP address on separate networks.
 
-These fields are used to select an individual entry in the `SNIconn` collection. All of the other outputs described here use the `src`, `src_network_uuid`, and `fqdn` fields as selectors when updating `beaconSNI` collection entries in MongoDB.
-
-The `responding_ips` field stores the set of IP addresses of the TLS and HTTP servers responding to the requests for the `fqdn`.
+These fields are used to select an individual entry in the `beaconSNI` collection. All of the other outputs described here use the `src`, `src_network_uuid`, and `fqdn` fields as selectors when updating `beaconSNI` collection entries in MongoDB.
 
 ### Chunk ID
 Inputs: 
@@ -259,7 +255,7 @@ Outputs:
 
 `ds.score` is calculated as `(1/3) * [(1 - |DS Bowley Skew|) + max(1 - (DS MADM)/32, 0) + max(1 - (DS Mode) / 65535, 0)]`
 
-### Highest Scoring FQDN Beacon Summary
+### Highest Scoring SNI Beacon Summary
 Inputs: 
 - `ParseResults.HostMap` created by `FSImporter`
     - Field: `IsLocal`
@@ -294,9 +290,9 @@ Outputs:
     - Field: `cid`
         - Type: int
 
-After building the `beaconFQDN` collection, RITA finds the FQDN with the highest beacon score for each of the internal hosts.
+After building the `beaconSNI` collection, RITA finds the SNI with the highest beacon score for each of the internal hosts.
 
-The `host` record's `dat.mbsni` field stores the FQDN of the FQDN beacon with the highest `score` in which internal host took part. The `dat.max_beacon_sni_score` field stores the associated `score` value. This analysis only considers beacons updated in the current chunk.
+The `host` record's `dat.mbsni` field stores the SNI of the SNI beacon with the highest `score` in which internal host took part. The `dat.max_beacon_sni_score` field stores the associated `score` value. This analysis only considers beacons updated in the current chunk.
 
 The current chunk ID is recorded in this subdocument in order to track when the entry was created.
 
