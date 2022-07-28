@@ -62,6 +62,7 @@ func (d *dissector) start() {
 			// already had its counts and stats updated.
 			matchNoStrobeKey["dat.tls.strobe"] = bson.M{"$ne": true}
 			matchNoStrobeKey["dat.http.strobe"] = bson.M{"$ne": true}
+			matchNoStrobeKey["dat.beacon.strobe"] = bson.M{"$ne": true}
 
 			// This will work for both updating and inserting completely new Beacons
 			// for every new uconn record we have, we will check the uconns table. This
