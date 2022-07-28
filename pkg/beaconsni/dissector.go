@@ -64,17 +64,7 @@ func (d *dissector) start() {
 			matchNoStrobeKey["dat.http.strobe"] = bson.M{"$ne": true}
 			matchNoStrobeKey["dat.beacon.strobe"] = bson.M{"$ne": true}
 
-			// This will work for both updating and inserting completely new Beacons
-			// for every new uconn record we have, we will check the uconns table. This
-			// will always return a result because even with a brand new database, we already
-			// created the uconns table. It will only continue and analyze if the connection
-			// meets the required specs, again working for both an update and a new src-dst pair.
-			// We would have to perform this check regardless if we want the rolling update
-			// option to remain, and this gets us the vetting for both situations, and Only
-			// works on the current entries - not a re-aggregation on the whole collection,
-			// and individual lookups like this are really fast. This also ensures a unique
-			// set of timestamps for analysis.
-			uconnFindQuery := []bson.M{
+			sniconnFindQuery := []bson.M{
 				{"$match": matchNoStrobeKey},
 				{"$limit": 1},
 				{"$project": bson.M{
@@ -167,7 +157,7 @@ func (d *dissector) start() {
 				RespondingIPs []data.UniqueIP `bson:"responding_ips"`
 			}
 
-			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.SNIConnTable).Pipe(uconnFindQuery).AllowDiskUse().One(&res)
+			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.SNIConnTable).Pipe(sniconnFindQuery).AllowDiskUse().One(&res)
 
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results
