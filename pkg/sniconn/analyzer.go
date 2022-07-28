@@ -114,12 +114,10 @@ func tlsQuery(datum *TLSInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit in
 	}
 
 	return bson.M{
-		"$set": bson.M{
-			"tls.cid": chunk,
-		},
 		"$push": bson.M{
 			"dat": bson.M{
 				"$each": []bson.M{{
+					"cid": chunk,
 					"tls": bson.M{
 						"ts":        ts,
 						"bytes":     bytes,
@@ -129,7 +127,6 @@ func tlsQuery(datum *TLSInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit in
 						"tdur":      totalDuration,
 						"dst_ips":   datum.RespondingIPs.Items(),
 						"dst_ports": datum.RespondingPorts.Items(),
-						"cid":       chunk,
 
 						"dst_cert_invalid": datum.RespondingCertInvalid,
 						"subjects":         datum.Subjects.Items(),
@@ -170,12 +167,10 @@ func httpQuery(datum *HTTPInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit 
 	}
 
 	return bson.M{
-		"$set": bson.M{
-			"http.cid": chunk,
-		},
 		"$push": bson.M{
 			"dat": bson.M{
 				"$each": []bson.M{{
+					"cid": chunk,
 					"http": bson.M{
 						"ts":        ts,
 						"bytes":     bytes,
@@ -185,7 +180,6 @@ func httpQuery(datum *HTTPInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit 
 						"tdur":      totalDuration,
 						"dst_ips":   datum.RespondingIPs.Items(),
 						"dst_ports": datum.RespondingPorts.Items(),
-						"cid":       chunk,
 
 						"methods":     datum.Methods.Items(),
 						"user_agents": datum.UserAgents.Items(),

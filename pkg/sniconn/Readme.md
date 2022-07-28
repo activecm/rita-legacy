@@ -8,7 +8,7 @@ This package records the details of the connections made between IP addresses an
 This package records the following:
 - Each source IP address and destination SNI that communicated
 - How many times the source IP connected to the SNI using HTTP and TLS
-    - SNI connections with connectino counts exceeding the limit defined in the RTIA configuration are marked as "strobes"
+    - SNI connections with connectioN counts exceeding the limit defined in the RITA configuration are marked as "strobes"
 - The total amount of time the source was connected to the SNI using HTTP and TLS
 - The total amount of bytes sent between the pair over HTTP and TLS
 - Timestamps of the individual HTTP and TLS connections
@@ -80,8 +80,8 @@ Outputs:
                     - Type: string
             - Array Field: `dst_ports`
                 - Type: int
-            - Field: `cid`
-                - Type int
+        - Field: `cid`
+            - Type int
 
 A new `tls` subdocument is stored in the `dat` array during each import session.
 
@@ -207,7 +207,7 @@ These fields are included in same `dat.tls` subdocument as the destination IP ad
 
 If any of the certificates presented by the TLS servers responding to the SNI are invalid, the `dst_cert_invalid` flag will be set to `true`.
 
-The subject lines from the TLS certificates presented by the TLS servers respnding to the SNI are stored in the `subjects` field.
+The subject lines from the TLS certificates presented by the TLS servers responding to the SNI are stored in the `subjects` field.
 
 The JA3 hashes derived from the TLS stacks used by the client are stored in the `ja3` field.
 
@@ -236,8 +236,8 @@ Outputs:
                     - Type: string
             - Array Field: `dst_ports`
                 - Type: int
-            - Field: `cid`
-                - Type int
+        - Field: `cid`
+            - Type int
 
 A new `http` subdocument is stored in the `dat` array during each import session.
 
@@ -379,8 +379,8 @@ Outputs:
         - Object Field: `merged`
             - Field: `strobe`
                 - Type: bool
-            - Field: `cid`
-                - Type: int
+        - Field: `cid`
+            - Type: int
 
 During the beaconSNI connection analysis, the connections over HTTP and TLS are gathered together. If the total number of connections exceeds the strobe limit, the beaconSNI package will insert a new subdocument into the pair's `SNIconn` record. 
 
