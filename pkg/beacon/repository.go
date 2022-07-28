@@ -19,6 +19,7 @@ type mgoBulkActions map[string]mgoBulkAction
 
 //TSData ...
 type TSData struct {
+	Score      float64 `bson:"score"`
 	Range      int64   `bson:"range"`
 	Mode       int64   `bson:"mode"`
 	ModeCount  int64   `bson:"mode_count"`
@@ -29,6 +30,7 @@ type TSData struct {
 
 //DSData ...
 type DSData struct {
+	Score      float64 `bson:"score"`
 	Skew       float64 `bson:"skew"`
 	Dispersion int64   `bson:"dispersion"`
 	Range      int64   `bson:"range"`
@@ -45,6 +47,8 @@ type Result struct {
 	TotalBytes        int64   `bson:"total_bytes"`
 	Ts                TSData  `bson:"ts"`
 	Ds                DSData  `bson:"ds"`
+	DurScore          float64 `bson:"duration_score"`
+	HistScore         float64 `bson:"hist_score"`
 	Score             float64 `bson:"score"`
 }
 
