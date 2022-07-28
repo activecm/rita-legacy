@@ -169,7 +169,7 @@ func (d *dissector) start() {
 					TotalBytes:      res.TBytes,
 				}
 
-				// check if uconn has become a strobe
+				// check if sniconn has become a strobe
 				if analysisInput.ConnectionCount > d.connLimit {
 					d.dissectedCallback(analysisInput)
 				} else { // otherwise, parse timestamps and orig ip bytes
