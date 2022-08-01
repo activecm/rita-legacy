@@ -7,7 +7,7 @@ import (
 	"github.com/globalsign/mgo"
 )
 
-// Repository for host collection
+// Repository for beacon collection
 type Repository interface {
 	CreateIndexes() error
 	Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64)

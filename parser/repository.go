@@ -4,8 +4,10 @@ import (
 	"sync"
 
 	"github.com/activecm/rita/pkg/certificate"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
+	"github.com/activecm/rita/pkg/sniconn"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/pkg/useragent"
@@ -29,6 +31,12 @@ type ParseResults struct {
 	CertificateLock     *sync.Mutex
 	ExplodedDNSMap      map[string]int
 	ExplodedDNSLock     *sync.Mutex
+	TLSConnMap          map[string]*sniconn.TLSInput
+	TLSConnLock         *sync.Mutex
+	HTTPConnMap         map[string]*sniconn.HTTPInput
+	HTTPConnLock        *sync.Mutex
+	ZeekUIDMap          map[string]*data.ZeekUIDRecord
+	ZeekUIDLock         *sync.Mutex
 }
 
 // newParseResults instantiates a ParseResults struct
@@ -48,5 +56,11 @@ func newParseResults() ParseResults {
 		CertificateLock:     new(sync.Mutex),
 		ExplodedDNSMap:      make(map[string]int),
 		ExplodedDNSLock:     new(sync.Mutex),
+		TLSConnMap:          make(map[string]*sniconn.TLSInput),
+		TLSConnLock:         new(sync.Mutex),
+		HTTPConnMap:         make(map[string]*sniconn.HTTPInput),
+		HTTPConnLock:        new(sync.Mutex),
+		ZeekUIDMap:          make(map[string]*data.ZeekUIDRecord),
+		ZeekUIDLock:         new(sync.Mutex),
 	}
 }

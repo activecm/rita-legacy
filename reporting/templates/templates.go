@@ -26,7 +26,8 @@ var dbHeader = `
   <li><a href="index.html">Viewing: {{.DB}}</a></li>
   <li><a href="beacons.html">Beacons</a></li>
   <li><a href="beaconsfqdn.html">Beacons FQDN</a></li>
-    <li><a href="beaconsproxy.html">Beacons Proxy</a></li>
+  <li><a href="beaconsproxy.html">Beacons Proxy</a></li>
+  <li><a href="beaconssni.html">Beacons SNI</a></li>
 	<li><a href="strobes.html">Strobes</a></li>
 	<li><a href="dns.html">DNS</a></li>
   <li><a href="bl-source-ips.html">BL Source IPs</a></li>
@@ -166,6 +167,34 @@ var BeaconsProxyNetNamesTempl = dbHeader + `
   <tr><th>Score</th><th>Source Network</th><th>Source</th><th>FQDN</th><th><Proxy Network><th>Proxy</th>
   <th>Connections</th><th>Intvl. Range</th><th>Intvl. Mode</th><th>Intvl. Mode Count</th>
 	<th>Intvl. Skew</th><th>Intvl. Dispersion</th></tr>
+  </tr>
+	{{.Writer}}
+  </table>
+</div>
+`
+
+// BeaconsSNITempl is our beaconsSNI html template
+var BeaconsSNITempl = dbHeader + `
+<div class="container">
+  <table>
+  <tr><th>Score</th><th>Source</th><th>SNI</th><th>Connections</th><th>Avg. Bytes</th><th>
+	Intvl. Range</th><th>Size Range</th><th>Intvl. Mode</th><th>Size Mode</th><th>Intvl. Mode Count</th>
+	<th>Size Mode Count</th><th>Intvl. Skew</th><th>Size Skew</th><th>Intvl. Dispersion</th><th>Size Dispersion
+	</th></tr>
+      {{.Writer}}
+  </table>
+</div>
+`
+
+// BeaconsSNINetNamesTempl is our beaconsSNI html template with network names
+var BeaconsSNINetNamesTempl = dbHeader + `
+<div class="container">
+  <table>
+  <tr>
+	<th>Score</th><th>Source Network</th><th>Source</th><th>SNI</th>
+	<th>Connections</th><th>Avg. Bytes</th><th>Intvl. Range</th><th>Size Range</th><th>Intvl. Mode</th>
+	<th>Size Mode</th><th>Intvl. Mode Count</th><th>Size Mode Count</th><th>Intvl. Skew</th><th>Size Skew</th>
+	<th>Intvl. Dispersion</th><th>Size Dispersion</th>
   </tr>
 	{{.Writer}}
   </table>

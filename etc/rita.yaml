@@ -164,6 +164,19 @@ BeaconFQDN:
   # about slow beacons.
   DefaultConnectionThresh: 20
 
+BeaconSNI:
+  Enabled: true
+  # The default minimum number of connections used for beacons SNI analysis.
+  # Any two hosts connecting fewer than this number will not be analyzed.
+  # 20 was chosen as it is a little bit less than once per hour in a day,
+  # and allows for any packet loss that could occur.
+
+  # If you choose a lower value, this will significantly increase both
+  # the analysis time and the number of false positives. You can safely
+  # increase this value to improve performance if you are not concerned
+  # about slow beacons.
+  DefaultConnectionThresh: 20
+
 BeaconProxy:
   Enabled: true
   # The default minimum number of connections used for beacons proxy analysis.

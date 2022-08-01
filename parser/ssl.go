@@ -7,6 +7,7 @@ import (
 	"github.com/activecm/rita/pkg/certificate"
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/host"
+	"github.com/activecm/rita/pkg/sniconn"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/util"
@@ -20,13 +21,19 @@ func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults
 	srcIP := net.ParseIP(src)
 	dstIP := net.ParseIP(dst)
 
+	fqdn := parseSSL.ServerName
+
 	srcUniqIP := data.NewUniqueIP(srcIP, parseSSL.AgentUUID, parseSSL.AgentHostname)
 	dstUniqIP := data.NewUniqueIP(dstIP, parseSSL.AgentUUID, parseSSL.AgentHostname)
 	srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
 
+	srcFQDNPair := data.NewUniqueSrcFQDNPair(srcUniqIP, fqdn)
+
 	srcDstKey := srcDstPair.MapKey()
 	srcKey := srcUniqIP.MapKey()
 	dstKey := dstUniqIP.MapKey()
+
+	srcFQDNKey := srcFQDNPair.MapKey()
 
 	updateUseragentsBySSL(srcUniqIP, parseSSL, retVals)
 
@@ -40,6 +47,8 @@ func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults
 	certificateIsInvalid := certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " "
 
 	newUniqueConnection := updateUniqueConnectionsBySSL(srcIP, dstIP, srcDstPair, srcDstKey, certificateIsInvalid, parseSSL, filter, retVals)
+
+	updateTLSConnectionsBySSL(srcIP, dstUniqIP, srcFQDNPair, srcFQDNKey, certificateIsInvalid, parseSSL, filter, retVals)
 
 	updateHostsBySSL(srcIP, dstIP, srcUniqIP, dstUniqIP, srcKey, dstKey, newUniqueConnection, filter, retVals)
 
@@ -76,6 +85,72 @@ func updateUseragentsBySSL(srcUniqIP data.UniqueIP, parseSSL *parsetypes.SSL, re
 
 	// ///// UNION DESTINATION HOSTNAME INTO USERAGENT DESTINATIONS /////
 	retVals.UseragentMap[parseSSL.JA3].Requests.Insert(parseSSL.ServerName)
+}
+
+func updateTLSConnectionsBySSL(srcIP net.IP, dstUniqIP data.UniqueIP, srcFQDNPair data.UniqueSrcFQDNPair, srcFQDNKey string,
+	certificateIsInvalid bool, parseSSL *parsetypes.SSL, filter filter, retVals ParseResults) {
+
+	if len(srcFQDNPair.FQDN) == 0 {
+		return // don't record TLS SNI connections when the SNI is missing
+	}
+
+	retVals.TLSConnLock.Lock()
+	defer retVals.TLSConnLock.Unlock()
+
+	if _, ok := retVals.TLSConnMap[srcFQDNKey]; !ok {
+		retVals.TLSConnMap[srcFQDNKey] = &sniconn.TLSInput{
+			Hosts:      srcFQDNPair,
+			IsLocalSrc: filter.checkIfInternal(srcIP),
+
+			Timestamps:      make(data.Int64Set),
+			RespondingIPs:   make(data.UniqueIPSet),
+			RespondingPorts: make(data.IntSet),
+
+			Subjects: make(data.StringSet),
+			JA3s:     make(data.StringSet),
+			JA3Ss:    make(data.StringSet),
+		}
+	}
+
+	// ///// INCREMENT THE CONNECTION COUNT FOR THE TLS SNI CONNECTION /////
+	retVals.TLSConnMap[srcFQDNKey].ConnectionCount++
+
+	// ///// UNION TIMESTAMP INTO TLS TIMESTAMP SET /////
+	retVals.TLSConnMap[srcFQDNKey].Timestamps.Insert(parseSSL.TimeStamp)
+
+	// ///// UNION DESTINATION HOST INTO TLS RESPONDING HOSTS /////
+	retVals.TLSConnMap[srcFQDNKey].RespondingIPs.Insert(dstUniqIP)
+
+	// ///// UNION DESTINATION PORT INTO TLS RESPONDING PORTS /////
+	retVals.TLSConnMap[srcFQDNKey].RespondingPorts.Insert(parseSSL.DestinationPort)
+
+	// ///// MARK RESPONDING CERTIFICATE AS INVALID /////
+	retVals.TLSConnMap[srcFQDNKey].RespondingCertInvalid = certificateIsInvalid
+
+	// ///// UNION RESPONDING CERTIFICATE SUBJECT INTO TLS SUBJECTS /////
+	if len(parseSSL.Subject) > 0 {
+		retVals.TLSConnMap[srcFQDNKey].Subjects.Insert(parseSSL.Subject)
+	}
+
+	// ///// UNION CLIENT JA3 HASH INTO TLS JA3 SET /////
+	if len(parseSSL.JA3) > 0 {
+		retVals.TLSConnMap[srcFQDNKey].JA3s.Insert(parseSSL.JA3)
+	}
+
+	// ///// UNION SERVER JA3S HASH INTO TLS JA3S SET /////
+	if len(parseSSL.JA3S) > 0 {
+		retVals.TLSConnMap[srcFQDNKey].JA3Ss.Insert(parseSSL.JA3S)
+	}
+
+	// ///// APPEND ZEEK RECORD UID INTO TLS UID SET /////
+	// This allows us to link conn record information to this
+	// ip -> fqdn record such as data sizes.
+	if len(parseSSL.UID) > 0 {
+		retVals.TLSConnMap[srcFQDNKey].ZeekUIDs = append(
+			retVals.TLSConnMap[srcFQDNKey].ZeekUIDs,
+			parseSSL.UID,
+		)
+	}
 }
 
 func updateUniqueConnectionsBySSL(srcIP, dstIP net.IP, srcDstPair data.UniqueIPPair, srcDstKey string,

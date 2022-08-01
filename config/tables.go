@@ -7,6 +7,7 @@ type (
 		DNS         DNSTableCfg
 		Structure   StructureTableCfg
 		Beacon      BeaconTableCfg
+		BeaconSNI   BeaconSNITableCfg
 		BeaconFQDN  BeaconFQDNTableCfg
 		BeaconProxy BeaconProxyTableCfg
 		UserAgent   UserAgentTableCfg
@@ -29,6 +30,7 @@ type (
 		SSLTable             string `default:"ssl"`
 		UniqueConnTable      string `default:"uconn"`
 		UniqueConnProxyTable string `default:"uconnProxy"`
+		SNIConnTable         string `default:"SNIconn"`
 	}
 
 	//DNSTableCfg is used to control the dns analysis module
@@ -40,6 +42,11 @@ type (
 	//BeaconTableCfg is used to control the beaconing analysis module
 	BeaconTableCfg struct {
 		BeaconTable string `default:"beacon"`
+	}
+
+	//BeaconSNITableCfg is used to control the SNI beaconing analysis module
+	BeaconSNITableCfg struct {
+		BeaconSNITable string `default:"beaconSNI"`
 	}
 
 	//BeaconFQDNTableCfg is used to control the beaconing analysis module

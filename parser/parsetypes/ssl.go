@@ -86,8 +86,10 @@ type SSL struct {
 	ValidationStatus string `bson:"validation_status"  bro:"validation_status" brotype:"string" json:"validation_status"`
 	// ValidationCode  : Numeric SSL/TLS version that the server chose
 	ValidationCode int `bson:"validation_code" bro:"validation_code" brotype:"int" json:"validation_code"`
-	// JA3 hash
+	// JA3 client hash
 	JA3 string `bson:"ja3" bro:"ja3" brotype:"string" json:"ja3"`
+	// JA3S server hash
+	JA3S string `bson:"ja3s" bro:"ja3s" brotype:"string" json:"ja3s"`
 	// AgentHostname names which sensor recorded this event. Only set when combining logs from multiple sensors.
 	AgentHostname string `bson:"agent_hostname" bro:"agent_hostname" brotype:"string" json:"agent_hostname"`
 	// AgentUUID identifies which sensor recorded this event. Only set when combining logs from multiple sensors.
