@@ -6,6 +6,7 @@ import (
 
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/sniconn"
 	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/util"
@@ -87,12 +88,17 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 	dstUniqIP := data.NewUniqueIP(dstIP, parseHTTP.AgentUUID, parseHTTP.AgentHostname)
 	srcFQDNPair := data.NewUniqueSrcFQDNPair(srcUniqIP, fqdn)
 
+	srcFQDNKey := srcFQDNPair.MapKey()
+
 	updateUseragentsByHTTP(srcUniqIP, parseHTTP, retVals)
 
 	// check if internal IP is requesting a connection through a proxy
 	if dstIsProxy {
 		updateProxiedUniqueConnectionsByHTTP(srcFQDNPair, dstUniqIP, parseHTTP, retVals)
+		return
 	}
+
+	updateHTTPConnectionsByHTTP(srcIP, dstUniqIP, srcFQDNPair, srcFQDNKey, parseHTTP, filter, retVals)
 }
 
 func updateUseragentsByHTTP(srcUniqIP data.UniqueIP, parseHTTP *parsetypes.HTTP, retVals ParseResults) {
@@ -148,6 +154,60 @@ func updateProxiedUniqueConnectionsByHTTP(srcFQDNPair data.UniqueSrcFQDNPair, ds
 	if !util.Int64InSlice(ts, retVals.ProxyUniqueConnMap[srcFQDNKey].TsList) {
 		retVals.ProxyUniqueConnMap[srcFQDNKey].TsList = append(
 			retVals.ProxyUniqueConnMap[srcFQDNKey].TsList, ts,
+		)
+	}
+}
+
+func updateHTTPConnectionsByHTTP(srcIP net.IP, dstUniqIP data.UniqueIP, srcFQDNPair data.UniqueSrcFQDNPair, srcFQDNKey string,
+	parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResults) {
+
+	if len(srcFQDNPair.FQDN) == 0 {
+		return // don't record HTTP connections when the FQDN is missing
+	}
+
+	retVals.HTTPConnLock.Lock()
+	defer retVals.HTTPConnLock.Unlock()
+
+	if _, ok := retVals.HTTPConnMap[srcFQDNKey]; !ok {
+		inputVal := &sniconn.HTTPInput{
+			Hosts:      srcFQDNPair,
+			IsLocalSrc: filter.checkIfInternal(srcIP),
+
+			Timestamps:      make(data.Int64Set),
+			RespondingIPs:   make(data.UniqueIPSet),
+			RespondingPorts: make(data.IntSet),
+			Methods:         make(data.StringSet),
+			UserAgents:      make(data.StringSet),
+		}
+
+		retVals.HTTPConnMap[srcFQDNKey] = inputVal
+	}
+
+	// ///// INCREMENT THE CONNECTION COUNT FOR THE HTTP SNI CONNECTION /////
+	retVals.HTTPConnMap[srcFQDNKey].ConnectionCount++
+
+	// ///// UNION TIMESTAMP INTO HTTP TIMESTAMP SET /////
+	retVals.HTTPConnMap[srcFQDNKey].Timestamps.Insert(parseHTTP.TimeStamp)
+
+	// ///// UNION DESTINATION HOST INTO HTTP RESPONDING HOSTS /////
+	retVals.HTTPConnMap[srcFQDNKey].RespondingIPs.Insert(dstUniqIP)
+
+	// ///// UNION DESTINATION PORT INTO HTTP RESPONDING PORTS /////
+	retVals.HTTPConnMap[srcFQDNKey].RespondingPorts.Insert(parseHTTP.DestinationPort)
+
+	// ///// UNION METHOD INTO HTTP METHODS /////
+	retVals.HTTPConnMap[srcFQDNKey].Methods.Insert(parseHTTP.Method)
+
+	// ///// UNION USERAGENT INTO HTTP USERAGENTS /////
+	retVals.HTTPConnMap[srcFQDNKey].UserAgents.Insert(parseHTTP.UserAgent)
+
+	// ///// APPEND ZEEK RECORD UID INTO HTTP UID SET /////
+	// This allows us to link conn record information to this
+	// ip -> fqdn record such as data sizes.
+	if len(parseHTTP.UID) > 0 {
+		retVals.HTTPConnMap[srcFQDNKey].ZeekUIDs = append(
+			retVals.HTTPConnMap[srcFQDNKey].ZeekUIDs,
+			parseHTTP.UID,
 		)
 	}
 }

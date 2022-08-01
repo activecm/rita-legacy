@@ -3,7 +3,7 @@
 *Documented on May 23, 2022*
 
 ---
-This package records the details of the connections made between pairs of hosts in the set of network logs under consideration. RITA refers to the set of connections from one host to another using the term "unique connection" or "uconn" for short. 
+This package records the details of the connections made between pairs of hosts in the set of network logs under consideration. RITA refers to the set of connections from one host to another using the term "unique connection" or "uconn" for short.
 
 This package records the following:
 - The pair of IP addresses that communicated
@@ -20,7 +20,7 @@ This package records the following:
 ## Package Outputs
 
 ### Source and Destination Unique IP Address Pair
-Inputs: 
+Inputs:
 - `ParseResults.UniqueConnMap` created by `FSImporter`
     - Field: `Hosts`
         - Type: data.UniqueIPPair
@@ -45,7 +45,7 @@ The `src` and `dst` fields record the string representation of the source and de
 These fields are used to select an individual entry in the `uconn` collection. All of the other outputs described here use the `src`, `src_network_uuid`, `dst`, and `dst_network_uuid` fields as selectors when updating `uconn` collection entries in MongoDB.
 
 ### Chunk ID
-Inputs: 
+Inputs:
 - `Config.S.Rolling.CurrentChunk`
     - Type: int
 
@@ -57,7 +57,7 @@ Outputs:
 The `cid` field records the chunk ID of the import session in which this unique connection document was last updated. This field is used to support rolling imports.
 
 ### Strobe Designation
-Inputs: 
+Inputs:
 - `Config.S.Strobe.ConnectionLimit`
     - Type: int
 - `ParseResults.UniqueConnMap` created by `FSImporter`
@@ -74,7 +74,7 @@ If the number of connections from the source to the destination in the set of ne
 Unique connections may become strobes over time due to chunked imports. The `beacon` package handles updating this field when a unique connection breaks over the strobe limit due to these chunked imports.
 
 ### Unique Connection Statistics
-Inputs: 
+Inputs:
 - `ParseResults.UniqueConnMap` created by `FSImporter`
     - Field: `ConnectionCount`
         - Type: int
@@ -99,18 +99,20 @@ Outputs:
         - Field: `cid`
             - Type: int
 
-The number of connections from the source to the destination in the network logs under consideration are stored in the `dat.count` field. 
+A new subdocument is stored in the `dat` array during each import session which contains the following fields.
+
+The number of connections from the source to the destination in the network logs under consideration are stored in the `count` field.
 
 The total number of bytes sent from the source to the destination is summed together with the number of bytes sent back to the source from the destination and stored in the `tbytes` field.
 
-The length of the longest connection  from the source to the destination is stored in the `dat.maxdur` field in seconds. The total duration of the connection from the source to the destination is stored in the `tdur` field. These duration fields are used to support long connection analysis.
+The length of the longest connection from the source to the destination is stored in the `maxdur` field in seconds. The total duration of the connection from the source to the destination is stored in the `tdur` field. These duration fields are used to support long connection analysis.
 
 The current chunk ID is recorded in this subdocument in order to track when the entry was created.
 
 Multiple subdocuments may be produced by a single run `rita import` if the import session had to be broken into several sessions due to resource considerations. In order to return the total connection count, total bytes, or total duration, all of the subdocuments must be summed together. In order to return the longest connection duration, the maximum of the subdocuments must be taken.
 
 ### Connection Timestamps and Originating Bytes
-Inputs: 
+Inputs:
 - `ParseResults.UniqueConnMap` created by `FSImporter`
     - Field: `TsList`
         - Type: []int64
@@ -125,16 +127,16 @@ Outputs:
         - Array Field: `ts`
             - Type: int
 
-These fields are stored in the same subdocument as the unique connection statistics above. 
+These fields are stored in the same subdocument as the unique connection statistics above.
 
 The individual timestamps of the connections from the source to the destination are unioned together and stored in MongoDB. Additionally, the number of bytes the source sent to the destination in each of the connections is stored. The `beacon` package takes these outputs as input.
 
-In order to gather all of the connection timestamps across chunked imports, the `ts` arrays from each of the `dat` documents must be unioned together. Similarly, in order to gather all of the data sizes across chunked imports, the `bytes` arrays from each of the `dat` subdocuments must be concatenated. 
+In order to gather all of the connection timestamps across chunked imports, the `ts` arrays from each of the `dat` documents must be unioned together. Similarly, in order to gather all of the data sizes across chunked imports, the `bytes` arrays from each of the `dat` subdocuments must be concatenated.
 
 If a connection is marked as a strobe, these fields may be missing or empty.
 
 ### Port, Protocol, Service Triplets
-Inputs: 
+Inputs:
 - `ParseResults.UniqueConnMap` created by `FSImporter`
     - Field: `Tuples`
         - Type: data.StringSet
@@ -145,14 +147,14 @@ Outputs:
         - Array Field: `tuples`
             - Type: string
 
-These fields are stored in the same subdocument as the unique connection statistics above. 
+These fields are stored in the same subdocument as the unique connection statistics above.
 
-The destination port, transport protocol (icmp, udp, or tcp), and service protocol (e.g. ssh) of each individual connection are grouped together to form a triplet. The set of these triplets seen for each unique connection is then stored in MongoDB. 
+The destination port, transport protocol (icmp, udp, or tcp), and service protocol (e.g. ssh) of each individual connection are grouped together to form a triplet. The set of these triplets seen for each unique connection is then stored in MongoDB.
 
-In order to gather all of the triplets across chunked imports, the `tuples` arrays from each the `dat` subdocuments must be unioned together. 
+In order to gather all of the triplets across chunked imports, the `tuples` arrays from each the `dat` subdocuments must be unioned together.
 
 ### Invalid Certificate Designation
-Inputs: 
+Inputs:
 - `ParseResults.UniqueConnMap` created by `FSImporter`
     - Field: `InvalidCertFlag`
         - Type: bool
@@ -164,12 +166,12 @@ Outputs:
             - Type: bool
 
 
-These fields are stored in the same subdocument as the unique connection statistics above. 
+These fields are stored in the same subdocument as the unique connection statistics above.
 
 If an invalid certificate was presented by the destination of a unique connection, we set the `dat.icerts` flag to true.
 
 ### Open Connection Tracking
-Inputs: 
+Inputs:
 - `ParseResults.UniqueConnMap` created by `FSImporter`
     - Collection: `.ConnStateMap`
         - Field: `Bytes`
@@ -239,7 +241,7 @@ The `open` filed of each individual open connection should always be set to `tru
 
 ### Host Fetched an Invalid Certificate Summary
 
-Inputs: 
+Inputs:
 - `ParseResults.HostMap` created by `FSImporter`
     - Field: `IsLocal`
         - Type: bool
@@ -271,7 +273,7 @@ The current chunk ID is recorded in this subdocument in order to track when the 
 
 ### Max Total Connection Time Summary
 
-Inputs: 
+Inputs:
 - `ParseResults.HostMap` created by `FSImporter`
     - Field: `IsLocal`
         - Type: bool

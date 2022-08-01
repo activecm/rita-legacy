@@ -31,12 +31,12 @@ Outputs:
     - Field: `fqdn`
         - Type: string
 
-The `src` field records the string representation of the IP address of the source of a proxied connection as seen in the network logs. Similarly, the field `fqdn` specifies the fully qualified domain name of the destination of a proxied connection as seen in the network logs. The `src_network_uuid` and `src_network` name fields have been introduced to disambiguate hosts using the same private IP address on separate networks. 
+The `src` field records the string representation of the IP address of the source of a proxied connection as seen in the network logs. Similarly, the field `fqdn` specifies the fully qualified domain name of the destination of a proxied connection as seen in the network logs. The `src_network_uuid` and `src_network_name` fields have been introduced to disambiguate hosts using the same private IP address on separate networks.
 
 These fields are used to select an individual entry in the `uconnProxy` collection. All of the other outputs described here use the `src`, `src_network_uuid`, and `fqdn` fields as selectors when updating `beaconProxy` collection entries in MongoDB.
 
 ### Chunk ID
-Inputs: 
+Inputs:
 - `Config.S.Rolling.CurrentChunk`
     - Type: int
 
@@ -66,7 +66,7 @@ Outputs:
 The IP address of the last proxy server which serviced a request from the source IP to connect to the destination FQDN is stored in the `proxy` field.
 
 ### Unique Connection Summary Statistics
-Inputs: 
+Inputs:
 - `ParseResults.ProxyUniqueConnMap` created by `FSImporter`
     - Field: `Hosts`
         - Type: data.UniqueSrcFQDNPair
@@ -74,7 +74,7 @@ Inputs:
     - Array Field: `dat`
         - Field: `count`
             - Type: int
-            
+
 Outputs:
 - MongoDB `beaconProxy` collection:
     - Field: `connection_count`
@@ -109,9 +109,9 @@ Outputs:
     - Field: `ts.skew`
         - Type: float64
 
-The `dat.ts` fields from the pair's `uconnProxy` document are unioned together in order to find all of the timestamps of the connections from the source to the destination. 
+The `dat.ts` fields from the pair's `uconnProxy` document are unioned together in order to find all of the timestamps of the connections from the source to the destination.
 
-After gathering all of the timestamps, the intervals between subsequent connections are derived by differencing the dataset. A frequency table is then constructed of the intervals and stored in the pair of fields: `ts.intervals` and `ts.interval_counts`. 
+After gathering all of the timestamps, the intervals between subsequent connections are derived by differencing the dataset. A frequency table is then constructed of the intervals and stored in the pair of fields: `ts.intervals` and `ts.interval_counts`.
 
 Given the dataset of connection intervals, the following statistics are derived:
 - Range: Distance from the largest interval to the smallest interval
@@ -165,7 +165,7 @@ Outputs:
 `ts.score` is calculated as `(1/3) * [(1 - |TS Bowley Skew|) + max(1 - (TS MADM)/30, 0) + (TS Conn. Count Score)]`.
 
 ### Highest Scoring FQDN Beacon Summary
-Inputs: 
+Inputs:
 - `ParseResults.HostMap` created by `FSImporter`
     - Field: `IsLocal`
         - Type: bool
