@@ -142,6 +142,15 @@ Beacon:
   # about slow beacons.
   DefaultConnectionThresh: 20
 
+  # The score is currently comprised of a weighted average of 4 subscores.
+  # While we recommend the default setting of 0.25 for each weight, 
+  # these weights can be altered here according to your needs. 
+  # The sum of all the floating point weights must be equal to 1.
+  TimestampScoreWeight: 0.25
+  DatasizeScoreWeight: 0.25
+  DurationScoreWeight: 0.25
+  HistogramScoreWeight: 0.25
+
 BeaconFQDN:
   Enabled: true
   # The default minimum number of connections used for beacons FQDN analysis.
