@@ -15,12 +15,15 @@ import (
 	"github.com/activecm/rita/pkg/beacon"
 	"github.com/activecm/rita/pkg/beaconfqdn"
 	"github.com/activecm/rita/pkg/beaconproxy"
+	"github.com/activecm/rita/pkg/beaconsni"
 	"github.com/activecm/rita/pkg/blacklist"
 	"github.com/activecm/rita/pkg/certificate"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/explodeddns"
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/pkg/remover"
+	"github.com/activecm/rita/pkg/sniconn"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/pkg/useragent"
@@ -179,6 +182,9 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 		// build uconnsProxy table. Must go before proxy beacons
 		fs.buildUconnsProxy(retVals.ProxyUniqueConnMap)
 
+		// build SNIconns table. Must go before SNI beacons
+		fs.buildSNIConns(retVals.TLSConnMap, retVals.HTTPConnMap, retVals.ZeekUIDMap, retVals.HostMap)
+
 		// update ts range for dataset (needs to be run before beacons)
 		minTimestamp, maxTimestamp := fs.updateTimestampRange()
 
@@ -196,6 +202,9 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 
 		// build or update the Proxy Beacons Table
 		fs.buildProxyBeacons(retVals.ProxyUniqueConnMap, retVals.HostMap, minTimestamp, maxTimestamp)
+
+		// build or update SNI Beacons Table
+		fs.buildSNIBeacons(retVals.TLSConnMap, retVals.HTTPConnMap, retVals.HostMap, minTimestamp, maxTimestamp)
 
 		// build or update UserAgent table
 		fs.buildUserAgent(retVals.UseragentMap)
@@ -473,6 +482,22 @@ func (fs *FSImporter) buildHostnames(hostnameMap map[string]*hostname.Input) {
 
 }
 
+func (fs *FSImporter) buildSNIConns(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*sniconn.HTTPInput,
+	zeekUIDMap map[string]*data.ZeekUIDRecord, hostMap map[string]*host.Input) {
+	if len(tlsMap) != 0 || len(httpMap) != 0 {
+		sniconnRepo := sniconn.NewMongoRepository(fs.database, fs.config, fs.log)
+
+		err := sniconnRepo.CreateIndexes()
+		if err != nil {
+			fs.log.Error(err)
+		}
+
+		sniconnRepo.Upsert(tlsMap, httpMap, zeekUIDMap, hostMap)
+	} else {
+		fmt.Println("\t[!] No TLS or HTTP connections to analyze")
+	}
+}
+
 func (fs *FSImporter) buildUconnsProxy(uconnProxyMap map[string]*uconnproxy.Input) {
 	// non-optional module
 	if len(uconnProxyMap) > 0 {
@@ -602,6 +627,24 @@ func (fs *FSImporter) buildProxyBeacons(uconnProxyMap map[string]*uconnproxy.Inp
 		}
 	}
 
+}
+
+func (fs *FSImporter) buildSNIBeacons(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*sniconn.HTTPInput, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
+	if fs.config.S.BeaconSNI.Enabled {
+		if len(tlsMap) > 0 || len(httpMap) > 0 {
+			beaconSNIRepo := beaconsni.NewMongoRepository(fs.database, fs.config, fs.log)
+
+			err := beaconSNIRepo.CreateIndexes()
+			if err != nil {
+				fs.log.Error(err)
+			}
+
+			// send SNI conns to beacon analysis
+			beaconSNIRepo.Upsert(tlsMap, httpMap, hostMap, minTimestamp, maxTimestamp)
+		} else {
+			fmt.Println("\t[!] No TLS or HTTP Beacon data to analyze")
+		}
+	}
 }
 
 //buildUserAgent .....
