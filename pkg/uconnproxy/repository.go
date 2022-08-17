@@ -27,6 +27,7 @@ type update struct {
 type Input struct {
 	Hosts           data.UniqueSrcFQDNPair
 	TsList          []int64
+	TsListFull      []int64
 	Proxy           data.UniqueIP
 	ConnectionCount int64
 }

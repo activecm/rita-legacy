@@ -124,7 +124,7 @@ func updateUniqueConnectionsByConn(srcIP, dstIP net.IP, srcDstPair data.UniqueIP
 	// ///// INCREMENT THE CONNECTION COUNT FOR THE UNIQUE CONNECTION /////
 	retVals.UniqueConnMap[srcDstKey].ConnectionCount++
 
-	// ///// UNION TIMESTAMP WITH UNIQUE CONNECTION TIMESTAMP SET /////
+	// ///// APPEND TIMESTAMP TO UNIQUE CONNECTION TIMESTAMP LIST /////
 	retVals.UniqueConnMap[srcDstKey].TsList = append(
 		retVals.UniqueConnMap[srcDstKey].TsList, parseConn.TimeStamp,
 	)

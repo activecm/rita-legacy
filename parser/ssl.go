@@ -115,8 +115,10 @@ func updateTLSConnectionsBySSL(srcIP net.IP, dstUniqIP data.UniqueIP, srcFQDNPai
 	// ///// INCREMENT THE CONNECTION COUNT FOR THE TLS SNI CONNECTION /////
 	retVals.TLSConnMap[srcFQDNKey].ConnectionCount++
 
-	// ///// UNION TIMESTAMP INTO TLS TIMESTAMP SET /////
-	retVals.TLSConnMap[srcFQDNKey].Timestamps.Insert(parseSSL.TimeStamp)
+	// ///// APPEND TIMESTAMP TO TLS TIMESTAMP LIST /////
+	retVals.TLSConnMap[srcFQDNKey].Timestamps = append(
+		retVals.TLSConnMap[srcFQDNKey].Timestamps, parseSSL.TimeStamp,
+	)
 
 	// ///// UNION DESTINATION HOST INTO TLS RESPONDING HOSTS /////
 	retVals.TLSConnMap[srcFQDNKey].RespondingIPs.Insert(dstUniqIP)

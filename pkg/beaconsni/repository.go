@@ -23,6 +23,7 @@ type dissectorResults struct {
 	ConnectionCount int64
 	TotalBytes      int64
 	TsList          []int64
+	TsListFull      []int64
 	OrigBytesList   []int64
 }
 

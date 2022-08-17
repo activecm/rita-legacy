@@ -32,7 +32,7 @@ type TLSInput struct {
 	IsLocalSrc bool
 
 	ConnectionCount int64
-	Timestamps      data.Int64Set
+	Timestamps      []int64
 	RespondingIPs   data.UniqueIPSet
 	RespondingPorts data.IntSet
 
@@ -50,7 +50,7 @@ type HTTPInput struct {
 	IsLocalSrc bool
 
 	ConnectionCount int64
-	Timestamps      data.Int64Set
+	Timestamps      []int64
 	RespondingIPs   data.UniqueIPSet
 	RespondingPorts data.IntSet
 

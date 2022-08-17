@@ -96,7 +96,7 @@ func tlsQuery(datum *TLSInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit in
 	// of connections in the current datum, don't store bytes and ts.
 	// it will not qualify to be downgraded to a beacon until this chunk is
 	// outdated and removed. If only importing once - still just a strobe.
-	ts := datum.Timestamps.Items()
+	ts := datum.Timestamps
 
 	var bytes []int64
 	var totalTwoWayBytes int64
@@ -149,7 +149,7 @@ func httpQuery(datum *HTTPInput, zeekRecords []*data.ZeekUIDRecord, strobeLimit 
 	// of connections in the current datum, don't store bytes and ts.
 	// it will not qualify to be downgraded to a beacon until this chunk is
 	// outdated and removed. If only importing once - still just a strobe.
-	ts := datum.Timestamps.Items()
+	ts := datum.Timestamps
 
 	var bytes []int64
 	var totalTwoWayBytes int64
