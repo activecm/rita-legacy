@@ -125,11 +125,9 @@ func updateUniqueConnectionsByConn(srcIP, dstIP net.IP, srcDstPair data.UniqueIP
 	retVals.UniqueConnMap[srcDstKey].ConnectionCount++
 
 	// ///// UNION TIMESTAMP WITH UNIQUE CONNECTION TIMESTAMP SET /////
-	if !util.Int64InSlice(parseConn.TimeStamp, retVals.UniqueConnMap[srcDstKey].TsList) {
-		retVals.UniqueConnMap[srcDstKey].TsList = append(
-			retVals.UniqueConnMap[srcDstKey].TsList, parseConn.TimeStamp,
-		)
-	}
+	retVals.UniqueConnMap[srcDstKey].TsList = append(
+		retVals.UniqueConnMap[srcDstKey].TsList, parseConn.TimeStamp,
+	)
 
 	// ///// APPEND IP BYTES TO UNIQUE CONNECTION BYTES LIST /////
 	retVals.UniqueConnMap[srcDstKey].OrigBytesList = append(
