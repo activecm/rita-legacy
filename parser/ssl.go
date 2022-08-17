@@ -99,10 +99,9 @@ func updateTLSConnectionsBySSL(srcIP net.IP, dstUniqIP data.UniqueIP, srcFQDNPai
 
 	if _, ok := retVals.TLSConnMap[srcFQDNKey]; !ok {
 		retVals.TLSConnMap[srcFQDNKey] = &sniconn.TLSInput{
-			Hosts:      srcFQDNPair,
-			IsLocalSrc: filter.checkIfInternal(srcIP),
-
-			Timestamps:      make(data.Int64Set),
+			Hosts:           srcFQDNPair,
+			IsLocalSrc:      filter.checkIfInternal(srcIP),
+			Timestamps:      []int64{},
 			RespondingIPs:   make(data.UniqueIPSet),
 			RespondingPorts: make(data.IntSet),
 
