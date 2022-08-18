@@ -104,39 +104,39 @@ func (d *dissector) start() {
 				{"$unwind": "$ts"},
 				{"$unwind": "$ts"},
 				{"$group": bson.M{
-					"_id":     "$_id",
-					"ts":      bson.M{"$addToSet": "$ts"},
-					"ts_full": bson.M{"$push": "$ts"},
-					"bytes":   bson.M{"$first": "$bytes"},
-					"count":   bson.M{"$first": "$count"},
-					"tbytes":  bson.M{"$first": "$tbytes"},
+					"_id":       "$_id",
+					"ts_unique": bson.M{"$addToSet": "$ts"},
+					"ts":        bson.M{"$push": "$ts"},
+					"bytes":     bson.M{"$first": "$bytes"},
+					"count":     bson.M{"$first": "$count"},
+					"tbytes":    bson.M{"$first": "$tbytes"},
 				}},
 				{"$unwind": "$bytes"},
 				{"$unwind": "$bytes"},
 				{"$group": bson.M{
-					"_id":     "$_id",
-					"ts":      bson.M{"$first": "$ts"},
-					"ts_full": bson.M{"$first": "$ts_full"},
-					"bytes":   bson.M{"$push": "$bytes"},
-					"count":   bson.M{"$first": "$count"},
-					"tbytes":  bson.M{"$first": "$tbytes"},
+					"_id":       "$_id",
+					"ts_unique": bson.M{"$first": "$ts_unique"},
+					"ts":        bson.M{"$first": "$ts"},
+					"bytes":     bson.M{"$push": "$bytes"},
+					"count":     bson.M{"$first": "$count"},
+					"tbytes":    bson.M{"$first": "$tbytes"},
 				}},
 				{"$project": bson.M{
-					"_id":     "$_id",
-					"ts":      1,
-					"ts_full": 1,
-					"bytes":   1,
-					"count":   1,
-					"tbytes":  1,
+					"_id":           "$_id",
+					"ts_unique_len": bson.M{"$size": "$ts_unique"},
+					"ts":            1,
+					"bytes":         1,
+					"count":         1,
+					"tbytes":        1,
 				}},
 			}
 
 			var res struct {
-				Count  int64   `bson:"count"`
-				Ts     []int64 `bson:"ts"`
-				TsFull []int64 `bson:"ts_full"`
-				Bytes  []int64 `bson:"bytes"`
-				TBytes int64   `bson:"tbytes"`
+				Count       int64   `bson:"count"`
+				TsUniqueLen int64   `bson:"ts_unique_len"`
+				Ts          []int64 `bson:"ts"`
+				Bytes       []int64 `bson:"bytes"`
+				TBytes      int64   `bson:"tbytes"`
 			}
 
 			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnTable).Pipe(uconnFindQuery).AllowDiskUse().One(&res)
@@ -156,11 +156,11 @@ func (d *dissector) start() {
 
 				} else { // otherwise, parse timestamps and orig ip bytes
 					analysisInput.TsList = res.Ts
-					analysisInput.TsListFull = res.TsFull
+					analysisInput.UniqueTsListLength = res.TsUniqueLen
 					analysisInput.OrigBytesList = res.Bytes
 					// the analysis worker requires that we have over UNIQUE 3 timestamps
 					// we drop the input here since it is the earliest place in the pipeline to do so
-					if len(analysisInput.TsList) > 3 {
+					if analysisInput.UniqueTsListLength > 3 {
 						d.dissectedCallback(analysisInput)
 					}
 				}

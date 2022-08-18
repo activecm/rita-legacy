@@ -70,7 +70,7 @@ func (a *analyzer) start() {
 			// and need to update uconn table with the strobe flag. This is being done
 			// here and not in uconns because uconns doesn't do reads, and doesn't know
 			// the updated conn count
-			if (res.TsList) == nil {
+			if (res.TsList == nil) || (res.UniqueTsListLength <= 0) {
 				// copy variables to be used by bulk callback to prevent capturing by reference
 				pairSelector := res.Hosts.BSONKey()
 				update := mgoBulkActions{
@@ -96,25 +96,15 @@ func (a *analyzer) start() {
 				tsLength := len(res.TsList) - 1
 				dsLength := len(res.OrigBytesList)
 
-				//find the delta times between the timestamps
+				//find the delta times between the timestamps and sort
 				diff := make([]int64, tsLength)
 				for i := 0; i < tsLength; i++ {
 					diff[i] = res.TsList[i+1] - res.TsList[i]
 				}
-
-				//find the delta times between full list of timestamps
-				//(this will be used for the intervals list. Bowleys skew
-				//must use a unique timestamp list with no duplicates)
-				tsLengthFull := len(res.TsListFull) - 1
-				//find the delta times between the timestamps
-				diffFull := make([]int64, tsLengthFull)
-				for i := 0; i < tsLengthFull; i++ {
-					diffFull[i] = res.TsListFull[i+1] - res.TsListFull[i]
-				}
+				sort.Sort(util.SortableInt64(diff))
 
 				//perfect beacons should have symmetric delta time and size distributions
 				//Bowley's measure of skew is used to check symmetry
-				sort.Sort(util.SortableInt64(diff))
 				tsSkew := float64(0)
 				dsSkew := float64(0)
 
@@ -169,9 +159,7 @@ func (a *analyzer) start() {
 				//get a list of the intervals found in the data,
 				//the number of times the interval was found,
 				//and the most occurring interval
-				//sort intervals list (origbytes already sorted)
-				sort.Sort(util.SortableInt64(diffFull))
-				intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diffFull)
+				intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
 				dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(res.OrigBytesList)
 
 				//more skewed distributions receive a lower score
@@ -180,9 +168,14 @@ func (a *analyzer) start() {
 				dsSkewScore := 1.0 - math.Abs(dsSkew) //smush dsSkew
 
 				//lower dispersion is better
-				tsMadmScore := 1.0 - float64(tsMadm)/float64(tsMid)
-				if tsMadmScore < 0 {
-					tsMadmScore = 0
+				// tsMadmScore := 1.0 - float64(tsMadm)/float64(tsMid)
+				// if tsMadmScore < 0 {
+				// 	tsMadmScore = 0
+				// }
+
+				tsMadmScore := 1.0
+				if tsMid >= 1 {
+					tsMadmScore = 1.0 - float64(tsMadm)/float64(tsMid)
 				}
 
 				//lower dispersion is better
