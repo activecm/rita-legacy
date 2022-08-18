@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y git make ca-certificates wget build-ess
 WORKDIR /go
 # install testing dependencies
 RUN wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
-	| sh -s v1.39.0
+	| sh -s v1.41.1
 
 WORKDIR /go/src/github.com/activecm/rita
 
