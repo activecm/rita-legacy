@@ -88,20 +88,23 @@ func (d *dissector) start() {
 				{"$unwind": "$ts"},
 				{"$unwind": "$ts"},
 				{"$group": bson.M{
-					"_id":   "$_id",
-					"ts":    bson.M{"$addToSet": "$ts"},
-					"count": bson.M{"$first": "$count"},
+					"_id":     "$_id",
+					"ts":      bson.M{"$addToSet": "$ts"},
+					"ts_full": bson.M{"$push": "$ts_full"},
+					"count":   bson.M{"$first": "$count"},
 				}},
 				{"$project": bson.M{
-					"_id":   "$_id",
-					"ts":    1,
-					"count": 1,
+					"_id":     "$_id",
+					"ts":      1,
+					"ts_full": 1,
+					"count":   1,
 				}},
 			}
 
 			var res struct {
-				Count int64   `bson:"count"`
-				Ts    []int64 `bson:"ts"`
+				Count  int64   `bson:"count"`
+				Ts     []int64 `bson:"ts"`
+				TsFull []int64 `bson:"ts_full"`
 			}
 
 			_ = ssn.DB(d.db.GetSelectedDB()).C(d.conf.T.Structure.UniqueConnProxyTable).Pipe(uconnProxyFindQuery).AllowDiskUse().One(&res)
@@ -124,6 +127,7 @@ func (d *dissector) start() {
 				} else { // otherwise, parse timestamps
 
 					analysisInput.TsList = res.Ts
+					analysisInput.TsListFull = res.TsFull
 
 					// send to sorter channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
 					if len(analysisInput.TsList) > 3 {

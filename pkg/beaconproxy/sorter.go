@@ -52,8 +52,9 @@ func (s *sorter) start() {
 		for entry := range s.sortChannel {
 
 			if (entry.TsList) != nil {
-				//sort the size and timestamps to compute quantiles in the analyzer
+				//sort the timestamp lists to compute quantiles in the analyzer
 				sort.Sort(util.SortableInt64(entry.TsList))
+				sort.Sort(util.SortableInt64(entry.TsListFull))
 			}
 
 			s.sortedCallback(entry)

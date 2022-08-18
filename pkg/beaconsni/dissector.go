@@ -98,6 +98,7 @@ func (d *dissector) start() {
 				{"$group": bson.M{
 					"_id":            "$_id",
 					"ts":             bson.M{"$addToSet": "$ts"},
+					"ts_full":        bson.M{"$push": "$ts"},
 					"bytes":          bson.M{"$first": "$bytes"},
 					"count":          bson.M{"$first": "$count"},
 					"tbytes":         bson.M{"$first": "$tbytes"},
@@ -108,6 +109,7 @@ func (d *dissector) start() {
 				{"$group": bson.M{
 					"_id":            "$_id",
 					"ts":             bson.M{"$first": "$ts"},
+					"ts_full":        bson.M{"$first": "$ts_full"},
 					"bytes":          bson.M{"$push": "$bytes"},
 					"count":          bson.M{"$first": "$count"},
 					"tbytes":         bson.M{"$first": "$tbytes"},
@@ -122,17 +124,19 @@ func (d *dissector) start() {
 						"dst_network_uuid": "$responding_ips.network_uuid",
 					},
 					"ts":               bson.M{"$first": "$ts"},
+					"ts_full":          bson.M{"$first": "$ts_full"},
 					"bytes":            bson.M{"$first": "$bytes"},
 					"count":            bson.M{"$first": "$count"},
 					"tbytes":           bson.M{"$first": "$tbytes"},
 					"dst_network_name": bson.M{"$last": "$responding_ips.network_name"},
 				}},
 				{"$group": bson.M{
-					"_id":    "$_id.sniconn_id",
-					"ts":     bson.M{"$first": "$ts"},
-					"bytes":  bson.M{"$first": "$bytes"},
-					"count":  bson.M{"$first": "$count"},
-					"tbytes": bson.M{"$first": "$tbytes"},
+					"_id":     "$_id.sniconn_id",
+					"ts":      bson.M{"$first": "$ts"},
+					"ts_full": bson.M{"$first": "$ts_full"},
+					"bytes":   bson.M{"$first": "$bytes"},
+					"count":   bson.M{"$first": "$count"},
+					"tbytes":  bson.M{"$first": "$tbytes"},
 					"responding_ips": bson.M{"$push": bson.M{
 						"ip":           "$_id.dst_ip",
 						"network_uuid": "$_id.dst_network_uuid",
@@ -142,6 +146,7 @@ func (d *dissector) start() {
 				{"$project": bson.M{
 					"_id":            "$_id",
 					"ts":             1,
+					"ts_full":        1,
 					"bytes":          1,
 					"count":          1,
 					"tbytes":         1,
@@ -152,6 +157,7 @@ func (d *dissector) start() {
 			var res struct {
 				Count         int64           `bson:"count"`
 				Ts            []int64         `bson:"ts"`
+				TsFull        []int64         `bson:"ts_full"`
 				Bytes         []int64         `bson:"bytes"`
 				TBytes        int64           `bson:"tbytes"`
 				RespondingIPs []data.UniqueIP `bson:"responding_ips"`
@@ -174,6 +180,7 @@ func (d *dissector) start() {
 					d.dissectedCallback(analysisInput)
 				} else { // otherwise, parse timestamps and orig ip bytes
 					analysisInput.TsList = res.Ts
+					analysisInput.TsListFull = res.TsFull
 					analysisInput.OrigBytesList = res.Bytes
 					// the analysis worker requires that we have over UNIQUE 3 timestamps
 					// we drop the input here since it is the earliest place in the pipeline to do so

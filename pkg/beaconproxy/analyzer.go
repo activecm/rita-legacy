@@ -101,6 +101,16 @@ func (a *analyzer) start() {
 					diff[i] = entry.TsList[i+1] - entry.TsList[i]
 				}
 
+				//find the delta times between full list of timestamps
+				//(this will be used for the intervals list. Bowleys skew
+				//must use a unique timestamp list with no duplicates)
+				tsLengthFull := len(entry.TsListFull) - 1
+				//find the delta times between the timestamps
+				diffFull := make([]int64, tsLengthFull)
+				for i := 0; i < tsLengthFull; i++ {
+					diffFull[i] = entry.TsListFull[i+1] - entry.TsListFull[i]
+				}
+
 				//perfect beacons should have symmetric delta time and size distributions
 				//Bowley's measure of skew is used to check symmetry
 				sort.Sort(util.SortableInt64(diff))
@@ -138,7 +148,9 @@ func (a *analyzer) start() {
 				//get a list of the intervals found in the data,
 				//the number of times the interval was found,
 				//and the most occurring interval
-				intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
+				//sort intervals list
+				sort.Sort(util.SortableInt64(diffFull))
+				intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diffFull)
 
 				//more skewed distributions receive a lower score
 				//less skewed distributions receive a higher score

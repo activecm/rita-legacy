@@ -56,6 +56,7 @@ func (s *sorter) start() {
 			if (entry.TsList) != nil {
 				//sort the size and timestamps to compute quantiles in the analyzer
 				sort.Sort(util.SortableInt64(entry.TsList))
+				sort.Sort(util.SortableInt64(entry.TsListFull))
 				sort.Sort(util.SortableInt64(entry.OrigBytesList))
 			}
 			s.sortedCallback(entry)

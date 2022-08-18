@@ -97,10 +97,11 @@ db.getCollection('uconn').aggregate([
         "_id": "$id",
         // need to unique-ify timestamps or else results
         // will be skewed by "0 distant" data points
-        "ts":     {"$addToSet": "$ts"},
-        "bytes":  {"$first": "$bytes"},
-        "count":  {"$first": "$count"},
-        "tbytes": {"$first": "$tbytes"},
+        "ts":      {"$addToSet": "$ts"},
+		"ts_full": {"$push": "$ts"},
+        "bytes":   {"$first": "$bytes"},
+        "count":   {"$first": "$count"},
+        "tbytes":  {"$first": "$tbytes"},
         "src_network_name": {"$last": "$src_network_name"},
     }},
     {"$unwind": {
@@ -112,11 +113,12 @@ db.getCollection('uconn').aggregate([
         "preserveNullAndEmptyArrays": true,
     }},
     {"$group": {
-        "_id":    "$_id",
-        "ts":     {"$first": "$ts"},
-        "bytes":  {"$push": "$bytes"},
-        "count":  {"$first": "$count"},
-        "tbytes": {"$first": "$tbytes"},
+        "_id":     "$_id",
+        "ts":      {"$first": "$ts"},
+		"ts_full": {"$first": "$ts_full"},
+        "bytes":   {"$push": "$bytes"},
+        "count":   {"$first": "$count"},
+        "tbytes":  {"$first": "$tbytes"},
         "src_network_name": {"$last": "$src_network_name"},
     }},
     {"$project": {
@@ -125,6 +127,7 @@ db.getCollection('uconn').aggregate([
         "src_network_uuid": "$_id.uuid",
         "src_network_name": 1,
         "ts":               1,
+		"ts_full":          1,
         "bytes":            1,
         "count":            1,
         "tbytes":           1,
@@ -211,8 +214,9 @@ func (d *dissector) start() {
 				{"$group": bson.M{
 					"_id": "$_id",
 					// need to unique-ify timestamps or else results
-					// will be skewed by "0 distant" data points
+					// will be skewed by "0 distant" data points (for bowley skew)
 					"ts":               bson.M{"$addToSet": "$ts"},
+					"ts_full":          bson.M{"$push": "$ts"},
 					"bytes":            bson.M{"$first": "$bytes"},
 					"count":            bson.M{"$first": "$count"},
 					"tbytes":           bson.M{"$first": "$tbytes"},
@@ -229,6 +233,7 @@ func (d *dissector) start() {
 				{"$group": bson.M{
 					"_id":              "$_id",
 					"ts":               bson.M{"$first": "$ts"},
+					"ts_full":          bson.M{"$first": "$ts_full"},
 					"bytes":            bson.M{"$push": "$bytes"},
 					"count":            bson.M{"$first": "$count"},
 					"tbytes":           bson.M{"$first": "$tbytes"},
@@ -240,6 +245,7 @@ func (d *dissector) start() {
 					"src_network_uuid": "$_id.uuid",
 					"src_network_name": 1,
 					"ts":               1,
+					"ts_full":          1,
 					"bytes":            1,
 					"count":            1,
 					"tbytes":           1,
@@ -253,6 +259,7 @@ func (d *dissector) start() {
 					SrcNetworkName string      `bson:"src_network_name"`
 					Count          int64       `bson:"count"`
 					Ts             []int64     `bson:"ts"`
+					TsFull         []int64     `bson:"ts_full"`
 					Bytes          []int64     `bson:"bytes"`
 					TBytes         int64       `bson:"tbytes"`
 				}
@@ -281,6 +288,7 @@ func (d *dissector) start() {
 
 				} else { // otherwise, parse timestamps and orig ip bytes
 					analysisInput.TsList = res.Ts
+					analysisInput.TsListFull = res.TsFull
 					analysisInput.OrigBytesList = res.Bytes
 
 					// the analysis worker requires that we have over UNIQUE 3 timestamps
