@@ -9,7 +9,6 @@ import (
 	"github.com/activecm/rita/pkg/sniconn"
 	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/pkg/useragent"
-	"github.com/activecm/rita/util"
 )
 
 func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResults) {
@@ -149,13 +148,12 @@ func updateProxiedUniqueConnectionsByHTTP(srcFQDNPair data.UniqueSrcFQDNPair, ds
 	// ///// INCREMENT THE CONNECTION COUNT FOR THE PROXIED UNIQUE CONNECTION /////
 	retVals.ProxyUniqueConnMap[srcFQDNKey].ConnectionCount++
 
-	// ///// UNION TIMESTAMP WITH PROXIED UNIQUE CONNECTION TIMESTAMP SET /////
+	// ///// APPEND TIMESTAMP TO PROXIED UNIQUE CONNECTION TIMESTAMP LIST /////
 	ts := parseHTTP.TimeStamp
-	if !util.Int64InSlice(ts, retVals.ProxyUniqueConnMap[srcFQDNKey].TsList) {
-		retVals.ProxyUniqueConnMap[srcFQDNKey].TsList = append(
-			retVals.ProxyUniqueConnMap[srcFQDNKey].TsList, ts,
-		)
-	}
+
+	retVals.ProxyUniqueConnMap[srcFQDNKey].TsList = append(
+		retVals.ProxyUniqueConnMap[srcFQDNKey].TsList, ts,
+	)
 }
 
 func updateHTTPConnectionsByHTTP(srcIP net.IP, dstUniqIP data.UniqueIP, srcFQDNPair data.UniqueSrcFQDNPair, srcFQDNKey string,
@@ -173,7 +171,7 @@ func updateHTTPConnectionsByHTTP(srcIP net.IP, dstUniqIP data.UniqueIP, srcFQDNP
 			Hosts:      srcFQDNPair,
 			IsLocalSrc: filter.checkIfInternal(srcIP),
 
-			Timestamps:      make(data.Int64Set),
+			Timestamps:      []int64{},
 			RespondingIPs:   make(data.UniqueIPSet),
 			RespondingPorts: make(data.IntSet),
 			Methods:         make(data.StringSet),
@@ -186,8 +184,10 @@ func updateHTTPConnectionsByHTTP(srcIP net.IP, dstUniqIP data.UniqueIP, srcFQDNP
 	// ///// INCREMENT THE CONNECTION COUNT FOR THE HTTP SNI CONNECTION /////
 	retVals.HTTPConnMap[srcFQDNKey].ConnectionCount++
 
-	// ///// UNION TIMESTAMP INTO HTTP TIMESTAMP SET /////
-	retVals.HTTPConnMap[srcFQDNKey].Timestamps.Insert(parseHTTP.TimeStamp)
+	// ///// APPEND TIMESTAMP TO HTTP TIMESTAMP LIST /////
+	retVals.HTTPConnMap[srcFQDNKey].Timestamps = append(
+		retVals.HTTPConnMap[srcFQDNKey].Timestamps, parseHTTP.TimeStamp,
+	)
 
 	// ///// UNION DESTINATION HOST INTO HTTP RESPONDING HOSTS /////
 	retVals.HTTPConnMap[srcFQDNKey].RespondingIPs.Insert(dstUniqIP)

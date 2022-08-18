@@ -28,6 +28,7 @@ type Input struct {
 	MaxDuration     float64
 	TotalDuration   float64
 	TsList          []int64
+	TsListFull      []int64
 	OrigBytesList   []int64
 	Tuples          data.StringSet
 	InvalidCertFlag bool
