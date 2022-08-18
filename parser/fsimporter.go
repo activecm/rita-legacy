@@ -747,6 +747,14 @@ func (fs *FSImporter) updateTimestampRange() (int64, int64) {
 		return 0, 0
 	}
 
+	// since zeek records connections when they close, some connections that started before the ingested
+	// observation period can skew the ts range. We need to cap observation period to the last 24 hours
+	// for accurate beaconing analysis
+	tsMinCapped := resultMax.Timestamp - 24*60*60
+	if tsMinCapped > resultMin.Timestamp {
+		resultMin.Timestamp = tsMinCapped
+	}
+
 	// set range in metadatabase
 	err = fs.metaDB.AddTSRange(fs.database.GetSelectedDB(), resultMin.Timestamp, resultMax.Timestamp)
 	if err != nil {
