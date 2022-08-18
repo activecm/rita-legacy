@@ -168,11 +168,6 @@ func (a *analyzer) start() {
 				dsSkewScore := 1.0 - math.Abs(dsSkew) //smush dsSkew
 
 				//lower dispersion is better
-				// tsMadmScore := 1.0 - float64(tsMadm)/float64(tsMid)
-				// if tsMadmScore < 0 {
-				// 	tsMadmScore = 0
-				// }
-
 				tsMadmScore := 1.0
 				if tsMid >= 1 {
 					tsMadmScore = 1.0 - float64(tsMadm)/float64(tsMid)
