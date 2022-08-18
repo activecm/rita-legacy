@@ -97,6 +97,8 @@ rita import path/to/your/zeek_logs dataset_name
 
 Every log file in the supplied directory will be imported into a dataset with the given name. However, files in nested directories will not be processed.
 
+> :grey_exclamation: **Note:** Rita is designed to analyze 24hr blocks of logs. Rita versions newer than 4.5.1 will analyze only the most recent 24 hours of data supplied.
+
 ##### Rolling Datasets
 
 Rolling datasets allow you to progressively analyze log data over a period of time as it comes in.
