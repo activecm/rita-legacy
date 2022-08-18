@@ -25,7 +25,6 @@ LogConfig:
 UserConfig:
     UpdateCheckFrequency: 14
 BlackListed:
-    MalwareDomains.com: true
     feodotracker.abuse.ch: true
     BlacklistDatabase: "rita-bl"
     CustomIPBlacklists: [test1]
@@ -75,7 +74,6 @@ var testConfigFullExp = StaticCfg{
 	},
 	Blacklisted: BlacklistedStaticCfg{
 		UseFeodo:           true,
-		UseDNSBH:           true,
 		BlacklistDatabase:  "rita-bl",
 		IPBlacklists:       []string{"test1"},
 		HostnameBlacklists: []string{"test2"},
