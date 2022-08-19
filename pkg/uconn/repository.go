@@ -20,20 +20,20 @@ type update struct {
 
 //Input holds aggregated connection information between two hosts in a dataset
 type Input struct {
-	Hosts           data.UniqueIPPair
-	ConnectionCount int64
-	IsLocalSrc      bool
-	IsLocalDst      bool
-	TotalBytes      int64
-	MaxDuration     float64
-	TotalDuration   float64
-	TsList          []int64
-	TsListFull      []int64
-	OrigBytesList   []int64
-	Tuples          data.StringSet
-	InvalidCertFlag bool
-	UPPSFlag        bool
-	ConnStateMap    map[string]*ConnState
+	Hosts              data.UniqueIPPair
+	ConnectionCount    int64
+	IsLocalSrc         bool
+	IsLocalDst         bool
+	TotalBytes         int64
+	MaxDuration        float64
+	TotalDuration      float64
+	TsList             []int64
+	UniqueTsListLength int64
+	OrigBytesList      []int64
+	Tuples             data.StringSet
+	InvalidCertFlag    bool
+	UPPSFlag           bool
+	ConnStateMap       map[string]*ConnState
 }
 
 //LongConnResult represents a pair of hosts that communicated and
