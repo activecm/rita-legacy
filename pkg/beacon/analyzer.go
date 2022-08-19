@@ -172,6 +172,9 @@ func (a *analyzer) start() {
 				if tsMid >= 1 {
 					tsMadmScore = 1.0 - float64(tsMadm)/float64(tsMid)
 				}
+				if tsMadmScore < 0 {
+					tsMadmScore = 0
+				}
 
 				//lower dispersion is better
 				dsMadmScore := 1.0 - float64(dsMadm)/float64(dsMid)
