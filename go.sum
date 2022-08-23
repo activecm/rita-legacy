@@ -10,6 +10,8 @@ github.com/activecm/rita-bl v0.0.0-20200806232046-0db4a39fcf49 h1:xvOWFArOpp9poD
 github.com/activecm/rita-bl v0.0.0-20200806232046-0db4a39fcf49/go.mod h1:5a489AThTs93aEzhBN2toFq+Hb0sbvXrdxn34ai259o=
 github.com/activecm/rita-bl v0.0.0-20211201202918-5be9914adcf2 h1:9A/HlvT+FPddKQCHWnNfnvuGt4WsWj2vhPn/ZufZwUA=
 github.com/activecm/rita-bl v0.0.0-20211201202918-5be9914adcf2/go.mod h1:s85IHPkhESB09tNgKuPTrxDQ8QHfPr+ftrOYPB/vXgQ=
+github.com/activecm/rita-bl v0.0.0-20220823191806-f014db21453d h1:chJrld/x2Q+3Uj/3TrkHTKIe4gcN7x9tSIAIrxcZIOQ=
+github.com/activecm/rita-bl v0.0.0-20220823191806-f014db21453d/go.mod h1:s85IHPkhESB09tNgKuPTrxDQ8QHfPr+ftrOYPB/vXgQ=
 github.com/blang/semver v3.5.1+incompatible h1:cQNTCjp13qL8KC3Nbxr/y2Bqb63oX6wdnnjpJbkM4JQ=
 github.com/blang/semver v3.5.1+incompatible/go.mod h1:kRBLl5iJ+tD4TcOOxsy/0fnwebNt5EWlYSAyrTnjyyk=
 github.com/briandowns/spinner v1.16.0 h1:DFmp6hEaIx2QXXuqSJmtfSBSAjRmpGiKG6ip2Wm/yOs=
