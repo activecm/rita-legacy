@@ -178,7 +178,7 @@ func (a *analyzer) start() {
 
 				//lower dispersion is better
 				dsMadmScore := 1.0 - float64(dsMadm)/float64(dsMid)
-				if dsMadmScore < 0 {
+				if dsMadmScore < 0 || math.IsNaN(dsMadmScore) {
 					dsMadmScore = 0
 				}
 
