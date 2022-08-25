@@ -177,7 +177,10 @@ func (a *analyzer) start() {
 				}
 
 				//lower dispersion is better
-				dsMadmScore := 1.0 - float64(dsMadm)/float64(dsMid)
+				dsMadmScore := 0.0
+				if dsMid >= 1 {
+					dsMadmScore = 1.0 - float64(dsMadm)/float64(dsMid)
+				}
 				if dsMadmScore < 0 {
 					dsMadmScore = 0
 				}
