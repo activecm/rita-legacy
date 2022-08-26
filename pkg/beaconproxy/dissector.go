@@ -90,7 +90,7 @@ func (d *dissector) start() {
 				{"$group": bson.M{
 					"_id":     "$_id",
 					"ts":      bson.M{"$addToSet": "$ts"},
-					"ts_full": bson.M{"$push": "$ts_full"},
+					"ts_full": bson.M{"$push": "$ts"},
 					"count":   bson.M{"$first": "$count"},
 				}},
 				{"$project": bson.M{
