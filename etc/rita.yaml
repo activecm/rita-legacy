@@ -102,7 +102,7 @@ Filtering:
 
   # FilterExternalToInternal will ignore any entries where communication
   # is occurring from an external host to an internal host
-  FilterExternalToInternal: false
+  FilterExternalToInternal: true
 
 BlackListed:
   Enabled: true
