@@ -127,7 +127,7 @@ type (
 		InternalSubnets          []string `yaml:"InternalSubnets" default:"[\"10.0.0.0/8\", \"172.16.0.0/12\", \"192.168.0.0/16\"]"`
 		AlwaysIncludeDomain      []string `yaml:"AlwaysIncludeDomain" default:"[]"`
 		NeverIncludeDomain       []string `yaml:"NeverIncludeDomain" default:"[]"`
-		FilterExternalToInternal bool     `yaml:"FilterExternalToInternal" default:"false"`
+		FilterExternalToInternal bool     `yaml:"FilterExternalToInternal" default:"true"`
 	}
 
 	//StrobeStaticCfg controls the maximum number of connections between any two given hosts
