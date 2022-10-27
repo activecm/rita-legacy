@@ -1,6 +1,7 @@
 package host
 
 import (
+	"fmt"
 	"runtime"
 
 	"github.com/activecm/rita/config"
@@ -103,6 +104,20 @@ func (r *repo) Upsert(hostMap map[string]*Input) {
 
 	// 2nd Phase: Summarize
 
+	// get local hosts only for the summary
+	var localHosts []*Input
+	for _, entry := range hostMap {
+		if entry.IsLocal {
+			localHosts = append(localHosts, entry)
+		}
+	}
+
+	// skip the summarize phase if there are no local hosts to summarize
+	if len(localHosts) == 0 {
+		fmt.Println("\t[!] Skipping Host Aggregation: No Internal Hosts")
+		return
+	}
+
 	// initialize a new writer for the summarizer
 	writerWorker = newWriter(r.config.T.Structure.HostTable, r.database, r.config, r.log)
 	summarizerWorker := newSummarizer(
@@ -118,14 +133,6 @@ func (r *repo) Upsert(hostMap map[string]*Input) {
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		summarizerWorker.start()
 		writerWorker.start()
-	}
-
-	// get local hosts only for the summary
-	var localHosts []*Input
-	for _, entry := range hostMap {
-		if entry.IsLocal {
-			localHosts = append(localHosts, entry)
-		}
 	}
 
 	// progress bar for troubleshooting

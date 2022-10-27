@@ -196,6 +196,20 @@ func (r *repo) Upsert(hostMap map[string]*host.Input, minTimestamp, maxTimestamp
 
 	// Phase 2: Summary
 
+	// get local hosts only for the summary
+	var localHosts []data.UniqueIP
+	for _, entry := range hostMap {
+		if entry.IsLocal {
+			localHosts = append(localHosts, entry.Host)
+		}
+	}
+
+	// skip the summarize phase if there are no local hosts to summarize
+	if len(localHosts) == 0 {
+		fmt.Println("\t[!] Skipping FQDN Beacon Aggregation: No Internal Hosts")
+		return
+	}
+
 	// initialize a new writer for the summarizer
 	writerWorker = newWriter(
 		r.config.T.Structure.HostTable,
@@ -217,14 +231,6 @@ func (r *repo) Upsert(hostMap map[string]*host.Input, minTimestamp, maxTimestamp
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		summarizerWorker.start()
 		writerWorker.start()
-	}
-
-	// get local hosts only for the summary
-	var localHosts []data.UniqueIP
-	for _, entry := range hostMap {
-		if entry.IsLocal {
-			localHosts = append(localHosts, entry.Host)
-		}
 	}
 
 	// add a progress bar for troubleshooting
