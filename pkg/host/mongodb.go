@@ -44,7 +44,6 @@ func (r *repo) CreateIndexes() error {
 		{Key: []string{"ipv4_binary"}},
 		{Key: []string{"dat.mdip.ip", "dat.mdip.network_uuid"}},
 		{Key: []string{"dat.mbdst.ip", "dat.mbdst.network_uuid"}},
-		{Key: []string{"dat.max_dns.query"}},
 		{Key: []string{"dat.mbfqdn"}},
 		{Key: []string{"dat.mbproxy"}},
 	}
@@ -100,51 +99,4 @@ func (r *repo) Upsert(hostMap map[string]*Input) {
 
 	// start the closing cascade (this will also close the other channels)
 	analyzerWorker.close()
-
-	// 2nd Phase: Summarize
-
-	// initialize a new writer for the summarizer
-	writerWorker = newWriter(r.config.T.Structure.HostTable, r.database, r.config, r.log)
-	summarizerWorker := newSummarizer(
-		r.config.S.Rolling.CurrentChunk,
-		r.config,
-		r.database,
-		r.log,
-		writerWorker.collect,
-		writerWorker.close,
-	)
-
-	// kick off the threaded goroutines
-	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
-		summarizerWorker.start()
-		writerWorker.start()
-	}
-
-	// get local hosts only for the summary
-	var localHosts []*Input
-	for _, entry := range hostMap {
-		if entry.IsLocal {
-			localHosts = append(localHosts, entry)
-		}
-	}
-
-	// progress bar for troubleshooting
-	p = mpb.New(mpb.WithWidth(20))
-	bar = p.AddBar(int64(len(localHosts)),
-		mpb.PrependDecorators(
-			decor.Name("\t[-] Host Aggregation:", decor.WC{W: 30, C: decor.DidentRight}),
-			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
-		),
-		mpb.AppendDecorators(decor.Percentage()),
-	)
-
-	// loop over map entries
-	for _, entry := range localHosts {
-		summarizerWorker.collect(entry)
-		bar.IncrBy(1)
-	}
-	p.Wait()
-
-	// start the closing cascade (this will also close the other channels)
-	summarizerWorker.close()
 }
