@@ -258,19 +258,19 @@ func (r *repo) Upsert(hostMap map[string]*host.Input, minTimestamp, maxTimestamp
 // traffic in this run. Each hostname entry is returned along with its list of associated resolved IPs.
 func (r *repo) affectedHostnameIPs(hostMap map[string]*host.Input) ([]hostnameIPs, error) {
 
-	// We can only submit around 200,000 hosts in a single query to MongoDB due to the 16MB document limit.
-	// 1 Megabyte / Size of Unique IP BSON query ~= 200,000
-	// 16 * 1024 * 1024 / (64 for IPv4, 83 for IPv6) = (262144 for IPv4, 202135 for IPv6)
+	// We can only submit around 150,000 hosts in a single query to MongoDB due to the 16MB document limit.
+	// 1 Megabyte / Size of Unique IP BSON query ~= 150,000
+	// 16 * 1024 * 1024 / (89 for IPv4, 104 for IPv6) = (188508 for IPv4, 161319 for IPv6)
 
-	// provide a fast path for datasets with less than 200,000 hosts
-	if len(hostMap) <= 200000 {
+	// provide a fast path for datasets with less than 150,000 hosts
+	if len(hostMap) <= 150000 {
 		return r.affectedHostnameIPsSimple(hostMap)
 	}
 	return r.affectedHostnameIPsChunked(hostMap)
 }
 
 // affectedHostnameIPsSimple implements affectedHostnameIPs but should only be called with hostMaps with
-// roughly less than 200,000 external hosts.
+// roughly less than 150,000 external hosts.
 func (r *repo) affectedHostnameIPsSimple(hostMap map[string]*host.Input) ([]hostnameIPs, error) {
 	// preallocate externalHosts slice assuming at least half of the observed hosts are external
 	// In most implementations of the Go runtime, when the array underlying a slice is
@@ -307,13 +307,13 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 	// reallocated via append(), the runtime will double the size of the underlying array.
 	// With this assumption in mind, we can assume that externalHosts will be reallocated
 	// only one time at most.
-	externalHosts := make([]data.UniqueIP, 0, util.Min(200000, len(hostMap)/2))
+	externalHosts := make([]data.UniqueIP, 0, util.Min(150000, len(hostMap)/2))
 	var affectedHostnamesBuffer []hostnameIPs
 
 	ssn := r.database.Session.Copy()
 	defer ssn.Close()
 
-	// we will need to remove duplicate results from each query of 200,000 hosts, slowing down the process
+	// we will need to remove duplicate results from each query of 150,000 hosts, slowing down the process
 	// and consuming more RAM
 
 	// affectedHostnameIPMap maps hostnames to their respective ResolvedIPs
@@ -328,7 +328,7 @@ func (r *repo) affectedHostnameIPsChunked(hostMap map[string]*host.Input) ([]hos
 
 		externalHosts = append(externalHosts, host.Host)
 
-		if len(externalHosts) == 200000 { // we've hit the limit, run the MongoDB query
+		if len(externalHosts) == 150000 { // we've hit the limit, run the MongoDB query
 			reverseDNSagg := reverseDNSQueryWithIPs(externalHosts)
 			externalHosts = externalHosts[:0] // clear externalHosts to make room for the next chunk
 

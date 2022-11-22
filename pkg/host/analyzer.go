@@ -8,7 +8,6 @@ import (
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 
-	"strings"
 	"sync"
 )
 
@@ -74,9 +73,8 @@ func (a *analyzer) start() {
 			}
 
 			connCountsUpdate := connCountsQuery(datum, a.chunk)
-			expDNSUpdate := explodedDNSQuery(datum, a.chunk)
 
-			totalUpdate := database.MergeBSONMaps(mainUpdate, blUpdate, connCountsUpdate, expDNSUpdate)
+			totalUpdate := database.MergeBSONMaps(mainUpdate, blUpdate, connCountsUpdate)
 
 			a.analyzedCallback(update{
 				selector: datum.Host.BSONKey(),
@@ -127,59 +125,4 @@ func connCountsQuery(datum *Input, chunk int) bson.M {
 			},
 		},
 	}
-}
-
-//explodedDNSQuery records the result of the individual host's exploded dns analysis for this chunk
-func explodedDNSQuery(datum *Input, chunk int) bson.M {
-	if len(datum.DNSQueryCount) == 0 {
-		return bson.M{}
-	}
-
-	// update the host record with the new exploded dns results
-	explodedDNSEntries := buildExplodedDNSArray(datum.DNSQueryCount)
-	return bson.M{
-		"$push": bson.M{
-			"dat": bson.M{
-				"$each": []bson.M{{
-					"exploded_dns": explodedDNSEntries,
-					"cid":          chunk,
-				}},
-			},
-		},
-	}
-}
-
-//buildExplodedDNSArray generates exploded dns query results given how many times each full fqdn
-//was queried. Returns the results as an array for MongoDB compatibility
-func buildExplodedDNSArray(dnsQueryCounts map[string]int64) []explodedDNS {
-	// make a new map to store the exploded dns query->count data
-	explodedDNSMap := make(map[string]int64)
-
-	for domain := range dnsQueryCounts {
-		// split name on periods
-		split := strings.Split(domain, ".")
-
-		// we will not count the very last item, because it will be either all or
-		// a part of the tlds. This means that something like ".co.uk" will still
-		// not be fully excluded, but it will greatly reduce the complexity for the
-		// most common tlds
-		max := len(split) - 1
-
-		for i := 1; i <= max; i++ {
-			// parse domain which will be the part we are on until the end of the string
-			entry := strings.Join(split[max-i:], ".")
-			explodedDNSMap[entry]++
-		}
-	}
-
-	// put exploded dns map into mongo format so that we can push the entire
-	// exploded dns map data into the database in one go
-	var explodedDNSEntries []explodedDNS
-	for domain, count := range explodedDNSMap {
-		var explodedDNSEntry explodedDNS
-		explodedDNSEntry.Query = domain
-		explodedDNSEntry.Count = count
-		explodedDNSEntries = append(explodedDNSEntries, explodedDNSEntry)
-	}
-	return explodedDNSEntries
 }

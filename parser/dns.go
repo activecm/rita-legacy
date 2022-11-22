@@ -2,13 +2,10 @@ package parser
 
 import (
 	"net"
-	"strings"
 
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/hostname"
-	"github.com/activecm/rita/util"
 )
 
 func parseDNSEntry(parseDNS *parsetypes.DNS, filter filter, retVals ParseResults) {
@@ -30,17 +27,9 @@ func parseDNSEntry(parseDNS *parsetypes.DNS, filter filter, retVals ParseResults
 	}
 
 	srcUniqIP := data.NewUniqueIP(srcIP, parseDNS.AgentUUID, parseDNS.AgentHostname)
-	srcKey := srcUniqIP.MapKey()
 
 	updateExplodedDNSbyDNS(parseDNS, retVals)
 	updateHostnamesByDNS(srcUniqIP, parseDNS, retVals)
-
-	// in some of these strings, the empty space will get counted as a domain,
-	// don't add host or increment dns query count if queried domain
-	// is blank or ends in 'in-addr.arpa'
-	if (parseDNS.Query != "") && (!strings.HasSuffix(parseDNS.Query, "in-addr.arpa")) {
-		updateHostsByDNS(srcIP, srcUniqIP, srcKey, parseDNS, filter, retVals)
-	}
 }
 
 func updateExplodedDNSbyDNS(parseDNS *parsetypes.DNS, retVals ParseResults) {
@@ -78,36 +67,4 @@ func updateHostnamesByDNS(srcUniqIP data.UniqueIP, parseDNS *parsetypes.DNS, ret
 			}
 		}
 	}
-}
-
-func updateHostsByDNS(srcIP net.IP, srcUniqIP data.UniqueIP, srcKey string,
-	parseDNS *parsetypes.DNS, filter filter, retVals ParseResults) {
-
-	retVals.HostLock.Lock()
-	defer retVals.HostLock.Unlock()
-
-	// Check if host map value is set, because this record could
-	// come before a relevant conns record
-	if _, ok := retVals.HostMap[srcKey]; !ok {
-		// create new uconn record with src and dst
-		// Set IsLocalSrc and IsLocalDst fields based on InternalSubnets setting
-		// we only need to do this once if the uconn record does not exist
-		retVals.HostMap[srcKey] = &host.Input{
-			Host:    srcUniqIP,
-			IsLocal: filter.checkIfInternal(srcIP),
-			IP4:     util.IsIPv4(srcUniqIP.IP),
-			IP4Bin:  util.IPv4ToBinary(srcIP),
-		}
-	}
-
-	// ///// INCREMENT DNS QUERY COUNT FOR HOST /////
-	// if there are no entries in the dnsquerycount map for this
-	// srcKey, initialize map
-	if retVals.HostMap[srcKey].DNSQueryCount == nil {
-		retVals.HostMap[srcKey].DNSQueryCount = make(map[string]int64)
-	}
-
-	// increment the dns query count for this domain
-	retVals.HostMap[srcKey].DNSQueryCount[parseDNS.Query]++
-
 }

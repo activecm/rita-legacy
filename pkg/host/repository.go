@@ -27,16 +27,9 @@ type Input struct {
 	TotalBytes            int64
 	MaxDuration           float64
 	TotalDuration         float64
-	DNSQueryCount         map[string]int64
 	UntrustedAppConnCount int64
 	MaxTS                 int64
 	MinTS                 int64
 	IP4                   bool
 	IP4Bin                int64
-}
-
-// explodedDNS is structure for host exploded dns results
-type explodedDNS struct {
-	Query string `bson:"query"`
-	Count int64  `bson:"count"`
 }
