@@ -1,6 +1,7 @@
 package beaconsni
 
 import (
+	"fmt"
 	"runtime"
 
 	"github.com/activecm/rita/config"
@@ -144,6 +145,21 @@ func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*s
 
 	// // Phase 2: Summary
 
+	// grab the local hosts we have seen during the current analysis period
+	// get local hosts only for the summary
+	var localHosts []data.UniqueIP
+	for _, entry := range hostMap {
+		if entry.IsLocal {
+			localHosts = append(localHosts, entry.Host)
+		}
+	}
+
+	// skip the summarize phase if there are no local hosts to summarize
+	if len(localHosts) == 0 {
+		fmt.Println("\t[!] Skipping SNI Beacon Aggregation: No Internal Hosts")
+		return
+	}
+
 	// initialize a new writer for the summarizer
 	writerWorker = newMgoBulkWriter(r.database, r.config, r.log, "beaconSNI")
 	summarizerWorker := newSummarizer(
@@ -159,15 +175,6 @@ func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*s
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		summarizerWorker.start()
 		writerWorker.start()
-	}
-
-	// grab the local hosts we have seen during the current analysis period
-	// get local hosts only for the summary
-	var localHosts []data.UniqueIP
-	for _, entry := range hostMap {
-		if entry.IsLocal {
-			localHosts = append(localHosts, entry.Host)
-		}
 	}
 
 	// add a progress bar for troubleshooting
