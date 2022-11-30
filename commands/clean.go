@@ -108,6 +108,11 @@ func cleanDatabase(c *cli.Context) error {
 			"scale":   1024 * 1024,
 		}, &dbSize)
 
+		if err != nil {
+			fmt.Print("Clean failed: Failed to gather size of dataset\n")
+			return cli.NewExitError(err.Error(), -1)
+		}
+
 		fmt.Printf("\t[-] %s takes up %d MB on disk\n", matchingDB, dbSize.DataSize+dbSize.IndexSize)
 		fmt.Printf("\t[-] %s contains results from the following analyses:\n", matchingDB)
 		for _, matchingColl := range matchingColls {
