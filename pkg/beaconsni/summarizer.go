@@ -25,7 +25,7 @@ type (
 	}
 )
 
-//newSummarizer creates a new summarizer for sni beacon data
+// newSummarizer creates a new summarizer for sni beacon data
 func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, summarizedCallback func(mgoBulkActions), closedCallback func()) *summarizer {
 	return &summarizer{
 		chunk:              chunk,
@@ -38,19 +38,19 @@ func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Log
 	}
 }
 
-//collect collects an internal host to create summary data for
+// collect collects an internal host to create summary data for
 func (s *summarizer) collect(datum data.UniqueIP) {
 	s.summaryChannel <- datum
 }
 
-//close waits for the summarizer to finish
+// close waits for the summarizer to finish
 func (s *summarizer) close() {
 	close(s.summaryChannel)
 	s.summaryWg.Wait()
 	s.closedCallback()
 }
 
-//start kicks off a new summary thread
+// start kicks off a new summary thread
 func (s *summarizer) start() {
 	s.summaryWg.Add(1)
 	go func() {
@@ -60,8 +60,11 @@ func (s *summarizer) start() {
 
 		for datum := range s.summaryChannel {
 			beaconSNICollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.BeaconSNI.BeaconSNITable)
+			hostCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.HostTable)
 
-			maxBeaconQuery, err := maxSNIBeaconQuery(datum, beaconSNICollection, s.chunk)
+			maxSNIBeaconSelector, maxSNIBeaconQuery, err := maxSNIBeaconUpdate(
+				datum, beaconSNICollection, hostCollection, s.chunk,
+			)
 			if err != nil {
 				if err != mgo.ErrNotFound {
 					s.log.WithFields(log.Fields{
@@ -72,13 +75,10 @@ func (s *summarizer) start() {
 				continue
 			}
 
-			// copy variables to be used by bulk callback to prevent capturing by reference
-			hostSelector := datum.BSONKey()
-			totalHostQuery := maxBeaconQuery
-			if len(totalHostQuery) > 0 {
+			if len(maxSNIBeaconQuery) > 0 {
 				s.summarizedCallback(mgoBulkActions{
 					s.conf.T.Structure.HostTable: func(b *mgo.Bulk) int {
-						b.Upsert(hostSelector, totalHostQuery)
+						b.Upsert(maxSNIBeaconSelector, maxSNIBeaconQuery)
 						return 1
 					},
 				})
@@ -88,8 +88,8 @@ func (s *summarizer) start() {
 	}()
 }
 
-//maxSNIBeaconQuery finds the highest scoring sni beacon from this import session for a particular host
-func maxSNIBeaconQuery(datum data.UniqueIP, beaconSNIColl *mgo.Collection, chunk int) (bson.M, error) {
+// maxSNIBeaconUpdate finds the highest scoring sni beacon from this import session for a particular host
+func maxSNIBeaconUpdate(datum data.UniqueIP, beaconSNIColl, hostColl *mgo.Collection, chunk int) (bson.M, bson.M, error) {
 
 	var maxBeaconSNI struct {
 		Fqdn  string  `bson:"fqdn"`
@@ -99,10 +99,33 @@ func maxSNIBeaconQuery(datum data.UniqueIP, beaconSNIColl *mgo.Collection, chunk
 	mbdstQuery := maxSNIBeaconPipeline(datum, chunk)
 	err := beaconSNIColl.Pipe(mbdstQuery).One(&maxBeaconSNI)
 	if err != nil {
-		return bson.M{}, err
+		return nil, nil, err
 	}
 
-	return bson.M{
+	hostSelector := datum.BSONKey()
+	hostWithDatEntrySelector := database.MergeBSONMaps(
+		hostSelector,
+		bson.M{"dat.mbsni": maxBeaconSNI.Fqdn},
+	)
+
+	nExistingEntries, err := hostColl.Find(hostWithDatEntrySelector).Count()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if nExistingEntries > 0 {
+		// just need to update the cid and score if there is an
+		// an existing record
+		updateQuery := bson.M{
+			"$set": bson.M{
+				"dat.$.max_beacon_sni_score": maxBeaconSNI.Score,
+				"dat.$.cid":                  chunk,
+			},
+		}
+		return hostWithDatEntrySelector, updateQuery, nil
+	}
+
+	insertQuery := bson.M{
 		"$push": bson.M{
 			"dat": bson.M{
 				"$each": []bson.M{{
@@ -112,7 +135,8 @@ func maxSNIBeaconQuery(datum data.UniqueIP, beaconSNIColl *mgo.Collection, chunk
 				}},
 			},
 		},
-	}, nil
+	}
+	return hostSelector, insertQuery, nil
 }
 
 func maxSNIBeaconPipeline(host data.UniqueIP, chunk int) []bson.M {

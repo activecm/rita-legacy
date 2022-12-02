@@ -25,7 +25,7 @@ type (
 	}
 )
 
-//newSummarizer creates a new summarizer for unique connection data
+// newSummarizer creates a new summarizer for unique connection data
 func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, summarizedCallback func(update), closedCallback func()) *summarizer {
 	return &summarizer{
 		chunk:              chunk,
@@ -38,19 +38,19 @@ func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Log
 	}
 }
 
-//collect collects an internal host to be summarized
+// collect collects an internal host to be summarized
 func (s *summarizer) collect(datum data.UniqueIP) {
 	s.summaryChannel <- datum
 }
 
-//close waits for the summarizer to finish
+// close waits for the summarizer to finish
 func (s *summarizer) close() {
 	close(s.summaryChannel)
 	s.summaryWg.Wait()
 	s.closedCallback()
 }
 
-//start kicks off a new summary thread
+// start kicks off a new summary thread
 func (s *summarizer) start() {
 	s.summaryWg.Add(1)
 	go func() {
@@ -62,7 +62,7 @@ func (s *summarizer) start() {
 			uconnCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.UniqueConnTable)
 			hostCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.HostTable)
 
-			maxTotalDurQuery, err := maxTotalDurationQuery(datum, uconnCollection, s.chunk)
+			maxTotalDurUpdate, err := maxTotalDurationUpdate(datum, uconnCollection, hostCollection, s.chunk)
 			if err != nil {
 				if err != mgo.ErrNotFound {
 					s.log.WithFields(log.Fields{
@@ -73,13 +73,8 @@ func (s *summarizer) start() {
 				continue
 			}
 
-			totalHostQuery := maxTotalDurQuery
-
-			if len(totalHostQuery) > 0 {
-				s.summarizedCallback(update{
-					selector: datum.BSONKey(),
-					query:    totalHostQuery,
-				})
+			if len(maxTotalDurUpdate.query) > 0 {
+				s.summarizedCallback(maxTotalDurUpdate)
 			}
 
 			invalidCertUpdates, err := invalidCertUpdates(datum, uconnCollection, hostCollection, s.chunk)
@@ -99,7 +94,7 @@ func (s *summarizer) start() {
 	}()
 }
 
-func maxTotalDurationQuery(datum data.UniqueIP, uconnColl *mgo.Collection, chunk int) (bson.M, error) {
+func maxTotalDurationUpdate(datum data.UniqueIP, uconnColl, hostColl *mgo.Collection, chunk int) (update, error) {
 	var maxDurIP struct {
 		Peer        data.UniqueIP `bson:"peer"`
 		MaxTotalDur float64       `bson:"tdur"`
@@ -109,10 +104,33 @@ func maxTotalDurationQuery(datum data.UniqueIP, uconnColl *mgo.Collection, chunk
 
 	err := uconnColl.Pipe(mdipQuery).One(&maxDurIP)
 	if err != nil {
-		return bson.M{}, err
+		return update{nil, nil}, err
 	}
 
-	return bson.M{
+	hostSelector := datum.BSONKey()
+	hostWithDatEntrySelector := database.MergeBSONMaps(
+		hostSelector,
+		bson.M{"dat": bson.M{"$elemMatch": maxDurIP.Peer.PrefixedBSONKey("mdip")}},
+	)
+
+	nExistingEntries, err := hostColl.Find(hostWithDatEntrySelector).Count()
+	if err != nil {
+		return update{nil, nil}, err
+	}
+
+	if nExistingEntries > 0 {
+		// just need to update the cid and score if there is an
+		// an existing record
+		updateQuery := bson.M{
+			"$set": bson.M{
+				"dat.$.max_duration": maxDurIP.MaxTotalDur,
+				"dat.$.cid":          chunk,
+			},
+		}
+		return update{hostWithDatEntrySelector, updateQuery}, nil
+	}
+
+	insertQuery := bson.M{
 		"$push": bson.M{
 			"dat": bson.M{
 				// NOTE: While "max_total_duration" would be a better name for this database field,
@@ -126,7 +144,8 @@ func maxTotalDurationQuery(datum data.UniqueIP, uconnColl *mgo.Collection, chunk
 				}},
 			},
 		},
-	}, nil
+	}
+	return update{hostSelector, insertQuery}, nil
 }
 
 func maxTotalDurationPipeline(host data.UniqueIP, chunk int) []bson.M {

@@ -25,7 +25,7 @@ type (
 	}
 )
 
-//newSummarizer creates a new summarizer for beacon data
+// newSummarizer creates a new summarizer for beacon data
 func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, summarizedCallback func(mgoBulkActions), closedCallback func()) *summarizer {
 	return &summarizer{
 		chunk:              chunk,
@@ -38,19 +38,19 @@ func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Log
 	}
 }
 
-//collect collects an internal host to create summary data for
+// collect collects an internal host to create summary data for
 func (s *summarizer) collect(datum data.UniqueIP) {
 	s.summaryChannel <- datum
 }
 
-//close waits for the summarizer to finish
+// close waits for the summarizer to finish
 func (s *summarizer) close() {
 	close(s.summaryChannel)
 	s.summaryWg.Wait()
 	s.closedCallback()
 }
 
-//start kicks off a new summary thread
+// start kicks off a new summary thread
 func (s *summarizer) start() {
 	s.summaryWg.Add(1)
 	go func() {
@@ -60,8 +60,9 @@ func (s *summarizer) start() {
 
 		for datum := range s.summaryChannel {
 			beaconCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Beacon.BeaconTable)
+			hostCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.HostTable)
 
-			maxBeaconQuery, err := maxBeaconQuery(datum, beaconCollection, s.chunk)
+			maxBeaconSelector, maxBeaconQuery, err := maxBeaconUpdate(datum, beaconCollection, hostCollection, s.chunk)
 			if err != nil {
 				if err != mgo.ErrNotFound {
 					s.log.WithFields(log.Fields{
@@ -72,13 +73,10 @@ func (s *summarizer) start() {
 				continue
 			}
 
-			// copy variables to be used by bulk callback to prevent capturing by reference
-			hostSelector := datum.BSONKey()
-			totalHostQuery := maxBeaconQuery
-			if len(totalHostQuery) > 0 {
+			if len(maxBeaconQuery) > 0 {
 				s.summarizedCallback(mgoBulkActions{
 					s.conf.T.Structure.HostTable: func(b *mgo.Bulk) int {
-						b.Upsert(hostSelector, totalHostQuery)
+						b.Upsert(maxBeaconSelector, maxBeaconQuery)
 						return 1
 					},
 				})
@@ -88,8 +86,8 @@ func (s *summarizer) start() {
 	}()
 }
 
-//maxBeaconQuery finds the highest scoring beacon from this import session for a particular host
-func maxBeaconQuery(datum data.UniqueIP, beaconColl *mgo.Collection, chunk int) (bson.M, error) {
+// maxBeaconUpdate finds the highest scoring beacon from this import session for a particular host
+func maxBeaconUpdate(datum data.UniqueIP, beaconColl, hostColl *mgo.Collection, chunk int) (bson.M, bson.M, error) {
 
 	var maxBeaconIP struct {
 		Dst   data.UniqueIP `bson:"dst"`
@@ -99,10 +97,33 @@ func maxBeaconQuery(datum data.UniqueIP, beaconColl *mgo.Collection, chunk int) 
 	mbdstQuery := maxBeaconPipeline(datum, chunk)
 	err := beaconColl.Pipe(mbdstQuery).One(&maxBeaconIP)
 	if err != nil {
-		return bson.M{}, err
+		return nil, nil, err
 	}
 
-	return bson.M{
+	hostSelector := datum.BSONKey()
+	hostWithDatEntrySelector := database.MergeBSONMaps(
+		hostSelector,
+		bson.M{"dat": bson.M{"$elemMatch": maxBeaconIP.Dst.PrefixedBSONKey("mbdst")}},
+	)
+
+	nExistingEntries, err := hostColl.Find(hostWithDatEntrySelector).Count()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if nExistingEntries > 0 {
+		// just need to update the cid and score if there is an
+		// an existing record
+		updateQuery := bson.M{
+			"$set": bson.M{
+				"dat.$.max_beacon_score": maxBeaconIP.Score,
+				"dat.$.cid":              chunk,
+			},
+		}
+		return hostWithDatEntrySelector, updateQuery, nil
+	}
+
+	insertQuery := bson.M{
 		"$push": bson.M{
 			"dat": bson.M{
 				"$each": []bson.M{{
@@ -112,7 +133,9 @@ func maxBeaconQuery(datum data.UniqueIP, beaconColl *mgo.Collection, chunk int) 
 				}},
 			},
 		},
-	}, nil
+	}
+
+	return hostSelector, insertQuery, nil
 }
 
 func maxBeaconPipeline(host data.UniqueIP, chunk int) []bson.M {
