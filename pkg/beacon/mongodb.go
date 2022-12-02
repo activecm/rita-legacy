@@ -24,7 +24,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository create new repository
+// NewMongoRepository create new repository
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -68,8 +68,8 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert derives beacon statistics from the given unique connections and creates summaries
-//for the given local hosts. The results are pushed to MongoDB.
+// Upsert derives beacon statistics from the given unique connections and creates summaries
+// for the given local hosts. The results are pushed to MongoDB.
 func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
 
 	//Create the workers
@@ -98,17 +98,27 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host
 		analyzerWorker.close,
 	)
 
-	dissectorWorker := newDissector(
-		int64(r.config.S.Strobe.ConnectionLimit),
+	siphonWorker := newSiphon(
 		r.database,
 		r.config,
+		r.log,
 		sorterWorker.collect,
 		sorterWorker.close,
+	)
+
+	dissectorWorker := newDissector(
+		int64(r.config.S.Strobe.ConnectionLimit),
+		r.config.S.Rolling.CurrentChunk,
+		r.database,
+		r.config,
+		siphonWorker.collect,
+		siphonWorker.close,
 	)
 
 	//kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		dissectorWorker.start()
+		siphonWorker.start()
 		sorterWorker.start()
 		analyzerWorker.start()
 		writerWorker.start()

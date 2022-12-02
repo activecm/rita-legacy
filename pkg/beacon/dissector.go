@@ -6,26 +6,29 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/uconn"
+	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
 
 type (
 	//dissector gathers all of the unique connection details between pairs of hosts
 	dissector struct {
-		connLimit         int64              // limit for strobe classification
-		db                *database.DB       // provides access to MongoDB
-		conf              *config.Config     // contains details needed to access MongoDB
-		dissectedCallback func(*uconn.Input) // gathered unique connection details are sent to this callback
-		closedCallback    func()             // called when .close() is called and no more calls to dissectedCallback will be made
-		dissectChannel    chan *uconn.Input  // holds data to be processed
-		dissectWg         sync.WaitGroup     // wait for dissector to finish
+		connLimit         int64             // limit for strobe classification
+		chunk             int               // current chunk (0 if not on rolling analysis)
+		db                *database.DB      // provides access to MongoDB
+		conf              *config.Config    // contains details needed to access MongoDB
+		dissectedCallback func(siphonInput) // gathered unique connection details are sent to this callback
+		closedCallback    func()            // called when .close() is called and no more calls to dissectedCallback will be made
+		dissectChannel    chan *uconn.Input // holds data to be processed
+		dissectWg         sync.WaitGroup    // wait for dissector to finish
 	}
 )
 
-//newDissector creates a new dissector for gathering data
-func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(*uconn.Input), closedCallback func()) *dissector {
+// newDissector creates a new dissector for gathering data
+func newDissector(connLimit int64, chunk int, db *database.DB, conf *config.Config, dissectedCallback func(siphonInput), closedCallback func()) *dissector {
 	return &dissector{
 		connLimit:         connLimit,
+		chunk:             chunk,
 		db:                db,
 		conf:              conf,
 		dissectedCallback: dissectedCallback,
@@ -34,19 +37,19 @@ func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissect
 	}
 }
 
-//collect gathers a pair of hosts to obtain unique connection data for
+// collect gathers a pair of hosts to obtain unique connection data for
 func (d *dissector) collect(datum *uconn.Input) {
 	d.dissectChannel <- datum
 }
 
-//close waits for the dissector to finish
+// close waits for the dissector to finish
 func (d *dissector) close() {
 	close(d.dissectChannel)
 	d.dissectWg.Wait()
 	d.closedCallback()
 }
 
-//start kicks off a new dissector thread
+// start kicks off a new dissector thread
 func (d *dissector) start() {
 	d.dissectWg.Add(1)
 	go func() {
@@ -144,24 +147,67 @@ func (d *dissector) start() {
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results
 			if res.Count > 0 {
-				analysisInput := &uconn.Input{
-					Hosts:           datum.Hosts,
-					ConnectionCount: res.Count,
-					TotalBytes:      res.TBytes,
-				}
 
 				// check if uconn has become a strobe
-				if analysisInput.ConnectionCount > d.connLimit {
-					d.dissectedCallback(analysisInput)
+				if res.Count > d.connLimit {
+					// if uconn became a strobe just from the current chunk, we will not have any timestamps here,
+					// and need to update uconn table with the strobe flag. This is being done
+					// here and not in uconns because uconns doesn't do reads, and doesn't know
+					// the updated conn count
+					// if uconn became a strobe over the sum of all chunks, then we need to remove the timestamp
+					// and byte arrays of the current chunk
+
+					var actions []evaporator
+					listRemover := evaporator{
+						collection: d.conf.T.Structure.UniqueConnTable,
+						selector:   datum.Hosts.BSONKey(),
+						query: mgo.Change{
+							Update: bson.M{"$unset": bson.M{"dat.$[elem].bytes": "", "dat.$[elem].ts": ""}},
+						},
+						arrayFilters: []bson.M{
+							{"elem.cid": d.chunk},
+						},
+					}
+					strobeUpdater := evaporator{
+						collection: d.conf.T.Structure.UniqueConnTable,
+						selector:   datum.Hosts.BSONKey(),
+						query: mgo.Change{
+							Update: bson.M{"$set": bson.M{"strobe": true}},
+						},
+					}
+
+					beaconRemover := evaporator{
+						collection: d.conf.T.Beacon.BeaconTable,
+						selector:   datum.Hosts.BSONKey(),
+						query: mgo.Change{
+							Remove: true,
+						},
+					}
+					actions = append(actions, listRemover, strobeUpdater, beaconRemover)
+
+					siphonInput := siphonInput{
+						Drain:     nil,
+						Evaporate: actions,
+					}
+					d.dissectedCallback(siphonInput)
 
 				} else { // otherwise, parse timestamps and orig ip bytes
-					analysisInput.TsList = res.Ts
-					analysisInput.UniqueTsListLength = res.TsUniqueLen
-					analysisInput.OrigBytesList = res.Bytes
+					siphonInput := siphonInput{
+						Drain: &uconn.Input{
+							Hosts:              datum.Hosts,
+							ConnectionCount:    res.Count,
+							TotalBytes:         res.TBytes,
+							TsList:             res.Ts,
+							UniqueTsListLength: res.TsUniqueLen,
+							OrigBytesList:      res.Bytes,
+						},
+						Evaporate: nil,
+					}
+
 					// the analysis worker requires that we have over UNIQUE 3 timestamps
 					// we drop the input here since it is the earliest place in the pipeline to do so
-					if analysisInput.UniqueTsListLength > 3 {
-						d.dissectedCallback(analysisInput)
+					if siphonInput.Drain.UniqueTsListLength > 3 {
+						d.dissectedCallback(siphonInput)
 					}
 				}
 			}

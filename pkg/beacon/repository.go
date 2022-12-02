@@ -17,7 +17,7 @@ type mgoBulkAction func(*mgo.Bulk) int
 
 type mgoBulkActions map[string]mgoBulkAction
 
-//TSData ...
+// TSData ...
 type TSData struct {
 	Score      float64 `bson:"score"`
 	Range      int64   `bson:"range"`
@@ -28,7 +28,7 @@ type TSData struct {
 	Duration   float64 `bson:"duration"`
 }
 
-//DSData ...
+// DSData ...
 type DSData struct {
 	Score      float64 `bson:"score"`
 	Skew       float64 `bson:"skew"`
@@ -38,8 +38,8 @@ type DSData struct {
 	ModeCount  int64   `bson:"mode_count"`
 }
 
-//Result represents a beacon between two hosts. Contains information
-//on connection delta times and the amount of data transferred
+// Result represents a beacon between two hosts. Contains information
+// on connection delta times and the amount of data transferred
 type Result struct {
 	data.UniqueIPPair `bson:",inline"`
 	Connections       int64   `bson:"connection_count"`
@@ -52,8 +52,8 @@ type Result struct {
 	Score             float64 `bson:"score"`
 }
 
-//StrobeResult represents a unique connection with a large amount
-//of connections between the hosts
+// StrobeResult represents a unique connection with a large amount
+// of connections between the hosts
 type StrobeResult struct {
 	data.UniqueIPPair `bson:",inline"`
 	ConnectionCount   int64 `bson:"connection_count"`

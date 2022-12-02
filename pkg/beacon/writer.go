@@ -21,7 +21,7 @@ type (
 	}
 )
 
-//newMgoBulkWriter creates a new writer object to write output data to collections
+// newMgoBulkWriter creates a new writer object to write output data to collections
 func newMgoBulkWriter(db *database.DB, conf *config.Config, log *log.Logger, writerName string) *mgoBulkWriter {
 	return &mgoBulkWriter{
 		db:           db,
@@ -32,18 +32,18 @@ func newMgoBulkWriter(db *database.DB, conf *config.Config, log *log.Logger, wri
 	}
 }
 
-//collect sends a group of results to the writer for writing out to the database
+// collect sends a group of results to the writer for writing out to the database
 func (w *mgoBulkWriter) collect(data mgoBulkActions) {
 	w.writeChannel <- data
 }
 
-//close waits for the write threads to finish
+// close waits for the write threads to finish
 func (w *mgoBulkWriter) close() {
 	close(w.writeChannel)
 	w.writeWg.Wait()
 }
 
-//start kicks off a new write thread
+// start kicks off a new write thread
 func (w *mgoBulkWriter) start() {
 	w.writeWg.Add(1)
 	go func() {
