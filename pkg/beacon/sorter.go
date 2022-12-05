@@ -24,8 +24,8 @@ type (
 	}
 )
 
-//newSorter creates a new sorter which sorts unique connection data
-//for use in quantile based statistics
+// newSorter creates a new sorter which sorts unique connection data
+// for use in quantile based statistics
 func newSorter(db *database.DB, conf *config.Config, sortedCallback func(*uconn.Input), closedCallback func()) *sorter {
 	return &sorter{
 		db:             db,
@@ -36,19 +36,19 @@ func newSorter(db *database.DB, conf *config.Config, sortedCallback func(*uconn.
 	}
 }
 
-//collect gathers a chunk of data to be sorted
+// collect gathers a chunk of data to be sorted
 func (s *sorter) collect(data *uconn.Input) {
 	s.sortChannel <- data
 }
 
-//close waits for the sorter to finish
+// close waits for the sorter to finish
 func (s *sorter) close() {
 	close(s.sortChannel)
 	s.sortWg.Wait()
 	s.closedCallback()
 }
 
-//start kicks off a new sorter thread
+// start kicks off a new sorter thread
 func (s *sorter) start() {
 	s.sortWg.Add(1)
 	go func() {

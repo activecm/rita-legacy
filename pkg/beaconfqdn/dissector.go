@@ -22,7 +22,7 @@ type (
 	}
 )
 
-//newdissector creates a new dissector for gathering data
+// newdissector creates a new dissector for gathering data
 func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(*fqdnInput), closedCallback func()) *dissector {
 	return &dissector{
 		connLimit:         connLimit,
@@ -34,12 +34,12 @@ func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissect
 	}
 }
 
-//collect gathers a resolved FQDN to obtain unique connection data for
+// collect gathers a resolved FQDN to obtain unique connection data for
 func (d *dissector) collect(entry *fqdnInput) {
 	d.dissectChannel <- entry
 }
 
-//close waits for the dissector to finish
+// close waits for the dissector to finish
 func (d *dissector) close() {
 	close(d.dissectChannel)
 	d.dissectWg.Wait()
@@ -284,6 +284,8 @@ func (d *dissector) start() {
 
 				// check if beacon has become a strobe
 				if analysisInput.ConnectionCount > d.connLimit {
+					// we do not need to siphon the uconn if it is a strobe
+					// because the beacon module already did this
 					d.dissectedCallback(analysisInput)
 
 				} else { // otherwise, parse timestamps and orig ip bytes

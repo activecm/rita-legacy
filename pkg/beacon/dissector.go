@@ -150,14 +150,15 @@ func (d *dissector) start() {
 
 				// check if uconn has become a strobe
 				if res.Count > d.connLimit {
-					// if uconn became a strobe just from the current chunk, we will not have any timestamps here,
-					// and need to update uconn table with the strobe flag. This is being done
-					// here and not in uconns because uconns doesn't do reads, and doesn't know
-					// the updated conn count
-					// if uconn became a strobe over the sum of all chunks, then we need to remove the timestamp
-					// and byte arrays of the current chunk
+					// if uconn became a strobe just from the current chunk, then we would not have received it here
+					// as uconns upgrades itself to a strobe if its connection count met the strobe thresh for this chunk only
 
+					// if uconn became a strobe during this chunk over its cummulative connection count over all chunks,
+					// then we must upgrade it to a strobe and remove the timestamp and bytes arrays from the current chunk
+					// or else the uconn document can grow to unacceptable sizes
+					// these tasks are to be handled by the siphon prior to sorting & analysis
 					var actions []evaporator
+					// remove the bytes and ts arrays for the current chunk in the uconn document
 					listRemover := evaporator{
 						collection: d.conf.T.Structure.UniqueConnTable,
 						selector:   datum.Hosts.BSONKey(),
@@ -168,6 +169,9 @@ func (d *dissector) start() {
 							{"elem.cid": d.chunk},
 						},
 					}
+					// set the uconn as a strobe
+					// this must be done as uconns unsets its strobe flag if the current chunk doesnt meet
+					// the strobe limit
 					strobeUpdater := evaporator{
 						collection: d.conf.T.Structure.UniqueConnTable,
 						selector:   datum.Hosts.BSONKey(),
@@ -175,7 +179,7 @@ func (d *dissector) start() {
 							Update: bson.M{"$set": bson.M{"strobe": true}},
 						},
 					}
-
+					// remove the uconn from the beacon table as its now a strobe
 					beaconRemover := evaporator{
 						collection: d.conf.T.Beacon.BeaconTable,
 						selector:   datum.Hosts.BSONKey(),
@@ -186,7 +190,7 @@ func (d *dissector) start() {
 					actions = append(actions, listRemover, strobeUpdater, beaconRemover)
 
 					siphonInput := siphonInput{
-						Drain:     nil,
+						Drain:     nil, // should be nil as we dont want to pass the strobe on to analysis
 						Evaporate: actions,
 					}
 					d.dissectedCallback(siphonInput)
@@ -201,7 +205,7 @@ func (d *dissector) start() {
 							UniqueTsListLength: res.TsUniqueLen,
 							OrigBytesList:      res.Bytes,
 						},
-						Evaporate: nil,
+						Evaporate: nil, // should be nil as we dont have anything to update or remove
 					}
 
 					// the analysis worker requires that we have over UNIQUE 3 timestamps

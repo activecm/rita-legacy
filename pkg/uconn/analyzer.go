@@ -22,7 +22,7 @@ type (
 	}
 )
 
-//newAnalyzer creates a new analyzer for recording unique connection records
+// newAnalyzer creates a new analyzer for recording unique connection records
 func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
@@ -35,19 +35,19 @@ func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Confi
 	}
 }
 
-//collect gathers unique connection records for analysis
+// collect gathers unique connection records for analysis
 func (a *analyzer) collect(datum *Input) {
 	a.analysisChannel <- datum
 }
 
-//close waits for the analyzer to finish
+// close waits for the analyzer to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
 	a.closedCallback()
 }
 
-//start kicks off a new analysis thread
+// start kicks off a new analysis thread
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
@@ -69,7 +69,7 @@ func (a *analyzer) start() {
 	}()
 }
 
-//mainQuery records the bulk of the information about the communications between two hosts
+// mainQuery records the bulk of the information about the communications between two hosts
 func mainQuery(datum *Input, strobeLimit int64, chunk int) bson.M {
 
 	// Truncate the protocol/ port tuples we store in the database
@@ -93,6 +93,8 @@ func mainQuery(datum *Input, strobeLimit int64, chunk int) bson.M {
 
 	return bson.M{
 		"$set": bson.M{
+			// strobe status must be set/unset in uconns so that we avoid querying
+			// uconns that are definitely strobes during beacon analysis
 			"strobe":           isStrobe,
 			"cid":              chunk,
 			"src_network_name": datum.Hosts.SrcNetworkName,
@@ -116,7 +118,7 @@ func mainQuery(datum *Input, strobeLimit int64, chunk int) bson.M {
 	}
 }
 
-//openConnectionsQuery records information about connections that are still open between two hosts
+// openConnectionsQuery records information about connections that are still open between two hosts
 func openConnectionsQuery(datum *Input) bson.M {
 	var bytes int64
 	var duration float64
@@ -169,7 +171,7 @@ func openConnectionsQuery(datum *Input) bson.M {
 	}
 }
 
-//int64InSlice checks if a given int64 is in a slice
+// int64InSlice checks if a given int64 is in a slice
 func int64InSlice(a int64, list []int64) bool {
 	for _, b := range list {
 		if b == a {

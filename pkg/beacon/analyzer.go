@@ -198,7 +198,6 @@ func (a *analyzer) start() {
 			beaconQuery := bson.M{
 				"$set": bson.M{
 					"connection_count":   res.ConnectionCount,
-					"strobe":             false,
 					"avg_bytes":          res.TotalBytes / res.ConnectionCount,
 					"total_bytes":        res.TotalBytes,
 					"ts.range":           tsIntervalRange,

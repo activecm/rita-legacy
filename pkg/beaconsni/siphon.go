@@ -1,11 +1,10 @@
-package beacon
+package beaconsni
 
 import (
 	"sync"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/pkg/uconn"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
@@ -22,26 +21,26 @@ type (
 
 	siphonInput struct {
 		// only set one or the other unless you want to update a document before passing it onto the next stage
-		Drain     *uconn.Input // unique connection to pass through to the next stage
-		Evaporate []evaporator // database actions to perform on documents that need to be removed/updated... evaporated
+		Drain     *dissectorResults // unique connection to pass through to the next stage
+		Evaporate []evaporator      // database actions to perform on documents that need to be removed/updated... evaporated
 	}
 
 	// siphon provides a worker for making certain updates to MongoDB before the analysis phase (Evaporation)
 	// this is generally for removing/updating documents that should not be analyzed or need fixing up before analysis
 	// it can also pass data through to the next stage and optionally skip evaporation (Drainage)
 	siphon struct {
-		db             *database.DB       // provides access to MongoDB
-		conf           *config.Config     // contains details needed to access MongoDB
-		log            *log.Logger        // main logger for RITA
-		siphonCallback func(*uconn.Input) // gathered unique connection details are sent to this callback
-		closedCallback func()             // called when .close() is called and no more calls to siphonCallback will be made
-		siphonChannel  chan siphonInput   // holds dissected data
-		siphonWg       sync.WaitGroup     // wait for writing to finish
+		db             *database.DB            // provides access to MongoDB
+		conf           *config.Config          // contains details needed to access MongoDB
+		log            *log.Logger             // main logger for RITA
+		siphonCallback func(*dissectorResults) // gathered unique connection details are sent to this callback
+		closedCallback func()                  // called when .close() is called and no more calls to siphonCallback will be made
+		siphonChannel  chan siphonInput        // holds dissected data
+		siphonWg       sync.WaitGroup          // wait for writing to finish
 	}
 )
 
 // newSiphon creates a new siphon for beacon data
-func newSiphon(db *database.DB, conf *config.Config, log *log.Logger, siphonCallback func(*uconn.Input), closedCallback func()) *siphon {
+func newSiphon(db *database.DB, conf *config.Config, log *log.Logger, siphonCallback func(*dissectorResults), closedCallback func()) *siphon {
 	return &siphon{
 		db:             db,
 		conf:           conf,
@@ -83,7 +82,7 @@ func (s *siphon) start() {
 						if err != nil ||
 							((info.Updated == 0) && (info.Removed == 0) && (info.Matched == 0) && (info.UpsertedId == nil)) {
 							s.log.WithFields(log.Fields{
-								"Module":     "beacon",
+								"Module":     "beaconSNI",
 								"Collection": action.collection,
 								"Info":       info,
 								"Data":       data,
@@ -95,7 +94,7 @@ func (s *siphon) start() {
 						if err != nil ||
 							((info.Updated == 0) && (info.Removed == 0) && (info.Matched == 0) && (info.UpsertedId == nil)) {
 							s.log.WithFields(log.Fields{
-								"Module":     "beacon",
+								"Module":     "beaconSNI",
 								"Collection": action.collection,
 								"Info":       info,
 								"Data":       data,
