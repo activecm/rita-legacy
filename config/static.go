@@ -19,7 +19,7 @@ import (
 // is 8 bytes, then each of those arrays would require 16 bytes per connection
 // The cummulative size of dat documents over all CIDs must fit within the document
 // limit and allow enough room for other data within the document to also fit
-// within ~16754975 bytes
+// within ~16777216 bytes
 const MAX_STROBE_CONNECTION_LIMIT int = 86400
 
 type (

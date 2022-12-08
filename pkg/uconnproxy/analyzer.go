@@ -24,7 +24,7 @@ type (
 	}
 )
 
-//newAnalyzer creates a new collector for parsing uconnproxy
+// newAnalyzer creates a new collector for parsing uconnproxy
 func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
@@ -38,19 +38,19 @@ func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Confi
 	}
 }
 
-//collect sends a group of uconnproxy data to be analyzed
+// collect sends a group of uconnproxy data to be analyzed
 func (a *analyzer) collect(datum *Input) {
 	a.analysisChannel <- datum
 }
 
-//close waits for the collector to finish
+// close waits for the collector to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
 	a.closedCallback()
 }
 
-//start kicks off a new analysis thread
+// start kicks off a new analysis thread
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
@@ -70,8 +70,8 @@ func (a *analyzer) start() {
 	}()
 }
 
-//mainQuery records the bulk of the information about communications between two hosts
-//over an HTTP proxy
+// mainQuery records the bulk of the information about communications between two hosts
+// over an HTTP proxy
 func mainQuery(datum *Input, strobeLimit int64, chunk int) bson.M {
 
 	// if this connection qualifies to be a strobe with the current number
@@ -87,7 +87,7 @@ func mainQuery(datum *Input, strobeLimit int64, chunk int) bson.M {
 
 	return bson.M{
 		"$set": bson.M{
-			"strobe":           isStrobe,
+			"strobeFQDN":       isStrobe,
 			"cid":              chunk,
 			"src_network_name": datum.Hosts.SrcNetworkName,
 			"proxy":            datum.Proxy,

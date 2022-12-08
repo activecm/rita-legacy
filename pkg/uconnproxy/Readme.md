@@ -56,7 +56,7 @@ Inputs:
 
 Outputs:
 - MongoDB `uconnProxy` collection:
-    - Field: `strobe`
+    - Field: `strobeFQDN`
         - Type: bool
 
 If the number of connections from the source to the destination in the set of network logs under consideration is greater than the strobe connection limit, the unique connection is marked as a strobe. These hosts can be considered to have been in constant communication.
