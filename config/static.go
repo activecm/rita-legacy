@@ -20,7 +20,7 @@ import (
 // The cummulative size of dat documents over all CIDs must fit within the document
 // limit and allow enough room for other data within the document to also fit
 // within ~16777216 bytes
-const MAX_STROBE_CONNECTION_LIMIT int = 86400
+const maxStrobeConnectionLimit int = 86400
 
 type (
 	//StaticCfg is the container for other static config sections
@@ -181,8 +181,8 @@ func parseStaticConfig(cfgFile []byte, config *StaticCfg) error {
 	}
 
 	// limit the strobe connection limit to the maximum allowed
-	if config.Strobe.ConnectionLimit > MAX_STROBE_CONNECTION_LIMIT {
-		config.Strobe.ConnectionLimit = MAX_STROBE_CONNECTION_LIMIT
+	if config.Strobe.ConnectionLimit > maxStrobeConnectionLimit {
+		config.Strobe.ConnectionLimit = maxStrobeConnectionLimit
 	}
 
 	// expand env variables, config is a pointer
