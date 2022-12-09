@@ -78,6 +78,10 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 		if filter.filterDomain(fqdn) || filter.filterSingleIP(srcIP) {
 			return
 		}
+		fqdnAsIPAddress := net.ParseIP(fqdn)
+		if fqdnAsIPAddress != nil && filter.checkIfInternal(dstIP) && filter.filterConnPair(srcIP, fqdnAsIPAddress) {
+			return
+		}
 	} else if filter.filterDomain(fqdn) || filter.filterConnPair(srcIP, dstIP) {
 		return
 	}
