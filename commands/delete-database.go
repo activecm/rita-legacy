@@ -33,7 +33,7 @@ func init() {
 	bootstrapCommands(reset)
 }
 
-//deleteDatabase deletes a target database
+// deleteDatabase deletes a target database
 func deleteDatabase(c *cli.Context) error {
 	res := resources.InitResources(getConfigFilePath(c))
 
@@ -101,7 +101,7 @@ func deleteDatabase(c *cli.Context) error {
 
 	// if no force or dry run flag, verify action
 	if !force && !dryRun {
-		if confirmAction("Confirm we'll be deleting the following databases:\n" + strings.Join(names, "\n")) {
+		if confirmAction("Confirm we'll be deleting the following databases:\n" + strings.Join(names, "\n") + "\n") {
 			fmt.Println("Deleting databases...")
 		} else {
 			return cli.NewExitError("Nothing deleted, no changes have been made", 0)
@@ -165,7 +165,7 @@ func deleteSingleDatabase(res *resources.Resources, db string, dryRun bool) erro
 // returns true if the user has selected true, and false
 // if the user answers otherwise (assumed no)
 func confirmAction(confimationMessage string) bool {
-	fmt.Print(confimationMessage, "\n [y/N] : ")
+	fmt.Print(confimationMessage + " [y/N]: ")
 
 	read := bufio.NewReader(os.Stdin)
 
