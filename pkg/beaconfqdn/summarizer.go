@@ -25,7 +25,7 @@ type (
 	}
 )
 
-//newSummarizer creates a new summarizer for fqdn beacon data
+// newSummarizer creates a new summarizer for fqdn beacon data
 func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, summarizedCallback func(update), closedCallback func()) *summarizer {
 	return &summarizer{
 		chunk:              chunk,
@@ -38,19 +38,19 @@ func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Log
 	}
 }
 
-//collect collects an internal host to create summary data for
+// collect collects an internal host to create summary data for
 func (s *summarizer) collect(datum data.UniqueIP) {
 	s.summaryChannel <- datum
 }
 
-//close waits for the summarizer to finish
+// close waits for the summarizer to finish
 func (s *summarizer) close() {
 	close(s.summaryChannel)
 	s.summaryWg.Wait()
 	s.closedCallback()
 }
 
-//start kicks off a new summary thread
+// start kicks off a new summary thread
 func (s *summarizer) start() {
 	s.summaryWg.Add(1)
 	go func() {
@@ -60,8 +60,11 @@ func (s *summarizer) start() {
 
 		for datum := range s.summaryChannel {
 			beaconFQDNCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.BeaconFQDN.BeaconFQDNTable)
+			hostCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.HostTable)
 
-			maxBeaconQuery, err := maxFQDNBeaconQuery(datum, beaconFQDNCollection, s.chunk)
+			maxFQDNBeaconSelector, maxFQDNBeaconQuery, err := maxFQDNBeaconUpdate(
+				datum, beaconFQDNCollection, hostCollection, s.chunk,
+			)
 			if err != nil {
 				if err != mgo.ErrNotFound {
 					s.log.WithFields(log.Fields{
@@ -72,18 +75,19 @@ func (s *summarizer) start() {
 				continue
 			}
 
-			totalQuery := maxBeaconQuery
-			s.summarizedCallback(update{
-				datum.BSONKey(),
-				totalQuery,
-			})
+			if len(maxFQDNBeaconQuery) > 0 {
+				s.summarizedCallback(update{
+					maxFQDNBeaconSelector,
+					maxFQDNBeaconQuery,
+				})
+			}
 		}
 		s.summaryWg.Done()
 	}()
 }
 
-//maxFQDNBeaconQuery finds the highest scoring fqdn beacon from this import session for a particular host
-func maxFQDNBeaconQuery(datum data.UniqueIP, beaconFQDNColl *mgo.Collection, chunk int) (bson.M, error) {
+// maxFQDNBeaconUpdate finds the highest scoring fqdn beacon from this import session for a particular host
+func maxFQDNBeaconUpdate(datum data.UniqueIP, beaconFQDNColl, hostColl *mgo.Collection, chunk int) (bson.M, bson.M, error) {
 
 	var maxBeaconFQDN struct {
 		Fqdn  string  `bson:"fqdn"`
@@ -93,10 +97,33 @@ func maxFQDNBeaconQuery(datum data.UniqueIP, beaconFQDNColl *mgo.Collection, chu
 	mbdstQuery := maxFQDNBeaconPipeline(datum, chunk)
 	err := beaconFQDNColl.Pipe(mbdstQuery).One(&maxBeaconFQDN)
 	if err != nil {
-		return bson.M{}, err
+		return nil, nil, err
 	}
 
-	return bson.M{
+	hostSelector := datum.BSONKey()
+	hostWithDatEntrySelector := database.MergeBSONMaps(
+		hostSelector,
+		bson.M{"dat.mbfqdn": maxBeaconFQDN.Fqdn},
+	)
+
+	nExistingEntries, err := hostColl.Find(hostWithDatEntrySelector).Count()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if nExistingEntries > 0 {
+		// just need to update the cid and score if there is an
+		// an existing record
+		updateQuery := bson.M{
+			"$set": bson.M{
+				"dat.$.max_beacon_fqdn_score": maxBeaconFQDN.Score,
+				"dat.$.cid":                   chunk,
+			},
+		}
+		return hostWithDatEntrySelector, updateQuery, nil
+	}
+
+	insertQuery := bson.M{
 		"$push": bson.M{
 			"dat": bson.M{
 				"$each": []bson.M{{
@@ -106,7 +133,9 @@ func maxFQDNBeaconQuery(datum data.UniqueIP, beaconFQDNColl *mgo.Collection, chu
 				}},
 			},
 		},
-	}, nil
+	}
+
+	return hostSelector, insertQuery, nil
 }
 
 func maxFQDNBeaconPipeline(host data.UniqueIP, chunk int) []bson.M {
