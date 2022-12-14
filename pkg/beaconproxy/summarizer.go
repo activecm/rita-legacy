@@ -25,7 +25,7 @@ type (
 	}
 )
 
-//newSummarizer creates a new summarizer for proxy beacon data
+// newSummarizer creates a new summarizer for proxy beacon data
 func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, summarizedCallback func(mgoBulkActions), closedCallback func()) *summarizer {
 	return &summarizer{
 		chunk:              chunk,
@@ -38,19 +38,19 @@ func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Log
 	}
 }
 
-//collect collects an internal host to create summary data for
+// collect collects an internal host to create summary data for
 func (s *summarizer) collect(datum data.UniqueIP) {
 	s.summaryChannel <- datum
 }
 
-//close waits for the summarizer to finish
+// close waits for the summarizer to finish
 func (s *summarizer) close() {
 	close(s.summaryChannel)
 	s.summaryWg.Wait()
 	s.closedCallback()
 }
 
-//start kicks off a new summary thread
+// start kicks off a new summary thread
 func (s *summarizer) start() {
 	s.summaryWg.Add(1)
 	go func() {
@@ -60,8 +60,11 @@ func (s *summarizer) start() {
 
 		for datum := range s.summaryChannel {
 			proxyBeaconCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.BeaconProxy.BeaconProxyTable)
+			hostCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.HostTable)
 
-			maxProxyBeaconQuery, err := maxProxyBeaconQuery(datum, proxyBeaconCollection, s.chunk)
+			maxProxyBeaconSelector, maxProxyBeaconQuery, err := maxProxyBeaconUpdate(
+				datum, proxyBeaconCollection, hostCollection, s.chunk,
+			)
 			if err != nil {
 				if err != mgo.ErrNotFound {
 					s.log.WithFields(log.Fields{
@@ -72,13 +75,10 @@ func (s *summarizer) start() {
 				continue
 			}
 
-			// copy variables to be used by bulk callback to prevent capturing by reference
-			hostSelector := datum.BSONKey()
-			totalHostQuery := maxProxyBeaconQuery
-			if len(totalHostQuery) > 0 {
+			if len(maxProxyBeaconQuery) > 0 {
 				s.summarizedCallback(mgoBulkActions{
 					s.conf.T.Structure.HostTable: func(b *mgo.Bulk) int {
-						b.Upsert(hostSelector, totalHostQuery)
+						b.Upsert(maxProxyBeaconSelector, maxProxyBeaconQuery)
 						return 1
 					},
 				})
@@ -88,8 +88,8 @@ func (s *summarizer) start() {
 	}()
 }
 
-//maxProxyBeaconQuery finds the highest scoring proxy beacon from this import session for a particular host
-func maxProxyBeaconQuery(datum data.UniqueIP, beaconProxyColl *mgo.Collection, chunk int) (bson.M, error) {
+// maxProxyBeaconUpdate finds the highest scoring proxy beacon from this import session for a particular host
+func maxProxyBeaconUpdate(datum data.UniqueIP, beaconProxyColl, hostColl *mgo.Collection, chunk int) (bson.M, bson.M, error) {
 
 	var maxBeaconProxy struct {
 		Fqdn  string  `bson:"fqdn"`
@@ -99,10 +99,33 @@ func maxProxyBeaconQuery(datum data.UniqueIP, beaconProxyColl *mgo.Collection, c
 	mbdstQuery := maxProxyBeaconPipeline(datum, chunk)
 	err := beaconProxyColl.Pipe(mbdstQuery).One(&maxBeaconProxy)
 	if err != nil {
-		return bson.M{}, err
+		return nil, nil, err
 	}
 
-	return bson.M{
+	hostSelector := datum.BSONKey()
+	hostWithDatEntrySelector := database.MergeBSONMaps(
+		hostSelector,
+		bson.M{"dat.mbproxy": maxBeaconProxy.Fqdn},
+	)
+
+	nExistingEntries, err := hostColl.Find(hostWithDatEntrySelector).Count()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if nExistingEntries > 0 {
+		// just need to update the cid and score if there is an
+		// an existing record
+		updateQuery := bson.M{
+			"$set": bson.M{
+				"dat.$.max_beacon_proxy_score": maxBeaconProxy.Score,
+				"dat.$.cid":                    chunk,
+			},
+		}
+		return hostWithDatEntrySelector, updateQuery, nil
+	}
+
+	insertQuery := bson.M{
 		"$push": bson.M{
 			"dat": bson.M{
 				"$each": []bson.M{{
@@ -112,7 +135,9 @@ func maxProxyBeaconQuery(datum data.UniqueIP, beaconProxyColl *mgo.Collection, c
 				}},
 			},
 		},
-	}, nil
+	}
+
+	return hostSelector, insertQuery, nil
 }
 
 func maxProxyBeaconPipeline(host data.UniqueIP, chunk int) []bson.M {
