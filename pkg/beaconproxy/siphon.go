@@ -18,6 +18,7 @@ type (
 	// it can also pass data through to the next stage and optionally skip evaporation (Drainage)
 	siphon struct {
 		connLimit         int64                   // limit for strobe classification
+		chunk             int                     // current chunk (0 if not on rolling analysis)
 		db                *database.DB            // provides access to MongoDB
 		conf              *config.Config          // contains details needed to access MongoDB
 		log               *log.Logger             // main logger for RITA
@@ -30,9 +31,10 @@ type (
 )
 
 // newSiphon creates a new siphon for beacon data
-func newSiphon(connLimit int64, db *database.DB, conf *config.Config, log *log.Logger, evaporateCallback func(mgoBulkActions), drainCallback func(*uconnproxy.Input), closedCallback func()) *siphon {
+func newSiphon(connLimit int64, chunk int, db *database.DB, conf *config.Config, log *log.Logger, evaporateCallback func(mgoBulkActions), drainCallback func(*uconnproxy.Input), closedCallback func()) *siphon {
 	return &siphon{
 		connLimit:         connLimit,
+		chunk:             chunk,
 		db:                db,
 		conf:              conf,
 		log:               log,
@@ -75,14 +77,21 @@ func (s *siphon) start() {
 				// these tasks are to be handled prior to sorting & analysis
 				actions := mgoBulkActions{
 					s.conf.T.Structure.UniqueConnProxyTable: func(b *mgo.Bulk) int {
-						b.Update(data.Hosts.BSONKey(), bson.M{
-							// set the uconnproxy as a strobe
-							// this must be done as uconnproxy unsets its strobe flag if the current chunk doesnt meet
-							// the strobe limit
-							"$set": bson.M{"strobeFQDN": true},
-							// remove the ts arrays for all chunks in the uconnproxy document
-							"$unset": bson.M{"dat.$[].ts": ""},
-						})
+						b.Update(
+							database.MergeBSONMaps(data.Hosts.BSONKey(), bson.M{
+								"dat": bson.M{"$elemMatch": bson.M{
+									"cid": s.chunk,
+									"ts":  bson.M{"$exists": true},
+								}},
+							}), bson.M{
+								// set the uconnproxy as a strobe
+								// this must be done as uconnproxy unsets its strobe flag if the current chunk doesnt meet
+								// the strobe limit
+								"$set": bson.M{"strobeFQDN": true},
+								// remove the ts arrays for the current chunk in the uconnproxy document
+								"$unset": bson.M{"dat.$.ts": ""},
+							},
+						)
 						return 1
 					},
 					// remove the uconnproxy from the beaconproxy table as its now a strobe
