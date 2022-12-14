@@ -11,48 +11,41 @@ import (
 )
 
 type (
-	// flexible query instructions for making updates to mongo
-	evaporator struct {
-		collection   string     // target collection for update
-		selector     bson.M     // selector for finding item to update
-		query        mgo.Change // update/remove/upsert query
-		arrayFilters []bson.M   // (optional) array filters when using UpdateWithArrayFilters
-	}
-
-	siphonInput struct {
-		// only set one or the other unless you want to update a document before passing it onto the next stage
-		Drain     *dissectorResults // unique connection to pass through to the next stage
-		Evaporate []evaporator      // database actions to perform on documents that need to be removed/updated... evaporated
-	}
 
 	// siphon provides a worker for making certain updates to MongoDB before the analysis phase (Evaporation)
 	// this is generally for removing/updating documents that should not be analyzed or need fixing up before analysis
 	// it can also pass data through to the next stage and optionally skip evaporation (Drainage)
 	siphon struct {
-		db             *database.DB            // provides access to MongoDB
-		conf           *config.Config          // contains details needed to access MongoDB
-		log            *log.Logger             // main logger for RITA
-		siphonCallback func(*dissectorResults) // gathered unique connection details are sent to this callback
-		closedCallback func()                  // called when .close() is called and no more calls to siphonCallback will be made
-		siphonChannel  chan siphonInput        // holds dissected data
-		siphonWg       sync.WaitGroup          // wait for writing to finish
+		connLimit         int64                   // limit for strobe classification
+		chunk             int                     //current chunk (0 if not on rolling analysis)
+		db                *database.DB            // provides access to MongoDB
+		conf              *config.Config          // contains details needed to access MongoDB
+		log               *log.Logger             // main logger for RITA
+		evaporateCallback func(mgoBulkActions)    // operations to update/remove a sniconn prior to analysis are sent to this callback
+		drainCallback     func(*dissectorResults) // gathered unique connection details are sent to this callback
+		closedCallback    func()                  // called when .close() is called and no more calls to siphonCallback will be made
+		siphonChannel     chan *dissectorResults  // holds dissected data
+		siphonWg          sync.WaitGroup          // wait for writing to finish
 	}
 )
 
 // newSiphon creates a new siphon for beacon data
-func newSiphon(db *database.DB, conf *config.Config, log *log.Logger, siphonCallback func(*dissectorResults), closedCallback func()) *siphon {
+func newSiphon(connLimit int64, chunk int, db *database.DB, conf *config.Config, log *log.Logger, evaporateCallback func(mgoBulkActions), drainCallback func(*dissectorResults), closedCallback func()) *siphon {
 	return &siphon{
-		db:             db,
-		conf:           conf,
-		log:            log,
-		siphonCallback: siphonCallback,
-		closedCallback: closedCallback,
-		siphonChannel:  make(chan siphonInput),
+		connLimit:         connLimit,
+		chunk:             chunk,
+		db:                db,
+		conf:              conf,
+		log:               log,
+		evaporateCallback: evaporateCallback,
+		drainCallback:     drainCallback,
+		closedCallback:    closedCallback,
+		siphonChannel:     make(chan *dissectorResults),
 	}
 }
 
 // collect sends a group of results to the siphon for optionally updating in the database
-func (s *siphon) collect(data siphonInput) {
+func (s *siphon) collect(data *dissectorResults) {
 	s.siphonChannel <- data
 }
 
@@ -71,40 +64,60 @@ func (s *siphon) start() {
 		defer ssn.Close()
 
 		for data := range s.siphonChannel {
-			// if there are evaporation tasks to complete, run through all of them with normal (non-bulk) queries
-			// because mgo does not support updating with array filters in bulk operations
-			if data.Evaporate != nil {
-				for _, action := range data.Evaporate {
-					// run UpdateWithArrayFilters if arrayFilters are set
-					if action.arrayFilters != nil {
-						info, err := ssn.DB(s.db.GetSelectedDB()).C(action.collection).UpdateWithArrayFilters(
-							action.selector, action.query.Update, action.arrayFilters, true)
-						if err != nil ||
-							((info.Updated == 0) && (info.Removed == 0) && (info.Matched == 0) && (info.UpsertedId == nil)) {
-							s.log.WithFields(log.Fields{
-								"Module":     "beaconSNI",
-								"Collection": action.collection,
-								"Info":       info,
-								"Data":       data,
-							}).Error(err.Error())
-						}
-					} else {
-						// run query.Apply() for all other actions since it is pretty flexible for different uses
-						info, err := ssn.DB(s.db.GetSelectedDB()).C(action.collection).Find(action.selector).Apply(action.query, nil)
-						if err != nil ||
-							((info.Updated == 0) && (info.Removed == 0) && (info.Matched == 0) && (info.UpsertedId == nil)) {
-							s.log.WithFields(log.Fields{
-								"Module":     "beaconSNI",
-								"Collection": action.collection,
-								"Info":       info,
-								"Data":       data,
-							}).Error(err.Error())
-						}
-					}
+
+			// check if uconn has become a strobe
+			if data.ConnectionCount > s.connLimit {
+				// if sniconn became a strobe just from the current chunk, then we would not have received it here
+				// as sniconn upgrades itself to a strobe if either of its tls or http connection counts met the strobe
+				// thresh for this chunk only
+
+				// if sniconn became a strobe during this chunk over its cummulative connection count over all chunks,
+				// then we must upgrade it to a strobe and remove the timestamp and bytes arrays from the current chunk
+				// or else the sniconn document can grow to unacceptable sizes
+				// these tasks are to be handled prior to sorting & analysis
+				hostEntryExistsSelector := data.Hosts.BSONKey()
+				// hostEntryExistsSelector["dat"] = bson.M{"$elemMatch": bson.M{"cid": bson.M{"$exists": true}}}
+
+				actions := mgoBulkActions{
+					s.conf.T.Structure.SNIConnTable: func(b *mgo.Bulk) int {
+						b.UpdateAll(hostEntryExistsSelector, bson.M{
+							// remove the bytes and ts arrays for all chunks in the sniconn document
+							// for both tls and http
+							"$unset": bson.M{"dat.$[].tls.ts": "", "dat.$[].tls.bytes": ""},
+						})
+						return 1
+					},
+					s.conf.T.Structure.SNIConnTable: func(b *mgo.Bulk) int {
+						b.UpdateAll(hostEntryExistsSelector, bson.M{
+							// remove the bytes and ts arrays for all chunks in the sniconn document
+							// for both tls and http
+							"$unset": bson.M{"dat.$[].http.ts": "", "dat.$[].http.bytes": ""},
+						})
+						return 1
+					},
+					s.conf.T.Structure.SNIConnTable: func(b *mgo.Bulk) int {
+						b.Upsert(data.Hosts.BSONKey(), bson.M{"$push": bson.M{
+							"dat": []bson.M{{
+								"cid": s.chunk,
+								"merged": bson.M{
+									"strobe": true,
+								},
+							}},
+						}})
+						return 1
+					},
+					// remove the sniconn from the beaconsni table as its now a strobe
+					s.conf.T.BeaconSNI.BeaconSNITable: func(b *mgo.Bulk) int {
+						b.Remove(data.Hosts.BSONKey())
+						return 1
+					},
 				}
-				// if a drain is specified, drain it down to the next stage
-			} else if data.Drain != nil {
-				s.siphonCallback(data.Drain)
+				// evaporate uconn via the bulk writer
+				s.evaporateCallback(actions)
+			} else {
+				// if uconn is not a strobe, drain it down into the rest of the
+				// beacon analysis pipeline
+				s.drainCallback(data)
 			}
 		}
 		s.siphonWg.Done()

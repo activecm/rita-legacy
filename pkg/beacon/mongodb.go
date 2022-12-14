@@ -99,9 +99,11 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host
 	)
 
 	siphonWorker := newSiphon(
+		int64(r.config.S.Strobe.ConnectionLimit),
 		r.database,
 		r.config,
 		r.log,
+		writerWorker.collect,
 		sorterWorker.collect,
 		sorterWorker.close,
 	)

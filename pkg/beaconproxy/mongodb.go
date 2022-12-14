@@ -108,9 +108,11 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[st
 
 	// stage 3 - update beacon details based off of vetting
 	siphonWorker := newSiphon(
+		int64(r.config.S.Strobe.ConnectionLimit),
 		r.database,
 		r.config,
 		r.log,
+		writerWorker.collect,
 		sorterWorker.collect,
 		sorterWorker.close,
 	)

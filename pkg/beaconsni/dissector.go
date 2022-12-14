@@ -6,7 +6,6 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/data"
-	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -14,10 +13,9 @@ type (
 	//dissector gathers all of the connection details between a host and an SNI
 	dissector struct {
 		connLimit         int64                       // limit for strobe classification
-		chunk             int                         // current chunk (0 if not on rolling analysis)
 		db                *database.DB                // provides access to MongoDB
 		conf              *config.Config              // contains details needed to access MongoDB
-		dissectedCallback func(siphonInput)           // gathered SNI connection details are sent to this callback
+		dissectedCallback func(*dissectorResults)     // gathered SNI connection details are sent to this callback
 		closedCallback    func()                      // called when .close() is called and no more calls to dissectedCallback will be made
 		dissectChannel    chan data.UniqueSrcFQDNPair // holds data to be processed
 		dissectWg         sync.WaitGroup              // wait for dissector to finish
@@ -25,10 +23,9 @@ type (
 )
 
 // newDissector creates a new dissector for gathering data
-func newDissector(connLimit int64, chunk int, db *database.DB, conf *config.Config, dissectedCallback func(siphonInput), closedCallback func()) *dissector {
+func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(*dissectorResults), closedCallback func()) *dissector {
 	return &dissector{
 		connLimit:         connLimit,
-		chunk:             chunk,
 		db:                db,
 		conf:              conf,
 		dissectedCallback: dissectedCallback,
@@ -171,83 +168,26 @@ func (d *dissector) start() {
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results
 			if res.Count > 0 {
-				analysisInput := dissectorResults{
+				connection := &dissectorResults{
 					Hosts:           datum,
-					RespondingIPs:   res.RespondingIPs,
 					ConnectionCount: res.Count,
-					TotalBytes:      res.TBytes,
 				}
 
-				// check if sniconn has become a strobe
-				if analysisInput.ConnectionCount > d.connLimit {
-					// if sniconn became a strobe just from the current chunk, then we would not have received it here
-					// as sniconn upgrades itself to a strobe if either of its tls or http connection counts met the strobe
-					// thresh for this chunk only
+				// avoid passing unnecessary data if conn is a strobe
+				if connection.ConnectionCount > d.connLimit {
+					d.dissectedCallback(connection)
+				} else {
 
-					// if sniconn became a strobe during this chunk over its cummulative connection count over all chunks,
-					// then we must upgrade it to a strobe and remove the timestamp and bytes arrays from the current chunk
-					// or else the sniconn document can grow to unacceptable sizes
-					// these tasks are to be handled by the siphon prior to sorting & analysis
-
-					var actions []evaporator
-					// remove the bytes and ts arrays for both tls & http in the current chunk in the sniconn document
-					listRemover := evaporator{
-						collection: d.conf.T.Structure.SNIConnTable,
-						selector:   datum.BSONKey(),
-						query: mgo.Change{
-							Update: bson.M{"$unset": bson.M{"dat.$[elem].tls.bytes": "", "dat.$[elem].tls.ts": "",
-								"dat.$[elem].http.bytes": "", "dat.$[elem].http.ts": ""}},
-						},
-						arrayFilters: []bson.M{
-							{"elem.cid": d.chunk},
-						},
-					}
-					// set the sniconn as a strobe via the merged property
-					// this is being done here and not in SNIconns because beaconSNI merges the connections from
-					// multiple protocols together whereas SNIconn tracks the strobe status separately
-					strobeUpdater := evaporator{
-						collection: d.conf.T.Structure.SNIConnTable,
-						selector:   datum.BSONKey(),
-						query: mgo.Change{
-							Update: bson.M{"$push": bson.M{
-								"dat": []bson.M{{
-									"cid": d.chunk,
-									"merged": bson.M{
-										"strobe": true,
-									},
-								}},
-							}},
-							Upsert: true,
-						},
-					}
-					// remove the sniconn from the beaconsni table as its now a strobe
-					beaconRemover := evaporator{
-						collection: d.conf.T.BeaconSNI.BeaconSNITable,
-						selector:   datum.BSONKey(),
-						query: mgo.Change{
-							Remove: true,
-						},
-					}
-					actions = append(actions, listRemover, strobeUpdater, beaconRemover)
-
-					siphonInput := siphonInput{
-						Drain:     nil, // should be nil as we dont want to pass the strobe on to analysis
-						Evaporate: actions,
-					}
-					d.dissectedCallback(siphonInput)
-
-				} else { // otherwise, parse timestamps and orig ip bytes
-					analysisInput.TsList = res.Ts
-					analysisInput.TsListFull = res.TsFull
-					analysisInput.OrigBytesList = res.Bytes
 					// the analysis worker requires that we have over UNIQUE 3 timestamps
 					// we drop the input here since it is the earliest place in the pipeline to do so
-					if len(analysisInput.TsList) > 3 {
-						siphonInput := siphonInput{
-							Drain:     &analysisInput,
-							Evaporate: nil, // should be nil as we dont have anything to update or remove
-						}
-						d.dissectedCallback(siphonInput)
+					if len(res.Ts) > 3 {
+						connection.RespondingIPs = res.RespondingIPs
+						connection.TotalBytes = res.TBytes
+						connection.TsList = res.Ts
+						connection.TsListFull = res.TsFull
+						connection.OrigBytesList = res.Bytes
+
+						d.dissectedCallback(connection)
 					}
 				}
 			}
