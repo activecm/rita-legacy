@@ -176,19 +176,17 @@ func (d *dissector) start() {
 				// avoid passing unnecessary data if conn is a strobe
 				if connection.ConnectionCount > d.connLimit {
 					d.dissectedCallback(connection)
-				} else {
 
 					// the analysis worker requires that we have over UNIQUE 3 timestamps
 					// we drop the input here since it is the earliest place in the pipeline to do so
-					if len(res.Ts) > 3 {
-						connection.RespondingIPs = res.RespondingIPs
-						connection.TotalBytes = res.TBytes
-						connection.TsList = res.Ts
-						connection.TsListFull = res.TsFull
-						connection.OrigBytesList = res.Bytes
+				} else if len(res.Ts) > 3 {
+					connection.RespondingIPs = res.RespondingIPs
+					connection.TotalBytes = res.TBytes
+					connection.TsList = res.Ts
+					connection.TsListFull = res.TsFull
+					connection.OrigBytesList = res.Bytes
 
-						d.dissectedCallback(connection)
-					}
+					d.dissectedCallback(connection)
 				}
 			}
 		}

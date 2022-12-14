@@ -71,41 +71,58 @@ func (s *siphon) start() {
 				// as sniconn upgrades itself to a strobe if either of its tls or http connection counts met the strobe
 				// thresh for this chunk only
 
-				// if sniconn became a strobe during this chunk over its cummulative connection count over all chunks,
+				// if sniconn became a strobe during this chunk over its cumulative connection count over all chunks,
 				// then we must upgrade it to a strobe and remove the timestamp and bytes arrays from the current chunk
 				// or else the sniconn document can grow to unacceptable sizes
 				// these tasks are to be handled prior to sorting & analysis
-				hostEntryExistsSelector := data.Hosts.BSONKey()
-				// hostEntryExistsSelector["dat"] = bson.M{"$elemMatch": bson.M{"cid": bson.M{"$exists": true}}}
+				pairSelector := data.Hosts.BSONKey()
 
 				actions := mgoBulkActions{
 					s.conf.T.Structure.SNIConnTable: func(b *mgo.Bulk) int {
-						b.UpdateAll(hostEntryExistsSelector, bson.M{
-							// remove the bytes and ts arrays for all chunks in the sniconn document
-							// for both tls and http
-							"$unset": bson.M{"dat.$[].tls.ts": "", "dat.$[].tls.bytes": ""},
-						})
-						return 1
-					},
-					s.conf.T.Structure.SNIConnTable: func(b *mgo.Bulk) int {
-						b.UpdateAll(hostEntryExistsSelector, bson.M{
-							// remove the bytes and ts arrays for all chunks in the sniconn document
-							// for both tls and http
-							"$unset": bson.M{"dat.$[].http.ts": "", "dat.$[].http.bytes": ""},
-						})
-						return 1
-					},
-					s.conf.T.Structure.SNIConnTable: func(b *mgo.Bulk) int {
-						b.Upsert(data.Hosts.BSONKey(), bson.M{"$push": bson.M{
-							"dat": []bson.M{{
+						// remove the bytes and ts arrays for both tls & http in the current chunk in the sniconn document
+						b.Update(
+							database.MergeBSONMaps(pairSelector, bson.M{
+								"dat": bson.M{"$elemMatch": bson.M{
+									"cid": s.chunk,
+									"tls": bson.M{"$exists": true},
+								}},
+							}), bson.M{
+								"$unset": bson.M{
+									"dat.$.tls.bytes": "",
+									"dat.$.tls.ts":    "",
+								},
+							},
+						)
+
+						// this update has to be done separately since $ only matches one subdocument at a time
+						b.Update(
+							database.MergeBSONMaps(pairSelector, bson.M{
+								"dat": bson.M{"$elemMatch": bson.M{
+									"cid":  s.chunk,
+									"http": bson.M{"$exists": true},
+								}},
+							}), bson.M{
+								"$unset": bson.M{
+									"dat.$.http.bytes": "",
+									"dat.$.http.ts":    "",
+								},
+							},
+						)
+
+						// set the sniconn as a strobe via the merged property
+						// this is being done here and not in SNIconns because beaconSNI merges the connections from
+						// multiple protocols together whereas SNIconn tracks the strobe status separately
+						b.Upsert(pairSelector, bson.M{"$push": bson.M{
+							"dat": bson.M{"$each": []bson.M{{
 								"cid": s.chunk,
 								"merged": bson.M{
 									"strobe": true,
 								},
-							}},
+							}}},
 						}})
-						return 1
+						return 3
 					},
+
 					// remove the sniconn from the beaconsni table as its now a strobe
 					s.conf.T.BeaconSNI.BeaconSNITable: func(b *mgo.Bulk) int {
 						b.Remove(data.Hosts.BSONKey())
