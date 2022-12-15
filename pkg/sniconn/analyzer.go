@@ -12,19 +12,19 @@ import (
 type (
 	//analyzer records data regarding the connections between pairs of internal IP addresses and external FQDNs (SNIs)
 	analyzer struct {
-		chunk            int               //current chunk (0 if not on rolling analysis)
-		connLimit        int64             // limit for strobe classification
-		db               *database.DB      // provides access to MongoDB
-		conf             *config.Config    // contains details needed to access MongoDB
-		analyzedCallback func(update)      // called on each analyzed result
-		closedCallback   func()            // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *linkedInput // holds unanalyzed data
-		analysisWg       sync.WaitGroup    // wait for analysis to finish
+		chunk            int                        //current chunk (0 if not on rolling analysis)
+		connLimit        int64                      // limit for strobe classification
+		db               *database.DB               // provides access to MongoDB
+		conf             *config.Config             // contains details needed to access MongoDB
+		analyzedCallback func(database.BulkChanges) // called on each analyzed result
+		closedCallback   func()                     // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *linkedInput          // holds unanalyzed data
+		analysisWg       sync.WaitGroup             // wait for analysis to finish
 	}
 )
 
-//newAnalyzer creates a new analyzer for recording sni connection records
-func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+// newAnalyzer creates a new analyzer for recording sni connection records
+func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Config, analyzedCallback func(database.BulkChanges), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
 		connLimit:        connLimit,
@@ -36,19 +36,19 @@ func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Confi
 	}
 }
 
-//collect gathers unique connection records for analysis
+// collect gathers unique connection records for analysis
 func (a *analyzer) collect(datum *linkedInput) {
 	a.analysisChannel <- datum
 }
 
-//close waits for the analyzer to finish
+// close waits for the analyzer to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
 	a.closedCallback()
 }
 
-//start kicks off a new analysis thread
+// start kicks off a new analysis thread
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
@@ -68,9 +68,12 @@ func (a *analyzer) start() {
 
 			totalUpdate := database.MergeBSONMaps(netNameUpdate, tlsUpdate, httpUpdate)
 
-			a.analyzedCallback(update{
-				selector: selector.BSONKey(),
-				query:    totalUpdate,
+			a.analyzedCallback(database.BulkChanges{
+				a.conf.T.Structure.SNIConnTable: []database.BulkChange{{
+					Selector: selector.BSONKey(),
+					Update:   totalUpdate,
+					Upsert:   true,
+				}},
 			})
 
 		}
