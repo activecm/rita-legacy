@@ -9,7 +9,6 @@ import (
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/util"
 
-	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 )
@@ -18,22 +17,22 @@ type (
 	//analyzer handles calculating statistical measures of the distributions of the
 	//timestamps and data sizes between hosts and SNIs (FQDNs)
 	analyzer struct {
-		tsMin            int64                 // min timestamp for the whole dataset
-		tsMax            int64                 // max timestamp for the whole dataset
-		chunk            int                   // current chunk (0 if not on rolling analysis)
-		db               *database.DB          // provides access to MongoDB
-		conf             *config.Config        // contains details needed to access MongoDB
-		log              *log.Logger           // main logger for RITA
-		analyzedCallback func(mgoBulkActions)  // analysis results are sent to this callback as MongoDB bulk actions
-		closedCallback   func()                // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan dissectorResults // holds unanalyzed SNI connection data
-		analysisWg       sync.WaitGroup        // wait for analysis to finish
+		tsMin            int64                      // min timestamp for the whole dataset
+		tsMax            int64                      // max timestamp for the whole dataset
+		chunk            int                        // current chunk (0 if not on rolling analysis)
+		db               *database.DB               // provides access to MongoDB
+		conf             *config.Config             // contains details needed to access MongoDB
+		log              *log.Logger                // main logger for RITA
+		analyzedCallback func(database.BulkChanges) // analysis results are sent to this callback as MongoDB bulk actions
+		closedCallback   func()                     // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan dissectorResults      // holds unanalyzed SNI connection data
+		analysisWg       sync.WaitGroup             // wait for analysis to finish
 	}
 )
 
 // newAnalyzer creates a new analyzer for calculating the beacon statistics of SNI connections
 func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.Config, log *log.Logger,
-	analyzedCallback func(mgoBulkActions), closedCallback func()) *analyzer {
+	analyzedCallback func(database.BulkChanges), closedCallback func()) *analyzer {
 	return &analyzer{
 		tsMin:            min,
 		tsMax:            max,
@@ -220,11 +219,12 @@ func (a *analyzer) start() {
 				},
 			}
 
-			update := mgoBulkActions{
-				a.conf.T.BeaconSNI.BeaconSNITable: func(b *mgo.Bulk) int {
-					b.Upsert(pairSelector, beaconQuery)
-					return 1
-				},
+			update := database.BulkChanges{
+				a.conf.T.BeaconSNI.BeaconSNITable: []database.BulkChange{{
+					Selector: pairSelector,
+					Update:   beaconQuery,
+					Upsert:   true,
+				}},
 			}
 
 			a.analyzedCallback(update)
