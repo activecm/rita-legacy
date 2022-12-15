@@ -2,7 +2,6 @@ package uconnproxy
 
 import (
 	"github.com/activecm/rita/pkg/data"
-	"github.com/globalsign/mgo/bson"
 )
 
 // Repository for uconnproxy collection
@@ -11,14 +10,8 @@ type Repository interface {
 	Upsert(uconnProxyMap map[string]*Input)
 }
 
-//update ....
-type update struct {
-	selector bson.M
-	query    bson.M
-}
-
-//Input structure for sending data
-//to the analyzer. Contains a tuple of
+// Input structure for sending data
+// to the analyzer. Contains a tuple of
 // Src IP/UUID/Name and an FQDN to which the Src IP
 // was attempting to communicate.
 // Contains a list of unique time stamps for the

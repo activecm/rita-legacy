@@ -2,7 +2,6 @@ package certificate
 
 import (
 	"github.com/activecm/rita/pkg/data"
-	"github.com/globalsign/mgo/bson"
 )
 
 // Repository for uconn collection
@@ -11,13 +10,7 @@ type Repository interface {
 	Upsert(useragentMap map[string]*Input)
 }
 
-//update ....
-type update struct {
-	selector bson.M
-	query    bson.M
-}
-
-//Input ....
+// Input ....
 type Input struct {
 	Host         data.UniqueIP
 	Seen         int64
@@ -26,7 +19,7 @@ type Input struct {
 	Tuples       data.StringSet
 }
 
-//AnalysisView (for reporting)
+// AnalysisView (for reporting)
 type AnalysisView struct {
 	UserAgent string `bson:"user_agent"`
 	TimesUsed int64  `bson:"seen"`

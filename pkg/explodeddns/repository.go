@@ -7,28 +7,22 @@ type Repository interface {
 	Upsert(domainMap map[string]int)
 }
 
-//update ....
-type update struct {
-	selector interface{}
-	query    interface{}
-}
-
-//domain ....
+// domain ....
 type domain struct {
 	name  string
 	count int
 }
 
-//dns ....
+// dns ....
 type dns struct {
 	Domain         string `bson:"domain"`
 	SubdomainCount int64  `bson:"subdomain_count"`
 	CID            int    `bson:"cid"`
 }
 
-//Result represents a hostname, how many subdomains were found
-//for that hostname, and how many times that hostname and its subdomains
-//were looked up.
+// Result represents a hostname, how many subdomains were found
+// for that hostname, and how many times that hostname and its subdomains
+// were looked up.
 type Result struct {
 	Domain         string `bson:"domain"`
 	SubdomainCount int64  `bson:"subdomain_count"`

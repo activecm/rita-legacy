@@ -3,19 +3,12 @@ package sniconn
 import (
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/host"
-	"github.com/globalsign/mgo/bson"
 )
 
 // Repository for uconn collection
 type Repository interface {
 	CreateIndexes() error
 	Upsert(tlsMap map[string]*TLSInput, httpMap map[string]*HTTPInput, zeekUIDMap map[string]*data.ZeekUIDRecord, hostMap map[string]*host.Input)
-}
-
-// update represents a MongoDB update
-type update struct {
-	selector bson.M
-	query    bson.M
 }
 
 type linkedInput struct {

@@ -23,7 +23,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository bundles the given resources for updating MongoDB with unique connection data
+// NewMongoRepository bundles the given resources for updating MongoDB with unique connection data
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -32,7 +32,7 @@ func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger
 	}
 }
 
-//CreateIndexes creates indexes for the uconn collection
+// CreateIndexes creates indexes for the uconn collection
 func (r *repo) CreateIndexes() error {
 
 	session := r.database.Session.Copy()
@@ -67,27 +67,27 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert records the given unique connection data in MongoDB. Summaries are
-//created for the given local hosts in MongoDB.
+// Upsert records the given unique connection data in MongoDB. Summaries are
+// created for the given local hosts in MongoDB.
 func (r *repo) Upsert(uconnMap map[string]*Input, hostMap map[string]*host.Input) {
 	// Phase 1: Analysis
 
 	// Create the workers for analysis
-	writerWorker := newWriter(r.config.T.Structure.UniqueConnTable, r.database, r.config, r.log)
+	writerWorker := database.NewBulkWriter(r.database, r.config, r.log, true, "uconn")
 
 	analyzerWorker := newAnalyzer(
 		r.config.S.Rolling.CurrentChunk,
 		int64(r.config.S.Strobe.ConnectionLimit),
 		r.database,
 		r.config,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		analyzerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// progress bar for troubleshooting
@@ -127,20 +127,20 @@ func (r *repo) Upsert(uconnMap map[string]*Input, hostMap map[string]*host.Input
 	}
 
 	// initialize a new writer for the summarizer
-	writerWorker = newWriter(r.config.T.Structure.HostTable, r.database, r.config, r.log)
+	writerWorker = database.NewBulkWriter(r.database, r.config, r.log, true, "uconn")
 	summarizerWorker := newSummarizer(
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		summarizerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// add a progress bar for troubleshooting

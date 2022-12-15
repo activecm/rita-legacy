@@ -14,19 +14,19 @@ import (
 type (
 	//summarizer records summary data for individual hosts using proxy beacon data
 	summarizer struct {
-		chunk              int                  // current chunk (0 if not on rolling summary)
-		db                 *database.DB         // provides access to MongoDB
-		conf               *config.Config       // contains details needed to access MongoDB
-		log                *log.Logger          // main logger for RITA
-		summarizedCallback func(mgoBulkActions) // called on each summarized result
-		closedCallback     func()               // called when .close() is called and no more calls to summarizedCallback will be made
-		summaryChannel     chan data.UniqueIP   // holds unsummarized data
-		summaryWg          sync.WaitGroup       // wait for summary to finish
+		chunk              int                        // current chunk (0 if not on rolling summary)
+		db                 *database.DB               // provides access to MongoDB
+		conf               *config.Config             // contains details needed to access MongoDB
+		log                *log.Logger                // main logger for RITA
+		summarizedCallback func(database.BulkChanges) // called on each summarized result
+		closedCallback     func()                     // called when .close() is called and no more calls to summarizedCallback will be made
+		summaryChannel     chan data.UniqueIP         // holds unsummarized data
+		summaryWg          sync.WaitGroup             // wait for summary to finish
 	}
 )
 
 // newSummarizer creates a new summarizer for proxy beacon data
-func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, summarizedCallback func(mgoBulkActions), closedCallback func()) *summarizer {
+func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, summarizedCallback func(database.BulkChanges), closedCallback func()) *summarizer {
 	return &summarizer{
 		chunk:              chunk,
 		db:                 db,
@@ -76,11 +76,12 @@ func (s *summarizer) start() {
 			}
 
 			if len(maxProxyBeaconQuery) > 0 {
-				s.summarizedCallback(mgoBulkActions{
-					s.conf.T.Structure.HostTable: func(b *mgo.Bulk) int {
-						b.Upsert(maxProxyBeaconSelector, maxProxyBeaconQuery)
-						return 1
-					},
+				s.summarizedCallback(database.BulkChanges{
+					s.conf.T.Structure.HostTable: []database.BulkChange{{
+						Selector: maxProxyBeaconSelector,
+						Update:   maxProxyBeaconQuery,
+						Upsert:   true,
+					}},
 				})
 			}
 		}

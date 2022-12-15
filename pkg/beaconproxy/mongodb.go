@@ -79,10 +79,11 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[st
 	// Create the workers
 
 	// stage 6 - write out results
-	writerWorker := newMgoBulkWriter(
+	writerWorker := database.NewBulkWriter(
 		r.database,
 		r.config,
 		r.log,
+		true,
 		"beaconsProxy",
 	)
 
@@ -94,8 +95,8 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[st
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// stage 4 - sort data
@@ -113,7 +114,7 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[st
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
+		writerWorker.Collect,
 		sorterWorker.collect,
 		sorterWorker.close,
 	)
@@ -134,7 +135,7 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[st
 		siphonWorker.start()
 		sorterWorker.start()
 		analyzerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// progress bar for troubleshooting
@@ -178,20 +179,20 @@ func (r *repo) Upsert(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[st
 	}
 
 	// initialize a new writer for the summarizer
-	writerWorker = newMgoBulkWriter(r.database, r.config, r.log, "beaconsProxy")
+	writerWorker = database.NewBulkWriter(r.database, r.config, r.log, true, "beaconsProxy")
 	summarizerWorker := newSummarizer(
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		summarizerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// add a progress bar for troubleshooting

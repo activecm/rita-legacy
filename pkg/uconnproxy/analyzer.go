@@ -12,20 +12,20 @@ import (
 type (
 	//analyzer : structure for proxy beacon analysis
 	analyzer struct {
-		chunk            int            //current chunk (0 if not on rolling analysis)
-		chunkStr         string         //current chunk (0 if not on rolling analysis)
-		connLimit        int64          // limit for strobe classification
-		db               *database.DB   // provides access to MongoDB
-		conf             *config.Config // contains details needed to access MongoDB
-		analyzedCallback func(update)   // called on each analyzed result
-		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *Input    // holds unanalyzed data
-		analysisWg       sync.WaitGroup // wait for analysis to finish
+		chunk            int                        //current chunk (0 if not on rolling analysis)
+		chunkStr         string                     //current chunk (0 if not on rolling analysis)
+		connLimit        int64                      // limit for strobe classification
+		db               *database.DB               // provides access to MongoDB
+		conf             *config.Config             // contains details needed to access MongoDB
+		analyzedCallback func(database.BulkChanges) // called on each analyzed result
+		closedCallback   func()                     // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *Input                // holds unanalyzed data
+		analysisWg       sync.WaitGroup             // wait for analysis to finish
 	}
 )
 
 // newAnalyzer creates a new collector for parsing uconnproxy
-func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Config, analyzedCallback func(database.BulkChanges), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
 		chunkStr:         strconv.Itoa(chunk),
@@ -59,11 +59,12 @@ func (a *analyzer) start() {
 
 			mainUpdate := mainQuery(datum, a.connLimit, a.chunk)
 
-			totalUpdate := mainUpdate
-
-			a.analyzedCallback(update{
-				selector: datum.Hosts.BSONKey(),
-				query:    totalUpdate,
+			a.analyzedCallback(database.BulkChanges{
+				a.conf.T.Structure.UniqueConnProxyTable: []database.BulkChange{{
+					Selector: datum.Hosts.BSONKey(),
+					Update:   mainUpdate,
+					Upsert:   true,
+				}},
 			})
 		}
 		a.analysisWg.Done()

@@ -15,19 +15,19 @@ import (
 type (
 	//analyzer : structure for exploded dns analysis
 	analyzer struct {
-		chunk            int            //current chunk (0 if not on rolling analysis)
-		db               *database.DB   // provides access to MongoDB
-		conf             *config.Config // contains details needed to access MongoDB
-		log              *log.Logger    // logger for writing out errors and warnings
-		analyzedCallback func(update)   // called on each analyzed result
-		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *Input    // holds unanalyzed data
-		analysisWg       sync.WaitGroup // wait for analysis to finish
+		chunk            int                        //current chunk (0 if not on rolling analysis)
+		db               *database.DB               // provides access to MongoDB
+		conf             *config.Config             // contains details needed to access MongoDB
+		log              *log.Logger                // logger for writing out errors and warnings
+		analyzedCallback func(database.BulkChanges) // called on each analyzed result
+		closedCallback   func()                     // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *Input                // holds unanalyzed data
+		analysisWg       sync.WaitGroup             // wait for analysis to finish
 	}
 )
 
-//newAnalyzer creates a new collector for parsing hostnames
-func newAnalyzer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, analyzedCallback func(update), closedCallback func()) *analyzer {
+// newAnalyzer creates a new collector for parsing hostnames
+func newAnalyzer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, analyzedCallback func(database.BulkChanges), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
 		db:               db,
@@ -39,19 +39,19 @@ func newAnalyzer(chunk int, db *database.DB, conf *config.Config, log *log.Logge
 	}
 }
 
-//collect sends a group of domains to be analyzed
+// collect sends a group of domains to be analyzed
 func (a *analyzer) collect(data *Input) {
 	a.analysisChannel <- data
 }
 
-//close waits for the collector to finish
+// close waits for the collector to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
 	a.closedCallback()
 }
 
-//start kicks off a new analysis thread
+// start kicks off a new analysis thread
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
@@ -78,9 +78,12 @@ func (a *analyzer) start() {
 
 			totalUpdate := database.MergeBSONMaps(mainUpdate, blUpdate)
 
-			a.analyzedCallback(update{
-				selector: bson.M{"host": datum.Host},
-				query:    totalUpdate,
+			a.analyzedCallback(database.BulkChanges{
+				a.conf.T.DNS.HostnamesTable: []database.BulkChange{{
+					Selector: bson.M{"host": datum.Host},
+					Update:   totalUpdate,
+					Upsert:   true,
+				}},
 			})
 		}
 
@@ -88,8 +91,8 @@ func (a *analyzer) start() {
 	}()
 }
 
-//mainQuery records the IPs which the hostname resolved to and the IPs which
-//queried for the the hostname
+// mainQuery records the IPs which the hostname resolved to and the IPs which
+// queried for the the hostname
 func mainQuery(datum *Input, chunk int) bson.M {
 	return bson.M{
 		"$set": bson.M{
@@ -108,7 +111,7 @@ func mainQuery(datum *Input, chunk int) bson.M {
 	}
 }
 
-//blQuery marks the given hostname as blacklisted or not
+// blQuery marks the given hostname as blacklisted or not
 func blQuery(datum *Input, ssn *mgo.Session, blDB string) (bson.M, error) {
 	// check if blacklisted destination
 	blCount, err := ssn.DB(blDB).C("hostname").Find(bson.M{"index": datum.Host}).Count()

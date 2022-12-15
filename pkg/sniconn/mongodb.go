@@ -20,7 +20,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository bundles the given resources for updating MongoDB with SNI connection data
+// NewMongoRepository bundles the given resources for updating MongoDB with SNI connection data
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -65,8 +65,8 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert records the given sni connection data in MongoDB. Summaries are
-//created for the given local hosts in MongoDB.
+// Upsert records the given sni connection data in MongoDB. Summaries are
+// created for the given local hosts in MongoDB.
 func (r *repo) Upsert(tlsMap map[string]*TLSInput, httpMap map[string]*HTTPInput, zeekUIDMap map[string]*data.ZeekUIDRecord, hostMap map[string]*host.Input) {
 
 	// Phase 1: Analysis
@@ -75,21 +75,21 @@ func (r *repo) Upsert(tlsMap map[string]*TLSInput, httpMap map[string]*HTTPInput
 	linkedInputMap := linkInputMaps(tlsMap, httpMap, zeekUIDMap)
 
 	// Create the workers for analysis
-	writerWorker := newWriter(r.config.T.Structure.SNIConnTable, r.database, r.config, r.log)
+	writerWorker := database.NewBulkWriter(r.database, r.config, r.log, true, "sniconn")
 
 	analyzerWorker := newAnalyzer(
 		r.config.S.Rolling.CurrentChunk,
 		int64(r.config.S.Strobe.ConnectionLimit),
 		r.database,
 		r.config,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		analyzerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// progress bar for troubleshooting

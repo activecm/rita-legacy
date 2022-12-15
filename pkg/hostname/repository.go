@@ -2,7 +2,6 @@ package hostname
 
 import (
 	"github.com/activecm/rita/pkg/data"
-	"github.com/globalsign/mgo/bson"
 )
 
 type (
@@ -10,12 +9,6 @@ type (
 	Repository interface {
 		CreateIndexes() error
 		Upsert(domainMap map[string]*Input)
-	}
-
-	//update ....
-	update struct {
-		selector bson.M
-		query    bson.M
 	}
 
 	//Input ....

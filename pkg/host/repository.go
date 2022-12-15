@@ -2,7 +2,6 @@ package host
 
 import (
 	"github.com/activecm/rita/pkg/data"
-	"github.com/globalsign/mgo/bson"
 )
 
 // Repository for host collection
@@ -11,13 +10,7 @@ type Repository interface {
 	Upsert(uconnMap map[string]*Input)
 }
 
-//update ....
-type update struct {
-	selector bson.M
-	query    bson.M
-}
-
-//Input ...
+// Input ...
 type Input struct {
 	Host                  data.UniqueIP
 	IsLocal               bool

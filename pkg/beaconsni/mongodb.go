@@ -83,10 +83,11 @@ func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*s
 	}
 
 	//Create the workers
-	writerWorker := newMgoBulkWriter(
+	writerWorker := database.NewBulkWriter(
 		r.database,
 		r.config,
 		r.log,
+		true,
 		"beaconsni",
 	)
 
@@ -97,8 +98,8 @@ func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*s
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	sorterWorker := newSorter(
@@ -114,13 +115,14 @@ func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*s
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
+		writerWorker.Collect,
 		sorterWorker.collect,
 		sorterWorker.close,
 	)
 
 	dissectorWorker := newDissector(
 		int64(r.config.S.Strobe.ConnectionLimit),
+		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
 		siphonWorker.collect,
@@ -133,7 +135,7 @@ func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*s
 		siphonWorker.start()
 		sorterWorker.start()
 		analyzerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// progress bar for troubleshooting
@@ -173,20 +175,20 @@ func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*s
 	}
 
 	// initialize a new writer for the summarizer
-	writerWorker = newMgoBulkWriter(r.database, r.config, r.log, "beaconSNI")
+	writerWorker = database.NewBulkWriter(r.database, r.config, r.log, true, "beaconSNI")
 	summarizerWorker := newSummarizer(
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		summarizerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// add a progress bar for troubleshooting
