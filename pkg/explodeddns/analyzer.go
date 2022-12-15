@@ -116,7 +116,6 @@ func (a *analyzer) start() {
 
 					// create selector for output
 					output.Selector = bson.M{"domain": entry}
-					output.Upsert = true
 
 					// set to writer channel
 					a.analyzedCallback(database.BulkChanges{a.conf.T.DNS.ExplodedDNSTable: []database.BulkChange{output}})
