@@ -10,7 +10,6 @@ import (
 	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/util"
 
-	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 )
@@ -19,22 +18,22 @@ type (
 	//analyzer handles calculating statistical measures of the distribution of timestamps
 	//between pairs of proxied hosts
 	analyzer struct {
-		tsMin            int64                  // min timestamp for the whole dataset
-		tsMax            int64                  // max timestamp for the whole dataset
-		chunk            int                    //current chunk (0 if not on rolling analysis)
-		db               *database.DB           // provides access to MongoDB
-		conf             *config.Config         // contains details needed to access MongoDB
-		log              *log.Logger            // main logger for RITA
-		analyzedCallback func(mgoBulkActions)   // called on each analyzed result
-		closedCallback   func()                 // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *uconnproxy.Input // holds unanalyzed data
-		analysisWg       sync.WaitGroup         // wait for analysis to finish
+		tsMin            int64                      // min timestamp for the whole dataset
+		tsMax            int64                      // max timestamp for the whole dataset
+		chunk            int                        //current chunk (0 if not on rolling analysis)
+		db               *database.DB               // provides access to MongoDB
+		conf             *config.Config             // contains details needed to access MongoDB
+		log              *log.Logger                // main logger for RITA
+		analyzedCallback func(database.BulkChanges) // called on each analyzed result
+		closedCallback   func()                     // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *uconnproxy.Input     // holds unanalyzed data
+		analysisWg       sync.WaitGroup             // wait for analysis to finish
 	}
 )
 
 // newAnalyzer creates a new analyzer for calculating the beacon statistics of proxied unique connections
 func newAnalyzer(min int64, max int64, chunk int, db *database.DB, conf *config.Config, log *log.Logger,
-	analyzedCallback func(mgoBulkActions), closedCallback func()) *analyzer {
+	analyzedCallback func(database.BulkChanges), closedCallback func()) *analyzer {
 	return &analyzer{
 		tsMin:            min,
 		tsMax:            max,
@@ -174,11 +173,12 @@ func (a *analyzer) start() {
 				},
 			}
 
-			update := mgoBulkActions{
-				a.conf.T.BeaconProxy.BeaconProxyTable: func(b *mgo.Bulk) int {
-					b.Upsert(pairSelector, proxyBeaconQuery)
-					return 1
-				},
+			update := database.BulkChanges{
+				a.conf.T.BeaconProxy.BeaconProxyTable: []database.BulkChange{{
+					Selector: pairSelector,
+					Update:   proxyBeaconQuery,
+					Upsert:   true,
+				}},
 			}
 
 			a.analyzedCallback(update)
