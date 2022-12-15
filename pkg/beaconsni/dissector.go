@@ -12,6 +12,7 @@ import (
 type (
 	//dissector gathers all of the connection details between a host and an SNI
 	dissector struct {
+		chunk             int
 		connLimit         int64                       // limit for strobe classification
 		db                *database.DB                // provides access to MongoDB
 		conf              *config.Config              // contains details needed to access MongoDB
@@ -23,8 +24,9 @@ type (
 )
 
 // newDissector creates a new dissector for gathering data
-func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(*dissectorResults), closedCallback func()) *dissector {
+func newDissector(connLimit int64, chunk int, db *database.DB, conf *config.Config, dissectedCallback func(*dissectorResults), closedCallback func()) *dissector {
 	return &dissector{
+		chunk:             chunk,
 		connLimit:         connLimit,
 		db:                db,
 		conf:              conf,
@@ -60,9 +62,21 @@ func (d *dissector) start() {
 			// we are able to filter out already flagged strobes here
 			// because we use the sniconns table to access them. The sniconns table has
 			// already had its counts and stats updated.
-			matchNoStrobeKey["dat.tls.strobe"] = bson.M{"$ne": true}
-			matchNoStrobeKey["dat.http.strobe"] = bson.M{"$ne": true}
-			matchNoStrobeKey["dat.merged.strobe"] = bson.M{"$ne": true}
+
+			// for sniconns, we must check the strobe status of the current cid since
+			// the beaconsni module is responsible for removing timestamp and byte data
+			// on each import depending on the strobe status
+			matchNoStrobeKey["dat"] = bson.M{
+				"$elemMatch": bson.M{
+					"cid": d.chunk,
+					"$or": []interface{}{
+						bson.M{"tls.strobe": bson.M{"$ne": true}},
+						bson.M{"http.strobe": bson.M{"$ne": true}},
+						// merged must be added to this filter if it is ever set prior to
+						// this pipeline in the future
+						// "merged.strobe": bson.M{"$ne": true},
+					},
+				}}
 
 			sniconnFindQuery := []bson.M{
 				{"$match": matchNoStrobeKey},

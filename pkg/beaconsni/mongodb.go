@@ -122,6 +122,7 @@ func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*s
 
 	dissectorWorker := newDissector(
 		int64(r.config.S.Strobe.ConnectionLimit),
+		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
 		siphonWorker.collect,
