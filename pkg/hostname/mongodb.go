@@ -18,7 +18,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository bundles the given resources for updating MongoDB with hostname data
+// NewMongoRepository bundles the given resources for updating MongoDB with hostname data
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -27,7 +27,7 @@ func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger
 	}
 }
 
-//CreateIndexes creates indexes for the hostname collection
+// CreateIndexes creates indexes for the hostname collection
 func (r *repo) CreateIndexes() error {
 	session := r.database.Session.Copy()
 	defer session.Close()
@@ -60,25 +60,25 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert records the given hostname data in MongoDB
+// Upsert records the given hostname data in MongoDB
 func (r *repo) Upsert(hostnameMap map[string]*Input) {
 
 	// Create the workers
-	writerWorker := newWriter(r.config.T.DNS.HostnamesTable, r.database, r.config, r.log)
+	writerWorker := database.NewBulkWriter(r.database, r.config, r.log, true, "hostname")
 
 	analyzerWorker := newAnalyzer(
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		analyzerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// progress bar for troubleshooting
