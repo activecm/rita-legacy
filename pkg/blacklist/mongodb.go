@@ -22,7 +22,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository bundles the given resources for updating MongoDB with threat intel data
+// NewMongoRepository bundles the given resources for updating MongoDB with threat intel data
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -31,7 +31,7 @@ func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger
 	}
 }
 
-//CreateIndexes sets up the indices needed to find hosts which contacted unsafe hosts
+// CreateIndexes sets up the indices needed to find hosts which contacted unsafe hosts
 func (r *repo) CreateIndexes() error {
 	session := r.database.Session.Copy()
 	defer session.Close()
@@ -53,26 +53,26 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert creates threat intel records in the host collection for the hosts which
-//contacted hosts which have been marked unsafe
+// Upsert creates threat intel records in the host collection for the hosts which
+// contacted hosts which have been marked unsafe
 func (r *repo) Upsert() {
 
 	// Create the workers
-	writerWorker := newWriter(r.config.T.Structure.HostTable, r.database, r.config, r.log)
+	writerWorker := database.NewBulkWriter(r.database, r.config, r.log, true, "bl_updater")
 
 	analyzerWorker := newAnalyzer(
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		analyzerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// ensure the worker closing cascade fires when we exit this method
