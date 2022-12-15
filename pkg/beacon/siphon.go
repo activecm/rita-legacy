@@ -6,7 +6,6 @@ import (
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
 	"github.com/activecm/rita/pkg/uconn"
-	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 )
@@ -17,21 +16,21 @@ type (
 	// this is generally for removing/updating documents that should not be analyzed or need fixing up before analysis
 	// it can also pass data through to the next stage and optionally skip evaporation (Drainage)
 	siphon struct {
-		connLimit         int64                // limit for strobe classification
-		chunk             int                  // current chunk (0 if not on rolling analysis)
-		db                *database.DB         // provides access to MongoDB
-		conf              *config.Config       // contains details needed to access MongoDB
-		log               *log.Logger          // main logger for RITA
-		evaporateCallback func(mgoBulkActions) // operations to update/remove a uconn prior to analysis are sent to this callback
-		drainCallback     func(*uconn.Input)   // gathered unique connection details are sent to this callback
-		closedCallback    func()               // called when .close() is called and no more calls to siphonCallback will be made
-		siphonChannel     chan *uconn.Input    // holds dissected data
-		siphonWg          sync.WaitGroup       // wait for writing to finish
+		connLimit         int64                      // limit for strobe classification
+		chunk             int                        // current chunk (0 if not on rolling analysis)
+		db                *database.DB               // provides access to MongoDB
+		conf              *config.Config             // contains details needed to access MongoDB
+		log               *log.Logger                // main logger for RITA
+		evaporateCallback func(database.BulkChanges) // operations to update/remove a uconn prior to analysis are sent to this callback
+		drainCallback     func(*uconn.Input)         // gathered unique connection details are sent to this callback
+		closedCallback    func()                     // called when .close() is called and no more calls to siphonCallback will be made
+		siphonChannel     chan *uconn.Input          // holds dissected data
+		siphonWg          sync.WaitGroup             // wait for writing to finish
 	}
 )
 
 // newSiphon creates a new siphon for beacon data
-func newSiphon(connLimit int64, chunk int, db *database.DB, conf *config.Config, log *log.Logger, evaporateCallback func(mgoBulkActions), drainCallback func(*uconn.Input), closedCallback func()) *siphon {
+func newSiphon(connLimit int64, chunk int, db *database.DB, conf *config.Config, log *log.Logger, evaporateCallback func(database.BulkChanges), drainCallback func(*uconn.Input), closedCallback func()) *siphon {
 	return &siphon{
 		connLimit:         connLimit,
 		chunk:             chunk,
@@ -76,31 +75,30 @@ func (s *siphon) start() {
 				// then we must upgrade it to a strobe and remove the timestamp and bytes arrays from the current chunk
 				// or else the uconn document can grow to unacceptable sizes
 				// these tasks are to be handled prior to sorting & analysis
-				actions := mgoBulkActions{
-					s.conf.T.Structure.UniqueConnTable: func(b *mgo.Bulk) int {
-						b.Update(
-							database.MergeBSONMaps(data.Hosts.BSONKey(), bson.M{
-								"dat": bson.M{"$elemMatch": bson.M{
-									"cid":   s.chunk,
-									"ts":    bson.M{"$exists": true},
-									"bytes": bson.M{"$exists": true},
-								}},
-							}), bson.M{
-								// set the uconn as a strobe
-								// this must be done as uconns unsets its strobe flag if the current chunk doesnt meet
-								// the strobe limit
-								"$set": bson.M{"strobe": true},
-								// remove the bytes and ts arrays for the current chunk in the uconn document
-								"$unset": bson.M{"dat.$.ts": "", "dat.$.bytes": ""},
-							},
-						)
-						return 1
-					},
-					// // remove the uconn from the beacon table as its now a strobe
-					s.conf.T.Beacon.BeaconTable: func(b *mgo.Bulk) int {
-						b.Remove(data.Hosts.BSONKey())
-						return 1
-					},
+				actions := database.BulkChanges{
+					s.conf.T.Structure.UniqueConnTable: []database.BulkChange{{
+						Selector: database.MergeBSONMaps(data.Hosts.BSONKey(), bson.M{
+							"dat": bson.M{"$elemMatch": bson.M{
+								"cid":   s.chunk,
+								"ts":    bson.M{"$exists": true},
+								"bytes": bson.M{"$exists": true},
+							}},
+						}),
+						Update: bson.M{
+							// set the uconn as a strobe
+							// this must be done as uconns unsets its strobe flag if the current chunk doesnt meet
+							// the strobe limit
+							"$set": bson.M{"strobe": true},
+							// remove the bytes and ts arrays for the current chunk in the uconn document
+							"$unset": bson.M{"dat.$.ts": "", "dat.$.bytes": ""},
+						},
+					}},
+
+					// remove the uconn from the beacon table as its now a strobe
+					s.conf.T.Beacon.BeaconTable: []database.BulkChange{{
+						Selector: data.Hosts.BSONKey(),
+						Remove:   true,
+					}},
 				}
 				// evaporate uconn via the bulk writer
 				s.evaporateCallback(actions)

@@ -73,10 +73,11 @@ func (r *repo) CreateIndexes() error {
 func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
 
 	//Create the workers
-	writerWorker := newMgoBulkWriter(
+	writerWorker := database.NewBulkWriter(
 		r.database,
 		r.config,
 		r.log,
+		true,
 		"beacon",
 	)
 
@@ -87,8 +88,8 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	sorterWorker := newSorter(
@@ -104,7 +105,7 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
+		writerWorker.Collect,
 		sorterWorker.collect,
 		sorterWorker.close,
 	)
@@ -124,7 +125,7 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host
 		siphonWorker.start()
 		sorterWorker.start()
 		analyzerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// progress bar for troubleshooting
@@ -164,20 +165,20 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host
 	}
 
 	// initialize a new writer for the summarizer
-	writerWorker = newMgoBulkWriter(r.database, r.config, r.log, "beacon")
+	writerWorker = database.NewBulkWriter(r.database, r.config, r.log, true, "beacon")
 	summarizerWorker := newSummarizer(
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		summarizerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// add a progress bar for troubleshooting
