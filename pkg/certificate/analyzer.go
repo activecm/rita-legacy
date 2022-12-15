@@ -11,19 +11,19 @@ import (
 type (
 	//analyzer is a structure for invalid certificate analysis
 	analyzer struct {
-		chunk            int            // current chunk (0 if not on rolling analysis)
-		db               *database.DB   // provides access to MongoDB
-		conf             *config.Config // contains details needed to access MongoDB
-		analyzedCallback func(update)   // called on each analyzed result
-		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *Input    // holds unanalyzed data
-		analysisWg       sync.WaitGroup // wait for analysis to finish
+		chunk            int                        // current chunk (0 if not on rolling analysis)
+		db               *database.DB               // provides access to MongoDB
+		conf             *config.Config             // contains details needed to access MongoDB
+		analyzedCallback func(database.BulkChanges) // called on each analyzed result
+		closedCallback   func()                     // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *Input                // holds unanalyzed data
+		analysisWg       sync.WaitGroup             // wait for analysis to finish
 	}
 )
 
-//newAnalyzer creates a new analyzer for recording connections that were made
-//with invalid certificates
-func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+// newAnalyzer creates a new analyzer for recording connections that were made
+// with invalid certificates
+func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(database.BulkChanges), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
 		db:               db,
@@ -34,19 +34,19 @@ func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallba
 	}
 }
 
-//collect gathers invalid certificate connection records for analysis
+// collect gathers invalid certificate connection records for analysis
 func (a *analyzer) collect(datum *Input) {
 	a.analysisChannel <- datum
 }
 
-//close waits for the analyzer to finish
+// close waits for the analyzer to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
 	a.closedCallback()
 }
 
-//start kicks off a new analysis thread
+// start kicks off a new analysis thread
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
@@ -90,9 +90,12 @@ func (a *analyzer) start() {
 			}
 
 			// set to writer channel
-			a.analyzedCallback(update{
-				selector: datum.Host.BSONKey(),
-				query:    certificateQuery,
+			a.analyzedCallback(database.BulkChanges{
+				a.conf.T.Cert.CertificateTable: []database.BulkChange{{
+					Selector: datum.Host.BSONKey(),
+					Update:   certificateQuery,
+					Upsert:   true,
+				}},
 			})
 		}
 
