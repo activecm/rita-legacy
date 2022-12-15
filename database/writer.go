@@ -51,7 +51,7 @@ func (m BulkChange) Size(buffer []byte) ([]byte, int) {
 		buffer = buffer[:0]
 	}
 	if m.Update != nil {
-		buffer, _ = bson.MarshalBuffer(m.Selector, buffer)
+		buffer, _ = bson.MarshalBuffer(m.Update, buffer)
 		size += len(buffer)
 		buffer = buffer[:0]
 	}
