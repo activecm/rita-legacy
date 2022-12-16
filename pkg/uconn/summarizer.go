@@ -14,19 +14,19 @@ import (
 type (
 	//summarizer records summary data for individual hosts using unique connection data
 	summarizer struct {
-		chunk              int                // current chunk (0 if not on rolling summary)
-		db                 *database.DB       // provides access to MongoDB
-		conf               *config.Config     // contains details needed to access MongoDB
-		log                *log.Logger        // main logger for RITA
-		summarizedCallback func(update)       // called on each summarized result
-		closedCallback     func()             // called when .close() is called and no more calls to summarizedCallback will be made
-		summaryChannel     chan data.UniqueIP // holds unsummarized data
-		summaryWg          sync.WaitGroup     // wait for summary to finish
+		chunk              int                        // current chunk (0 if not on rolling summary)
+		db                 *database.DB               // provides access to MongoDB
+		conf               *config.Config             // contains details needed to access MongoDB
+		log                *log.Logger                // main logger for RITA
+		summarizedCallback func(database.BulkChanges) // called on each summarized result
+		closedCallback     func()                     // called when .close() is called and no more calls to summarizedCallback will be made
+		summaryChannel     chan data.UniqueIP         // holds unsummarized data
+		summaryWg          sync.WaitGroup             // wait for summary to finish
 	}
 )
 
 // newSummarizer creates a new summarizer for unique connection data
-func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, summarizedCallback func(update), closedCallback func()) *summarizer {
+func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, summarizedCallback func(database.BulkChanges), closedCallback func()) *summarizer {
 	return &summarizer{
 		chunk:              chunk,
 		db:                 db,
@@ -62,6 +62,8 @@ func (s *summarizer) start() {
 			uconnCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.UniqueConnTable)
 			hostCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.HostTable)
 
+			hostUpdates := []database.BulkChange{}
+
 			maxTotalDurUpdate, err := maxTotalDurationUpdate(datum, uconnCollection, hostCollection, s.chunk)
 			if err != nil {
 				if err != mgo.ErrNotFound {
@@ -72,9 +74,8 @@ func (s *summarizer) start() {
 				}
 				continue
 			}
-
-			if len(maxTotalDurUpdate.query) > 0 {
-				s.summarizedCallback(maxTotalDurUpdate)
+			if maxTotalDurUpdate.Selector != nil {
+				hostUpdates = append(hostUpdates, maxTotalDurUpdate)
 			}
 
 			invalidCertUpdates, err := invalidCertUpdates(datum, uconnCollection, hostCollection, s.chunk)
@@ -85,16 +86,19 @@ func (s *summarizer) start() {
 				}).Error(err)
 				continue
 			}
+			hostUpdates = append(hostUpdates, invalidCertUpdates...)
 
-			for _, update := range invalidCertUpdates {
-				s.summarizedCallback(update)
+			if len(hostUpdates) > 0 {
+				s.summarizedCallback(database.BulkChanges{
+					s.conf.T.Structure.HostTable: hostUpdates,
+				})
 			}
 		}
 		s.summaryWg.Done()
 	}()
 }
 
-func maxTotalDurationUpdate(datum data.UniqueIP, uconnColl, hostColl *mgo.Collection, chunk int) (update, error) {
+func maxTotalDurationUpdate(datum data.UniqueIP, uconnColl, hostColl *mgo.Collection, chunk int) (database.BulkChange, error) {
 	var maxDurIP struct {
 		Peer        data.UniqueIP `bson:"peer"`
 		MaxTotalDur float64       `bson:"tdur"`
@@ -104,7 +108,7 @@ func maxTotalDurationUpdate(datum data.UniqueIP, uconnColl, hostColl *mgo.Collec
 
 	err := uconnColl.Pipe(mdipQuery).One(&maxDurIP)
 	if err != nil {
-		return update{nil, nil}, err
+		return database.BulkChange{}, err
 	}
 
 	hostSelector := datum.BSONKey()
@@ -115,7 +119,7 @@ func maxTotalDurationUpdate(datum data.UniqueIP, uconnColl, hostColl *mgo.Collec
 
 	nExistingEntries, err := hostColl.Find(hostWithDatEntrySelector).Count()
 	if err != nil {
-		return update{nil, nil}, err
+		return database.BulkChange{}, err
 	}
 
 	if nExistingEntries > 0 {
@@ -127,7 +131,7 @@ func maxTotalDurationUpdate(datum data.UniqueIP, uconnColl, hostColl *mgo.Collec
 				"dat.$.cid":          chunk,
 			},
 		}
-		return update{hostWithDatEntrySelector, updateQuery}, nil
+		return database.BulkChange{Selector: hostWithDatEntrySelector, Update: updateQuery, Upsert: true}, nil
 	}
 
 	insertQuery := bson.M{
@@ -145,7 +149,7 @@ func maxTotalDurationUpdate(datum data.UniqueIP, uconnColl, hostColl *mgo.Collec
 			},
 		},
 	}
-	return update{hostSelector, insertQuery}, nil
+	return database.BulkChange{Selector: hostSelector, Update: insertQuery, Upsert: true}, nil
 }
 
 func maxTotalDurationPipeline(host data.UniqueIP, chunk int) []bson.M {
@@ -218,9 +222,9 @@ func maxTotalDurationPipeline(host data.UniqueIP, chunk int) []bson.M {
 	}
 }
 
-func invalidCertUpdates(datum data.UniqueIP, uconnColl *mgo.Collection, hostColl *mgo.Collection, chunk int) ([]update, error) {
+func invalidCertUpdates(datum data.UniqueIP, uconnColl *mgo.Collection, hostColl *mgo.Collection, chunk int) ([]database.BulkChange, error) {
 
-	var updates []update
+	var updates []database.BulkChange
 
 	icertQuery := invalidCertPipeline(datum, chunk)
 	var icertPeer data.UniqueIP
@@ -234,18 +238,19 @@ func invalidCertUpdates(datum data.UniqueIP, uconnColl *mgo.Collection, hostColl
 		}
 
 		if nExistingEntries > 0 {
-			updates = append(updates, update{
-				selector: hostEntryExistsSelector,
-				query: bson.M{
+			updates = append(updates, database.BulkChange{
+				Selector: hostEntryExistsSelector,
+				Update: bson.M{
 					"$set": bson.M{
 						"dat.$.cid": chunk,
 					},
 				},
+				Upsert: true,
 			})
 		} else {
-			updates = append(updates, update{
-				selector: datum.BSONKey(),
-				query: bson.M{"$push": bson.M{
+			updates = append(updates, database.BulkChange{
+				Selector: datum.BSONKey(),
+				Update: bson.M{"$push": bson.M{
 					"dat": bson.M{
 						"$each": []bson.M{{
 							"icdst": icertPeer,
@@ -254,6 +259,7 @@ func invalidCertUpdates(datum data.UniqueIP, uconnColl *mgo.Collection, hostColl
 						}},
 					},
 				}},
+				Upsert: true,
 			})
 		}
 	}

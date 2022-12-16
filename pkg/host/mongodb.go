@@ -63,21 +63,21 @@ func (r *repo) Upsert(hostMap map[string]*Input) {
 	// 1st Phase: Analysis
 
 	// Create the workers
-	writerWorker := newWriter(r.config.T.Structure.HostTable, r.database, r.config, r.log)
+	writerWorker := database.NewBulkWriter(r.database, r.config, r.log, true, "host")
 
 	analyzerWorker := newAnalyzer(
 		r.config.S.Rolling.CurrentChunk,
 		r.config,
 		r.database,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		analyzerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// progress bar for troubleshooting

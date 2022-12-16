@@ -12,6 +12,7 @@ import (
 type (
 	dissector struct {
 		connLimit         int64                   // limit for strobe classification
+		chunk             int                     // current chunk (0 if not on rolling analysis)
 		db                *database.DB            // provides access to MongoDB
 		conf              *config.Config          // contains details needed to access MongoDB
 		dissectedCallback func(*uconnproxy.Input) // called on each analyzed result
@@ -21,10 +22,11 @@ type (
 	}
 )
 
-//newdissector creates a new collector for gathering data
-func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(*uconnproxy.Input), closedCallback func()) *dissector {
+// newdissector creates a new collector for gathering data
+func newDissector(connLimit int64, chunk int, db *database.DB, conf *config.Config, dissectedCallback func(*uconnproxy.Input), closedCallback func()) *dissector {
 	return &dissector{
 		connLimit:         connLimit,
+		chunk:             chunk,
 		db:                db,
 		conf:              conf,
 		dissectedCallback: dissectedCallback,
@@ -33,19 +35,19 @@ func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissect
 	}
 }
 
-//collect sends a chunk of data to be analyzed
+// collect sends a chunk of data to be analyzed
 func (d *dissector) collect(entry *uconnproxy.Input) {
 	d.dissectChannel <- entry
 }
 
-//close waits for the collector to finish
+// close waits for the collector to finish
 func (d *dissector) close() {
 	close(d.dissectChannel)
 	d.dissectWg.Wait()
 	d.closedCallback()
 }
 
-//start kicks off a new analysis thread
+// start kicks off a new analysis thread
 func (d *dissector) start() {
 	d.dissectWg.Add(1)
 	go func() {
@@ -59,7 +61,7 @@ func (d *dissector) start() {
 			// we are able to filter out already flagged strobes here
 			// because we use the uconnproxy table to access them. The uconnproxy table has
 			// already had its counts and stats updated.
-			matchNoStrobeKey["strobe"] = bson.M{"$ne": true}
+			matchNoStrobeKey["strobeFQDN"] = bson.M{"$ne": true}
 
 			// This will work for both updating and inserting completely new proxy beacons
 			// for every new uconnproxy record we have, we will check the uconnproxy table. This
@@ -112,28 +114,25 @@ func (d *dissector) start() {
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results
 			if res.Count > 0 {
-				analysisInput := &uconnproxy.Input{
+				connection := &uconnproxy.Input{
 					Hosts:           datum.Hosts,
 					Proxy:           datum.Proxy,
 					ConnectionCount: res.Count,
 				}
 
-				// check if uconnproxy has become a strobe
-				if analysisInput.ConnectionCount > d.connLimit {
-
-					// set to sorter channel
-					d.dissectedCallback(analysisInput)
-
+				// avoid passing unnecessary data if conn is a strobe
+				if connection.ConnectionCount > d.connLimit {
+					d.dissectedCallback(connection)
 				} else { // otherwise, parse timestamps
 
-					analysisInput.TsList = res.Ts
-					analysisInput.TsListFull = res.TsFull
+					// the analysis worker requires that we have over UNIQUE 3 timestamps
+					// we drop the input here since it is the earliest place in the pipeline to do so
+					if len(res.Ts) > 3 {
+						connection.TsList = res.Ts
+						connection.TsListFull = res.TsFull
 
-					// send to sorter channel if we have over UNIQUE 3 timestamps (analysis needs this verification)
-					if len(analysisInput.TsList) > 3 {
-						d.dissectedCallback(analysisInput)
+						d.dissectedCallback(connection)
 					}
-
 				}
 			}
 		}

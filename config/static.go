@@ -10,6 +10,18 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+// Define the maximum value for the strobe connection limit
+// This value must be low enough to ensure that documents that store
+// arrays based off of connections will not grow beyond 16MB in size
+
+// ex: beaconSNI has dat.tls.ts, dat.tls.bytes, dat.http.ts, and dat.http.bytes
+// which are arrays of 64bit integers. Assuming that the size of an int64 in mongo
+// is 8 bytes, then each of those arrays would require 16 bytes per connection
+// The cummulative size of dat documents over all CIDs must fit within the document
+// limit and allow enough room for other data within the document to also fit
+// within ~16777216 bytes
+const maxStrobeConnectionLimit int = 86400
+
 type (
 	//StaticCfg is the container for other static config sections
 	StaticCfg struct {
@@ -166,6 +178,11 @@ func parseStaticConfig(cfgFile []byte, config *StaticCfg) error {
 	// old location and the new location (MongoDB:MetaDB) is still the default (MetaDatabase)
 	if config.Bro.MetaDB != "" && config.MongoDB.MetaDB == "MetaDatabase" {
 		config.MongoDB.MetaDB = config.Bro.MetaDB
+	}
+
+	// limit the strobe connection limit to the maximum allowed
+	if config.Strobe.ConnectionLimit > maxStrobeConnectionLimit {
+		config.Strobe.ConnectionLimit = maxStrobeConnectionLimit
 	}
 
 	// expand env variables, config is a pointer

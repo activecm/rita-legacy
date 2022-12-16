@@ -3,7 +3,6 @@ package uconn
 import (
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/host"
-	"github.com/globalsign/mgo/bson"
 )
 
 // Repository for uconn collection
@@ -12,13 +11,7 @@ type Repository interface {
 	Upsert(uconnMap map[string]*Input, hostMap map[string]*host.Input)
 }
 
-//update ....
-type update struct {
-	selector bson.M
-	query    bson.M
-}
-
-//Input holds aggregated connection information between two hosts in a dataset
+// Input holds aggregated connection information between two hosts in a dataset
 type Input struct {
 	Hosts              data.UniqueIPPair
 	ConnectionCount    int64
@@ -36,8 +29,8 @@ type Input struct {
 	ConnStateMap       map[string]*ConnState
 }
 
-//LongConnResult represents a pair of hosts that communicated and
-//the longest connection between those hosts.
+// LongConnResult represents a pair of hosts that communicated and
+// the longest connection between those hosts.
 type LongConnResult struct {
 	data.UniqueIPPair `bson:",inline"`
 	MaxDuration       float64  `bson:"maxdur"`
@@ -45,7 +38,7 @@ type LongConnResult struct {
 	Open              bool     `bson:"open"`
 }
 
-//OpenConnResult represents a pair of hosts that currently
+// OpenConnResult represents a pair of hosts that currently
 // have an open connection. It shows the current number of
 // bytes that have been transferred, the total duration thus far,
 // the port:protocol:service tuple, and the Zeek UID in case
@@ -58,7 +51,7 @@ type OpenConnResult struct {
 	UID               string  `bson:"uid"`
 }
 
-//ConnState is used to determine if a particular
+// ConnState is used to determine if a particular
 // connection, keyed by Zeek's UID field, is open
 // or closed. If a connection is still open, we
 // will write its bytes and duration info out in
@@ -67,12 +60,13 @@ type OpenConnResult struct {
 // open connections without double-counting the information
 // when the connection closes.
 // Parameters:
-//		Bytes: 		total bytes for current connection
-//		Duration: 	total duration for current connection
-//		Open:		shows if a connection is still open
-//		OrigBytes:  total origin bytes for current connection
-//		Ts:			timestamp of the start of the open connection
-//		Tuple: 		destination port:protocol:service of current connection
+//
+//	Bytes: 		total bytes for current connection
+//	Duration: 	total duration for current connection
+//	Open:		shows if a connection is still open
+//	OrigBytes:  total origin bytes for current connection
+//	Ts:			timestamp of the start of the open connection
+//	Tuple: 		destination port:protocol:service of current connection
 type ConnState struct {
 	Bytes     int64   `bson:"bytes"`
 	Duration  float64 `bson:"duration"`

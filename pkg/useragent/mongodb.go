@@ -20,7 +20,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository bundles the given resources for updating MongoDB with rare signature data
+// NewMongoRepository bundles the given resources for updating MongoDB with rare signature data
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -29,7 +29,7 @@ func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger
 	}
 }
 
-//CreateIndexes creates indexes for the useragent collection
+// CreateIndexes creates indexes for the useragent collection
 func (r *repo) CreateIndexes() error {
 	session := r.database.Session.Copy()
 	defer session.Close()
@@ -63,7 +63,7 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert records the given useragent data in MongoDB
+// Upsert records the given useragent data in MongoDB
 func (r *repo) Upsert(userAgentMap map[string]*Input) {
 
 	// 1st Phase: Analysis
@@ -78,25 +78,26 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 	}
 
 	// Create the workers
-	writerWorker := newWriter(
-		r.config.T.UserAgent.UserAgentTable,
+	writerWorker := database.NewBulkWriter(
 		r.database,
 		r.config,
 		r.log,
+		true,
+		"useragent",
 	)
 
 	analyzerWorker := newAnalyzer(
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		analyzerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// progress bar for troubleshooting
@@ -123,20 +124,20 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 	// 2nd Phase: Summarize
 
 	// initialize a new writer for the summarizer
-	writerWorker = newWriter(r.config.T.Structure.HostTable, r.database, r.config, r.log)
+	writerWorker = database.NewBulkWriter(r.database, r.config, r.log, true, "useragent")
 	summarizerWorker := newSummarizer(
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		summarizerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// progress bar for troubleshooting

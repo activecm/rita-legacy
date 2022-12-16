@@ -13,19 +13,19 @@ import (
 type (
 	//analyzer : structure for exploded dns analysis
 	analyzer struct {
-		chunk            int            //current chunk (0 if not on rolling analysis)
-		chunkStr         string         //current chunk (0 if not on rolling analysis)
-		db               *database.DB   // provides access to MongoDB
-		conf             *config.Config // contains details needed to access MongoDB
-		analyzedCallback func(update)   // called on each analyzed result
-		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan domain    // holds unanalyzed data
-		analysisWg       sync.WaitGroup // wait for analysis to finish
+		chunk            int                        //current chunk (0 if not on rolling analysis)
+		chunkStr         string                     //current chunk (0 if not on rolling analysis)
+		db               *database.DB               // provides access to MongoDB
+		conf             *config.Config             // contains details needed to access MongoDB
+		analyzedCallback func(database.BulkChanges) // called on each analyzed result
+		closedCallback   func()                     // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan domain                // holds unanalyzed data
+		analysisWg       sync.WaitGroup             // wait for analysis to finish
 	}
 )
 
-//newAnalyzer creates a new collector for parsing subdomains
-func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+// newAnalyzer creates a new collector for parsing subdomains
+func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(database.BulkChanges), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
 		chunkStr:         strconv.Itoa(chunk),
@@ -37,19 +37,19 @@ func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallba
 	}
 }
 
-//collect sends a group of domains to be analyzed
+// collect sends a group of domains to be analyzed
 func (a *analyzer) collect(data domain) {
 	a.analysisChannel <- data
 }
 
-//close waits for the collector to finish
+// close waits for the collector to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
 	a.closedCallback()
 }
 
-//start kicks off a new analysis thread
+// start kicks off a new analysis thread
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
@@ -98,9 +98,10 @@ func (a *analyzer) start() {
 				if len(existingEntries) <= 0 {
 
 					// set up writer output
-					var output update
+					var output database.BulkChange
+					output.Upsert = true
 
-					output.query = bson.M{
+					output.Update = bson.M{
 						"$push": bson.M{"dat": bson.M{
 							"visited": data.count,
 							"cid":     a.chunk,
@@ -114,10 +115,10 @@ func (a *analyzer) start() {
 					}
 
 					// create selector for output
-					output.selector = bson.M{"domain": entry}
+					output.Selector = bson.M{"domain": entry}
 
 					// set to writer channel
-					a.analyzedCallback(output)
+					a.analyzedCallback(database.BulkChanges{a.conf.T.DNS.ExplodedDNSTable: []database.BulkChange{output}})
 
 					// if this domain string is already EXISTING in the exploded dns table:
 				} else {
@@ -126,7 +127,8 @@ func (a *analyzer) start() {
 					lastUpdated := existingEntries[0].CID
 
 					// set up writer output
-					var output update
+					var output database.BulkChange
+					output.Upsert = true
 
 					// we need to find out if we can push to an existing chunk that was
 					// created in the current import or if the last update was before this,
@@ -137,11 +139,11 @@ func (a *analyzer) start() {
 						// we've parsed it in on a previous rita import and should not add to the
 						// subdomain count, only the visited count as the subdomain count is unique
 						if alreadyCountedSubsFlag {
-							output.query = bson.M{
+							output.Update = bson.M{
 								"$inc": bson.M{"dat.$.visited": data.count},
 							}
 						} else {
-							output.query = bson.M{
+							output.Update = bson.M{
 								"$inc": bson.M{
 									"subdomain_count": 1,
 									"dat.$.visited":   data.count,
@@ -150,10 +152,10 @@ func (a *analyzer) start() {
 						}
 
 						// create selector for output
-						output.selector = bson.M{"domain": entry, "dat.cid": a.chunk}
+						output.Selector = bson.M{"domain": entry, "dat.cid": a.chunk}
 
 						// set to writer channel
-						a.analyzedCallback(output)
+						a.analyzedCallback(database.BulkChanges{a.conf.T.DNS.ExplodedDNSTable: []database.BulkChange{output}})
 
 					} else { // chunk is outdated, need to make a new one
 
@@ -161,7 +163,7 @@ func (a *analyzer) start() {
 						// we've parsed it in on a previous rita import and should not add to the
 						// subdomain count, only the visited count as the subdomain count is unique
 						if alreadyCountedSubsFlag {
-							output.query = bson.M{
+							output.Update = bson.M{
 								"$set": bson.M{"cid": a.chunk},
 								"$push": bson.M{"dat": bson.M{
 									"visited": data.count,
@@ -169,7 +171,7 @@ func (a *analyzer) start() {
 								}},
 							}
 						} else {
-							output.query = bson.M{
+							output.Update = bson.M{
 								"$set": bson.M{"cid": a.chunk},
 								"$inc": bson.M{
 									"subdomain_count": 1,
@@ -182,10 +184,10 @@ func (a *analyzer) start() {
 						}
 
 						// create selector for output
-						output.selector = bson.M{"domain": entry}
+						output.Selector = bson.M{"domain": entry}
 
 						// set to writer channel
-						a.analyzedCallback(output)
+						a.analyzedCallback(database.BulkChanges{a.conf.T.DNS.ExplodedDNSTable: []database.BulkChange{output}})
 
 					}
 

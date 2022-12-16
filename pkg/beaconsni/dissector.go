@@ -12,19 +12,21 @@ import (
 type (
 	//dissector gathers all of the connection details between a host and an SNI
 	dissector struct {
+		chunk             int
 		connLimit         int64                       // limit for strobe classification
 		db                *database.DB                // provides access to MongoDB
 		conf              *config.Config              // contains details needed to access MongoDB
-		dissectedCallback func(dissectorResults)      // gathered SNI connection details are sent to this callback
+		dissectedCallback func(*dissectorResults)     // gathered SNI connection details are sent to this callback
 		closedCallback    func()                      // called when .close() is called and no more calls to dissectedCallback will be made
 		dissectChannel    chan data.UniqueSrcFQDNPair // holds data to be processed
 		dissectWg         sync.WaitGroup              // wait for dissector to finish
 	}
 )
 
-//newDissector creates a new dissector for gathering data
-func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(dissectorResults), closedCallback func()) *dissector {
+// newDissector creates a new dissector for gathering data
+func newDissector(connLimit int64, chunk int, db *database.DB, conf *config.Config, dissectedCallback func(*dissectorResults), closedCallback func()) *dissector {
 	return &dissector{
+		chunk:             chunk,
 		connLimit:         connLimit,
 		db:                db,
 		conf:              conf,
@@ -34,19 +36,19 @@ func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissect
 	}
 }
 
-//collect gathers a pair of hosts to obtain SNI connection data for
+// collect gathers a pair of hosts to obtain SNI connection data for
 func (d *dissector) collect(datum data.UniqueSrcFQDNPair) {
 	d.dissectChannel <- datum
 }
 
-//close waits for the dissector to finish
+// close waits for the dissector to finish
 func (d *dissector) close() {
 	close(d.dissectChannel)
 	d.dissectWg.Wait()
 	d.closedCallback()
 }
 
-//start kicks off a new dissector thread
+// start kicks off a new dissector thread
 func (d *dissector) start() {
 	d.dissectWg.Add(1)
 	go func() {
@@ -60,9 +62,21 @@ func (d *dissector) start() {
 			// we are able to filter out already flagged strobes here
 			// because we use the sniconns table to access them. The sniconns table has
 			// already had its counts and stats updated.
-			matchNoStrobeKey["dat.tls.strobe"] = bson.M{"$ne": true}
-			matchNoStrobeKey["dat.http.strobe"] = bson.M{"$ne": true}
-			matchNoStrobeKey["dat.merged.strobe"] = bson.M{"$ne": true}
+
+			// for sniconns, we must check the strobe status of the current cid since
+			// the beaconsni module is responsible for removing timestamp and byte data
+			// on each import depending on the strobe status
+			matchNoStrobeKey["dat"] = bson.M{
+				"$elemMatch": bson.M{
+					"cid": d.chunk,
+					"$or": []interface{}{
+						bson.M{"tls.strobe": false},
+						bson.M{"http.strobe": false},
+						// merged must be added to this filter if it is ever set prior to
+						// this pipeline in the future
+						// "merged.strobe": bson.M{"$ne": true},
+					},
+				}}
 
 			sniconnFindQuery := []bson.M{
 				{"$match": matchNoStrobeKey},
@@ -168,25 +182,25 @@ func (d *dissector) start() {
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results
 			if res.Count > 0 {
-				analysisInput := dissectorResults{
+				connection := &dissectorResults{
 					Hosts:           datum,
-					RespondingIPs:   res.RespondingIPs,
 					ConnectionCount: res.Count,
-					TotalBytes:      res.TBytes,
 				}
 
-				// check if sniconn has become a strobe
-				if analysisInput.ConnectionCount > d.connLimit {
-					d.dissectedCallback(analysisInput)
-				} else { // otherwise, parse timestamps and orig ip bytes
-					analysisInput.TsList = res.Ts
-					analysisInput.TsListFull = res.TsFull
-					analysisInput.OrigBytesList = res.Bytes
+				// avoid passing unnecessary data if conn is a strobe
+				if connection.ConnectionCount > d.connLimit {
+					d.dissectedCallback(connection)
+
 					// the analysis worker requires that we have over UNIQUE 3 timestamps
 					// we drop the input here since it is the earliest place in the pipeline to do so
-					if len(analysisInput.TsList) > 3 {
-						d.dissectedCallback(analysisInput)
-					}
+				} else if len(res.Ts) > 3 {
+					connection.RespondingIPs = res.RespondingIPs
+					connection.TotalBytes = res.TBytes
+					connection.TsList = res.Ts
+					connection.TsListFull = res.TsFull
+					connection.OrigBytesList = res.Bytes
+
+					d.dissectedCallback(connection)
 				}
 			}
 		}

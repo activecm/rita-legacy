@@ -18,20 +18,20 @@ const rareSignatureOrigIPsCutoff = 5
 type (
 	//analyzer is a structure for useragent analysis
 	analyzer struct {
-		chunk            int            //current chunk (0 if not on rolling analysis)
-		chunkStr         string         //current chunk (0 if not on rolling analysis)
-		db               *database.DB   // provides access to MongoDB
-		conf             *config.Config // contains details needed to access MongoDB
-		analyzedCallback func(update)   // called on each analyzed result
-		closedCallback   func()         // called when .close() is called and no more calls to analyzedCallback will be made
-		analysisChannel  chan *Input    // holds unanalyzed data
-		analysisWg       sync.WaitGroup // wait for analysis to finish
+		chunk            int                        //current chunk (0 if not on rolling analysis)
+		chunkStr         string                     //current chunk (0 if not on rolling analysis)
+		db               *database.DB               // provides access to MongoDB
+		conf             *config.Config             // contains details needed to access MongoDB
+		analyzedCallback func(database.BulkChanges) // called on each analyzed result
+		closedCallback   func()                     // called when .close() is called and no more calls to analyzedCallback will be made
+		analysisChannel  chan *Input                // holds unanalyzed data
+		analysisWg       sync.WaitGroup             // wait for analysis to finish
 	}
 )
 
-//newAnalyzer creates a new analyzer for recording connections that were made
-//with HTTP useragents and TLS JA3 hashes
-func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
+// newAnalyzer creates a new analyzer for recording connections that were made
+// with HTTP useragents and TLS JA3 hashes
+func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(database.BulkChanges), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
 		chunkStr:         strconv.Itoa(chunk),
@@ -43,19 +43,19 @@ func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallba
 	}
 }
 
-//collect gathers connection signature records for analysis
+// collect gathers connection signature records for analysis
 func (a *analyzer) collect(datum *Input) {
 	a.analysisChannel <- datum
 }
 
-//close waits for the analyzer to finish
+// close waits for the analyzer to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
 	a.closedCallback()
 }
 
-//start kicks off a new analysis thread
+// start kicks off a new analysis thread
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
@@ -65,9 +65,12 @@ func (a *analyzer) start() {
 		for datum := range a.analysisChannel {
 			useragentsSelector := bson.M{"user_agent": datum.Name}
 			useragentsQuery := useragentsQuery(datum, a.chunk)
-			a.analyzedCallback(update{
-				selector: useragentsSelector,
-				query:    useragentsQuery,
+			a.analyzedCallback(database.BulkChanges{
+				a.conf.T.UserAgent.UserAgentTable: []database.BulkChange{{
+					Selector: useragentsSelector,
+					Update:   useragentsQuery,
+					Upsert:   true,
+				}},
 			})
 		}
 

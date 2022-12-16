@@ -4,7 +4,6 @@ import (
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/uconnproxy"
-	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -15,10 +14,6 @@ type (
 		CreateIndexes() error
 		Upsert(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64)
 	}
-
-	mgoBulkAction func(*mgo.Bulk) int
-
-	mgoBulkActions map[string]mgoBulkAction
 
 	//TSData ...
 	TSData struct {

@@ -23,7 +23,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository bundles the given resources for updating MongoDB with SNI connection data
+// NewMongoRepository bundles the given resources for updating MongoDB with SNI connection data
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -70,8 +70,8 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert calculates beacon statistics given SNI connection data in MongoDB. Summaries are
-//created for the given local hosts in MongoDB.
+// Upsert calculates beacon statistics given SNI connection data in MongoDB. Summaries are
+// created for the given local hosts in MongoDB.
 func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*sniconn.HTTPInput, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
 	selectors := make(map[string]data.UniqueSrcFQDNPair)
 	for tlsKey, tlsValue := range tlsMap {
@@ -83,10 +83,11 @@ func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*s
 	}
 
 	//Create the workers
-	writerWorker := newMgoBulkWriter(
+	writerWorker := database.NewBulkWriter(
 		r.database,
 		r.config,
 		r.log,
+		true,
 		"beaconsni",
 	)
 
@@ -97,8 +98,8 @@ func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*s
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	sorterWorker := newSorter(
@@ -108,20 +109,33 @@ func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*s
 		analyzerWorker.close,
 	)
 
-	dissectorWorker := newDissector(
+	siphonWorker := newSiphon(
 		int64(r.config.S.Strobe.ConnectionLimit),
+		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
+		r.log,
+		writerWorker.Collect,
 		sorterWorker.collect,
 		sorterWorker.close,
+	)
+
+	dissectorWorker := newDissector(
+		int64(r.config.S.Strobe.ConnectionLimit),
+		r.config.S.Rolling.CurrentChunk,
+		r.database,
+		r.config,
+		siphonWorker.collect,
+		siphonWorker.close,
 	)
 
 	//kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		dissectorWorker.start()
+		siphonWorker.start()
 		sorterWorker.start()
 		analyzerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// progress bar for troubleshooting
@@ -161,20 +175,20 @@ func (r *repo) Upsert(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*s
 	}
 
 	// initialize a new writer for the summarizer
-	writerWorker = newMgoBulkWriter(r.database, r.config, r.log, "beaconSNI")
+	writerWorker = database.NewBulkWriter(r.database, r.config, r.log, true, "beaconSNI")
 	summarizerWorker := newSummarizer(
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		summarizerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// add a progress bar for troubleshooting

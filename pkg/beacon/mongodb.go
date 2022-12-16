@@ -24,7 +24,7 @@ type repo struct {
 	log      *log.Logger
 }
 
-//NewMongoRepository create new repository
+// NewMongoRepository create new repository
 func NewMongoRepository(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &repo{
 		database: db,
@@ -68,15 +68,16 @@ func (r *repo) CreateIndexes() error {
 	return nil
 }
 
-//Upsert derives beacon statistics from the given unique connections and creates summaries
-//for the given local hosts. The results are pushed to MongoDB.
+// Upsert derives beacon statistics from the given unique connections and creates summaries
+// for the given local hosts. The results are pushed to MongoDB.
 func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
 
 	//Create the workers
-	writerWorker := newMgoBulkWriter(
+	writerWorker := database.NewBulkWriter(
 		r.database,
 		r.config,
 		r.log,
+		true,
 		"beacon",
 	)
 
@@ -87,8 +88,8 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	sorterWorker := newSorter(
@@ -98,20 +99,33 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host
 		analyzerWorker.close,
 	)
 
-	dissectorWorker := newDissector(
+	siphonWorker := newSiphon(
 		int64(r.config.S.Strobe.ConnectionLimit),
+		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
+		r.log,
+		writerWorker.Collect,
 		sorterWorker.collect,
 		sorterWorker.close,
+	)
+
+	dissectorWorker := newDissector(
+		int64(r.config.S.Strobe.ConnectionLimit),
+		r.config.S.Rolling.CurrentChunk,
+		r.database,
+		r.config,
+		siphonWorker.collect,
+		siphonWorker.close,
 	)
 
 	//kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		dissectorWorker.start()
+		siphonWorker.start()
 		sorterWorker.start()
 		analyzerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// progress bar for troubleshooting
@@ -151,20 +165,20 @@ func (r *repo) Upsert(uconnMap map[string]*uconn.Input, hostMap map[string]*host
 	}
 
 	// initialize a new writer for the summarizer
-	writerWorker = newMgoBulkWriter(r.database, r.config, r.log, "beacon")
+	writerWorker = database.NewBulkWriter(r.database, r.config, r.log, true, "beacon")
 	summarizerWorker := newSummarizer(
 		r.config.S.Rolling.CurrentChunk,
 		r.database,
 		r.config,
 		r.log,
-		writerWorker.collect,
-		writerWorker.close,
+		writerWorker.Collect,
+		writerWorker.Close,
 	)
 
 	// kick off the threaded goroutines
 	for i := 0; i < util.Max(1, runtime.NumCPU()/2); i++ {
 		summarizerWorker.start()
-		writerWorker.start()
+		writerWorker.Start()
 	}
 
 	// add a progress bar for troubleshooting

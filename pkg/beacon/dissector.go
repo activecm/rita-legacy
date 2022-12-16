@@ -13,6 +13,7 @@ type (
 	//dissector gathers all of the unique connection details between pairs of hosts
 	dissector struct {
 		connLimit         int64              // limit for strobe classification
+		chunk             int                // current chunk (0 if not on rolling analysis)
 		db                *database.DB       // provides access to MongoDB
 		conf              *config.Config     // contains details needed to access MongoDB
 		dissectedCallback func(*uconn.Input) // gathered unique connection details are sent to this callback
@@ -22,10 +23,11 @@ type (
 	}
 )
 
-//newDissector creates a new dissector for gathering data
-func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissectedCallback func(*uconn.Input), closedCallback func()) *dissector {
+// newDissector creates a new dissector for gathering data
+func newDissector(connLimit int64, chunk int, db *database.DB, conf *config.Config, dissectedCallback func(*uconn.Input), closedCallback func()) *dissector {
 	return &dissector{
 		connLimit:         connLimit,
+		chunk:             chunk,
 		db:                db,
 		conf:              conf,
 		dissectedCallback: dissectedCallback,
@@ -34,19 +36,19 @@ func newDissector(connLimit int64, db *database.DB, conf *config.Config, dissect
 	}
 }
 
-//collect gathers a pair of hosts to obtain unique connection data for
+// collect gathers a pair of hosts to obtain unique connection data for
 func (d *dissector) collect(datum *uconn.Input) {
 	d.dissectChannel <- datum
 }
 
-//close waits for the dissector to finish
+// close waits for the dissector to finish
 func (d *dissector) close() {
 	close(d.dissectChannel)
 	d.dissectWg.Wait()
 	d.closedCallback()
 }
 
-//start kicks off a new dissector thread
+// start kicks off a new dissector thread
 func (d *dissector) start() {
 	d.dissectWg.Add(1)
 	go func() {
@@ -144,28 +146,29 @@ func (d *dissector) start() {
 			// Check for errors and parse results
 			// this is here because it will still return an empty document even if there are no results
 			if res.Count > 0 {
-				analysisInput := &uconn.Input{
+
+				connection := &uconn.Input{
 					Hosts:           datum.Hosts,
 					ConnectionCount: res.Count,
-					TotalBytes:      res.TBytes,
 				}
 
-				// check if uconn has become a strobe
-				if analysisInput.ConnectionCount > d.connLimit {
-					d.dissectedCallback(analysisInput)
-
-				} else { // otherwise, parse timestamps and orig ip bytes
-					analysisInput.TsList = res.Ts
-					analysisInput.UniqueTsListLength = res.TsUniqueLen
-					analysisInput.OrigBytesList = res.Bytes
+				// avoid passing unnecessary data if conn is a strobe
+				if res.Count > d.connLimit {
+					d.dissectedCallback(connection)
+				} else {
 					// the analysis worker requires that we have over UNIQUE 3 timestamps
 					// we drop the input here since it is the earliest place in the pipeline to do so
-					if analysisInput.UniqueTsListLength > 3 {
-						d.dissectedCallback(analysisInput)
+					if res.TsUniqueLen > 3 {
+						connection.TotalBytes = res.TBytes
+						connection.TsList = res.Ts
+						connection.UniqueTsListLength = res.TsUniqueLen
+						connection.OrigBytesList = res.Bytes
+						d.dissectedCallback(connection)
 					}
 				}
 			}
 		}
+
 		d.dissectWg.Done()
 	}()
 }

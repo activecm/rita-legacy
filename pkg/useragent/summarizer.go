@@ -14,19 +14,19 @@ import (
 type (
 	//summarizer records summary data of rare signatures for individual hosts
 	summarizer struct {
-		chunk              int            // current chunk (0 if not on rolling summary)
-		db                 *database.DB   // provides access to MongoDB
-		conf               *config.Config // contains details needed to access MongoDB
-		log                *log.Logger    // main logger for RITA
-		summarizedCallback func(update)   // called on each summarized result
-		closedCallback     func()         // called when .close() is called and no more calls to summarizedCallback will be made
-		summaryChannel     chan *Input    // holds unsummarized data
-		summaryWg          sync.WaitGroup // wait for summary to finish
+		chunk              int                        // current chunk (0 if not on rolling summary)
+		db                 *database.DB               // provides access to MongoDB
+		conf               *config.Config             // contains details needed to access MongoDB
+		log                *log.Logger                // main logger for RITA
+		summarizedCallback func(database.BulkChanges) // called on each summarized result
+		closedCallback     func()                     // called when .close() is called and no more calls to summarizedCallback will be made
+		summaryChannel     chan *Input                // holds unsummarized data
+		summaryWg          sync.WaitGroup             // wait for summary to finish
 	}
 )
 
-//newSummarizer creates a new summarizer for unique connection data
-func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, summarizedCallback func(update), closedCallback func()) *summarizer {
+// newSummarizer creates a new summarizer for unique connection data
+func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Logger, summarizedCallback func(database.BulkChanges), closedCallback func()) *summarizer {
 	return &summarizer{
 		chunk:              chunk,
 		db:                 db,
@@ -38,19 +38,19 @@ func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Log
 	}
 }
 
-//collect gathers a useragent to summarize
+// collect gathers a useragent to summarize
 func (s *summarizer) collect(datum *Input) {
 	s.summaryChannel <- datum
 }
 
-//close waits for the summarizer to finish
+// close waits for the summarizer to finish
 func (s *summarizer) close() {
 	close(s.summaryChannel)
 	s.summaryWg.Wait()
 	s.closedCallback()
 }
 
-//start kicks off a new summary thread
+// start kicks off a new summary thread
 func (s *summarizer) start() {
 	s.summaryWg.Add(1)
 	go func() {
@@ -103,9 +103,8 @@ func (s *summarizer) start() {
 				}).Error(err)
 				continue
 			}
-
-			for _, update := range rareSignatureUpdates {
-				s.summarizedCallback(update)
+			if len(rareSignatureUpdates) > 0 {
+				s.summarizedCallback(database.BulkChanges{s.conf.T.Structure.HostTable: rareSignatureUpdates})
 			}
 		}
 		s.summaryWg.Done()
@@ -180,11 +179,11 @@ func getOrigIPsForAgentFromDB(useragentCollection *mgo.Collection, name string) 
 	return dbRareSigOrigIPs, err
 }
 
-//rareSignatureUpdates formats MongoDB update for each internal host which either inserts a new rare signature host
-//record into that host's dat array in the host collection or updates an existing
-//record in the host's dat array for the rare signature with the current chunk id.
-func rareSignatureUpdates(rareSigIPs []data.UniqueIP, signature string, hostCollection *mgo.Collection, chunk int) ([]update, error) {
-	var updates []update
+// rareSignatureUpdates formats MongoDB update for each internal host which either inserts a new rare signature host
+// record into that host's dat array in the host collection or updates an existing
+// record in the host's dat array for the rare signature with the current chunk id.
+func rareSignatureUpdates(rareSigIPs []data.UniqueIP, signature string, hostCollection *mgo.Collection, chunk int) ([]database.BulkChange, error) {
+	var updates []database.BulkChange
 
 	for _, rareSigIP := range rareSigIPs {
 		hostEntryExistsSelector := rareSigIP.BSONKey()
@@ -198,19 +197,20 @@ func rareSignatureUpdates(rareSigIPs []data.UniqueIP, signature string, hostColl
 		if nExistingEntries > 0 {
 			// no need to update all of the fields for an existing
 			// record; we just need to update the chunk ID
-			updates = append(updates, update{
-				selector: hostEntryExistsSelector,
-				query: bson.M{
+			updates = append(updates, database.BulkChange{
+				Selector: hostEntryExistsSelector,
+				Update: bson.M{
 					"$set": bson.M{
 						"dat.$.cid": chunk,
 					},
 				},
+				Upsert: true,
 			})
 		} else {
 			// add a new rare signature entry
-			updates = append(updates, update{
-				selector: rareSigIP.BSONKey(),
-				query: bson.M{
+			updates = append(updates, database.BulkChange{
+				Selector: rareSigIP.BSONKey(),
+				Update: bson.M{
 					"$push": bson.M{
 						"dat": bson.M{
 							"$each": []bson.M{{
@@ -221,6 +221,7 @@ func rareSignatureUpdates(rareSigIPs []data.UniqueIP, signature string, hostColl
 						},
 					},
 				},
+				Upsert: true,
 			})
 		}
 	}

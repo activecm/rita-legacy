@@ -94,7 +94,7 @@ var testConfigFullExp = StaticCfg{
 		DefaultConnectionThresh: 24,
 	},
 	Strobe: StrobeStaticCfg{
-		ConnectionLimit: 250000,
+		ConnectionLimit: maxStrobeConnectionLimit,
 	},
 	Filtering: FilteringStaticCfg{
 		AlwaysInclude:            []string{"8.8.8.8/32"},
