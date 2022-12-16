@@ -70,8 +70,8 @@ func (d *dissector) start() {
 				"$elemMatch": bson.M{
 					"cid": d.chunk,
 					"$or": []interface{}{
-						bson.M{"tls.strobe": bson.M{"$ne": true}},
-						bson.M{"http.strobe": bson.M{"$ne": true}},
+						bson.M{"tls.strobe": false},
+						bson.M{"http.strobe": false},
 						// merged must be added to this filter if it is ever set prior to
 						// this pipeline in the future
 						// "merged.strobe": bson.M{"$ne": true},
