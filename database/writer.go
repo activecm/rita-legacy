@@ -87,8 +87,10 @@ func NewBulkWriter(db *DB, conf *config.Config, log *log.Logger, unorderedWrites
 		writeWg:      new(sync.WaitGroup),
 		writerName:   writerName,
 		unordered:    unorderedWritesOK,
+		// Cap the bulk buffers at 500 updates. 1000 should theoretically work, but we've run into issues in the past, so we halved it.
 		maxBulkCount: 500,
-		maxBulkSize:  15 * 1000 * 1000,
+		// Cap the bulk buffers at 15MB. This cap ensures that our bulk transactions don't exceed the 16MB limit imposed on MongoDB docs/ operations.
+		maxBulkSize: 15 * 1000 * 1000,
 	}
 }
 
@@ -110,26 +112,32 @@ func (w *MgoBulkWriter) Start() {
 		ssn := w.db.Session.Copy()
 		defer ssn.Close()
 
-		bulkBuffers := map[string]*mgo.Bulk{}
-		bulkBufferSizes := map[string]int{}
-		bulkBufferLengths := map[string]int{}
-		var sizeBuffer []byte
-		var changeSize int
+		bulkBuffers := map[string]*mgo.Bulk{} // stores a mgo.Bulk buffer for each collection
+		bulkBufferSizes := map[string]int{}   // stores the size in bytes of the BSON documents in each mgo.Bulk buffer
+		bulkBufferLengths := map[string]int{} // stores the number of changes stored in each mgo.Bulk buffer
+		var sizeBuffer []byte                 // used (and re-used) for BSON serialization in order to calculate the size of each BSON doc
+		var changeSize int                    // holds the total size of each BSON serialized change before being added to bulkBufferSizes
 
-		for data := range w.writeChannel {
-			for tgtColl, bulkChanges := range data {
+		for data := range w.writeChannel { // process data as it streams into the writer
+			for tgtColl, bulkChanges := range data { // loop through each collection that needs updated
+
+				// initialize/ grab the bulk buffer associated with this collection
 				bulkBuffer, bufferExists := bulkBuffers[tgtColl]
 				if !bufferExists {
 					bulkBuffer = ssn.DB(w.db.GetSelectedDB()).C(tgtColl).Bulk()
 					if w.unordered {
+						// if the order in which the updates occur doesn't matter, allow MongoDB to apply the updates in parallel
 						bulkBuffer.Unordered()
 					}
 					bulkBuffers[tgtColl] = bulkBuffer
 				}
 
-				for _, change := range bulkChanges {
+				for _, change := range bulkChanges { // loop through each change that needs to be applied to the collection
 					sizeBuffer, changeSize = change.Size(sizeBuffer)
 
+					// if the bulk buffer has already reached the max number of changes or
+					// if the total size of the bulk buffer would exceed the max size after inserting the current change
+					// run the existing bulk buffer against MongoDB
 					if bulkBufferLengths[tgtColl] >= w.maxBulkCount || bulkBufferSizes[tgtColl]+changeSize >= w.maxBulkSize {
 						info, err := bulkBuffer.Run()
 						if err != nil {
@@ -139,16 +147,20 @@ func (w *MgoBulkWriter) Start() {
 								"Info":       info,
 							}).Error(err)
 						}
+						// make sure to reset the stats we are tracking about the bulk buffer
 						bulkBufferLengths[tgtColl] = 0
 						bulkBufferSizes[tgtColl] = 0
 					}
 
+					// insert the change into the bulk buffer and update the stats we are tracking about the bulk buffer
 					change.Apply(bulkBuffer)
 					bulkBufferLengths[tgtColl]++
 					bulkBufferSizes[tgtColl] += changeSize
 				}
 			}
 		}
+
+		// after the writer is done receiving inputs, make sure to drain all of the buffers before exiting
 		for tgtColl, bulkBuffer := range bulkBuffers {
 			info, err := bulkBuffer.Run()
 			if err != nil {
