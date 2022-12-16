@@ -13,7 +13,6 @@ import (
 	"github.com/activecm/rita/parser/files"
 	"github.com/activecm/rita/parser/parsetypes"
 	"github.com/activecm/rita/pkg/beacon"
-	"github.com/activecm/rita/pkg/beaconfqdn"
 	"github.com/activecm/rita/pkg/beaconproxy"
 	"github.com/activecm/rita/pkg/beaconsni"
 	"github.com/activecm/rita/pkg/blacklist"
@@ -55,7 +54,7 @@ type (
 	}
 )
 
-//NewFSImporter creates a new file system importer
+// NewFSImporter creates a new file system importer
 func NewFSImporter(res *resources.Resources) *FSImporter {
 	// set batchSize to the max of 4GB or a half of system RAM to prevent running out of memory while importing
 	batchSize := int64(util.MaxUint64(4*(1<<30), (memory.TotalMemory() / 2)))
@@ -74,12 +73,12 @@ var trustedAppReferenceList = [...]trustedAppTiplet{
 	{"tcp", 443, "ssl"},
 }
 
-//GetInternalSubnets returns the internal subnets from the config file
+// GetInternalSubnets returns the internal subnets from the config file
 func (fs *FSImporter) GetInternalSubnets() []*net.IPNet {
 	return fs.internal
 }
 
-//CollectFileDetails reads and hashes the files
+// CollectFileDetails reads and hashes the files
 func (fs *FSImporter) CollectFileDetails(importFiles []string, threads int) []*files.IndexedFile {
 	// find all of the potential bro log paths
 	logFiles := files.GatherLogFiles(importFiles, fs.log)
@@ -90,7 +89,7 @@ func (fs *FSImporter) CollectFileDetails(importFiles []string, threads int) []*f
 	)
 }
 
-//Run starts the importing
+// Run starts the importing
 func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 	start := time.Now()
 
@@ -196,9 +195,6 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 
 		// build or update Beacons table
 		fs.buildBeacons(retVals.UniqueConnMap, retVals.HostMap, minTimestamp, maxTimestamp)
-
-		// build or update the FQDN Beacons Table
-		fs.buildFQDNBeacons(retVals.HostMap, minTimestamp, maxTimestamp)
 
 		// build or update the Proxy Beacons Table
 		fs.buildProxyBeacons(retVals.ProxyUniqueConnMap, retVals.HostMap, minTimestamp, maxTimestamp)
@@ -307,10 +303,10 @@ func batchFilesBySize(indexedFiles []*files.IndexedFile, size int64) [][]*files.
 	return batches
 }
 
-//parseFiles takes in a list of indexed bro files, the number of
-//threads to use to parse the files, whether or not to sort data by date,
-//a MongoDB datastore object to store the bro data in, and a logger to report
-//errors and parses the bro files line by line into the database.
+// parseFiles takes in a list of indexed bro files, the number of
+// threads to use to parse the files, whether or not to sort data by date,
+// a MongoDB datastore object to store the bro data in, and a logger to report
+// errors and parses the bro files line by line into the database.
 func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThreads int, logger *log.Logger) ParseResults {
 
 	fmt.Println("\t[-] Parsing logs to: " + fs.database.GetSelectedDB() + " ... ")
@@ -413,7 +409,7 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 	return retVals
 }
 
-//buildExplodedDNS .....
+// buildExplodedDNS .....
 func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 
 	if fs.config.S.DNS.Enabled {
@@ -431,7 +427,7 @@ func (fs *FSImporter) buildExplodedDNS(domainMap map[string]int) {
 	}
 }
 
-//buildCertificates .....
+// buildCertificates .....
 func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 	if len(certMap) > 0 {
@@ -448,7 +444,7 @@ func (fs *FSImporter) buildCertificates(certMap map[string]*certificate.Input) {
 
 }
 
-//removeAnalysisChunk .....
+// removeAnalysisChunk .....
 func (fs *FSImporter) removeAnalysisChunk(cid int) error {
 
 	// Set up the remover
@@ -465,7 +461,7 @@ func (fs *FSImporter) removeAnalysisChunk(cid int) error {
 
 }
 
-//buildHostnames .....
+// buildHostnames .....
 func (fs *FSImporter) buildHostnames(hostnameMap map[string]*hostname.Input) {
 	// non-optional module
 	if len(hostnameMap) > 0 {
@@ -589,27 +585,6 @@ func (fs *FSImporter) buildBeacons(uconnMap map[string]*uconn.Input, hostMap map
 
 }
 
-func (fs *FSImporter) buildFQDNBeacons(hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
-	if fs.config.S.BeaconFQDN.Enabled {
-		if len(hostMap) > 0 {
-			beaconFQDNRepo := beaconfqdn.NewMongoRepository(fs.database, fs.config, fs.log)
-
-			err := beaconFQDNRepo.CreateIndexes()
-			if err != nil {
-				fs.log.Error(err)
-			}
-
-			// Send the list of hosts out to the FQDN beacon analysis pkg.
-			// The list of external hosts seen in the current set of logs determines
-			// which FQDN beacons need to be updated.
-			beaconFQDNRepo.Upsert(hostMap, minTimestamp, maxTimestamp)
-		} else {
-			fmt.Println("\t[!] No FQDN Beacon data to analyze")
-		}
-	}
-
-}
-
 func (fs *FSImporter) buildProxyBeacons(uconnProxyMap map[string]*uconnproxy.Input, hostMap map[string]*host.Input, minTimestamp, maxTimestamp int64) {
 	if fs.config.S.BeaconProxy.Enabled {
 		if len(uconnProxyMap) > 0 {
@@ -647,7 +622,7 @@ func (fs *FSImporter) buildSNIBeacons(tlsMap map[string]*sniconn.TLSInput, httpM
 	}
 }
 
-//buildUserAgent .....
+// buildUserAgent .....
 func (fs *FSImporter) buildUserAgent(useragentMap map[string]*useragent.Input) {
 
 	if fs.config.S.UserAgent.Enabled {

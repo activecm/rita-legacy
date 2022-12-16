@@ -37,7 +37,6 @@ func cleanDatabase(c *cli.Context) error {
 		res.Config.T.Structure.UniqueConnProxyTable: "Uconn Proxy Analysis",
 		res.Config.T.BeaconProxy.BeaconProxyTable:   "Proxy Beacon Analysis",
 		res.Config.T.Beacon.BeaconTable:             "Beacon Analysis",
-		res.Config.T.BeaconFQDN.BeaconFQDNTable:     "FQDN Beacon Analysis",
 		res.Config.T.Structure.SNIConnTable:         "SNI Beacon Analysis",
 		res.Config.T.BeaconSNI.BeaconSNITable:       "SNI Connection Analysis",
 		res.Config.T.UserAgent.UserAgentTable:       "UserAgent Analysis",

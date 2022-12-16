@@ -61,10 +61,7 @@ func (d *dissector) start() {
 
 			// we are able to filter out already flagged strobes here
 			// because we use the uconns table to access them. The uconns table has
-			// already had its counts and stats updated. Note that this can't be the
-			// case with the fqdn beacon strobes, as they are also stored in the fqdn
-			// strobes collection and cannot be stored in uconns, needing the updated
-			// counts and stats
+			// already had its counts and stats updated.
 			matchNoStrobeKey["strobe"] = bson.M{"$ne": true}
 
 			// This will work for both updating and inserting completely new Beacons

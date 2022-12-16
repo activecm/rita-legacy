@@ -8,7 +8,6 @@ type (
 		Structure   StructureTableCfg
 		Beacon      BeaconTableCfg
 		BeaconSNI   BeaconSNITableCfg
-		BeaconFQDN  BeaconFQDNTableCfg
 		BeaconProxy BeaconProxyTableCfg
 		UserAgent   UserAgentTableCfg
 		Cert        CertificateTableCfg
@@ -47,11 +46,6 @@ type (
 	//BeaconSNITableCfg is used to control the SNI beaconing analysis module
 	BeaconSNITableCfg struct {
 		BeaconSNITable string `default:"beaconSNI"`
-	}
-
-	//BeaconFQDNTableCfg is used to control the beaconing analysis module
-	BeaconFQDNTableCfg struct {
-		BeaconFQDNTable string `default:"beaconFQDN"`
 	}
 
 	//BeaconProxyTableCfg is used to control the beaconing analysis module
