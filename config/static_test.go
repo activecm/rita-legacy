@@ -33,10 +33,24 @@ DNS:
     Enabled: true
 Beacon:
     Enabled: true
-    DefaultConnectionThresh: 24
+    DefaultConnectionThresh: 20
+    TimestampScoreWeight: 0.25
+    DatasizeScoreWeight: 0.25
+    DurationScoreWeight: 0.25
+    HistogramScoreWeight: 0.25
+BeaconSNI:
+    Enabled: true
+    DefaultConnectionThresh: 20
+    TimestampScoreWeight: 0.25
+    DatasizeScoreWeight: 0.25
+    DurationScoreWeight: 0.25
+    HistogramScoreWeight: 0.25
 BeaconProxy:
     Enabled: true
-    DefaultConnectionThresh: 24
+    DefaultConnectionThresh: 20
+    TimestampScoreWeight: 0.333
+    DurationScoreWeight: 0.333
+    HistogramScoreWeight: 0.333
 Strobe:
     ConnectionLimit: 250000
 Filtering:
@@ -80,11 +94,26 @@ var testConfigFullExp = StaticCfg{
 	},
 	Beacon: BeaconStaticCfg{
 		Enabled:                 true,
-		DefaultConnectionThresh: 24,
+		DefaultConnectionThresh: 20,
+		TsWeight:                0.25,
+		DsWeight:                0.25,
+		DurWeight:               0.25,
+		HistWeight:              0.25,
+	},
+	BeaconSNI: BeaconSNIStaticCfg{
+		Enabled:                 true,
+		DefaultConnectionThresh: 20,
+		TsWeight:                0.25,
+		DsWeight:                0.25,
+		DurWeight:               0.25,
+		HistWeight:              0.25,
 	},
 	BeaconProxy: BeaconProxyStaticCfg{
 		Enabled:                 true,
-		DefaultConnectionThresh: 24,
+		DefaultConnectionThresh: 20,
+		TsWeight:                0.333,
+		DurWeight:               0.333,
+		HistWeight:              0.333,
 	},
 	Strobe: StrobeStaticCfg{
 		ConnectionLimit: maxStrobeConnectionLimit,
