@@ -17,7 +17,6 @@ type (
 
 	//TSData ...
 	TSData struct {
-		Score      float64 `bson:"score"`
 		Range      int64   `bson:"range"`
 		Mode       int64   `bson:"mode"`
 		ModeCount  int64   `bson:"mode_count"`
@@ -34,8 +33,6 @@ type (
 		SrcNetworkUUID bson.Binary   `bson:"src_network_uuid"`
 		Connections    int64         `bson:"connection_count"`
 		Ts             TSData        `bson:"ts"`
-		DurScore       float64       `bson:"duration_score"`
-		HistScore      float64       `bson:"hist_score"`
 		Score          float64       `bson:"score"`
 		Proxy          data.UniqueIP `bson:"proxy"`
 	}

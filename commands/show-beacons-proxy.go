@@ -92,13 +92,16 @@ func showBeaconsProxyHuman(data []beaconproxy.Result, showNetNames bool) error {
 			row = []string{
 				f(d.Score), d.SrcNetworkName,
 				d.SrcIP, d.FQDN, d.Proxy.NetworkName, d.Proxy.IP,
-				i(d.Connections), f(d.Ts.Score), f(d.DurScore), f(d.HistScore), i(d.Ts.Mode),
+				i(d.Connections), i(d.Ts.Range), i(d.Ts.Mode),
+				i(d.Ts.ModeCount), f(d.Ts.Skew),
+				i(d.Ts.Dispersion),
 			}
 		} else {
 			row = []string{
 				f(d.Score), d.SrcIP, d.FQDN, d.Proxy.IP,
-				i(d.Connections), f(d.Ts.Score), f(d.DurScore),
-				f(d.HistScore), i(d.Ts.Mode),
+				i(d.Connections), i(d.Ts.Range), i(d.Ts.Mode),
+				i(d.Ts.ModeCount), f(d.Ts.Skew),
+				i(d.Ts.Dispersion),
 			}
 		}
 		table.Append(row)
@@ -112,14 +115,16 @@ func showBeaconsProxyDelim(data []beaconproxy.Result, delim string, showNetNames
 	if showNetNames {
 		headerFields = []string{
 			"Score", "Source Network", "Source IP", "FQDN", "Proxy Network", "Proxy IP",
-			"Connections", "TS Score", "Dur Score",
-			"Hist Score", "Top Intvl",
+			"Connections", "Intvl Range", "Top Intvl",
+			"Top Intvl Count", "Intvl Skew",
+			"Intvl Dispersion",
 		}
 	} else {
 		headerFields = []string{
 			"Score", "Source IP", "FQDN", "Proxy IP",
-			"Connections", "TS Score", "Dur Score",
-			"Hist Score", "Top Intvl",
+			"Connections", "Intvl Range", "Top Intvl",
+			"Top Intvl Count", "Intvl Skew",
+			"Intvl Dispersion",
 		}
 	}
 
@@ -132,13 +137,16 @@ func showBeaconsProxyDelim(data []beaconproxy.Result, delim string, showNetNames
 			row = []string{
 				f(d.Score), d.SrcNetworkName,
 				d.SrcIP, d.FQDN, d.Proxy.NetworkName, d.Proxy.IP,
-				i(d.Connections), f(d.Ts.Score), f(d.DurScore), f(d.HistScore), i(d.Ts.Mode),
+				i(d.Connections), i(d.Ts.Range), i(d.Ts.Mode),
+				i(d.Ts.ModeCount), f(d.Ts.Skew),
+				i(d.Ts.Dispersion),
 			}
 		} else {
 			row = []string{
 				f(d.Score), d.SrcIP, d.FQDN, d.Proxy.IP,
-				i(d.Connections), f(d.Ts.Score), f(d.DurScore),
-				f(d.HistScore), i(d.Ts.Mode),
+				i(d.Connections), i(d.Ts.Range), i(d.Ts.Mode),
+				i(d.Ts.ModeCount), f(d.Ts.Skew),
+				i(d.Ts.Dispersion),
 			}
 		}
 

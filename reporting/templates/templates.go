@@ -123,9 +123,8 @@ var BeaconsProxyTempl = dbHeader + `
 <div class="container">
   <table>
   <tr><th>Score</th><th>Source</th><th>FQDN</th><th>Proxy</th><th>Connections</th>
-  <th>TS Score</th><th>Dur. Score</th><th>Hist. Score</th>
-  <th>Top Intvl</th>
-  </tr>
+  <th>Intvl. Range</th><th>Intvl. Mode</th><th>Intvl. Mode Count</th>
+	<th>Intvl. Skew</th><th>Intvl. Dispersion</th></tr>
       {{.Writer}}
   </table>
 </div>
@@ -137,8 +136,8 @@ var BeaconsProxyNetNamesTempl = dbHeader + `
   <table>
   <tr>
   <tr><th>Score</th><th>Source Network</th><th>Source</th><th>FQDN</th><th><Proxy Network><th>Proxy</th>
-  <th>Connections</th> <th>TS Score</th><th>Dur. Score</th><th>Hist. Score</th>
-  <th>Top Intvl</th>
+  <th>Connections</th><th>Intvl. Range</th><th>Intvl. Mode</th><th>Intvl. Mode Count</th>
+	<th>Intvl. Skew</th><th>Intvl. Dispersion</th></tr>
   </tr>
 	{{.Writer}}
   </table>

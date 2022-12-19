@@ -157,22 +157,12 @@ func (a *analyzer) start() {
 				tsConnCountScore = 1.0
 			}
 
-			// calculate final ts score
-			tsScore := math.Ceil(((tsSkewScore+tsMadmScore+tsConnCountScore)/3.0)*1000) / 1000
+			//score numerators
+			tsSum := tsSkewScore + tsMadmScore + tsConnCountScore
 
-			// calculate duration score
-			duration := math.Ceil((float64(entry.TsList[tsLength]-entry.TsList[0])/(float64(a.tsMax)-float64(a.tsMin)))*1000) / 1000
-			if duration > 1.0 {
-				duration = 1.0
-			}
-
-			// calculate histogram score
-			bucketDivs, freqList, freqCount, histScore := getTsHistogramScore(a.tsMin, a.tsMax, entry.TsList)
-
-			// calculate overall beacon score
-			score := math.Ceil(((tsScore*a.conf.S.BeaconProxy.TsWeight)+
-				(duration*a.conf.S.BeaconProxy.DurWeight)+
-				(histScore*a.conf.S.BeaconProxy.HistWeight))*1000) / 1000
+			//score averages
+			tsScore := math.Ceil((tsSum/3.0)*1000) / 1000
+			score := math.Ceil((tsSum/3.0)*1000) / 1000
 
 			// copy variables to be used by bulk callback to prevent capturing by reference
 			pairSelector := entry.Hosts.BSONKey()
@@ -190,11 +180,6 @@ func (a *analyzer) start() {
 					"ts.skew":            tsSkew,
 					"ts.conns_score":     tsConnCountScore,
 					"ts.score":           tsScore,
-					"duration_score":     duration,
-					"bucket_divs":        bucketDivs,
-					"freq_list":          freqList,
-					"freq_count":         freqCount,
-					"hist_score":         histScore,
 					"score":              score,
 					"cid":                a.chunk,
 				},
@@ -256,144 +241,4 @@ func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64
 		counts[last]++
 	}
 	return result, counts
-}
-
-// getTsHistogramScore calculates two potential scores based on the histogram of connections for the
-// host pair and takes the max of the two scores.
-func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, map[int]int, float64) {
-
-	// get bucket list
-	// we currently look at a 24 hour period
-	bucketDivs := createBuckets(min, max, 24)
-
-	// use timestamps to get freqencies for buckets
-	freqList, freqCount, freqCV, freqBars := createHistogram(bucketDivs, tsList)
-
-	// calculate first potential score
-	// histograms with bigger flat sections will score higher, up to 4 flat sections
-	// this will score well for graphs that have flat sections with a big distance between them,
-	// i.e. a beacon that alternates between 1 and 5 connections per hour
-	// This score will only be calculated if the number of total bars on the histogram fills at
-	// least half the day (>11), otherwise this could lead to a false positive and not fill the
-	// original intent of this scoring.
-	score1 := 0.0
-
-	if freqBars > 11 {
-		score1 = math.Ceil((float64(4)/float64(len(freqCount)))*1000) / 1000
-		if score1 > 1.0 {
-			score1 = 1.0
-		}
-	}
-
-	// calculate second potential score
-	// coefficient of variation will help score histograms that have jitter in the number of
-	// connections but where the overall graph would still look relatively flat and consistent
-	score2 := math.Ceil((1.0-float64(freqCV))*1000) / 1000
-	if score2 > 1.0 {
-		score2 = 1.0
-	}
-
-	return bucketDivs, freqList, freqCount, math.Max(score1, score2)
-
-}
-
-// createBuckets
-func createBuckets(min int64, max int64, size int64) []int64 {
-	// Set number of dividers. Since the dividers include the endpoints,
-	// number of dividers will be one more than the number of desired buckets
-	total := size + 1
-
-	// declare list
-	bucketDivs := make([]int64, total)
-
-	// calculate step size
-	step := (max - min) / (total - 1)
-
-	// set first bucket value to min timestamp
-	bucketDivs[0] = min
-
-	// create evenly spaced timestamp buckets
-	for i := int64(1); i < total; i++ {
-		bucketDivs[i] = min + (i * step)
-	}
-
-	// set first bucket value to max timestamp
-	bucketDivs[total-1] = max
-
-	return bucketDivs
-}
-
-// createHistogram
-func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, float64, int) {
-	i := 0
-	bucket := bucketDivs[i+1]
-
-	// calculate the number of connections that occurred within the time span represented
-	// by each bucket
-	freqList := make([]int, len(bucketDivs)-1)
-
-	// loop over sorted timestamp list
-	for _, entry := range tsList {
-
-		// increment if still in the current bucket
-		if entry < bucket {
-			freqList[i]++
-			continue
-		}
-
-		// find the next bucket this value will fall under
-		for j := i + 1; j < len(bucketDivs)-1; j++ {
-			if entry < bucketDivs[j+1] {
-				i = j
-				bucket = bucketDivs[j+1]
-				break
-			}
-		}
-
-		// increment count
-		// this will also capture and increment for a situation where the final timestamp is
-		// equal to the final bucket
-		freqList[i]++
-	}
-
-	// make a fequency count map to track how often each value in freqList appears
-	freqCount := make(map[int]int)
-	total := 0
-
-	// make a bar count to store the number of bars the histogram will have
-	totalBars := 0
-
-	for _, item := range freqList {
-		total += item
-
-		if item > 0 {
-			totalBars++
-		}
-
-		if _, ok := freqCount[item]; !ok {
-			freqCount[item] = 1
-		} else {
-			freqCount[item]++
-		}
-	}
-
-	freqMean := float64(total) / float64(len(freqList))
-
-	// calculate standard deviation
-	sd := float64(0)
-	for j := 0; j < len(freqList); j++ {
-		sd += math.Pow(float64(freqList[j])-freqMean, 2)
-	}
-	sd = math.Sqrt(sd / float64(len(freqList)))
-
-	// calculate coefficient of variation
-	cv := sd / freqMean
-
-	// if cv is greater than 1, our score should be zero
-	if cv > 1.0 {
-		cv = 1.0
-	}
-
-	return freqList, freqCount, cv, totalBars
-
 }

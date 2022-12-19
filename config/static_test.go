@@ -48,9 +48,6 @@ BeaconSNI:
 BeaconProxy:
     Enabled: true
     DefaultConnectionThresh: 20
-    TimestampScoreWeight: 0.333
-    DurationScoreWeight: 0.333
-    HistogramScoreWeight: 0.333
 Strobe:
     ConnectionLimit: 250000
 Filtering:
@@ -111,9 +108,6 @@ var testConfigFullExp = StaticCfg{
 	BeaconProxy: BeaconProxyStaticCfg{
 		Enabled:                 true,
 		DefaultConnectionThresh: 20,
-		TsWeight:                0.333,
-		DurWeight:               0.333,
-		HistWeight:              0.333,
 	},
 	Strobe: StrobeStaticCfg{
 		ConnectionLimit: maxStrobeConnectionLimit,
