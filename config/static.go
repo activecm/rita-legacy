@@ -111,8 +111,12 @@ type (
 
 	//BeaconSNIStaticCfg is used to control the SNI beaconing analysis module
 	BeaconSNIStaticCfg struct {
-		Enabled                 bool `yaml:"Enabled" default:"true"`
-		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
+		Enabled                 bool    `yaml:"Enabled" default:"true"`
+		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh" default:"20"`
+		TsWeight                float64 `yaml:"TimestampScoreWeight" default:"0.25"`
+		DsWeight                float64 `yaml:"DatasizeScoreWeight" default:"0.25"`
+		DurWeight               float64 `yaml:"DurationScoreWeight" default:"0.25"`
+		HistWeight              float64 `yaml:"HistogramScoreWeight" default:"0.25"`
 	}
 
 	//DNSStaticCfg is used to control the DNS analysis module

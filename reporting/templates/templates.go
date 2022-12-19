@@ -148,10 +148,10 @@ var BeaconsProxyNetNamesTempl = dbHeader + `
 var BeaconsSNITempl = dbHeader + `
 <div class="container">
   <table>
-  <tr><th>Score</th><th>Source</th><th>SNI</th><th>Connections</th><th>Avg. Bytes</th><th>
-	Intvl. Range</th><th>Size Range</th><th>Intvl. Mode</th><th>Size Mode</th><th>Intvl. Mode Count</th>
-	<th>Size Mode Count</th><th>Intvl. Skew</th><th>Size Skew</th><th>Intvl. Dispersion</th><th>Size Dispersion
-	</th></tr>
+  <tr><th>Score</th><th>Source</th><th>SNI</th><th>Connections</th><th>Avg. Bytes</th>
+  <th>Total Bytes</th><th>TS Score</th><th>DS Score</th><th>Dur. Score</th><th>Hist. Score</th>
+  <th>Top Intvl</th>
+  </tr>
       {{.Writer}}
   </table>
 </div>
@@ -163,9 +163,8 @@ var BeaconsSNINetNamesTempl = dbHeader + `
   <table>
   <tr>
 	<th>Score</th><th>Source Network</th><th>Source</th><th>SNI</th>
-	<th>Connections</th><th>Avg. Bytes</th><th>Intvl. Range</th><th>Size Range</th><th>Intvl. Mode</th>
-	<th>Size Mode</th><th>Intvl. Mode Count</th><th>Size Mode Count</th><th>Intvl. Skew</th><th>Size Skew</th>
-	<th>Intvl. Dispersion</th><th>Size Dispersion</th>
+	<th>Connections</th><th>Avg. Bytes</th><th>Total Bytes</th><th>TS Score</th><th>DS Score</th>
+	<th>Dur. Score</th><th>Hist. Score</th><th>Top Intvl</th>
   </tr>
 	{{.Writer}}
   </table>

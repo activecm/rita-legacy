@@ -65,38 +65,49 @@ func (a *analyzer) start() {
 
 		for res := range a.analysisChannel {
 
-			//store the diff slice length since we use it a lot
+			//store the diffFull slice length since we use it a lot
 			//for timestamps this is one less then the data slice length
 			//since we are calculating the times in between readings
 			tsLength := len(res.TsList) - 1
 			dsLength := len(res.OrigBytesList)
 
-			//find the delta times between the timestamps
-			diff := make([]int64, tsLength)
+			//find the delta times between the timestamps and sort
+			diffFull := make([]int64, tsLength)
 			for i := 0; i < tsLength; i++ {
-				diff[i] = res.TsList[i+1] - res.TsList[i]
+				interval := res.TsList[i+1] - res.TsList[i]
+				diffFull[i] = interval
+			}
+			sort.Sort(util.SortableInt64(diffFull))
+
+			// We are excluding delta zero for scoring calculations
+			// but using a separate array that includes it for making
+			// the user/ graph reference variables returned by createCountMap.
+
+			// Search for the section of diffFull without any 0's in it
+			// The dissector guarantees that there are at least three unique timestamps in res.TsList
+			// as a result, we are guaranteed to find at least two non-zero intervals in diffFull
+			diffNonZeroIdx := 0
+			for i := 0; i < len(diffFull); i++ {
+				if diffFull[i] > 0 {
+					diffNonZeroIdx = i
+					break
+				}
 			}
 
-			//find the delta times between full list of timestamps
-			//(this will be used for the intervals list. Bowleys skew
-			//must use a unique timestamp list with no duplicates)
-			tsLengthFull := len(res.TsListFull) - 1
-			//find the delta times between the timestamps
-			diffFull := make([]int64, tsLengthFull)
-			for i := 0; i < tsLengthFull; i++ {
-				diffFull[i] = res.TsListFull[i+1] - res.TsListFull[i]
-			}
+			diff := diffFull[diffNonZeroIdx:] // select the part of diffFull without any 0's
+
+			//store the diff slice length
+			diffLength := len(diff)
 
 			//perfect beacons should have symmetric delta time and size distributions
 			//Bowley's measure of skew is used to check symmetry
-			sort.Sort(util.SortableInt64(diff))
 			tsSkew := float64(0)
 			dsSkew := float64(0)
 
-			//tsLength -1 is used since diff is a zero based slice
-			tsLow := diff[util.Round(.25*float64(tsLength-1))]
-			tsMid := diff[util.Round(.5*float64(tsLength-1))]
-			tsHigh := diff[util.Round(.75*float64(tsLength-1))]
+			//diffLength-1 is used since diff is a zero based slice
+			tsLow := diff[util.Round(.25*float64(diffLength-1))]
+			tsMid := diff[util.Round(.5*float64(diffLength-1))]
+			tsHigh := diff[util.Round(.75*float64(diffLength-1))]
 			tsBowleyNum := tsLow + tsHigh - 2*tsMid
 			tsBowleyDen := tsHigh - tsLow
 
@@ -121,8 +132,8 @@ func (a *analyzer) start() {
 			//median of their delta times
 			//Median Absolute Deviation About the Median
 			//is used to check dispersion
-			devs := make([]int64, tsLength)
-			for i := 0; i < tsLength; i++ {
+			devs := make([]int64, diffLength)
+			for i := 0; i < diffLength; i++ {
 				devs[i] = util.Abs(diff[i] - tsMid)
 			}
 
@@ -134,18 +145,16 @@ func (a *analyzer) start() {
 			sort.Sort(util.SortableInt64(devs))
 			sort.Sort(util.SortableInt64(dsDevs))
 
-			tsMadm := devs[util.Round(.5*float64(tsLength-1))]
+			tsMadm := devs[util.Round(.5*float64(diffLength-1))]
 			dsMadm := dsDevs[util.Round(.5*float64(dsLength-1))]
 
 			//Store the range for human analysis
-			tsIntervalRange := diff[tsLength-1] - diff[0]
+			tsIntervalRange := diff[diffLength-1] - diff[0]
 			dsRange := res.OrigBytesList[dsLength-1] - res.OrigBytesList[0]
 
 			//get a list of the intervals found in the data,
 			//the number of times the interval was found,
 			//and the most occurring interval
-			//sort intervals list (origbytes already sorted)
-			sort.Sort(util.SortableInt64(diffFull))
 			intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diffFull)
 			dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(res.OrigBytesList)
 
@@ -154,14 +163,20 @@ func (a *analyzer) start() {
 			tsSkewScore := 1.0 - math.Abs(tsSkew) //smush tsSkew
 			dsSkewScore := 1.0 - math.Abs(dsSkew) //smush dsSkew
 
-			//lower dispersion is better, cutoff dispersion scores at 30 seconds
-			tsMadmScore := 1.0 - float64(tsMadm)/30.0
+			//lower dispersion is better
+			tsMadmScore := 1.0
+			if tsMid >= 1 {
+				tsMadmScore = 1.0 - float64(tsMadm)/float64(tsMid)
+			}
 			if tsMadmScore < 0 {
 				tsMadmScore = 0
 			}
 
-			//lower dispersion is better, cutoff dispersion scores at 32 bytes
-			dsMadmScore := 1.0 - float64(dsMadm)/32.0
+			//lower dispersion is better
+			dsMadmScore := 0.0
+			if dsMid >= 1 {
+				dsMadmScore = 1.0 - float64(dsMadm)/float64(dsMid)
+			}
 			if dsMadmScore < 0 {
 				dsMadmScore = 0
 			}
@@ -173,20 +188,30 @@ func (a *analyzer) start() {
 			}
 
 			// connection count scoring
-			tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 10.0
+			tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 3600
 			tsConnCountScore := float64(res.ConnectionCount) / tsConnDiv
 			if tsConnCountScore > 1.0 {
 				tsConnCountScore = 1.0
 			}
 
-			//score numerators
-			tsSum := tsSkewScore + tsMadmScore + tsConnCountScore
-			dsSum := dsSkewScore + dsMadmScore + dsSmallnessScore
+			// calculate final ts and ds scores
+			tsScore := math.Ceil(((tsSkewScore+tsMadmScore+tsConnCountScore)/3.0)*1000) / 1000
+			dsScore := math.Ceil(((dsSkewScore+dsMadmScore+dsSmallnessScore)/3.0)*1000) / 1000
 
-			//score averages
-			tsScore := math.Ceil((tsSum/3.0)*1000) / 1000
-			dsScore := math.Ceil((dsSum/3.0)*1000) / 1000
-			score := math.Ceil(((tsSum+dsSum)/6.0)*1000) / 1000
+			// calculate duration score
+			duration := math.Ceil((float64(res.TsList[tsLength]-res.TsList[0])/(float64(a.tsMax)-float64(a.tsMin)))*1000) / 1000
+			if duration > 1.0 {
+				duration = 1.0
+			}
+
+			// calculate histogram score
+			bucketDivs, freqList, freqCount, histScore := getTsHistogramScore(a.tsMin, a.tsMax, res.TsList)
+
+			// calculate overall beacon score
+			score := math.Ceil(((tsScore*a.conf.S.BeaconSNI.TsWeight)+
+				(dsScore*a.conf.S.BeaconSNI.DsWeight)+
+				(duration*a.conf.S.BeaconSNI.DurWeight)+
+				(histScore*a.conf.S.BeaconSNI.HistWeight))*1000) / 1000
 
 			// copy variables to be used by bulk callback to prevent capturing by reference
 			pairSelector := res.Hosts.BSONKey()
@@ -212,6 +237,11 @@ func (a *analyzer) start() {
 					"ds.dispersion":      dsMadm,
 					"ds.skew":            dsSkew,
 					"ds.score":           dsScore,
+					"duration_score":     duration,
+					"bucket_divs":        bucketDivs,
+					"freq_list":          freqList,
+					"freq_count":         freqCount,
+					"hist_score":         histScore,
 					"score":              score,
 					"cid":                a.chunk,
 					"src_network_name":   res.Hosts.SrcNetworkName,
@@ -275,4 +305,144 @@ func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64
 		counts[last]++
 	}
 	return result, counts
+}
+
+// getTsHistogramScore calculates two potential scores based on the histogram of connections for the
+// host pair and takes the max of the two scores.
+func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, map[int]int, float64) {
+
+	// get bucket list
+	// we currently look at a 24 hour period
+	bucketDivs := createBuckets(min, max, 24)
+
+	// use timestamps to get freqencies for buckets
+	freqList, freqCount, freqCV, freqBars := createHistogram(bucketDivs, tsList)
+
+	// calculate first potential score
+	// histograms with bigger flat sections will score higher, up to 4 flat sections
+	// this will score well for graphs that have flat sections with a big distance between them,
+	// i.e. a beacon that alternates between 1 and 5 connections per hour
+	// This score will only be calculated if the number of total bars on the histogram fills at
+	// least half the day (>11), otherwise this could lead to a false positive and not fill the
+	// original intent of this scoring.
+	score1 := 0.0
+
+	if freqBars > 11 {
+		score1 = math.Ceil((float64(4)/float64(len(freqCount)))*1000) / 1000
+		if score1 > 1.0 {
+			score1 = 1.0
+		}
+	}
+
+	// calculate second potential score
+	// coefficient of variation will help score histograms that have jitter in the number of
+	// connections but where the overall graph would still look relatively flat and consistent
+	score2 := math.Ceil((1.0-float64(freqCV))*1000) / 1000
+	if score2 > 1.0 {
+		score2 = 1.0
+	}
+
+	return bucketDivs, freqList, freqCount, math.Max(score1, score2)
+
+}
+
+// createBuckets
+func createBuckets(min int64, max int64, size int64) []int64 {
+	// Set number of dividers. Since the dividers include the endpoints,
+	// number of dividers will be one more than the number of desired buckets
+	total := size + 1
+
+	// declare list
+	bucketDivs := make([]int64, total)
+
+	// calculate step size
+	step := (max - min) / (total - 1)
+
+	// set first bucket value to min timestamp
+	bucketDivs[0] = min
+
+	// create evenly spaced timestamp buckets
+	for i := int64(1); i < total; i++ {
+		bucketDivs[i] = min + (i * step)
+	}
+
+	// set first bucket value to max timestamp
+	bucketDivs[total-1] = max
+
+	return bucketDivs
+}
+
+// createHistogram
+func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, float64, int) {
+	i := 0
+	bucket := bucketDivs[i+1]
+
+	// calculate the number of connections that occurred within the time span represented
+	// by each bucket
+	freqList := make([]int, len(bucketDivs)-1)
+
+	// loop over sorted timestamp list
+	for _, entry := range tsList {
+
+		// increment if still in the current bucket
+		if entry < bucket {
+			freqList[i]++
+			continue
+		}
+
+		// find the next bucket this value will fall under
+		for j := i + 1; j < len(bucketDivs)-1; j++ {
+			if entry < bucketDivs[j+1] {
+				i = j
+				bucket = bucketDivs[j+1]
+				break
+			}
+		}
+
+		// increment count
+		// this will also capture and increment for a situation where the final timestamp is
+		// equal to the final bucket
+		freqList[i]++
+	}
+
+	// make a fequency count map to track how often each value in freqList appears
+	freqCount := make(map[int]int)
+	total := 0
+
+	// make a bar count to store the number of bars the histogram will have
+	totalBars := 0
+
+	for _, item := range freqList {
+		total += item
+
+		if item > 0 {
+			totalBars++
+		}
+
+		if _, ok := freqCount[item]; !ok {
+			freqCount[item] = 1
+		} else {
+			freqCount[item]++
+		}
+	}
+
+	freqMean := float64(total) / float64(len(freqList))
+
+	// calculate standard deviation
+	sd := float64(0)
+	for j := 0; j < len(freqList); j++ {
+		sd += math.Pow(float64(freqList[j])-freqMean, 2)
+	}
+	sd = math.Sqrt(sd / float64(len(freqList)))
+
+	// calculate coefficient of variation
+	cv := sd / freqMean
+
+	// if cv is greater than 1, our score should be zero
+	if cv > 1.0 {
+		cv = 1.0
+	}
+
+	return freqList, freqCount, cv, totalBars
+
 }

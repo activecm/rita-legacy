@@ -66,36 +66,47 @@ func (a *analyzer) start() {
 
 		for entry := range a.analysisChannel {
 
-			//store the diff slice length since we use it a lot
+			//store the diffFull slice length since we use it a lot
 			//for timestamps this is one less then the data slice length
 			//since we are calculating the times in between readings
 			tsLength := len(entry.TsList) - 1
 
-			//find the delta times between the timestamps
-			diff := make([]int64, tsLength)
+			//find the delta times between the timestamps and sort
+			diffFull := make([]int64, tsLength)
 			for i := 0; i < tsLength; i++ {
-				diff[i] = entry.TsList[i+1] - entry.TsList[i]
+				interval := entry.TsList[i+1] - entry.TsList[i]
+				diffFull[i] = interval
+			}
+			sort.Sort(util.SortableInt64(diffFull))
+
+			// We are excluding delta zero for scoring calculations
+			// but using a separate array that includes it for making
+			// the user/ graph reference variables returned by createCountMap.
+
+			// Search for the section of diffFull without any 0's in it
+			// The dissector guarantees that there are at least three unique timestamps in res.TsList
+			// as a result, we are guaranteed to find at least two non-zero intervals in diffFull
+			diffNonZeroIdx := 0
+			for i := 0; i < len(diffFull); i++ {
+				if diffFull[i] > 0 {
+					diffNonZeroIdx = i
+					break
+				}
 			}
 
-			//find the delta times between full list of timestamps
-			//(this will be used for the intervals list. Bowleys skew
-			//must use a unique timestamp list with no duplicates)
-			tsLengthFull := len(entry.TsListFull) - 1
-			//find the delta times between the timestamps
-			diffFull := make([]int64, tsLengthFull)
-			for i := 0; i < tsLengthFull; i++ {
-				diffFull[i] = entry.TsListFull[i+1] - entry.TsListFull[i]
-			}
+			diff := diffFull[diffNonZeroIdx:] // select the part of diffFull without any 0's
+
+			//store the diff slice length
+			diffLength := len(diff)
 
 			//perfect beacons should have symmetric delta time and size distributions
 			//Bowley's measure of skew is used to check symmetry
-			sort.Sort(util.SortableInt64(diff))
 			tsSkew := float64(0)
 
-			//tsLength -1 is used since diff is a zero based slice
-			tsLow := diff[util.Round(.25*float64(tsLength-1))]
-			tsMid := diff[util.Round(.5*float64(tsLength-1))]
-			tsHigh := diff[util.Round(.75*float64(tsLength-1))]
+			//diffLength-1 is used since diff is a zero based slice
+			tsLow := diff[util.Round(.25*float64(diffLength-1))]
+			tsMid := diff[util.Round(.5*float64(diffLength-1))]
+			tsHigh := diff[util.Round(.75*float64(diffLength-1))]
 			tsBowleyNum := tsLow + tsHigh - 2*tsMid
 			tsBowleyDen := tsHigh - tsLow
 
@@ -109,37 +120,38 @@ func (a *analyzer) start() {
 			//median of their delta times
 			//Median Absolute Deviation About the Median
 			//is used to check dispersion
-			devs := make([]int64, tsLength)
-			for i := 0; i < tsLength; i++ {
+			devs := make([]int64, diffLength)
+			for i := 0; i < diffLength; i++ {
 				devs[i] = util.Abs(diff[i] - tsMid)
 			}
 
 			sort.Sort(util.SortableInt64(devs))
 
-			tsMadm := devs[util.Round(.5*float64(tsLength-1))]
+			tsMadm := devs[util.Round(.5*float64(diffLength-1))]
 
 			//Store the range for human analysis
-			tsIntervalRange := diff[tsLength-1] - diff[0]
+			tsIntervalRange := diff[diffLength-1] - diff[0]
 
 			//get a list of the intervals found in the data,
 			//the number of times the interval was found,
 			//and the most occurring interval
-			//sort intervals list
-			sort.Sort(util.SortableInt64(diffFull))
 			intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diffFull)
 
 			//more skewed distributions receive a lower score
 			//less skewed distributions receive a higher score
 			tsSkewScore := 1.0 - math.Abs(tsSkew) //smush tsSkew
 
-			//lower dispersion is better, cutoff dispersion scores at 30 seconds
-			tsMadmScore := 1.0 - float64(tsMadm)/30.0
+			//lower dispersion is better
+			tsMadmScore := 1.0
+			if tsMid >= 1 {
+				tsMadmScore = 1.0 - float64(tsMadm)/float64(tsMid)
+			}
 			if tsMadmScore < 0 {
 				tsMadmScore = 0
 			}
 
 			// connection count scoring
-			tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 10.0
+			tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 3600
 			tsConnCountScore := float64(entry.ConnectionCount) / tsConnDiv
 			if tsConnCountScore > 1.0 {
 				tsConnCountScore = 1.0

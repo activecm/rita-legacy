@@ -20,7 +20,6 @@ type TSData struct {
 	ModeCount  int64   `bson:"mode_count"`
 	Skew       float64 `bson:"skew"`
 	Dispersion int64   `bson:"dispersion"`
-	Duration   float64 `bson:"duration"`
 }
 
 // DSData ...

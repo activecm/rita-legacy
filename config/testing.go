@@ -31,10 +31,21 @@ DNS:
     Enabled: true
 Beacon:
     Enabled: true
-    DefaultConnectionThresh: 24
+    DefaultConnectionThresh: 20
+    TimestampScoreWeight: 0.25
+    DatasizeScoreWeight: 0.25
+    DurationScoreWeight: 0.25
+    HistogramScoreWeight: 0.25
+BeaconSNI:
+    Enabled: true
+    DefaultConnectionThresh: 20
+    TimestampScoreWeight: 0.25
+    DatasizeScoreWeight: 0.25
+    DurationScoreWeight: 0.25
+    HistogramScoreWeight: 0.25
 BeaconProxy:
     Enabled: true
-    DefaultConnectionThresh: 24
+    DefaultConnectionThresh: 20
 Strobe:
     ConnectionLimit: 250000
 Filtering:

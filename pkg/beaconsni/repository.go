@@ -29,14 +29,18 @@ type Result struct {
 	data.UniqueSrcFQDNPair `bson:",inline"`
 	Connections            int64   `bson:"connection_count"`
 	AvgBytes               float64 `bson:"avg_bytes"`
+	TotalBytes             int64   `bson:"total_bytes"`
 	Ts                     TSData  `bson:"ts"`
 	Ds                     DSData  `bson:"ds"`
+	DurScore               float64 `bson:"duration_score"`
+	HistScore              float64 `bson:"hist_score"`
 	Score                  float64 `bson:"score"`
 	// ResolvedIPs            []data.UniqueIP // Requires lookup on SNIconn collection
 }
 
 // TSData ...
 type TSData struct {
+	Score      float64 `bson:"score"`
 	Range      int64   `bson:"range"`
 	Mode       int64   `bson:"mode"`
 	ModeCount  int64   `bson:"mode_count"`
@@ -47,6 +51,7 @@ type TSData struct {
 
 // DSData ...
 type DSData struct {
+	Score      float64 `bson:"score"`
 	Skew       float64 `bson:"skew"`
 	Dispersion int64   `bson:"dispersion"`
 	Range      int64   `bson:"range"`
