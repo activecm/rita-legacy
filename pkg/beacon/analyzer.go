@@ -72,21 +72,29 @@ func (a *analyzer) start() {
 			dsLength := len(res.OrigBytesList)
 
 			//find the delta times between the timestamps and sort
-			//we are excluding delta zero for scoring calculations
-			//but using a separate array that includes it for making
-			//the user/graph reference variables returned by createCountMap
 			diffFull := make([]int64, tsLength)
-			var diff []int64
 			for i := 0; i < tsLength; i++ {
 				interval := res.TsList[i+1] - res.TsList[i]
 				diffFull[i] = interval
-				if interval > 0 {
-					diff = append(diff, interval)
-				}
-
 			}
-			sort.Sort(util.SortableInt64(diff))
 			sort.Sort(util.SortableInt64(diffFull))
+
+			// We are excluding delta zero for scoring calculations
+			// but using a separate array that includes it for making
+			// the user/ graph reference variables returned by createCountMap.
+
+			// Search for the section of diffFull without any 0's in it
+			// The dissector guarantees that there are at least three unique timestamps in res.TsList
+			// as a result, we are guaranteed to find at least two non-zero intervals in diffFull
+			diffNonZeroIdx := 0
+			for i := 0; i < len(diffFull); i++ {
+				if diffFull[i] > 0 {
+					diffNonZeroIdx = i
+					break
+				}
+			}
+
+			diff := diffFull[diffNonZeroIdx:] // select the part of diffFull without any 0's
 
 			//store the diff slice length
 			diffLength := len(diff)
