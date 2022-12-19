@@ -174,11 +174,6 @@ func writeDB(db string, wd string, showNetNames bool, res *resources.Resources) 
 		fmt.Println("[-] Error writing beacons page: " + err.Error())
 	}
 
-	err = printBeaconsFQDN(db, showNetNames, res, maxTime)
-	if err != nil {
-		fmt.Println("[-] Error writing beaconsFQDN page: " + err.Error())
-	}
-
 	err = printBeaconsProxy(db, showNetNames, res, maxTime)
 	if err != nil {
 		fmt.Println("[-] Error writing beaconsProxy page: " + err.Error())

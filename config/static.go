@@ -31,7 +31,6 @@ type (
 		Log          LogStaticCfg         `yaml:"LogConfig"`
 		Blacklisted  BlacklistedStaticCfg `yaml:"BlackListed"`
 		Beacon       BeaconStaticCfg      `yaml:"Beacon"`
-		BeaconFQDN   BeaconFQDNStaticCfg  `yaml:"BeaconFQDN"`
 		BeaconProxy  BeaconProxyStaticCfg `yaml:"BeaconProxy"`
 		BeaconSNI    BeaconSNIStaticCfg   `yaml:"BeaconSNI"`
 		DNS          DNSStaticCfg         `yaml:"DNS"`
@@ -102,12 +101,6 @@ type (
 		DsWeight                float64 `yaml:"DatasizeScoreWeight" default:"0.25"`
 		DurWeight               float64 `yaml:"DurationScoreWeight" default:"0.25"`
 		HistWeight              float64 `yaml:"HistogramScoreWeight" default:"0.25"`
-	}
-
-	//BeaconFQDNStaticCfg is used to control the fqdn beaconing analysis module
-	BeaconFQDNStaticCfg struct {
-		Enabled                 bool `yaml:"Enabled" default:"true"`
-		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
 	}
 
 	//BeaconProxyStaticCfg is used to control the proxy beaconing analysis module
