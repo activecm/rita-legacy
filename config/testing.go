@@ -32,9 +32,6 @@ DNS:
 Beacon:
     Enabled: true
     DefaultConnectionThresh: 24
-BeaconFQDN:
-    Enabled: true
-    DefaultConnectionThresh: 24
 BeaconProxy:
     Enabled: true
     DefaultConnectionThresh: 24

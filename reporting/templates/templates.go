@@ -2,7 +2,7 @@ package templates
 
 import "html/template"
 
-//ReportingInfo fills the templates listed in html/template
+// ReportingInfo fills the templates listed in html/template
 type ReportingInfo struct {
 	DB              string
 	LogsGeneratedAt string
@@ -25,7 +25,6 @@ var dbHeader = `
   <li><a href="../index.html">RITA</a></li>
   <li><a href="index.html">Viewing: {{.DB}}</a></li>
   <li><a href="beacons.html">Beacons</a></li>
-  <li><a href="beaconsfqdn.html">Beacons FQDN</a></li>
   <li><a href="beaconsproxy.html">Beacons Proxy</a></li>
   <li><a href="beaconssni.html">Beacons SNI</a></li>
 	<li><a href="strobes.html">Strobes</a></li>
@@ -119,34 +118,6 @@ var BeaconsNetNamesTempl = dbHeader + `
 </div>
 `
 
-// BeaconsFQDNTempl is our beaconsFQDN html template
-var BeaconsFQDNTempl = dbHeader + `
-<div class="container">
-  <table>
-  <tr><th>Score</th><th>Source</th><th>FQDN</th><th>Connections</th><th>Avg. Bytes</th><th>
-	Intvl. Range</th><th>Size Range</th><th>Intvl. Mode</th><th>Size Mode</th><th>Intvl. Mode Count</th>
-	<th>Size Mode Count</th><th>Intvl. Skew</th><th>Size Skew</th><th>Intvl. Dispersion</th><th>Size Dispersion
-	</th></tr>
-      {{.Writer}}
-  </table>
-</div>
-`
-
-// BeaconsFQDNNetNamesTempl is our beacons html template with network names
-var BeaconsFQDNNetNamesTempl = dbHeader + `
-<div class="container">
-  <table>
-  <tr>
-	<th>Score</th><th>Source Network</th><th>Source</th><th>FQDN</th>
-	<th>Connections</th><th>Avg. Bytes</th><th>Intvl. Range</th><th>Size Range</th><th>Intvl. Mode</th>
-	<th>Size Mode</th><th>Intvl. Mode Count</th><th>Size Mode Count</th><th>Intvl. Skew</th><th>Size Skew</th>
-	<th>Intvl. Dispersion</th><th>Size Dispersion</th>
-  </tr>
-	{{.Writer}}
-  </table>
-</div>
-`
-
 // BeaconsProxyTempl is our beaconsProxy html template
 var BeaconsProxyTempl = dbHeader + `
 <div class="container">
@@ -201,7 +172,7 @@ var BeaconsSNINetNamesTempl = dbHeader + `
 </div>
 `
 
-//StrobesTempl is the strobes html template
+// StrobesTempl is the strobes html template
 var StrobesTempl = dbHeader + `
 <div class="container">
   <table>
@@ -211,7 +182,7 @@ var StrobesTempl = dbHeader + `
 </div>
 `
 
-//StrobesNetNamesTempl is the strobes html template with network names
+// StrobesNetNamesTempl is the strobes html template with network names
 var StrobesNetNamesTempl = dbHeader + `
 <div class="container">
   <table>

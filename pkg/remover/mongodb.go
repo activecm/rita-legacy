@@ -18,7 +18,7 @@ type remover struct {
 	log      *log.Logger
 }
 
-//NewMongoRemover create new remover. Handles removing outdated data by chunk ID.
+// NewMongoRemover create new remover. Handles removing outdated data by chunk ID.
 func NewMongoRemover(db *database.DB, conf *config.Config, logger *log.Logger) Repository {
 	return &remover{
 		database: db,
@@ -27,7 +27,7 @@ func NewMongoRemover(db *database.DB, conf *config.Config, logger *log.Logger) R
 	}
 }
 
-//Upsert loops through every new uconn ....
+// Upsert loops through every new uconn ....
 func (r *remover) Remove(cid int) error {
 
 	fmt.Println("\t[-] Removing matching chunk: ", cid)
@@ -100,7 +100,6 @@ func (r *remover) removeOutdatedCIDs(cid int) error {
 	// documents due to to the special case in how that data is updated and stored.
 	modules := []string{
 		r.config.T.Beacon.BeaconTable,
-		r.config.T.BeaconFQDN.BeaconFQDNTable,
 		r.config.T.BeaconProxy.BeaconProxyTable,
 		r.config.T.BeaconSNI.BeaconSNITable,
 		r.config.T.Structure.HostTable,

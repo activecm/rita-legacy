@@ -44,7 +44,6 @@ func (r *repo) CreateIndexes() error {
 		{Key: []string{"ipv4_binary"}},
 		{Key: []string{"dat.mdip.ip", "dat.mdip.network_uuid"}},
 		{Key: []string{"dat.mbdst.ip", "dat.mbdst.network_uuid"}},
-		{Key: []string{"dat.mbfqdn"}},
 		{Key: []string{"dat.mbproxy"}},
 	}
 
