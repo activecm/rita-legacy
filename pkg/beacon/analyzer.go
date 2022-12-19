@@ -65,28 +65,41 @@ func (a *analyzer) start() {
 	go func() {
 		for res := range a.analysisChannel {
 
-			//store the diff slice length since we use it a lot
+			//store the diffFull slice length since we use it a lot
 			//for timestamps this is one less then the data slice length
 			//since we are calculating the times in between readings
 			tsLength := len(res.TsList) - 1
 			dsLength := len(res.OrigBytesList)
 
 			//find the delta times between the timestamps and sort
-			diff := make([]int64, tsLength)
+			//we are excluding delta zero for scoring calculations
+			//but using a separate array that includes it for making
+			//the user/graph reference variables returned by createCountMap
+			diffFull := make([]int64, tsLength)
+			var diff []int64
 			for i := 0; i < tsLength; i++ {
-				diff[i] = res.TsList[i+1] - res.TsList[i]
+				interval := res.TsList[i+1] - res.TsList[i]
+				diffFull[i] = interval
+				if interval > 0 {
+					diff = append(diff, interval)
+				}
+
 			}
 			sort.Sort(util.SortableInt64(diff))
+			sort.Sort(util.SortableInt64(diffFull))
+
+			//store the diff slice length
+			diffLength := len(diff)
 
 			//perfect beacons should have symmetric delta time and size distributions
 			//Bowley's measure of skew is used to check symmetry
 			tsSkew := float64(0)
 			dsSkew := float64(0)
 
-			//tsLength -1 is used since diff is a zero based slice
-			tsLow := diff[util.Round(.25*float64(tsLength-1))]
-			tsMid := diff[util.Round(.5*float64(tsLength-1))]
-			tsHigh := diff[util.Round(.75*float64(tsLength-1))]
+			//diffLength-1 is used since diff is a zero based slice
+			tsLow := diff[util.Round(.25*float64(diffLength-1))]
+			tsMid := diff[util.Round(.5*float64(diffLength-1))]
+			tsHigh := diff[util.Round(.75*float64(diffLength-1))]
 			tsBowleyNum := tsLow + tsHigh - 2*tsMid
 			tsBowleyDen := tsHigh - tsLow
 
@@ -111,8 +124,8 @@ func (a *analyzer) start() {
 			//median of their delta times
 			//Median Absolute Deviation About the Median
 			//is used to check dispersion
-			devs := make([]int64, tsLength)
-			for i := 0; i < tsLength; i++ {
+			devs := make([]int64, diffLength)
+			for i := 0; i < diffLength; i++ {
 				devs[i] = util.Abs(diff[i] - tsMid)
 			}
 
@@ -124,17 +137,17 @@ func (a *analyzer) start() {
 			sort.Sort(util.SortableInt64(devs))
 			sort.Sort(util.SortableInt64(dsDevs))
 
-			tsMadm := devs[util.Round(.5*float64(tsLength-1))]
+			tsMadm := devs[util.Round(.5*float64(diffLength-1))]
 			dsMadm := dsDevs[util.Round(.5*float64(dsLength-1))]
 
 			//Store the range for human analysis
-			tsIntervalRange := diff[tsLength-1] - diff[0]
+			tsIntervalRange := diff[diffLength-1] - diff[0]
 			dsRange := res.OrigBytesList[dsLength-1] - res.OrigBytesList[0]
 
 			//get a list of the intervals found in the data,
 			//the number of times the interval was found,
 			//and the most occurring interval
-			intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diff)
+			intervals, intervalCounts, tsMode, tsModeCount := createCountMap(diffFull)
 			dsSizes, dsCounts, dsMode, dsModeCount := createCountMap(res.OrigBytesList)
 
 			//more skewed distributions receive a lower score
@@ -293,15 +306,22 @@ func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, 
 	bucketDivs := createBuckets(min, max, 24)
 
 	// use timestamps to get freqencies for buckets
-	freqList, freqCount, freqCV := createHistogram(bucketDivs, tsList)
+	freqList, freqCount, freqCV, freqBars := createHistogram(bucketDivs, tsList)
 
 	// calculate first potential score
 	// histograms with bigger flat sections will score higher, up to 4 flat sections
 	// this will score well for graphs that have flat sections with a big distance between them,
 	// i.e. a beacon that alternates between 1 and 5 connections per hour
-	score1 := math.Ceil((float64(4)/float64(len(freqCount)))*1000) / 1000
-	if score1 > 1.0 {
-		score1 = 1.0
+	// This score will only be calculated if the number of total bars on the histogram fills at
+	// least half the day (>11), otherwise this could lead to a false positive and not fill the
+	// original intent of this scoring.
+	score1 := 0.0
+
+	if freqBars > 11 {
+		score1 = math.Ceil((float64(4)/float64(len(freqCount)))*1000) / 1000
+		if score1 > 1.0 {
+			score1 = 1.0
+		}
 	}
 
 	// calculate second potential score
@@ -343,7 +363,7 @@ func createBuckets(min int64, max int64, size int64) []int64 {
 }
 
 // createHistogram
-func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, float64) {
+func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, float64, int) {
 	i := 0
 	bucket := bucketDivs[i+1]
 
@@ -379,8 +399,16 @@ func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, fl
 	freqCount := make(map[int]int)
 	total := 0
 
+	// make a bar count to store the number of bars the histogram will have
+	totalBars := 0
+
 	for _, item := range freqList {
 		total += item
+
+		if item > 0 {
+			totalBars++
+		}
+
 		if _, ok := freqCount[item]; !ok {
 			freqCount[item] = 1
 		} else {
@@ -405,6 +433,6 @@ func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, fl
 		cv = 1.0
 	}
 
-	return freqList, freqCount, cv
+	return freqList, freqCount, cv, totalBars
 
 }
