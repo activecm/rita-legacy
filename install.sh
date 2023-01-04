@@ -2,7 +2,7 @@
 #
 # RITA is brought to you by Active CounterMeasures.
 # activecountermeasures.com
-#set -x
+
 # CONSTANTS
 _RITA_VERSION="v4.6.0"
 _MONGO_VERSION="4.2"
