@@ -21,7 +21,7 @@ Please see our recommended [System Requirements](docs/System%20Requirements.md) 
 
 ### Automated Install
 
-RITA provides an install script that works on Ubuntu 20.04 LTS, Ubuntu 18.04 LTS, Ubuntu 16.04 LTS, Debian 10, Debian 11, Security Onion, and CentOS 7.
+RITA provides an install script that works on Ubuntu 20.04 LTS, Debian 11, Security Onion, and CentOS 7.
 
 Download the latest `install.sh` file [here](https://github.com/activecm/rita/releases/latest) and make it executable: `chmod +x ./install.sh`
 

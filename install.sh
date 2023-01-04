@@ -2,7 +2,7 @@
 #
 # RITA is brought to you by Active CounterMeasures.
 # activecountermeasures.com
-
+#set -x
 # CONSTANTS
 _RITA_VERSION="v4.6.0"
 _MONGO_VERSION="4.2"
@@ -180,13 +180,7 @@ __install() {
             printf "$_ITEM MongoDB is already installed \n"
         fi
 
-        if [ "$_MONGO_INSTALLED" = "true" ]; then
-            __configure_mongodb
-
-            # Wait for service to come to life
-            printf "$_ITEM Sleeping to give the Mongo service some time to fully start..."
-            sleep 10
-
+        if [ "$_MONGO_INSTALLED" = "true" ] && __configure_mongodb; then
             # Set compatibility version in case we updated Mongo. It's fine to do this even if we didn't
             # update Mongo...it's just a bit cleaner to do it here to cut down on code redundancy and logic checks
             __load "$_ITEM Setting Mongo feature compatibility to $_MONGO_VERSION" __update_feature_compatibility "$_MONGO_VERSION"
@@ -221,43 +215,56 @@ __install_installer_deps() {
     done
 }
 
-__install_zeek() {
-
-    if  [ "$_OS" == "Ubuntu" ] && [ "$_OS_CODENAME" == "xenial" ] ; then
-        # The Zeek Project does not host a package repo for Ubuntu 16.04.
-        # Use Security Onion's version of Zeek.
-        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9373E47F9BF8216D23D32BBBE1E6759023F386C7 > /dev/null 2>&1
-        __add_deb_repo "deb http://ppa.launchpad.net/securityonion/stable/ubuntu xenial main" \
-        "securityonion-ubuntu-stable-xenial"
-        __install_packages python securityonion-bro
-        ln -s /opt/bro /opt/zeek
-    else
-        case "$_OS" in
-            Ubuntu)
-                __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/ /" \
-                "security:zeek" \
-                "https://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/Release.key"
-                ;;
-            Debian)
-                if [[ "$_OS_CODENAME" == "buster" ]]; then
-                    _Debian_Release="Debian_10"
-                elif [[ "$_OS_CODENAME" == "bullseye" ]]; then
-                    _Debian_Release="Debian_11"
-                else
-                    _Debian_Release=""
-                fi
-                __add_deb_repo  "deb http://download.opensuse.org/repositories/security:/zeek/$_Debian_Release/ /" \
-                "security:zeek" \
-                "https://download.opensuse.org/repositories/security:zeek/$_Debian_Release/Release.key"
-                __freshen_packages
-                ;;
-            CentOS|RedHatEnterprise|RedHatEnterpriseServer)
-                __add_rpm_repo "https://download.opensuse.org/repositories/security:/zeek/CentOS_7/security:zeek.repo"
-                ;;
-        esac
+__install_zeek_ubuntu() {
+    if [[ "$_OS_CODENAME" == "focal" || "$_OS_CODENAME" == "jammy" ]]; then 
+        __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/ /" \
+        "security:zeek" \
+        "https://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/Release.key"
         __install_packages zeek-lts
+    else 
+        printf "\nUbuntu ${_OS_CODENAME} is unsupported by Zeek and cannot be installed.\n"
+        __err $LINENO # Unsupported Ubuntu version 
     fi
+}
 
+__install_zeek_debian() {
+    if [[ "$_OS_CODENAME" == "bullseye" ]]; then
+        __add_deb_repo  "deb http://download.opensuse.org/repositories/security:/zeek/Debian_11/ /" \
+        "security:zeek" \
+        "https://download.opensuse.org/repositories/security:zeek/Debian_11/Release.key"
+        __install_packages zeek-lts
+    else
+        printf "\nDebian ${_OS_CODENAME} is unsupported by Zeek and cannot be installed.\n"
+        __err $LINENO # Unsupported Debian version
+    fi
+}
+
+__install_zeek_rhel_like() {
+    if [[ "$_OS_RELEASE" =~ ^7.* ]]; then 
+        __add_rpm_repo "https://download.opensuse.org/repositories/security:/zeek/CentOS_7/security:zeek.repo"
+        __install_packages zeek-lts
+    else
+        printf "\nRHEL/ CentOS ${_OS_CODENAME} is unsupported by Zeek and cannot be installed.\n"
+        __err $LINENO # Unsupported CentOS/ RHEL version 
+    fi
+}
+
+__install_zeek() {
+    case "$_OS" in
+        Ubuntu)
+            __install_zeek_ubuntu
+            ;;
+        Debian)
+            __install_zeek_debian
+            ;;
+        CentOS|RedHatEnterprise|RedHatEnterpriseServer)
+            __install_zeek_rhel_like
+            ;;
+        *)
+            printf "\nInstalling Zeek on ${_OS} is unsupported by this installer.\n"
+            __err $LINENO
+            ;;
+    esac
 
     if [ -d /opt/zeek/logs/ ]; then		#Standard directory for Zeek logs when installed by Rita
         chmod 2755 /opt/zeek/logs
@@ -407,10 +414,6 @@ __intermediary_update_mongodb() {
         # Star and configure the service so that we can run the command to update feature compatibility
         __configure_mongodb
 
-        # Wait for service to come to life
-        printf "$_ITEM Sleeping to give the Mongo service some time to fully start..."
-        sleep 10
-
         # Need to update feature compatibility to 4.0 otherwise things will break when we update
         # to 4.2
         __load "$_ITEM Setting feature compatibility in Mongo to $_MONGO_MIN_UPDATE_VERSION" __update_feature_compatibility "$_MONGO_MIN_UPDATE_VERSION"
@@ -421,23 +424,36 @@ __update_feature_compatibility() {
     mongo --eval "db.adminCommand( { setFeatureCompatibilityVersion: '$1' } )" > /dev/null
 }
 
-__install_mongodb() {
-    case "$_OS" in
-        Ubuntu)
-            __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu ${_MONGO_OS_CODENAME}/mongodb-org/$1 multiverse" \
-                "mongodb-org-$1" \
-                "https://www.mongodb.org/static/pgp/server-$1.asc"
-            ;;
-        Debian)
-        # Mongodb does not have a release file for Debian 11 "Bullseye" yet.
-            __add_deb_repo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/$1 main" \
-                "mongodb-org-$1" \
-                "https://www.mongodb.org/static/pgp/server-$1.asc"
-            ;;
+__install_mongodb_ubuntu() {
+    if [[ "$_OS_CODENAME" == "bionic" || "$_OS_CODENAME" == "focal" ]]; then 
+        # MongoDB 4.2 is not available for Ubuntu 20, but the package from Ubuntu 18 works without conflicts
+        __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/$1 multiverse" \
+            "mongodb-org-$1" \
+            "https://www.mongodb.org/static/pgp/server-$1.asc"
+        __install_packages mongodb-org
+    else 
+        printf "\nUbuntu ${_OS_CODENAME} is unsupported by MongoDB $1 and cannot be installed.\n"
+        __err $LINENO # Unsupported Ubuntu version 
+    fi
+}
 
-        CentOS|RedHatEnterprise|RedHatEnterpriseServer)
-            if [ ! -s /etc/yum.repos.d/mongodb-org-$1.repo ]; then
-                cat << EOF > /etc/yum.repos.d/mongodb-org-$1.repo
+__install_mongodb_debian() {
+    if [[ "$_OS_CODENAME" == "buster" || "$_OS_CODENAME" == "bullseye" ]]; then
+        # MongoDB 4.2 is not available for Debian 11, but the package from Debian 10 works without conflicts
+        __add_deb_repo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/$1 main" \
+            "mongodb-org-$1" \
+            "https://www.mongodb.org/static/pgp/server-$1.asc"
+        __install_packages mongodb-org
+    else
+        printf "\nDebian ${_OS_CODENAME} is unsupported by MongoDB $1 and cannot be installed.\n"
+        __err $LINENO # Unsupported Debian version
+    fi
+}
+
+__install_mongodb_rhel_like() {
+    if [[ "$_OS_RELEASE" =~ ^7.* ]]; then 
+        if [ ! -s /etc/yum.repos.d/mongodb-org-$1.repo ]; then
+            cat << EOF > /etc/yum.repos.d/mongodb-org-$1.repo
 [mongodb-org-$1]
 name=MongoDB Repository
 baseurl=https://repo.mongodb.org/yum/redhat/\$releasever/mongodb-org/$1/x86_64/
@@ -445,23 +461,54 @@ gpgcheck=1
 enabled=1
 gpgkey=https://www.mongodb.org/static/pgp/server-$1.asc
 EOF
-            fi
-            __freshen_packages
+        fi
+        __freshen_packages
+        __install_packages mongodb-org
+    else
+        printf "\nRHEL/ CentOS ${_OS_CODENAME} is unsupported by Zeek and cannot be installed.\n"
+        __err $LINENO # Unsupported CentOS/ RHEL version 
+    fi
+}
+__install_mongodb() {
+    case "$_OS" in
+        Ubuntu)
+            __install_mongodb_ubuntu $1
+            ;;
+        Debian)
+            __install_mongodb_debian $1
+            ;;
+        CentOS|RedHatEnterprise|RedHatEnterpriseServer)
+            __install_mongodb_rhel_like $1
+            ;;
+        *)
+            printf "\nInstalling MongoDB $1 on ${_OS} is unsupported by this installer.\n"
+            __err $LINENO
             ;;
     esac
-    __install_packages mongodb-org
-    _MONGO_INSTALLED=true
 
+    _MONGO_INSTALLED=true
 }
 
 __configure_mongodb() {
     printf "$_IMPORTANT Starting MongoDB and enabling on startup. \n"
     if [ "$_OS" = "Ubuntu" -o "$_OS" = "Debian" ]; then
+        local systemctl_status
+        systemctl_status=`systemctl status 2>&1`
+        if [ $? != 0 ]; then 
+            printf "$_SUBIMPORTANT Failed to enable MongoDB on startup. $systemctl_status\n"
+            return 1
+        fi
         systemctl enable mongod.service > /dev/null
         systemctl daemon-reload > /dev/null
         systemctl start mongod > /dev/null
         _STOP_MONGO="sudo systemctl stop mongod"
     elif [ "$_OS" = "CentOS" -o "$_OS" = "RedHatEnterprise" -o "$_OS" = "RedHatEnterpriseServer" ]; then
+        local systemctl_status
+        systemctl_status=`systemctl status 2>&1`
+        if [ $? != 0 ]; then 
+            printf "$_SUBIMPORTANT Failed to enable MongoDB on startup. $systemctl_status\n"
+            return 1
+        fi
         systemctl enable mongod.service > /dev/null
         systemctl daemon-reload > /dev/null
         systemctl start mongod > /dev/null
@@ -475,6 +522,10 @@ __configure_mongodb() {
     printf "$_IMPORTANT You can access the MongoDB shell with 'mongo'. \n"
     printf "$_IMPORTANT If you need to stop MongoDB, \n"
     printf "$_IMPORTANT run '$_STOP_MONGO'. \n"
+
+    # Wait for service to come to life
+    printf "$_ITEM Sleeping to give the Mongo service some time to fully start..."
+    sleep 10
 }
 
 __install_rita() {
@@ -519,12 +570,7 @@ __install_rita() {
 __gather_OS() {
     _OS="$(lsb_release -is)"
     _OS_CODENAME="$(lsb_release -cs)"
-    _MONGO_OS_CODENAME="$(lsb_release -cs)"
-
-    # Use the Ubuntu 18 package for MongoDB 4.2 on Xenial
-    if [ "$_OS" = "Ubuntu" -a "$_MONGO_OS_CODENAME" = "focal" ]; then 
-        _MONGO_OS_CODENAME="bionic"
-    fi
+    _OS_RELEASE="$(lsb_release -rs)"
 
     if [ "$_OS" != "Ubuntu" -a "$_OS" != "CentOS" -a "$_OS" != "RedHatEnterprise" -a "$_OS" != "RedHatEnterpriseServer" -a "$_OS" != "Debian" ]; then
         printf "$_ITEM This installer supports Ubuntu, CentOS, RHEL, and Debian. \n"
@@ -714,7 +760,11 @@ __install_packages() {
                     ;;
             esac
         fi
-        eval $_PKG_INSTALL $pkg >/dev/null 2>&1
+        
+        if ! eval $_PKG_INSTALL $pkg >/dev/null 2>&1; then
+            printf "\nFailed to install package: $pkg\n"
+            __err $LINENO # package failed to install. This explicit check is needed so eval doesn't swallow the error.
+        fi
         shift
     done
 }
