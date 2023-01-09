@@ -64,9 +64,8 @@ func getBeaconProxyWriter(beaconsProxy []beaconproxy.Result, showNetNames bool) 
 
 	tmpl += "<td>{{.Proxy.IP}}</td>"
 
-	tmpl += "<td>{{.Connections}}</td>"
-	tmpl += "<td>{{.Ts.Range}}</td><td>{{.Ts.Mode}}</td><td>{{.Ts.ModeCount}}</td>"
-	tmpl += "<td>{{printf \"%.3f\" .Ts.Skew}}</td><td>{{.Ts.Dispersion}}</td>"
+	tmpl += "<td>{{.Connections}}</td><td>{{printf \"%.3f\" .Ts.Score}}</td>"
+	tmpl += "<td>{{printf \"%.3f\" .DurScore}}</td><td>{{printf \"%.3f\" .HistScore}}</td><td>{{.Ts.Mode}}</td>"
 	tmpl += "</tr>\n"
 
 	out, err := template.New("beaconproxy").Parse(tmpl)
