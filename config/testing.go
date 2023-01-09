@@ -46,6 +46,9 @@ BeaconSNI:
 BeaconProxy:
     Enabled: true
     DefaultConnectionThresh: 20
+    TimestampScoreWeight: 0.333
+    DurationScoreWeight: 0.333
+    HistogramScoreWeight: 0.333
 Strobe:
     ConnectionLimit: 250000
 Filtering:

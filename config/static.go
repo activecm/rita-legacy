@@ -105,8 +105,11 @@ type (
 
 	//BeaconProxyStaticCfg is used to control the proxy beaconing analysis module
 	BeaconProxyStaticCfg struct {
-		Enabled                 bool `yaml:"Enabled" default:"true"`
-		DefaultConnectionThresh int  `yaml:"DefaultConnectionThresh" default:"20"`
+		Enabled                 bool    `yaml:"Enabled" default:"true"`
+		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh" default:"20"`
+		TsWeight                float64 `yaml:"TimestampScoreWeight" default:"0.333"`
+		DurWeight               float64 `yaml:"DurationScoreWeight" default:"0.333"`
+		HistWeight              float64 `yaml:"HistogramScoreWeight" default:"0.333"`
 	}
 
 	//BeaconSNIStaticCfg is used to control the SNI beaconing analysis module
