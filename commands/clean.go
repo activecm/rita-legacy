@@ -102,9 +102,9 @@ func cleanDatabase(c *cli.Context) error {
 			IndexSize int64 `bson:"indexSize"`
 		}
 
-		err = session.DB(matchingDB).Run(bson.M{
-			"dbStats": 1,
-			"scale":   1024 * 1024,
+		err = session.DB(matchingDB).Run(bson.D{
+			{Name: "dbStats", Value: 1},
+			{Name: "scale", Value: 1024 * 1024},
 		}, &dbSize)
 
 		if err != nil {
