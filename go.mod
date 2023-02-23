@@ -11,7 +11,6 @@ require (
 	github.com/activecm/mgosec v0.1.2-0.20191108195135-d918492993da
 	github.com/activecm/rita-bl v0.0.0-20220823191806-f014db21453d
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/briandowns/spinner v1.16.0
 	github.com/creasty/defaults v1.3.0
 	github.com/globalsign/mgo v0.0.0-20190517090918-73267e130ca1
 	github.com/google/go-github v17.0.0+incompatible
@@ -31,12 +30,10 @@ require (
 require (
 	github.com/VividCortex/ewma v1.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/fatih/color v1.7.0 // indirect
 	github.com/golang/protobuf v1.3.3 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/safebrowsing v0.0.0-20190214191829-0feabcc2960b // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.1 // indirect
-	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/mattn/go-isatty v0.0.8 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
@@ -44,7 +41,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550 // indirect
 	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b // indirect
-	golang.org/x/sys v0.0.0-20190422165155-953cdadca894 // indirect
-	golang.org/x/text v0.3.0 // indirect
+	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
+	golang.org/x/text v0.3.8 // indirect
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637 // indirect
 )
