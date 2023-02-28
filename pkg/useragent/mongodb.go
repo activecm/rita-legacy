@@ -2,10 +2,7 @@ package useragent
 
 import (
 	"fmt"
-	"os"
 	"runtime"
-	"runtime/pprof"
-	"time"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
@@ -128,30 +125,6 @@ func (r *repo) Upsert(userAgentMap map[string]*Input, hostMap map[string]*host.I
 	analyzerWorker.close()
 
 	// 2nd Phase: Summarize
-
-	cpuFile, _ := os.Create("ua-cpu.pprof")
-	pprof.StartCPUProfile(cpuFile)
-	blockFile, _ := os.Create("ua-block.pprof")
-	runtime.SetBlockProfileRate(1)
-	mutexFile, _ := os.Create("ua-mutex.pprof")
-	runtime.SetMutexProfileFraction(1)
-
-	profileStopped := false
-	stopProfile := func() {
-		if profileStopped {
-			return
-		}
-		profileStopped = true
-		pprof.StopCPUProfile()
-		pprof.Lookup("block").WriteTo(blockFile, 0)
-		pprof.Lookup("mutex").WriteTo(mutexFile, 0)
-	}
-	profileTimer := time.NewTimer(30 * time.Second)
-	go func() {
-		<-profileTimer.C
-		stopProfile()
-	}()
-	defer stopProfile()
 
 	// grab the local hosts we have seen during the current analysis period
 	// get local hosts only for the summary
