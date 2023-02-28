@@ -1,10 +1,16 @@
 package useragent
 
 import (
+	"fmt"
+	"os"
 	"runtime"
+	"runtime/pprof"
+	"time"
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/util"
 
 	"github.com/globalsign/mgo"
@@ -64,7 +70,7 @@ func (r *repo) CreateIndexes() error {
 }
 
 // Upsert records the given useragent data in MongoDB
-func (r *repo) Upsert(userAgentMap map[string]*Input) {
+func (r *repo) Upsert(userAgentMap map[string]*Input, hostMap map[string]*host.Input) {
 
 	// 1st Phase: Analysis
 
@@ -123,6 +129,45 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 
 	// 2nd Phase: Summarize
 
+	cpuFile, _ := os.Create("ua-cpu.pprof")
+	pprof.StartCPUProfile(cpuFile)
+	blockFile, _ := os.Create("ua-block.pprof")
+	runtime.SetBlockProfileRate(1)
+	mutexFile, _ := os.Create("ua-mutex.pprof")
+	runtime.SetMutexProfileFraction(1)
+
+	profileStopped := false
+	stopProfile := func() {
+		if profileStopped {
+			return
+		}
+		profileStopped = true
+		pprof.StopCPUProfile()
+		pprof.Lookup("block").WriteTo(blockFile, 0)
+		pprof.Lookup("mutex").WriteTo(mutexFile, 0)
+	}
+	profileTimer := time.NewTimer(30 * time.Second)
+	go func() {
+		<-profileTimer.C
+		stopProfile()
+	}()
+	defer stopProfile()
+
+	// grab the local hosts we have seen during the current analysis period
+	// get local hosts only for the summary
+	var localHosts []data.UniqueIP
+	for _, entry := range hostMap {
+		if entry.IsLocal {
+			localHosts = append(localHosts, entry.Host)
+		}
+	}
+
+	// skip the summarize phase if there are no local hosts to summarize
+	if len(localHosts) == 0 {
+		fmt.Println("\t[!] Skipping UserAgent Aggregation: No Internal Hosts")
+		return
+	}
+
 	// initialize a new writer for the summarizer
 	writerWorker = database.NewBulkWriter(r.database, r.config, r.log, true, "useragent")
 	summarizerWorker := newSummarizer(
@@ -142,7 +187,7 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 
 	// progress bar for troubleshooting
 	p = mpb.New(mpb.WithWidth(20))
-	bar = p.AddBar(int64(len(userAgentMap)),
+	bar = p.AddBar(int64(len(localHosts)),
 		mpb.PrependDecorators(
 			decor.Name("\t[-] UserAgent Aggregation:", decor.WC{W: 30, C: decor.DidentRight}),
 			decor.CountersNoUnit(" %d / %d ", decor.WCSyncWidth),
@@ -151,7 +196,7 @@ func (r *repo) Upsert(userAgentMap map[string]*Input) {
 	)
 
 	// loop over map entries
-	for _, entry := range userAgentMap {
+	for _, entry := range localHosts {
 		summarizerWorker.collect(entry)
 		bar.IncrBy(1)
 	}
