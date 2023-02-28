@@ -253,8 +253,8 @@ func rareSignatureUpdates(rareSigIP data.UniqueIP, newSignatures []string, hostC
 			})
 		}
 	}
+	// format update to push all of the new signature subdocuments
 	if len(newSigDatSubdocs) > 0 {
-		// format update to push all of the new signature subdocuments
 		updates = append(updates, database.BulkChange{
 			Selector: rareSigIP.BSONKey(),
 			Update: bson.M{
