@@ -13,13 +13,14 @@ func parseDNSEntry(parseDNS *parsetypes.DNS, filter filter, retVals ParseResults
 	// extract and store the dns client ip address
 	src := parseDNS.Source
 	srcIP := net.ParseIP(src)
+	dst := parseDNS.Destination
+	dstIP := net.ParseIP(dst)
 
-	// Run domain through filter to filter out certain domains
-	// We don't filter out the src ips like we do with the conn
-	// section since a c2 channel running over dns could have an
-	// internal ip to internal ip connection and not having that ip
-	// in the host table is limiting
-	ignore := (filter.filterDomain(parseDNS.Query) || filter.filterSingleIP(srcIP))
+	// Run domain through filter to filter out certain domains and
+	// filter out internal -> internal and external -> internal traffic
+	//
+	// If an internal DNS resolver is being used, make sure to add the IP address of the resolver to the filter's AlwaysInclude section
+	ignore := (filter.filterDomain(parseDNS.Query) || filter.filterConnPair(srcIP, dstIP))
 
 	// If domain is not subject to filtering, process
 	if ignore {
