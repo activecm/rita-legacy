@@ -5,7 +5,10 @@ import (
 
 	"github.com/activecm/rita/config"
 	"github.com/activecm/rita/database"
+	"github.com/activecm/rita/pkg/data"
+	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -14,6 +17,7 @@ type (
 		chunk            int                        //current chunk (0 if not on rolling analysis)
 		connLimit        int64                      // limit for strobe classification
 		db               *database.DB               // provides access to MongoDB
+		log              *log.Logger                // logger for writing out errors and warnings
 		conf             *config.Config             // contains details needed to access MongoDB
 		analyzedCallback func(database.BulkChanges) // called on each analyzed result
 		closedCallback   func()                     // called when .close() is called and no more calls to analyzedCallback will be made
@@ -23,11 +27,12 @@ type (
 )
 
 // newAnalyzer creates a new analyzer for recording unique connection records
-func newAnalyzer(chunk int, connLimit int64, db *database.DB, conf *config.Config, analyzedCallback func(database.BulkChanges), closedCallback func()) *analyzer {
+func newAnalyzer(chunk int, connLimit int64, db *database.DB, log *log.Logger, conf *config.Config, analyzedCallback func(database.BulkChanges), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
 		connLimit:        connLimit,
 		db:               db,
+		log:              log,
 		conf:             conf,
 		analyzedCallback: analyzedCallback,
 		closedCallback:   closedCallback,
@@ -51,13 +56,24 @@ func (a *analyzer) close() {
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {
+		ssn := a.db.Session.Copy()
+		defer ssn.Close()
+
+		uconnColl := ssn.DB(a.db.GetSelectedDB()).C(a.conf.T.Structure.UniqueConnTable)
 
 		for datum := range a.analysisChannel {
 
 			mainUpdate := mainQuery(datum, a.connLimit, a.chunk)
-			openConnsUpdate := openConnectionsQuery(datum)
+			openConnsUpdate, openCount, openTBytes, openDur := openConnectionsQuery(datum)
+			rollUpUpdate, err := rollUpQuery(datum, openCount, openTBytes, openDur, uconnColl)
+			if err != nil {
+				a.log.WithFields(log.Fields{
+					"Module": "host",
+					"Data":   datum.Hosts.BSONKey(),
+				}).Error(err)
+			}
 
-			totalUpdate := database.MergeBSONMaps(mainUpdate, openConnsUpdate)
+			totalUpdate := database.MergeBSONMaps(mainUpdate, openConnsUpdate, rollUpUpdate)
 
 			a.analyzedCallback(database.BulkChanges{
 				a.conf.T.Structure.UniqueConnTable: []database.BulkChange{{
@@ -120,12 +136,10 @@ func mainQuery(datum *Input, strobeLimit int64, chunk int) bson.M {
 	}
 }
 
-// openConnectionsQuery records information about connections that are still open between two hosts
-func openConnectionsQuery(datum *Input) bson.M {
-	var bytes int64
-	var duration float64
+// openConnectionsQuery records information about connections that are still open between two hosts.
+// Additionally this function returns the summary details of the open connections
+func openConnectionsQuery(datum *Input) (query bson.M, connCount, totalBytes int64, duration float64) {
 	var origBytes int64
-	var connections int64
 	tsList := make([]int64, 0)
 
 	// Tally up the bytes and duration from the open connections.
@@ -134,15 +148,15 @@ func openConnectionsQuery(datum *Input) bson.M {
 	// total for open connection values each time we parse another
 	// set of logs. These current values will overwrite any existing values.
 	// The relevant values from the closed connection will be added to the
-	// appropriate chunk in a "dat" and those values will effetively be
+	// appropriate chunk in a "dat" and those values will effectively be
 	// removed from the open connection values that we are tracking.
 	for key, connStateEntry := range datum.ConnStateMap {
 		if connStateEntry.Open {
-			bytes += connStateEntry.Bytes
+			totalBytes += connStateEntry.Bytes
 			duration += connStateEntry.Duration
 			origBytes += connStateEntry.OrigBytes
 
-			connections++
+			connCount++
 
 			// Only append unique timestamps to OpenTsList.
 			if !int64InSlice(connStateEntry.Ts, tsList) {
@@ -160,17 +174,114 @@ func openConnectionsQuery(datum *Input) bson.M {
 
 	connState := len(datum.ConnStateMap) > 0
 
-	return bson.M{
+	query = bson.M{
 		"$set": bson.M{
 			"open":                  connState,
-			"open_bytes":            bytes,
-			"open_connection_count": connections,
+			"open_bytes":            totalBytes,
+			"open_connection_count": connCount,
 			"open_conns":            datum.ConnStateMap,
 			"open_duration":         duration,
 			"open_orig_bytes":       origBytes,
 			"open_ts":               tsList,
 		},
 	}
+	return
+}
+
+// rollUpQuery updates the top level summary fields which aggregate over rhe chunked fields
+func rollUpQuery(datum *Input, openCount, openTotalBytes int64, openDuration float64, uconnColl *mgo.Collection) (bson.M, error) {
+	//existingQuery gathers the previously existing summary details for the connection pair
+	existingQuery := []bson.M{
+		{"$match": datum.Hosts.BSONKey()},
+		{"$project": bson.M{
+			"count": "$dat.count",
+			"tuples": bson.M{
+				"$ifNull": []interface{}{"$dat.tuples", []interface{}{}},
+			},
+			"tbytes": "$dat.tbytes",
+			"tdur":   "$dat.tdur",
+		}},
+		{"$unwind": "$count"},
+		{"$group": bson.M{
+			"_id":    nil,
+			"count":  bson.M{"$sum": "$count"},
+			"tuples": bson.M{"$first": "$tuples"},
+			"tbytes": bson.M{"$first": "$tbytes"},
+			"tdur":   bson.M{"$first": "$tdur"},
+		}},
+		{"$unwind": "$tuples"},
+		{"$unwind": "$tuples"}, // not an error, must be done twice
+		{"$group": bson.M{
+			"_id":    nil,
+			"count":  bson.M{"$first": "$count"},
+			"tuples": bson.M{"$addToSet": "$tuples"},
+			"tbytes": bson.M{"$first": "$tbytes"},
+			"tdur":   bson.M{"$first": "$tdur"},
+		}},
+		{"$unwind": "$tbytes"},
+		{"$group": bson.M{
+			"_id":    nil,
+			"count":  bson.M{"$first": "$count"},
+			"tuples": bson.M{"$first": "$tuples"},
+			"tbytes": bson.M{"$sum": "$tbytes"},
+			"tdur":   bson.M{"$first": "$tdur"},
+		}},
+		{"$unwind": "$tdur"},
+		{"$group": bson.M{
+			"_id":    nil,
+			"count":  bson.M{"$first": "$count"},
+			"tuples": bson.M{"$first": "$tuples"},
+			"tbytes": bson.M{"$first": "$tbytes"},
+			"tdur":   bson.M{"$sum": "$tdur"},
+		}},
+	}
+	type rollUpResult struct {
+		Count         int64    `bson:"count"`
+		Tuples        []string `bson:"tuples"`
+		TotalBytes    int64    `bson:"tbytes"`
+		TotalDuration float64  `bson:"tdur"`
+	}
+	var rollUpRes rollUpResult
+	err := uconnColl.Pipe(existingQuery).AllowDiskUse().One(&rollUpRes)
+	if err != nil && err != mgo.ErrNotFound {
+		return bson.M{}, err
+	}
+
+	// add in the open connection stats
+	rollUpRes.Count += openCount
+	rollUpRes.TotalBytes += openTotalBytes
+	rollUpRes.TotalDuration += openDuration
+
+	// add in the current data
+
+	// merge tuples and limit to 5
+	const maxTuples = 5
+
+	tupleSet := make(data.StringSet)
+	for _, tuple := range rollUpRes.Tuples {
+		tupleSet.Insert(tuple)
+	}
+	for tuple := range datum.Tuples {
+		tupleSet.Insert(tuple)
+	}
+	rollUpRes.Tuples = tupleSet.Items()
+
+	if len(rollUpRes.Tuples) > maxTuples {
+		rollUpRes.Tuples = rollUpRes.Tuples[:5]
+	}
+
+	rollUpRes.Count += datum.ConnectionCount
+	rollUpRes.TotalBytes += datum.TotalBytes
+	rollUpRes.TotalDuration += datum.TotalDuration
+
+	return bson.M{
+		"$set": bson.M{
+			"count":  rollUpRes.Count,
+			"tuples": rollUpRes.Tuples,
+			"tbytes": rollUpRes.TotalBytes,
+			"tdur":   rollUpRes.TotalDuration,
+		},
+	}, nil
 }
 
 // int64InSlice checks if a given int64 is in a slice
