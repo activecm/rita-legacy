@@ -56,6 +56,8 @@ func (r *repo) CreateIndexes() error {
 		{Key: []string{"src", "src_network_uuid"}},
 		{Key: []string{"dst", "dst_network_uuid"}},
 		{Key: []string{"dat.count"}},
+		{Key: []string{"dat.maxdur"}},
+		{Key: []string{"strobe"}},
 		{Key: []string{"count"}},
 		{Key: []string{"tbytes"}},
 		{Key: []string{"tdur"}},
