@@ -2,12 +2,13 @@ package useragent
 
 import (
 	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/host"
 )
 
 // Repository for uconn collection
 type Repository interface {
 	CreateIndexes() error
-	Upsert(useragentMap map[string]*Input)
+	Upsert(useragentMap map[string]*Input, hostMap map[string]*host.Input)
 }
 
 // Input ....

@@ -20,7 +20,7 @@ type (
 		log                *log.Logger                // main logger for RITA
 		summarizedCallback func(database.BulkChanges) // called on each summarized result
 		closedCallback     func()                     // called when .close() is called and no more calls to summarizedCallback will be made
-		summaryChannel     chan *Input                // holds unsummarized data
+		summaryChannel     chan data.UniqueIP         // holds unsummarized data
 		summaryWg          sync.WaitGroup             // wait for summary to finish
 	}
 )
@@ -34,12 +34,12 @@ func newSummarizer(chunk int, db *database.DB, conf *config.Config, log *log.Log
 		log:                log,
 		summarizedCallback: summarizedCallback,
 		closedCallback:     closedCallback,
-		summaryChannel:     make(chan *Input),
+		summaryChannel:     make(chan data.UniqueIP),
 	}
 }
 
 // collect gathers a useragent to summarize
-func (s *summarizer) collect(datum *Input) {
+func (s *summarizer) collect(datum data.UniqueIP) {
 	s.summaryChannel <- datum
 }
 
@@ -62,16 +62,19 @@ func (s *summarizer) start() {
 			useragentCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.UserAgent.UserAgentTable)
 			hostCollection := ssn.DB(s.db.GetSelectedDB()).C(s.conf.T.Structure.HostTable)
 
-			// if there are too many IPs associated with this signature in the parsed in files, ignore the
-			// rare signature host collection update
-			if len(datum.OrigIps) >= rareSignatureOrigIPsCutoff {
+			rareSignatures, err := getRareSignaturesForIP(useragentCollection, datum, s.chunk)
+			if err != nil {
+				s.log.WithFields(log.Fields{
+					"Module": "useragent",
+					"Data":   datum,
+				}).Error(err)
 				continue
 			}
+			if len(rareSignatures) == 0 {
+				continue // nothing to update
+			}
 
-			// get the origIPs from the database for the given user agent
-			// since the useragent collection update may not have taken place yet, we need to union in
-			// the new origIPs from the recently parsed in files
-			dbRareSigOrigIPs, err := getOrigIPsForAgentFromDB(useragentCollection, datum.Name)
+			rareSignatureUpdates, err := rareSignatureUpdates(datum, rareSignatures, hostCollection, s.chunk)
 			if err != nil {
 				s.log.WithFields(log.Fields{
 					"Module": "useragent",
@@ -80,29 +83,6 @@ func (s *summarizer) start() {
 				continue
 			}
 
-			// if there are too many IPs associated with this signature in the database, ignore the
-			// rare signature host collection update
-			if len(dbRareSigOrigIPs) >= rareSignatureOrigIPsCutoff {
-				continue
-			}
-
-			// merge the two lists of origIPs to get rid of duplicates
-			origIPsUnioned := unionUniqueIPSlices(datum.OrigIps.Items(), dbRareSigOrigIPs)
-
-			// if we've busted over the limit after unioning the new and old originating IPs together
-			// don't update the host records
-			if len(origIPsUnioned) >= rareSignatureOrigIPsCutoff {
-				continue
-			}
-
-			rareSignatureUpdates, err := rareSignatureUpdates(datum.OrigIps.Items(), datum.Name, hostCollection, s.chunk)
-			if err != nil {
-				s.log.WithFields(log.Fields{
-					"Module": "useragent",
-					"Data":   datum,
-				}).Error(err)
-				continue
-			}
 			if len(rareSignatureUpdates) > 0 {
 				s.summarizedCallback(database.BulkChanges{s.conf.T.Structure.HostTable: rareSignatureUpdates})
 			}
@@ -111,94 +91,147 @@ func (s *summarizer) start() {
 	}()
 }
 
-// unionUniqueIPSlices merges two UniqueIP slices into one while removing duplicates.
-func unionUniqueIPSlices(slice1 []data.UniqueIP, slice2 []data.UniqueIP) []data.UniqueIP {
-	ipsUnionMap := make(map[string]data.UniqueIP)
-	for i := range slice1 {
-		ipsUnionMap[slice1[i].MapKey()] = slice1[i]
-	}
-	for i := range slice2 {
-		ipsUnionMap[slice2[i].MapKey()] = slice2[i]
-	}
-
-	ipsUnionSlice := make([]data.UniqueIP, 0, len(ipsUnionMap))
-
-	for _, ip := range ipsUnionMap {
-		ipsUnionSlice = append(ipsUnionSlice, ip)
-	}
-	return ipsUnionSlice
-}
-
 /*
 db.getCollection('useragent').aggregate([
-    {"$match": {"user_agent": "Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.16299.248"}},
-    {"$project": {"ips": "$dat.orig_ips"}},
-    {"$unwind": "$ips"},
-    {"$unwind": "$ips"},
-    {"$group": {
-            "_id": {
-                    "ip" : "$ips.ip",
-                    "network_uuid": "$ips.network_uuid",
-            },
-            "network_name": {"$last": "$ips.network_name"},
-    }},
-    {"$project": {
-		"_id": 0,
-        "ip":           "$_id.ip",
-        "network_uuid": "$_id.network_uuid",
-        "network_name": "$network_name",
-    }},
+
+	{"$match": {
+	    "dat": {
+	        "$elemMatch": {
+	            "orig_ips.ip": "10.55.200.11",
+	            "cid": 0,
+	        }
+	    }
+	}},
+	{"$project": {
+	    "user_agent": 1,
+	    "ips": "$dat.orig_ips",
+	}},
+	{"$unwind": "$ips"},
+	{"$unwind": "$ips"},
+	{"$group": {
+	    "_id": {
+	        "user_agent": "$user_agent",
+	        "ip":           "$ips.ip",
+	        "network_uuid": "$ips.network_uuid",
+	    },
+	    "network_name": {"$last": "$ips.network_name"},
+	}},
+	{"$group": {
+	    "_id": {
+	        "user_agent": "$_id.user_agent",
+	    },
+	    "ips": {"$push": {
+	        "ip": "$_id.ip",
+	        "network_uuid": "$_id.network_uuid",
+	        "network_name": "$network_name",
+	    }},
+	    "ips_count": {"$sum": 1},
+	}},
+	{"$match": {
+	    "ips_count": {"$lt": 5},
+	}},
+	{"$project": {
+	    "_id": 0,
+	    "user_agent": "$_id.user_agent"
+	}}
+
 ])
 */
-//getOrigIPsForAgentFromDB returns the originating IPs associated witha given useragent from the database
-func getOrigIPsForAgentFromDB(useragentCollection *mgo.Collection, name string) ([]data.UniqueIP, error) {
+func getRareSignaturesForIP(useragentCollection *mgo.Collection, host data.UniqueIP, chunk int) ([]string, error) {
 	query := []bson.M{
-		{"$match": bson.M{"user_agent": name}},
-		{"$project": bson.M{"ips": "$dat.orig_ips"}},
+		{"$match": bson.M{
+			"dat": bson.M{
+				"$elemMatch": database.MergeBSONMaps(
+					host.PrefixedBSONKey("orig_ips"),
+					bson.M{"cid": chunk},
+				),
+			},
+		}},
+		{"$project": bson.M{
+			"user_agent": 1,
+			"ips":        "$dat.orig_ips",
+		}},
 		{"$unwind": "$ips"},
-		{"$unwind": "$ips"}, // not an error, needs to be done twice
+		{"$unwind": "$ips"},
 		{"$group": bson.M{
 			"_id": bson.M{
+				"user_agent":   "$user_agent",
 				"ip":           "$ips.ip",
 				"network_uuid": "$ips.network_uuid",
 			},
 			"network_name": bson.M{"$last": "$ips.network_name"},
 		}},
+		{"$group": bson.M{
+			"_id": bson.M{
+				"user_agent": "$_id.user_agent",
+			},
+			"ips": bson.M{"$push": bson.M{
+				"ip":           "$_id.ip",
+				"network_uuid": "$_id.network_uuid",
+				"network_name": "$network_name",
+			}},
+			"ips_count": bson.M{"$sum": 1},
+		}},
+		{"$match": bson.M{
+			"ips_count": bson.M{"$lt": rareSignatureOrigIPsCutoff},
+		}},
 		{"$project": bson.M{
-			"_id":          0,
-			"ip":           "$_id.ip",
-			"network_uuid": "$_id.network_uuid",
-			"network_name": "$network_name",
+			"_id":        0,
+			"user_agent": "$_id.user_agent",
 		}},
 	}
 
-	var dbRareSigOrigIPs []data.UniqueIP
+	var aggResults []string
+	var aggResult Result
+	aggIter := useragentCollection.Pipe(query).Iter()
+	for aggIter.Next(&aggResult) {
+		aggResults = append(aggResults, aggResult.UserAgent)
 
-	err := useragentCollection.Pipe(query).AllowDiskUse().All(&dbRareSigOrigIPs)
-
-	return dbRareSigOrigIPs, err
+	}
+	if aggIter.Err() != nil && aggIter.Err() != mgo.ErrNotFound {
+		return []string{}, aggIter.Err()
+	}
+	return aggResults, nil
 }
 
-// rareSignatureUpdates formats MongoDB update for each internal host which either inserts a new rare signature host
-// record into that host's dat array in the host collection or updates an existing
-// record in the host's dat array for the rare signature with the current chunk id.
-func rareSignatureUpdates(rareSigIPs []data.UniqueIP, signature string, hostCollection *mgo.Collection, chunk int) ([]database.BulkChange, error) {
+// rareSignatureUpdates formats a MongoDB update for an internal host which either inserts a
+// new rare signature host records into that host's dat array in the host collection or updates the
+// existing records in the host's dat array for each rare signature with the current chunk id.
+func rareSignatureUpdates(rareSigIP data.UniqueIP, newSignatures []string, hostCollection *mgo.Collection, chunk int) ([]database.BulkChange, error) {
 	var updates []database.BulkChange
 
-	for _, rareSigIP := range rareSigIPs {
-		hostEntryExistsSelector := rareSigIP.BSONKey()
-		hostEntryExistsSelector["dat.rsig"] = signature
+	existingRareSignaturesQuery := []bson.M{
+		{"$match": rareSigIP.BSONKey()},
+		{"$unwind": "$dat"},
+		{"$match": bson.M{"dat.rsig": bson.M{"$exists": true}}},
+		{"$project": bson.M{"user_agent": "$dat.rsig"}},
+	}
 
-		nExistingEntries, err := hostCollection.Find(hostEntryExistsSelector).Count()
-		if err != nil {
-			return updates, err
-		}
+	var existingSigs []Result
+	err := hostCollection.Pipe(existingRareSignaturesQuery).AllowDiskUse().All(&existingSigs)
+	if err != nil {
+		return updates, err
+	}
 
-		if nExistingEntries > 0 {
-			// no need to update all of the fields for an existing
-			// record; we just need to update the chunk ID
+	// place existing signatures in a map to make the cross lookup fast
+	existingSigsMap := make(map[string]struct{})
+	for _, sig := range existingSigs {
+		existingSigsMap[sig.UserAgent] = struct{}{}
+	}
+
+	// generate an update for each existing rare signature.
+
+	// Unfortunately, there isn't a way to batch these into
+	// a single update with the current MongoDB driver.
+	// Normally, we could use array filters, but the bulk api doesn't
+	// support updates with array filters.
+	for _, sig := range newSignatures {
+		if _, ok := existingSigsMap[sig]; ok {
 			updates = append(updates, database.BulkChange{
-				Selector: hostEntryExistsSelector,
+				Selector: database.MergeBSONMaps(
+					rareSigIP.BSONKey(),
+					bson.M{"dat.rsig": sig},
+				),
 				Update: bson.M{
 					"$set": bson.M{
 						"dat.$.cid": chunk,
@@ -206,24 +239,33 @@ func rareSignatureUpdates(rareSigIPs []data.UniqueIP, signature string, hostColl
 				},
 				Upsert: true,
 			})
-		} else {
-			// add a new rare signature entry
-			updates = append(updates, database.BulkChange{
-				Selector: rareSigIP.BSONKey(),
-				Update: bson.M{
-					"$push": bson.M{
-						"dat": bson.M{
-							"$each": []bson.M{{
-								"rsig":  signature,
-								"rsigc": 1,
-								"cid":   chunk,
-							}},
-						},
-					},
-				},
-				Upsert: true,
+		}
+	}
+
+	// generate a single update for all of the new signatures
+	var newSigDatSubdocs []bson.M
+	for _, sig := range newSignatures {
+		if _, ok := existingSigsMap[sig]; !ok {
+			newSigDatSubdocs = append(newSigDatSubdocs, bson.M{
+				"rsig":  sig,
+				"rsigc": 1,
+				"cid":   chunk,
 			})
 		}
+	}
+	// format update to push all of the new signature subdocuments
+	if len(newSigDatSubdocs) > 0 {
+		updates = append(updates, database.BulkChange{
+			Selector: rareSigIP.BSONKey(),
+			Update: bson.M{
+				"$push": bson.M{
+					"dat": bson.M{
+						"$each": newSigDatSubdocs,
+					},
+				},
+			},
+			Upsert: true,
+		})
 	}
 
 	return updates, nil

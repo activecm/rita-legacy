@@ -204,7 +204,7 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 		fs.buildSNIBeacons(retVals.TLSConnMap, retVals.HTTPConnMap, retVals.HostMap, minTimestamp, maxTimestamp)
 
 		// build or update UserAgent table
-		fs.buildUserAgent(retVals.UseragentMap)
+		fs.buildUserAgent(retVals.UseragentMap, retVals.HostMap)
 
 		// build or update Certificate table
 		fs.buildCertificates(retVals.CertificateMap)
@@ -624,7 +624,7 @@ func (fs *FSImporter) buildSNIBeacons(tlsMap map[string]*sniconn.TLSInput, httpM
 }
 
 // buildUserAgent .....
-func (fs *FSImporter) buildUserAgent(useragentMap map[string]*useragent.Input) {
+func (fs *FSImporter) buildUserAgent(useragentMap map[string]*useragent.Input, hostMap map[string]*host.Input) {
 
 	if fs.config.S.UserAgent.Enabled {
 		if len(useragentMap) > 0 {
@@ -635,7 +635,7 @@ func (fs *FSImporter) buildUserAgent(useragentMap map[string]*useragent.Input) {
 			if err != nil {
 				fs.log.Error(err)
 			}
-			useragentRepo.Upsert(useragentMap)
+			useragentRepo.Upsert(useragentMap, hostMap)
 		} else {
 			fmt.Println("\t[!] No UserAgent data to analyze")
 		}
