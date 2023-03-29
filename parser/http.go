@@ -72,9 +72,10 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 				"uri":  parseHTTP.URI,
 			}).Error("Unable to parse valid fqdn from http log entry, skipping entry.")
 			return
-		} else {
-			fqdn = uri
 		}
+
+		fqdn = uri
+
 	}
 
 	// parse method type
