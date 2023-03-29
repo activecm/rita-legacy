@@ -168,6 +168,7 @@ func (fs *FSImporter) Run(indexedFiles []*files.IndexedFile, threads int) {
 
 		// parse in those files!
 		retVals := fs.parseFiles(indexedFileBatch, threads, fs.log)
+
 		// Set chunk before we continue so if process dies, we still verify with a delete if
 		// any data was written out.
 		fs.metaDB.SetChunk(fs.config.S.Rolling.CurrentChunk, fs.database.GetSelectedDB(), true)
@@ -371,15 +372,15 @@ func (fs *FSImporter) parseFiles(indexedFiles []*files.IndexedFile, parsingThrea
 
 					switch typedEntry := entry.(type) {
 					case *parsetypes.Conn:
-						parseConnEntry(typedEntry, fs.filter, retVals)
+						parseConnEntry(typedEntry, fs.filter, retVals, logger)
 					case *parsetypes.DNS:
-						parseDNSEntry(typedEntry, fs.filter, retVals)
+						parseDNSEntry(typedEntry, fs.filter, retVals, logger)
 					case *parsetypes.HTTP:
-						parseHTTPEntry(typedEntry, fs.filter, retVals)
+						parseHTTPEntry(typedEntry, fs.filter, retVals, logger)
 					case *parsetypes.OpenConn:
-						parseOpenConnEntry(typedEntry, fs.filter, retVals)
+						parseOpenConnEntry(typedEntry, fs.filter, retVals, logger)
 					case *parsetypes.SSL:
-						parseSSLEntry(typedEntry, fs.filter, retVals)
+						parseSSLEntry(typedEntry, fs.filter, retVals, logger)
 					}
 				}
 				indexedFiles[j].ParseTime = time.Now()
