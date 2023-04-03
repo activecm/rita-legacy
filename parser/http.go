@@ -9,9 +9,11 @@ import (
 	"github.com/activecm/rita/pkg/sniconn"
 	"github.com/activecm/rita/pkg/uconnproxy"
 	"github.com/activecm/rita/pkg/useragent"
+
+	log "github.com/sirupsen/logrus"
 )
 
-func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResults) {
+func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResults, logger *log.Logger) {
 	// get source destination pair for connection record
 	src := parseHTTP.Source
 	dst := parseHTTP.Destination
@@ -19,6 +21,16 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 	// parse addresses into binary format
 	srcIP := net.ParseIP(src)
 	dstIP := net.ParseIP(dst)
+
+	// verify that both addresses were able to be parsed successfully
+	if (srcIP == nil) || (dstIP == nil) {
+		logger.WithFields(log.Fields{
+			"uid": parseHTTP.UID,
+			"src": parseHTTP.Source,
+			"dst": parseHTTP.Destination,
+		}).Error("Unable to parse valid ip address pair from http log entry, skipping entry.")
+		return
+	}
 
 	// parse host
 	fqdn := parseHTTP.Host
@@ -53,6 +65,7 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 
 		// at this point, the URI should be parsed down to just an FQDN
 		fqdn = uri
+
 	}
 
 	// parse method type
