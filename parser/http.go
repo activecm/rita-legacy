@@ -64,16 +64,6 @@ func parseHTTPEntry(parseHTTP *parsetypes.HTTP, filter filter, retVals ParseResu
 		uri = uri[:maxIndex]
 
 		// at this point, the URI should be parsed down to just an FQDN
-		// set fqdn or skip log entry if still unable to parse value
-		if uri == "" {
-			logger.WithFields(log.Fields{
-				"uid":  parseHTTP.UID,
-				"host": parseHTTP.Host,
-				"uri":  parseHTTP.URI,
-			}).Error("Unable to parse valid fqdn from http log entry, skipping entry.")
-			return
-		}
-
 		fqdn = uri
 
 	}

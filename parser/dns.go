@@ -28,15 +28,6 @@ func parseDNSEntry(parseDNS *parsetypes.DNS, filter filter, retVals ParseResults
 	// get domain
 	domain := parseDNS.Query
 
-	// verify that domain was parsed successfully
-	if domain == "" {
-		logger.WithFields(log.Fields{
-			"uid":   parseDNS.UID,
-			"query": parseDNS.Query,
-		}).Error("Unable to parse valid domain from dns log entry, skipping entry.")
-		return
-	}
-
 	// Run domain through filter to filter out certain domains
 	// We don't filter out the src ips like we do with the conn
 	// section since a c2 channel running over dns could have an

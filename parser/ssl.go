@@ -37,15 +37,6 @@ func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults
 	// get fqdn
 	fqdn := parseSSL.ServerName
 
-	// verify that fqdn was parsed successfully
-	if fqdn == "" {
-		logger.WithFields(log.Fields{
-			"uid":         parseSSL.UID,
-			"server_name": parseSSL.ServerName,
-		}).Error("Unable to parse valid fqdn from ssl log entry, skipping entry.")
-		return
-	}
-
 	srcUniqIP := data.NewUniqueIP(srcIP, parseSSL.AgentUUID, parseSSL.AgentHostname)
 	dstUniqIP := data.NewUniqueIP(dstIP, parseSSL.AgentUUID, parseSSL.AgentHostname)
 	srcDstPair := data.NewUniqueIPPair(srcUniqIP, dstUniqIP)
