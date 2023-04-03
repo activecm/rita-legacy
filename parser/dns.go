@@ -11,29 +11,32 @@ import (
 )
 
 func parseDNSEntry(parseDNS *parsetypes.DNS, filter filter, retVals ParseResults, logger *log.Logger) {
-
-	// extract and store the dns client ip address
+	// get source destination pair
 	src := parseDNS.Source
-	srcIP := net.ParseIP(src)
+	dst := parseDNS.Destination
 
-	// verify that ip address was parsed successfully
-	if srcIP == nil {
+	// parse addresses into binary format
+	srcIP := net.ParseIP(src)
+	dstIP := net.ParseIP(dst)
+
+	// verify that both addresses were able to be parsed successfully
+	if (srcIP == nil) || (dstIP == nil) {
 		logger.WithFields(log.Fields{
 			"uid": parseDNS.UID,
 			"src": parseDNS.Source,
-		}).Error("Unable to get valid client ip address from dns log entry, skipping entry.")
+			"dst": parseDNS.Destination,
+		}).Error("Unable to parse valid ip address pair from http log entry, skipping entry.")
 		return
 	}
 
 	// get domain
 	domain := parseDNS.Query
 
-	// Run domain through filter to filter out certain domains
-	// We don't filter out the src ips like we do with the conn
-	// section since a c2 channel running over dns could have an
-	// internal ip to internal ip connection and not having that ip
-	// in the host table is limiting
-	ignore := (filter.filterDomain(domain) || filter.filterSingleIP(srcIP))
+	// Run domain through filter to filter out certain domains and
+	// filter out internal -> internal and external -> internal traffic
+	//
+	// If an internal DNS resolver is being used, make sure to add the IP address of the resolver to the filter's AlwaysInclude section
+	ignore := (filter.filterDomain(domain) || filter.filterConnPair(srcIP, dstIP))
 
 	// If domain is not subject to filtering, process
 	if ignore {

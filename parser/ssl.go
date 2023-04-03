@@ -49,14 +49,14 @@ func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults
 
 	srcFQDNKey := srcFQDNPair.MapKey()
 
-	updateUseragentsBySSL(srcUniqIP, parseSSL, retVals)
-
 	// create uconn and cert records
 	// Run conn pair through filter to filter out certain connections
-	ignore := filter.filterConnPair(srcIP, dstIP)
+	ignore := filter.filterDomain(fqdn) || filter.filterConnPair(srcIP, dstIP)
 	if ignore {
 		return
 	}
+
+	updateUseragentsBySSL(srcUniqIP, parseSSL, retVals)
 
 	certificateIsInvalid := certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " "
 
