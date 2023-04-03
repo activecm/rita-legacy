@@ -25,7 +25,7 @@ func parseDNSEntry(parseDNS *parsetypes.DNS, filter filter, retVals ParseResults
 			"uid": parseDNS.UID,
 			"src": parseDNS.Source,
 			"dst": parseDNS.Destination,
-		}).Error("Unable to parse valid ip address pair from http log entry, skipping entry.")
+		}).Error("Unable to parse valid ip address pair from dns log entry, skipping entry.")
 		return
 	}
 
