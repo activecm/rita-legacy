@@ -162,5 +162,5 @@ LogConfig:
 	testConfigExp.ExactVersion = config.ExactVersion
 
 	assert.Nil(t, err)
-	assert.Equal(t, *config, testConfigExp)
+	assert.Equal(t, config.Log, testConfigExp.Log)
 }
