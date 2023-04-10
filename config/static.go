@@ -22,7 +22,7 @@ import (
 // within ~16777216 bytes
 const maxStrobeConnectionLimit int = 86400
 
-// Define the mimimum connection limit for beacon analysis. Currently we require a 24
+// Define the minimum connection limit for beacon analysis. Currently we require a 24
 // hour block of data for a dataset. Analyzing hosts that have fewer than at least one
 // connection per hour could significantly increase both the analysis time and the number
 // of false positives, so the threshold must be 23 or above.
