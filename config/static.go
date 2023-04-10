@@ -22,6 +22,12 @@ import (
 // within ~16777216 bytes
 const maxStrobeConnectionLimit int = 86400
 
+// Define the mimimum connection limit for beacon analysis. Currently we require a 24
+// hour block of data for a dataset. Analyzing hosts that have fewer than at least one
+// connection per hour could significantly increase both the analysis time and the number
+// of false positives, so the threshold must be 23 or above.
+const minBeaconConnectionThreshLimit int = 23
+
 type (
 	//StaticCfg is the container for other static config sections
 	StaticCfg struct {
@@ -96,7 +102,7 @@ type (
 	//BeaconStaticCfg is used to control the beaconing analysis module
 	BeaconStaticCfg struct {
 		Enabled                 bool    `yaml:"Enabled" default:"true"`
-		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh" default:"20"`
+		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh" default:"23"`
 		TsWeight                float64 `yaml:"TimestampScoreWeight" default:"0.25"`
 		DsWeight                float64 `yaml:"DatasizeScoreWeight" default:"0.25"`
 		DurWeight               float64 `yaml:"DurationScoreWeight" default:"0.25"`
@@ -106,7 +112,7 @@ type (
 	//BeaconProxyStaticCfg is used to control the proxy beaconing analysis module
 	BeaconProxyStaticCfg struct {
 		Enabled                 bool    `yaml:"Enabled" default:"true"`
-		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh" default:"20"`
+		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh" default:"23"`
 		TsWeight                float64 `yaml:"TimestampScoreWeight" default:"0.333"`
 		DurWeight               float64 `yaml:"DurationScoreWeight" default:"0.333"`
 		HistWeight              float64 `yaml:"HistogramScoreWeight" default:"0.333"`
@@ -115,7 +121,7 @@ type (
 	//BeaconSNIStaticCfg is used to control the SNI beaconing analysis module
 	BeaconSNIStaticCfg struct {
 		Enabled                 bool    `yaml:"Enabled" default:"true"`
-		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh" default:"20"`
+		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh" default:"23"`
 		TsWeight                float64 `yaml:"TimestampScoreWeight" default:"0.25"`
 		DsWeight                float64 `yaml:"DatasizeScoreWeight" default:"0.25"`
 		DurWeight               float64 `yaml:"DurationScoreWeight" default:"0.25"`
@@ -183,6 +189,21 @@ func parseStaticConfig(cfgFile []byte, config *StaticCfg) error {
 	// limit the strobe connection limit to the maximum allowed
 	if config.Strobe.ConnectionLimit > maxStrobeConnectionLimit {
 		config.Strobe.ConnectionLimit = maxStrobeConnectionLimit
+	}
+
+	// limit the beacon threshold to the minimum allowed
+	if config.Beacon.DefaultConnectionThresh < minBeaconConnectionThreshLimit {
+		config.Beacon.DefaultConnectionThresh = minBeaconConnectionThreshLimit
+	}
+
+	// limit the beacon sni threshold to the minimum allowed
+	if config.BeaconSNI.DefaultConnectionThresh < minBeaconConnectionThreshLimit {
+		config.BeaconSNI.DefaultConnectionThresh = minBeaconConnectionThreshLimit
+	}
+
+	// limit the beacon proxy threshold to the minimum allowed
+	if config.BeaconProxy.DefaultConnectionThresh < minBeaconConnectionThreshLimit {
+		config.BeaconProxy.DefaultConnectionThresh = minBeaconConnectionThreshLimit
 	}
 
 	// expand env variables, config is a pointer
