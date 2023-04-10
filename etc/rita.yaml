@@ -131,15 +131,14 @@ BlackListed:
 Beacon:
   Enabled: true
   # The default minimum number of connections used for beacons analysis.
-  # Any two hosts connecting fewer than this number will not be analyzed.
-  # 20 was chosen as it is a little bit less than once per hour in a day,
-  # and allows for any packet loss that could occur.
-
-  # If you choose a lower value, this will significantly increase both
-  # the analysis time and the number of false positives. You can safely
-  # increase this value to improve performance if you are not concerned
+  # Any two hosts connecting fewer than this number will not be analyzed. You can 
+  # safely increase this value to improve performance if you are not concerned
   # about slow beacons.
-  DefaultConnectionThresh: 20
+
+  # Note: Since analyzing hosts that have fewer than at least one connection per 
+  # hour could significantly increase both the analysis time and the number
+  # of false positives, 23 is the minimum allowed value for this field.
+  DefaultConnectionThresh: 23
 
   # The score is currently comprised of a weighted average of 4 subscores.
   # While we recommend the default setting of 0.25 for each weight, 
@@ -153,15 +152,14 @@ Beacon:
 BeaconSNI:
   Enabled: true
   # The default minimum number of connections used for beacons SNI analysis.
-  # Any two hosts connecting fewer than this number will not be analyzed.
-  # 20 was chosen as it is a little bit less than once per hour in a day,
-  # and allows for any packet loss that could occur.
-
-  # If you choose a lower value, this will significantly increase both
-  # the analysis time and the number of false positives. You can safely
-  # increase this value to improve performance if you are not concerned
+  # Any two hosts connecting fewer than this number will not be analyzed. You can 
+  # safely increase this value to improve performance if you are not concerned
   # about slow beacons.
-  DefaultConnectionThresh: 20
+
+  # Note: Since analyzing hosts that have fewer than at least one connection per 
+  # hour could significantly increase both the analysis time and the number
+  # of false positives, 23 is the minimum allowed value for this field.
+  DefaultConnectionThresh: 23
 
   # The score is currently comprised of a weighted average of 4 subscores.
   # While we recommend the default setting of 0.25 for each weight, 
@@ -175,15 +173,14 @@ BeaconSNI:
 BeaconProxy:
   Enabled: true
   # The default minimum number of connections used for beacons proxy analysis.
-  # Any two hosts connecting fewer than this number will not be analyzed.
-  # 20 was chosen as it is a little bit less than once per hour in a day,
-  # and allows for any packet loss that could occur.
-
-  # If you choose a lower value, this will significantly increase both
-  # the analysis time and the number of false positives. You can safely
-  # increase this value to improve performance if you are not concerned
+  # Any two hosts connecting fewer than this number will not be analyzed. You can 
+  # safely increase this value to improve performance if you are not concerned
   # about slow beacons.
-  DefaultConnectionThresh: 20
+
+  # Note: Since analyzing hosts that have fewer than at least one connection per 
+  # hour could significantly increase both the analysis time and the number
+  # of false positives, 23 is the minimum allowed value for this field.
+  DefaultConnectionThresh: 23
 
   # The score is currently comprised of a weighted average of 3 subscores.
   # While we recommend the default setting of 0.333 for each weight, 
@@ -205,9 +202,9 @@ Strobe:
   # also trigger an entry in the strobe module. A lower value will reduce import & analysis time and
   # hide more potential false positives from other modules. A higher value will increase import &
   # analysis time, increase false positives, but reduce the risk of false negatives.
-  # Recommended values for this setting are:
+  
+  # Note: Since this value must be low enough to ensure that documents that store
+  # arrays based off of connections will not grow beyond 16MB in size, the maximum value allowed
+  # for this field is:
   #    86400 - One connection every second for 24 hours
-  #   700000 - Safe max value that is unlikely to cause errors
-  # The theoretical limit due to implementation limitations is ~1,048,573
-  # but in practice timeouts have occurred at lower values.
   ConnectionLimit: 86400

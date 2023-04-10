@@ -112,7 +112,7 @@ func (a *analyzer) start() {
 
 			//tsSkew should equal zero if the denominator equals zero
 			//bowley skew is unreliable if Q2 = Q1 or Q2 = Q3
-			if tsBowleyDen != 0 && tsMid != tsLow && tsMid != tsHigh {
+			if tsBowleyDen >= 10 && tsMid != tsLow && tsMid != tsHigh {
 				tsSkew = float64(tsBowleyNum) / float64(tsBowleyDen)
 			}
 
@@ -150,15 +150,8 @@ func (a *analyzer) start() {
 				tsMadmScore = 0
 			}
 
-			// connection count scoring
-			tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 3600
-			tsConnCountScore := float64(entry.ConnectionCount) / tsConnDiv
-			if tsConnCountScore > 1.0 {
-				tsConnCountScore = 1.0
-			}
-
 			// calculate final ts score
-			tsScore := math.Ceil(((tsSkewScore+tsMadmScore+tsConnCountScore)/3.0)*1000) / 1000
+			tsScore := math.Ceil(((tsSkewScore+tsMadmScore)/2.0)*1000) / 1000
 
 			// calculate duration score
 			duration := math.Ceil((float64(entry.TsList[tsLength]-entry.TsList[0])/(float64(a.tsMax)-float64(a.tsMin)))*1000) / 1000
@@ -188,7 +181,6 @@ func (a *analyzer) start() {
 					"ts.interval_counts": intervalCounts,
 					"ts.dispersion":      tsMadm,
 					"ts.skew":            tsSkew,
-					"ts.conns_score":     tsConnCountScore,
 					"ts.score":           tsScore,
 					"duration_score":     duration,
 					"bucket_divs":        bucketDivs,
