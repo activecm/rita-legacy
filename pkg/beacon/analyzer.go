@@ -468,6 +468,12 @@ func getFrequencyCounts(freqList []int) (map[int]int, int, int, int) {
 		longestRun = currentRun
 	}
 
+	// since we could end up with 2*freqListLen for the longest run if
+	// every hour has a connection, we will fix it up here.
+	if longestRun > freqListLen {
+		longestRun = freqListLen
+	}
+
 	return freqCount, total, totalBars, longestRun
 }
 
