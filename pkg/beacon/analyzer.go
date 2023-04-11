@@ -437,7 +437,7 @@ func getFrequencyCounts(freqList []int) (map[int]int, int, int, int) {
 		item := freqList[i%freqListLen]
 
 		if item > 0 {
-			currentRun += 1
+			currentRun++
 
 		} else {
 
