@@ -296,23 +296,23 @@ func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, 
 
 	if totalBars > 10 {
 		largest := 0
-		second_largest := 0
+		secondLargest := 0
 
 		// get top two frequency mode bars
 		for key, value := range freqCount {
 			if key > 0 {
 				if value > largest {
-					second_largest = largest
+					secondLargest = largest
 					largest = value
-				} else if value > second_largest {
-					second_largest = value
+				} else if value > secondLargest {
+					secondLargest = value
 				}
 
 			}
 		}
 
 		// calculate the percentage of hour blocks that fit into the top two mode buckets
-		bimodalFit = float64(largest+second_largest) / float64(totalBars-1)
+		bimodalFit = float64(largest+secondLargest) / float64(totalBars-1)
 	}
 
 	bimodalFitScore := math.Ceil((float64(bimodalFit))*1000) / 1000
