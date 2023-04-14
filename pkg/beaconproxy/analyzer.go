@@ -258,6 +258,10 @@ func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, 
 	// use timestamps to get freqencies for buckets
 	freqList, freqCount, total, totalBars, longestRun := createHistogram(bucketDivs, tsList)
 
+	// calculate first potential score
+	// coefficient of variation will help score histograms that have jitter in the number of
+	// connections but where the overall graph would still look relatively flat and consistent
+
 	// calculate mean
 	freqMean := float64(total) / float64(len(freqList))
 
@@ -276,31 +280,47 @@ func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, 
 		cv = 1.0
 	}
 
-	// calculate first potential score
-	// histograms with bigger flat sections will score higher, up to 4 flat sections
-	// this will score well for graphs that have flat sections with a big distance between them,
-	// i.e. a beacon that alternates between 1 and 5 connections per hour
-	// This score will only be calculated if the number of total bars on the histogram fills at
-	// least half the day (>11), otherwise this could lead to a false positive and not fill the
+	cvScore := math.Ceil((1.0-float64(cv))*1000) / 1000
+	if cvScore > 1.0 {
+		cvScore = 1.0
+	}
+
+	// Calculate second potential score
+	// this will score well for graphs that have 2-3 flat sections in their connection histogram,
+	// or a bimodal freqCount histogram.
+	// Example - a beacon that alternates between 1 and 5 connections per hour
+	// This score will only be calculated if the number of total bars on the histogram is at
+	// least 10, otherwise this could lead to a false positive and not fill the
 	// original intent of this scoring.
-	score1 := 0.0
+	bimodalFit := float64(0)
 
-	if totalBars > 11 {
-		score1 = math.Ceil((float64(4)/float64(len(freqCount)))*1000) / 1000
-		if score1 > 1.0 {
-			score1 = 1.0
+	if totalBars > 10 {
+		largest := 0
+		second_largest := 0
+
+		// get top two frequency mode bars
+		for key, value := range freqCount {
+			if key > 0 {
+				if value > largest {
+					second_largest = largest
+					largest = value
+				} else if value > second_largest {
+					second_largest = value
+				}
+
+			}
 		}
+
+		// calculate the percentage of hour blocks that fit into the top two mode buckets
+		bimodalFit = float64(largest+second_largest) / float64(totalBars-1)
 	}
 
-	// calculate second potential score
-	// coefficient of variation will help score histograms that have jitter in the number of
-	// connections but where the overall graph would still look relatively flat and consistent
-	score2 := math.Ceil((1.0-float64(cv))*1000) / 1000
-	if score2 > 1.0 {
-		score2 = 1.0
+	bimodalFitScore := math.Ceil((float64(bimodalFit))*1000) / 1000
+	if bimodalFitScore > 1.0 {
+		bimodalFitScore = 1.0
 	}
 
-	return bucketDivs, freqList, freqCount, totalBars, longestRun, math.Max(score1, score2)
+	return bucketDivs, freqList, freqCount, totalBars, longestRun, math.Max(cvScore, bimodalFitScore)
 
 }
 
@@ -371,12 +391,28 @@ func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, in
 }
 
 func getFrequencyCounts(freqList []int) (map[int]int, int, int, int) {
-	// make a bar count to store the number of bars the histogram will have
+
+	// count total non-zero histogram entries (total bars) and find the
+	// largest histogram entry
 	totalBars := 0
+	largestConnCount := 0
+	for _, entry := range freqList {
+		if entry > 0 {
+			totalBars++
+		}
+		if entry > largestConnCount {
+			largestConnCount = entry
+		}
+
+	}
 
 	// make a fequency count map to track how often each value in freqList appears
 	freqCount := make(map[int]int)
 	total := 0
+
+	// determine bucket size for frequency histogram. This will
+	// allow the bimodal histogram score to tolerate some jitter
+	bucketSize := math.Ceil(float64(largestConnCount) * 0.05)
 
 	// make variables to track the longest consecutive run of hours seen in the connection
 	// frequency histogram, including wrap around from start to end of dataset
@@ -404,14 +440,14 @@ func getFrequencyCounts(freqList []int) (map[int]int, int, int, int) {
 		if i < freqListLen {
 			total += item
 
-			if item > 0 {
-				totalBars++
-			}
+			// figure out which bucket to parse the frequency bar into
+			bucket := int(math.Floor(float64(item)/bucketSize) * bucketSize)
 
-			if _, ok := freqCount[item]; !ok {
-				freqCount[item] = 1
+			// create or increment bucket
+			if _, ok := freqCount[bucket]; !ok {
+				freqCount[bucket] = 1
 			} else {
-				freqCount[item]++
+				freqCount[bucket]++
 			}
 		}
 
