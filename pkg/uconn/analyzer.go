@@ -63,8 +63,19 @@ func (a *analyzer) start() {
 
 		for datum := range a.analysisChannel {
 
+			// mainQuery handles setting the unique connection src, dst, and strobe status.
+			// Additionally, mainQuery formats a `dat` subdocument which represents the
+			// connection statistics for this chunk of imports.
 			mainUpdate := mainQuery(datum, a.connLimit, a.chunk)
+
+			// openConnectionsQuery handles summarizing any open connections and formats an update
+			// to the top-level open connection fields in the unique connection doc
 			openConnsUpdate, openCount, openTBytes, openDur := openConnectionsQuery(datum)
+
+			// rollUpQuery aggregates any existing `dat` subdocuments representing the connection
+			// statistics together with the statistics for the current chunk of imports and the
+			// the open connection statistics. Then, the rollUpQuery formats an update to the
+			// top-level connection statistics fields in the unique connection doc.
 			rollUpUpdate, err := rollUpQuery(datum, openCount, openTBytes, openDur, uconnColl)
 			if err != nil {
 				a.log.WithFields(log.Fields{
