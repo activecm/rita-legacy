@@ -69,9 +69,9 @@ func showConns(connResults []uconn.LongConnResult, delim string, showNetNames bo
 
 	var headerFields []string
 	if showNetNames {
-		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "State"}
+		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Total Duration", "Longest Duration", "Connections", "Total Bytes", "State"}
 	} else {
-		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "State"}
+		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Total Duration", "Longest Duration", "Connections", "Total Bytes", "State"}
 	}
 
 	// Print the headers and analytic values, separated by a delimiter
@@ -92,7 +92,10 @@ func showConns(connResults []uconn.LongConnResult, delim string, showNetNames bo
 				result.SrcIP,
 				result.DstIP,
 				strings.Join(result.Tuples, " "),
+				f(result.TotalDuration),
 				f(result.MaxDuration),
+				i(result.ConnectionCount),
+				i(result.TotalBytes),
 				state,
 			}
 		} else {
@@ -100,7 +103,10 @@ func showConns(connResults []uconn.LongConnResult, delim string, showNetNames bo
 				result.SrcIP,
 				result.DstIP,
 				strings.Join(result.Tuples, " "),
+				f(result.TotalDuration),
 				f(result.MaxDuration),
+				i(result.ConnectionCount),
+				i(result.TotalBytes),
 				state,
 			}
 		}
@@ -115,9 +121,9 @@ func showConnsHuman(connResults []uconn.LongConnResult, showNetNames bool) error
 
 	var headerFields []string
 	if showNetNames {
-		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "State"}
+		headerFields = []string{"Source Network", "Destination Network", "Source IP", "Destination IP", "Port:Protocol:Service", "Total Duration", "Longest Duration", "Connections", "Total Bytes", "State"}
 	} else {
-		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Duration", "State"}
+		headerFields = []string{"Source IP", "Destination IP", "Port:Protocol:Service", "Total Duration", "Longest Duration", "Connections", "Total Bytes", "State"}
 	}
 
 	table.SetHeader(headerFields)
@@ -137,7 +143,10 @@ func showConnsHuman(connResults []uconn.LongConnResult, showNetNames bool) error
 				result.SrcIP,
 				result.DstIP,
 				strings.Join(result.Tuples, " "),
+				util.FormatDuration(time.Duration(int(result.TotalDuration * float64(time.Second)))),
 				util.FormatDuration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
+				i(result.ConnectionCount),
+				i(result.TotalBytes),
 				state,
 			}
 		} else {
@@ -145,7 +154,10 @@ func showConnsHuman(connResults []uconn.LongConnResult, showNetNames bool) error
 				result.SrcIP,
 				result.DstIP,
 				strings.Join(result.Tuples, " "),
+				util.FormatDuration(time.Duration(int(result.TotalDuration * float64(time.Second)))),
 				util.FormatDuration(time.Duration(int(result.MaxDuration * float64(time.Second)))),
+				i(result.ConnectionCount),
+				i(result.TotalBytes),
 				state,
 			}
 		}

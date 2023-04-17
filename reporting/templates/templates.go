@@ -247,7 +247,7 @@ var BLHostnameTempl = dbHeader + `
 var LongConnsTempl = dbHeader + `
 <div class="container">
   <table>
-	<tr><th>Source</th><th>Destination</th><th>DstPort:Protocol:Service</th><th>Duration</th></tr>
+	<tr><th>Source</th><th>Destination</th><th>DstPort:Protocol:Service</th><th>Total Duration</th><th>Longest Duration</th><th>Connections</th><th>Total Bytes</th><th>State</th></tr>
 	  {{.Writer}}
 	</table>
 </div>
@@ -257,7 +257,7 @@ var LongConnsTempl = dbHeader + `
 var LongConnsNetNamesTempl = dbHeader + `
 <div class="container">
   <table>
-	<tr><th>Source Network</th><th>Destination Network</th><th>Source</th><th>Destination</th><th>DstPort:Protocol:Service</th><th>Duration</th></tr>
+	<tr><th>Source Network</th><th>Destination Network</th><th>Source</th><th>Destination</th><th>DstPort:Protocol:Service</th><th>Total Duration</th><th>Longest Duration</th><th>Connections</th><th>Total Bytes</th><th>State</th></tr>
 	  {{.Writer}}
 	</table>
 </div>

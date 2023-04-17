@@ -5,9 +5,9 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
-//LongConnResults returns long connections longer than the given thresh in
-//seconds. The results will be sorted, descending by duration.
-//limit and noLimit control how many results are returned.
+// LongConnResults returns long connections longer than the given thresh in
+// seconds. The results will be sorted, descending by duration.
+// limit and noLimit control how many results are returned.
 func LongConnResults(res *resources.Resources, thresh int, limit int, noLimit bool) ([]LongConnResult, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
@@ -23,6 +23,9 @@ func LongConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 			"dst":              1,
 			"dst_network_uuid": 1,
 			"dst_network_name": 1,
+			"count":            1,
+			"tbytes":           1,
+			"tdur":             1,
 			"maxdur":           "$dat.maxdur",
 			"tuples":           bson.M{"$ifNull": []interface{}{"$dat.tuples", []interface{}{}}},
 			"open":             1,
@@ -39,6 +42,9 @@ func LongConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 			"dst":              bson.M{"$first": "$dst"},
 			"dst_network_uuid": bson.M{"$first": "$dst_network_uuid"},
 			"dst_network_name": bson.M{"$first": "$dst_network_name"},
+			"count":            bson.M{"$first": "$count"},
+			"tbytes":           bson.M{"$first": "$tbytes"},
+			"tdur":             bson.M{"$first": "$tdur"},
 			"tuples":           bson.M{"$addToSet": "$tuples"},
 			"open":             bson.M{"$first": "$open"},
 		}},
@@ -50,10 +56,13 @@ func LongConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 			"dst":              1,
 			"dst_network_uuid": 1,
 			"dst_network_name": 1,
+			"count":            1,
+			"tbytes":           1,
+			"tdur":             1,
 			"tuples":           bson.M{"$slice": []interface{}{"$tuples", 5}},
 			"open":             1,
 		}},
-		{"$sort": bson.M{"maxdur": -1}},
+		{"$sort": bson.M{"tdur": -1, "maxdur": -1}},
 	}
 
 	if !noLimit {
@@ -66,8 +75,8 @@ func LongConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 
 }
 
-//OpenConnResults returns open connections. The results will be sorted, descending by duration.
-//limit and noLimit control how many results are returned.
+// OpenConnResults returns open connections. The results will be sorted, descending by duration.
+// limit and noLimit control how many results are returned.
 func OpenConnResults(res *resources.Resources, thresh int, limit int, noLimit bool) ([]OpenConnResult, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
