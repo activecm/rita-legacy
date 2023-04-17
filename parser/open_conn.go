@@ -10,9 +10,11 @@ import (
 	"github.com/activecm/rita/pkg/host"
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
-func parseOpenConnEntry(parseConn *parsetypes.OpenConn, filter filter, retVals ParseResults) {
+func parseOpenConnEntry(parseConn *parsetypes.OpenConn, filter filter, retVals ParseResults, logger *log.Logger) {
 	// get source destination pair for connection record
 	src := parseConn.Source
 	dst := parseConn.Destination
@@ -20,6 +22,16 @@ func parseOpenConnEntry(parseConn *parsetypes.OpenConn, filter filter, retVals P
 	// parse addresses into binary format
 	srcIP := net.ParseIP(src)
 	dstIP := net.ParseIP(dst)
+
+	// verify that both addresses were parsed successfully
+	if (srcIP == nil) || (dstIP == nil) {
+		logger.WithFields(log.Fields{
+			"uid": parseConn.UID,
+			"src": parseConn.Source,
+			"dst": parseConn.Destination,
+		}).Error("Unable to parse valid ip address pair from open_conn log entry, skipping entry.")
+		return
+	}
 
 	// Run conn pair through filter to filter out certain connections
 	ignore := filter.filterConnPair(srcIP, dstIP)

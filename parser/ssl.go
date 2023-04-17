@@ -11,16 +11,30 @@ import (
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/pkg/useragent"
 	"github.com/activecm/rita/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
-func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults) {
+func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults, logger *log.Logger) {
 	src := parseSSL.Source
 	dst := parseSSL.Destination
 	certStatus := parseSSL.ValidationStatus
 
+	// parse source and destination
 	srcIP := net.ParseIP(src)
 	dstIP := net.ParseIP(dst)
 
+	// verify that both addresses were parsed successfully
+	if (srcIP == nil) || (dstIP == nil) {
+		logger.WithFields(log.Fields{
+			"uid": parseSSL.UID,
+			"src": parseSSL.Source,
+			"dst": parseSSL.Destination,
+		}).Error("Unable to parse valid ip address pair from ssl log entry, skipping entry.")
+		return
+	}
+
+	// get fqdn
 	fqdn := parseSSL.ServerName
 
 	srcUniqIP := data.NewUniqueIP(srcIP, parseSSL.AgentUUID, parseSSL.AgentHostname)
@@ -35,14 +49,14 @@ func parseSSLEntry(parseSSL *parsetypes.SSL, filter filter, retVals ParseResults
 
 	srcFQDNKey := srcFQDNPair.MapKey()
 
-	updateUseragentsBySSL(srcUniqIP, parseSSL, retVals)
-
 	// create uconn and cert records
 	// Run conn pair through filter to filter out certain connections
-	ignore := filter.filterConnPair(srcIP, dstIP)
+	ignore := filter.filterDomain(fqdn) || filter.filterConnPair(srcIP, dstIP)
 	if ignore {
 		return
 	}
+
+	updateUseragentsBySSL(srcUniqIP, parseSSL, retVals)
 
 	certificateIsInvalid := certStatus != "ok" && certStatus != "-" && certStatus != "" && certStatus != " "
 

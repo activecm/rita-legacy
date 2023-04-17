@@ -33,21 +33,21 @@ DNS:
     Enabled: true
 Beacon:
     Enabled: true
-    DefaultConnectionThresh: 20
+    DefaultConnectionThresh: 5
     TimestampScoreWeight: 0.25
     DatasizeScoreWeight: 0.25
     DurationScoreWeight: 0.25
     HistogramScoreWeight: 0.25
 BeaconSNI:
     Enabled: true
-    DefaultConnectionThresh: 20
+    DefaultConnectionThresh: 5
     TimestampScoreWeight: 0.25
     DatasizeScoreWeight: 0.25
     DurationScoreWeight: 0.25
     HistogramScoreWeight: 0.25
 BeaconProxy:
     Enabled: true
-    DefaultConnectionThresh: 20
+    DefaultConnectionThresh: 5
     TimestampScoreWeight: 0.333
     DurationScoreWeight: 0.333
     HistogramScoreWeight: 0.333
@@ -94,7 +94,7 @@ var testConfigFullExp = StaticCfg{
 	},
 	Beacon: BeaconStaticCfg{
 		Enabled:                 true,
-		DefaultConnectionThresh: 20,
+		DefaultConnectionThresh: minBeaconConnectionThreshLimit,
 		TsWeight:                0.25,
 		DsWeight:                0.25,
 		DurWeight:               0.25,
@@ -102,7 +102,7 @@ var testConfigFullExp = StaticCfg{
 	},
 	BeaconSNI: BeaconSNIStaticCfg{
 		Enabled:                 true,
-		DefaultConnectionThresh: 20,
+		DefaultConnectionThresh: minBeaconConnectionThreshLimit,
 		TsWeight:                0.25,
 		DsWeight:                0.25,
 		DurWeight:               0.25,
@@ -110,7 +110,7 @@ var testConfigFullExp = StaticCfg{
 	},
 	BeaconProxy: BeaconProxyStaticCfg{
 		Enabled:                 true,
-		DefaultConnectionThresh: 20,
+		DefaultConnectionThresh: minBeaconConnectionThreshLimit,
 		TsWeight:                0.333,
 		DurWeight:               0.333,
 		HistWeight:              0.333,
@@ -162,5 +162,5 @@ LogConfig:
 	testConfigExp.ExactVersion = config.ExactVersion
 
 	assert.Nil(t, err)
-	assert.Equal(t, *config, testConfigExp)
+	assert.Equal(t, config.Log, testConfigExp.Log)
 }

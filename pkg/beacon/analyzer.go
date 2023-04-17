@@ -120,11 +120,11 @@ func (a *analyzer) start() {
 
 			//tsSkew should equal zero if the denominator equals zero
 			//bowley skew is unreliable if Q2 = Q1 or Q2 = Q3
-			if tsBowleyDen != 0 && tsMid != tsLow && tsMid != tsHigh {
+			if tsBowleyDen >= 10 && tsMid != tsLow && tsMid != tsHigh {
 				tsSkew = float64(tsBowleyNum) / float64(tsBowleyDen)
 			}
 
-			if dsBowleyDen != 0 && dsMid != dsLow && dsMid != dsHigh {
+			if dsBowleyDen >= 10 && dsMid != dsLow && dsMid != dsHigh {
 				dsSkew = float64(dsBowleyNum) / float64(dsBowleyDen)
 			}
 
@@ -187,30 +187,20 @@ func (a *analyzer) start() {
 				dsSmallnessScore = 0
 			}
 
-			// connection count scoring
-			tsConnDiv := (float64(a.tsMax) - float64(a.tsMin)) / 3600
-			tsConnCountScore := float64(res.ConnectionCount) / tsConnDiv
-			if tsConnCountScore > 1.0 {
-				tsConnCountScore = 1.0
-			}
-
 			// calculate final ts and ds scores
-			tsScore := math.Ceil(((tsSkewScore+tsMadmScore+tsConnCountScore)/3.0)*1000) / 1000
+			tsScore := math.Ceil(((tsSkewScore+tsMadmScore)/2.0)*1000) / 1000
 			dsScore := math.Ceil(((dsSkewScore+dsMadmScore+dsSmallnessScore)/3.0)*1000) / 1000
 
-			// calculate duration score
-			duration := math.Ceil((float64(res.TsList[tsLength]-res.TsList[0])/(float64(a.tsMax)-float64(a.tsMin)))*1000) / 1000
-			if duration > 1.0 {
-				duration = 1.0
-			}
-
 			// calculate histogram score
-			bucketDivs, freqList, freqCount, histScore := getTsHistogramScore(a.tsMin, a.tsMax, res.TsList)
+			bucketDivs, freqList, freqCount, totalBars, longestRun, histScore := getTsHistogramScore(a.tsMin, a.tsMax, res.TsList)
+
+			// calculate duration score
+			durScore := getDurationScore(a.tsMin, a.tsMax, res.TsList[0], res.TsList[tsLength], totalBars, longestRun)
 
 			// calculate overall beacon score
 			score := math.Ceil(((tsScore*a.conf.S.Beacon.TsWeight)+
 				(dsScore*a.conf.S.Beacon.DsWeight)+
-				(duration*a.conf.S.Beacon.DurWeight)+
+				(durScore*a.conf.S.Beacon.DurWeight)+
 				(histScore*a.conf.S.Beacon.HistWeight))*1000) / 1000
 
 			// copy variables to be used by bulk callback to prevent capturing by reference
@@ -227,7 +217,6 @@ func (a *analyzer) start() {
 					"ts.interval_counts": intervalCounts,
 					"ts.dispersion":      tsMadm,
 					"ts.skew":            tsSkew,
-					"ts.conns_score":     tsConnCountScore,
 					"ts.score":           tsScore,
 					"ds.range":           dsRange,
 					"ds.mode":            dsMode,
@@ -237,7 +226,7 @@ func (a *analyzer) start() {
 					"ds.dispersion":      dsMadm,
 					"ds.skew":            dsSkew,
 					"ds.score":           dsScore,
-					"duration_score":     duration,
+					"duration_score":     durScore,
 					"bucket_divs":        bucketDivs,
 					"freq_list":          freqList,
 					"freq_count":         freqCount,
@@ -307,14 +296,32 @@ func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64
 
 // getTsHistogramScore calculates two potential scores based on the histogram of connections for the
 // host pair and takes the max of the two scores.
-func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, map[int]int, float64) {
+func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, map[int]int, int, int, float64) {
 
 	// get bucket list
 	// we currently look at a 24 hour period
 	bucketDivs := createBuckets(min, max, 24)
 
 	// use timestamps to get freqencies for buckets
-	freqList, freqCount, freqCV, freqBars := createHistogram(bucketDivs, tsList)
+	freqList, freqCount, total, totalBars, longestRun := createHistogram(bucketDivs, tsList)
+
+	// calculate mean
+	freqMean := float64(total) / float64(len(freqList))
+
+	// calculate standard deviation
+	sd := float64(0)
+	for j := 0; j < len(freqList); j++ {
+		sd += math.Pow(float64(freqList[j])-freqMean, 2)
+	}
+	sd = math.Sqrt(sd / float64(len(freqList)))
+
+	// calculate coefficient of variation
+	cv := sd / freqMean
+
+	// if cv is greater than 1, our score should be zero
+	if cv > 1.0 {
+		cv = 1.0
+	}
 
 	// calculate first potential score
 	// histograms with bigger flat sections will score higher, up to 4 flat sections
@@ -325,7 +332,7 @@ func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, 
 	// original intent of this scoring.
 	score1 := 0.0
 
-	if freqBars > 11 {
+	if totalBars > 11 {
 		score1 = math.Ceil((float64(4)/float64(len(freqCount)))*1000) / 1000
 		if score1 > 1.0 {
 			score1 = 1.0
@@ -335,12 +342,12 @@ func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, 
 	// calculate second potential score
 	// coefficient of variation will help score histograms that have jitter in the number of
 	// connections but where the overall graph would still look relatively flat and consistent
-	score2 := math.Ceil((1.0-float64(freqCV))*1000) / 1000
+	score2 := math.Ceil((1.0-float64(cv))*1000) / 1000
 	if score2 > 1.0 {
 		score2 = 1.0
 	}
 
-	return bucketDivs, freqList, freqCount, math.Max(score1, score2)
+	return bucketDivs, freqList, freqCount, totalBars, longestRun, math.Max(score1, score2)
 
 }
 
@@ -371,7 +378,7 @@ func createBuckets(min int64, max int64, size int64) []int64 {
 }
 
 // createHistogram
-func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, float64, int) {
+func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, int, int, int) {
 	i := 0
 	bucket := bucketDivs[i+1]
 
@@ -403,44 +410,100 @@ func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, fl
 		freqList[i]++
 	}
 
+	// get histogram frequency counts
+	freqCount, total, totalBars, longestRun := getFrequencyCounts(freqList)
+
+	return freqList, freqCount, total, totalBars, longestRun
+
+}
+
+func getFrequencyCounts(freqList []int) (map[int]int, int, int, int) {
+	// make a bar count to store the number of bars the histogram will have
+	totalBars := 0
+
 	// make a fequency count map to track how often each value in freqList appears
 	freqCount := make(map[int]int)
 	total := 0
 
-	// make a bar count to store the number of bars the histogram will have
-	totalBars := 0
+	// make variables to track the longest consecutive run of hours seen in the connection
+	// frequency histogram, including wrap around from start to end of dataset
+	freqListLen := len(freqList)
+	longestRun := 0
+	currentRun := 0
 
-	for _, item := range freqList {
-		total += item
+	// make frequency count map
+	for i := 0; i < freqListLen*2; i++ {
+
+		item := freqList[i%freqListLen]
 
 		if item > 0 {
-			totalBars++
-		}
+			currentRun++
 
-		if _, ok := freqCount[item]; !ok {
-			freqCount[item] = 1
 		} else {
-			freqCount[item]++
+
+			if currentRun > longestRun {
+				longestRun = currentRun
+			}
+			currentRun = 0
+
 		}
+
+		if i < freqListLen {
+			total += item
+
+			if item > 0 {
+				totalBars++
+			}
+
+			if _, ok := freqCount[item]; !ok {
+				freqCount[item] = 1
+			} else {
+				freqCount[item]++
+			}
+		}
+
 	}
 
-	freqMean := float64(total) / float64(len(freqList))
-
-	// calculate standard deviation
-	sd := float64(0)
-	for j := 0; j < len(freqList); j++ {
-		sd += math.Pow(float64(freqList[j])-freqMean, 2)
-	}
-	sd = math.Sqrt(sd / float64(len(freqList)))
-
-	// calculate coefficient of variation
-	cv := sd / freqMean
-
-	// if cv is greater than 1, our score should be zero
-	if cv > 1.0 {
-		cv = 1.0
+	if currentRun > longestRun {
+		longestRun = currentRun
 	}
 
-	return freqList, freqCount, cv, totalBars
+	// since we could end up with 2*freqListLen for the longest run if
+	// every hour has a connection, we will fix it up here.
+	if longestRun > freqListLen {
+		longestRun = freqListLen
+	}
 
+	return freqCount, total, totalBars, longestRun
+}
+
+// getDurationScore
+func getDurationScore(min int64, max int64, tsListMin int64, tsListMax int64, totalBars int, longestRun int) float64 {
+	// Duration will only be calculated if more than 6 hours are represented in the connection frequency histogram
+	// Duration Score will take the maximum of two potential subscores:
+	// Dataset Timespan Coverage
+	// [ timestamp of last connection - timestamp of first connection ] /
+	// [ last timestamp of dataset - first timestamp of dataset ]
+	// Consistency
+	// [longest run of consecutive hours seen] / [12 hours ]
+	// *note: consecutive includes wrap around from start to end of dataset
+
+	durScore := 0.0
+
+	if totalBars > 6 {
+
+		coverageScore := math.Ceil((float64(tsListMax-tsListMin)/(float64(max)-float64(min)))*1000) / 1000
+		if coverageScore > 1.0 {
+			coverageScore = 1.0
+		}
+
+		consistencyScore := math.Ceil((float64(longestRun)/12.0)*1000) / 1000
+		if consistencyScore > 1.0 {
+			consistencyScore = 1.0
+		}
+
+		durScore = math.Max(coverageScore, consistencyScore)
+	}
+
+	return durScore
 }
