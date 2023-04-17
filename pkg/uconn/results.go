@@ -62,7 +62,7 @@ func LongConnResults(res *resources.Resources, thresh int, limit int, noLimit bo
 			"tuples":           bson.M{"$slice": []interface{}{"$tuples", 5}},
 			"open":             1,
 		}},
-		{"$sort": bson.M{"tdur": -1}},
+		{"$sort": bson.M{"tdur": -1, "maxdur": -1}},
 	}
 
 	if !noLimit {
