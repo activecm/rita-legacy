@@ -33,6 +33,9 @@ type Input struct {
 // the longest connection between those hosts.
 type LongConnResult struct {
 	data.UniqueIPPair `bson:",inline"`
+	ConnectionCount   int64    `bson:"count"`
+	TotalBytes        int64    `bson:"tbytes"`
+	TotalDuration     float64  `bson:"tdur"`
 	MaxDuration       float64  `bson:"maxdur"`
 	Tuples            []string `bson:"tuples"`
 	Open              bool     `bson:"open"`

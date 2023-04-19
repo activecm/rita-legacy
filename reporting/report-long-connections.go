@@ -5,10 +5,12 @@ import (
 	"html/template"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/activecm/rita/pkg/uconn"
 	"github.com/activecm/rita/reporting/templates"
 	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita/util"
 )
 
 func printLongConns(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {
@@ -49,9 +51,9 @@ func printLongConns(db string, showNetNames bool, res *resources.Resources, logs
 func getLongConnWriter(conns []uconn.LongConnResult, showNetNames bool) (string, error) {
 	var tmpl string
 	if showNetNames {
-		tmpl = "<tr><td>{{.SrcNetworkName}}</td><td>{{.DstNetworkName}}</td><td>{{.SrcIP}}</td><td>{{.DstIP}}</td><td>{{.TupleStr}}</td><td>{{.MaxDuration}}</td></tr>\n"
+		tmpl = "<tr><td>{{.SrcNetworkName}}</td><td>{{.DstNetworkName}}</td><td>{{.SrcIP}}</td><td>{{.DstIP}}</td><td>{{.TupleStr}}</td><td>{{.TotalDurationStr}}</td><td>{{.MaxDurationStr}}</td><td>{{.ConnectionCount}}</td><td>{{.TotalBytes}}</td><td>{{.State}}</td></tr>\n"
 	} else {
-		tmpl = "<tr><td>{{.SrcIP}}</td><td>{{.DstIP}}</td><td>{{.TupleStr}}</td><td>{{.MaxDuration}}</td></tr>\n"
+		tmpl = "<tr><td>{{.SrcIP}}</td><td>{{.DstIP}}</td><td>{{.TupleStr}}</td><td>{{.TotalDurationStr}}</td><td>{{.MaxDurationStr}}</td><td>{{.ConnectionCount}}</td><td>{{.TotalBytes}}</td><td>{{.State}}</td></tr>\n"
 	}
 
 	out, err := template.New("Conn").Parse(tmpl)
@@ -60,10 +62,23 @@ func getLongConnWriter(conns []uconn.LongConnResult, showNetNames bool) (string,
 	}
 	w := new(bytes.Buffer)
 	for _, conn := range conns {
+		state := "closed"
+		if conn.Open {
+			state = "open"
+		}
 		connTmplData := struct {
 			uconn.LongConnResult
-			TupleStr string
-		}{conn, strings.Join(conn.Tuples, ",  ")}
+			TupleStr         string
+			TotalDurationStr string
+			MaxDurationStr   string
+			State            string
+		}{
+			LongConnResult:   conn,
+			TupleStr:         strings.Join(conn.Tuples, ",  "),
+			TotalDurationStr: util.FormatDuration(time.Duration(int(conn.TotalDuration * float64(time.Second)))),
+			MaxDurationStr:   util.FormatDuration(time.Duration(int(conn.MaxDuration * float64(time.Second)))),
+			State:            state,
+		}
 
 		err := out.Execute(w, connTmplData)
 		if err != nil {

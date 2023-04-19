@@ -56,6 +56,11 @@ func (r *repo) CreateIndexes() error {
 		{Key: []string{"src", "src_network_uuid"}},
 		{Key: []string{"dst", "dst_network_uuid"}},
 		{Key: []string{"dat.count"}},
+		{Key: []string{"dat.maxdur"}},
+		{Key: []string{"strobe"}},
+		{Key: []string{"count"}},
+		{Key: []string{"tbytes"}},
+		{Key: []string{"tdur"}},
 	}
 
 	// create collection
@@ -79,6 +84,7 @@ func (r *repo) Upsert(uconnMap map[string]*Input, hostMap map[string]*host.Input
 		r.config.S.Rolling.CurrentChunk,
 		int64(r.config.S.Strobe.ConnectionLimit),
 		r.database,
+		r.log,
 		r.config,
 		writerWorker.Collect,
 		writerWorker.Close,
