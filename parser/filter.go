@@ -164,7 +164,7 @@ func (fs *filter) filterSingleIP(IP net.IP) bool {
 // This is determined by the following rules, in order:
 //  1. Not filtered if domain is on the AlwaysInclude list
 //  2. Filtered if domain is on the NeverInclude list
-//  5. Not filtered in all other cases
+//  3. Not filtered in all other cases
 func (fs *filter) filterDomain(domain string) bool {
 	// check if on always included list
 	isDomainIncluded := util.ContainsDomain(fs.alwaysIncludedDomain, domain)
