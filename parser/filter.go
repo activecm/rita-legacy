@@ -88,6 +88,8 @@ func (fs *filter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 }
 
 // filterDNSPair returns true if a DNS connection pair is filtered/excluded.
+// DNS is treated specially since we need to capture internal -> internal DNS traffic
+// in order to detect C2 over DNS with an internal resolver.
 // This is determined by the following rules, in order:
 //  1. Not filtered if either IP is on the AlwaysInclude list
 //  2. Filtered if either IP is on the NeverInclude list
