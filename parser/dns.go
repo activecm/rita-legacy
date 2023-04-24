@@ -33,10 +33,8 @@ func parseDNSEntry(parseDNS *parsetypes.DNS, filter filter, retVals ParseResults
 	domain := parseDNS.Query
 
 	// Run domain through filter to filter out certain domains and
-	// filter out internal -> internal and external -> internal traffic
-	//
-	// If an internal DNS resolver is being used, make sure to add the IP address of the resolver to the filter's AlwaysInclude section
-	ignore := (filter.filterDomain(domain) || filter.filterConnPair(srcIP, dstIP))
+	// filter out traffic which is external -> external or external -> internal (if specified in the config file)
+	ignore := (filter.filterDomain(domain) || filter.filterDNSPair(srcIP, dstIP))
 
 	// If domain is not subject to filtering, process
 	if ignore {

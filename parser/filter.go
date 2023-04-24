@@ -33,11 +33,12 @@ func newFilter(conf *config.Config) filter {
 
 // filterConnPair returns true if a connection pair is filtered/excluded.
 // This is determined by the following rules, in order:
-//   1. Not filtered if either IP is on the AlwaysInclude list
-//   2. Filtered if either IP is on the NeverInclude list
-//   3. Not filtered if InternalSubnets is empty
-//   4. Filtered if both IPs are internal or both are external
-//   5. Not filtered in all other cases
+//  1. Not filtered if either IP is on the AlwaysInclude list
+//  2. Filtered if either IP is on the NeverInclude list
+//  3. Not filtered if InternalSubnets is empty
+//  4. Filtered if both IPs are internal or both are external
+//  5. Filtered if the source IP is external and the destination IP is internal and FilterExternalToInternal has been set in the configuration file
+//  6. Not filtered in all other cases
 func (fs *filter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 	// check if on always included list
 	isSrcIncluded := util.ContainsIP(fs.alwaysIncluded, srcIP)
@@ -86,11 +87,62 @@ func (fs *filter) filterConnPair(srcIP net.IP, dstIP net.IP) bool {
 	return false
 }
 
+// filterDNSPair returns true if a DNS connection pair is filtered/excluded.
+// This is determined by the following rules, in order:
+//  1. Not filtered if either IP is on the AlwaysInclude list
+//  2. Filtered if either IP is on the NeverInclude list
+//  3. Not filtered if InternalSubnets is empty
+//  4. Filtered if both IPs are external (this is different from filterConnPair which filters internal to internal connections)
+//  5. Filtered if the source IP is external and the destination IP is internal and FilterExternalToInternal has been set in the configuration file
+//  6. Not filtered in all other cases
+func (fs *filter) filterDNSPair(srcIP net.IP, dstIP net.IP) bool {
+	// check if on always included list
+	isSrcIncluded := util.ContainsIP(fs.alwaysIncluded, srcIP)
+	isDstIncluded := util.ContainsIP(fs.alwaysIncluded, dstIP)
+
+	// check if on never included list
+	isSrcExcluded := util.ContainsIP(fs.neverIncluded, srcIP)
+	isDstExcluded := util.ContainsIP(fs.neverIncluded, dstIP)
+
+	// if either IP is on the AlwaysInclude list, filter does not apply
+	if isSrcIncluded || isDstIncluded {
+		return false
+	}
+
+	// if either IP is on the NeverInclude list, filter applies
+	if isSrcExcluded || isDstExcluded {
+		return true
+	}
+
+	// if no internal subnets are defined, filter does not apply
+	// this is was the default behavior before InternalSubnets was added
+	if len(fs.internal) == 0 {
+		return false
+	}
+
+	// check if src and dst are internal
+	isSrcInternal := util.ContainsIP(fs.internal, srcIP)
+	isDstInternal := util.ContainsIP(fs.internal, dstIP)
+
+	// if both addresses are external, filter applies
+	if (!isSrcInternal) && (!isDstInternal) {
+		return true
+	}
+
+	// filter external to internal traffic if the user has specified to do so
+	if fs.filterExternalToInternal && (!isSrcInternal) && isDstInternal {
+		return true
+	}
+
+	// default to not filter the connection pair
+	return false
+}
+
 // filterSingleIP returns true if an IP is filtered/excluded.
 // This is determined by the following rules, in order:
-//   1. Not filtered IP is on the AlwaysInclude list
-//   2. Filtered IP is on the NeverInclude list
-//   3. Not filtered in all other cases
+//  1. Not filtered IP is on the AlwaysInclude list
+//  2. Filtered IP is on the NeverInclude list
+//  3. Not filtered in all other cases
 func (fs *filter) filterSingleIP(IP net.IP) bool {
 	// check if on always included list
 	if util.ContainsIP(fs.alwaysIncluded, IP) {
@@ -108,9 +160,9 @@ func (fs *filter) filterSingleIP(IP net.IP) bool {
 
 // filterDomain returns true if a domain is filtered/excluded.
 // This is determined by the following rules, in order:
-//   1. Not filtered if domain is on the AlwaysInclude list
-//   2. Filtered if domain is on the NeverInclude list
-//   5. Not filtered in all other cases
+//  1. Not filtered if domain is on the AlwaysInclude list
+//  2. Filtered if domain is on the NeverInclude list
+//  5. Not filtered in all other cases
 func (fs *filter) filterDomain(domain string) bool {
 	// check if on always included list
 	isDomainIncluded := util.ContainsDomain(fs.alwaysIncludedDomain, domain)
