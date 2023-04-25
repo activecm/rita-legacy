@@ -481,17 +481,19 @@ func (fs *FSImporter) buildHostnames(hostnameMap map[string]*hostname.Input) {
 
 func (fs *FSImporter) buildSNIConns(tlsMap map[string]*sniconn.TLSInput, httpMap map[string]*sniconn.HTTPInput,
 	zeekUIDMap map[string]*data.ZeekUIDRecord, hostMap map[string]*host.Input) {
-	if len(tlsMap) != 0 || len(httpMap) != 0 {
-		sniconnRepo := sniconn.NewMongoRepository(fs.database, fs.config, fs.log)
+	if fs.config.S.BeaconSNI.Enabled { // only enable SNIConns if a downstream analysis needs it
+		if len(tlsMap) != 0 || len(httpMap) != 0 {
+			sniconnRepo := sniconn.NewMongoRepository(fs.database, fs.config, fs.log)
 
-		err := sniconnRepo.CreateIndexes()
-		if err != nil {
-			fs.log.Error(err)
+			err := sniconnRepo.CreateIndexes()
+			if err != nil {
+				fs.log.Error(err)
+			}
+
+			sniconnRepo.Upsert(tlsMap, httpMap, zeekUIDMap, hostMap)
+		} else {
+			fmt.Println("\t[!] No TLS or HTTP connections to analyze")
 		}
-
-		sniconnRepo.Upsert(tlsMap, httpMap, zeekUIDMap, hostMap)
-	} else {
-		fmt.Println("\t[!] No TLS or HTTP connections to analyze")
 	}
 }
 
