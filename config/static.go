@@ -101,31 +101,46 @@ type (
 
 	//BeaconStaticCfg is used to control the beaconing analysis module
 	BeaconStaticCfg struct {
-		Enabled                 bool    `yaml:"Enabled" default:"true"`
-		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh" default:"23"`
-		TsWeight                float64 `yaml:"TimestampScoreWeight" default:"0.25"`
-		DsWeight                float64 `yaml:"DatasizeScoreWeight" default:"0.25"`
-		DurWeight               float64 `yaml:"DurationScoreWeight" default:"0.25"`
-		HistWeight              float64 `yaml:"HistogramScoreWeight" default:"0.25"`
+		Enabled                      bool    `yaml:"Enabled" default:"true"`
+		DefaultConnectionThresh      int     `yaml:"DefaultConnectionThresh" default:"23"`
+		TsWeight                     float64 `yaml:"TimestampScoreWeight" default:"0.25"`
+		DsWeight                     float64 `yaml:"DatasizeScoreWeight" default:"0.25"`
+		DurWeight                    float64 `yaml:"DurationScoreWeight" default:"0.25"`
+		HistWeight                   float64 `yaml:"HistogramScoreWeight" default:"0.25"`
+		DurMinHoursSeen              int     `yaml:"DurationMinHoursSeen" default:"6"`
+		DurConsistencyIdealHoursSeen int     `yaml:"DurationConsistencyIdealHoursSeen" default:"12"`
+		HistBimodalBucketSize        float64 `yaml:"HistogramBimodalBucketSize" default:"0.05"`
+		HistBimodalOutlierRemoval    int     `yaml:"HistogramBimodalOutlierRemoval" default:"1"`
+		HistBimodalMinHoursSeen      int     `yaml:"HistogramBimodalMinHoursSeen" default:"11"`
 	}
 
 	//BeaconProxyStaticCfg is used to control the proxy beaconing analysis module
 	BeaconProxyStaticCfg struct {
-		Enabled                 bool    `yaml:"Enabled" default:"true"`
-		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh" default:"23"`
-		TsWeight                float64 `yaml:"TimestampScoreWeight" default:"0.333"`
-		DurWeight               float64 `yaml:"DurationScoreWeight" default:"0.333"`
-		HistWeight              float64 `yaml:"HistogramScoreWeight" default:"0.333"`
+		Enabled                      bool    `yaml:"Enabled" default:"true"`
+		DefaultConnectionThresh      int     `yaml:"DefaultConnectionThresh" default:"23"`
+		TsWeight                     float64 `yaml:"TimestampScoreWeight" default:"0.333"`
+		DurWeight                    float64 `yaml:"DurationScoreWeight" default:"0.333"`
+		HistWeight                   float64 `yaml:"HistogramScoreWeight" default:"0.333"`
+		DurMinHoursSeen              int     `yaml:"DurationMinHoursSeen" default:"6"`
+		DurConsistencyIdealHoursSeen int     `yaml:"DurationConsistencyIdealHoursSeen" default:"12"`
+		HistBimodalBucketSize        float64 `yaml:"HistogramBimodalBucketSize" default:"0.05"`
+		HistBimodalOutlierRemoval    int     `yaml:"HistogramBimodalOutlierRemoval" default:"1"`
+		HistBimodalMinHoursSeen      int     `yaml:"HistogramBimodalMinHoursSeen" default:"11"`
 	}
 
 	//BeaconSNIStaticCfg is used to control the SNI beaconing analysis module
 	BeaconSNIStaticCfg struct {
-		Enabled                 bool    `yaml:"Enabled" default:"true"`
-		DefaultConnectionThresh int     `yaml:"DefaultConnectionThresh" default:"23"`
-		TsWeight                float64 `yaml:"TimestampScoreWeight" default:"0.25"`
-		DsWeight                float64 `yaml:"DatasizeScoreWeight" default:"0.25"`
-		DurWeight               float64 `yaml:"DurationScoreWeight" default:"0.25"`
-		HistWeight              float64 `yaml:"HistogramScoreWeight" default:"0.25"`
+		Enabled                      bool    `yaml:"Enabled" default:"true"`
+		DefaultConnectionThresh      int     `yaml:"DefaultConnectionThresh" default:"23"`
+		TsWeight                     float64 `yaml:"TimestampScoreWeight" default:"0.25"`
+		DsWeight                     float64 `yaml:"DatasizeScoreWeight" default:"0.25"`
+		DurWeight                    float64 `yaml:"DurationScoreWeight" default:"0.25"`
+		HistWeight                   float64 `yaml:"HistogramScoreWeight" default:"0.25"`
+		DurMinHoursSeen              int     `yaml:"DurationMinHoursSeen" default:"6"`
+		DurConsistencyIdealHoursSeen int     `yaml:"DurationConsistencyIdealHoursSeen" default:"12"`
+		HistBimodalBucketSize        float64 `yaml:"HistogramBimodalBucketSize" default:"0.05"`
+		HistBimodalOutlierRemoval    int     `yaml:"HistogramBimodalOutlierRemoval" default:"1"`
+		HistBimodalMinHoursSeen      int     `yaml:"HistogramBimodalMinHoursSeen" default:"11"`
 	}
 
 	//DNSStaticCfg is used to control the DNS analysis module
@@ -204,6 +219,17 @@ func parseStaticConfig(cfgFile []byte, config *StaticCfg) error {
 	// limit the beacon proxy threshold to the minimum allowed
 	if config.BeaconProxy.DefaultConnectionThresh < minBeaconConnectionThreshLimit {
 		config.BeaconProxy.DefaultConnectionThresh = minBeaconConnectionThreshLimit
+	}
+
+	// make sure value is above zero to avoid division by zero
+	if config.Beacon.DurConsistencyIdealHoursSeen < 1 {
+		config.Beacon.DurConsistencyIdealHoursSeen = 1
+	}
+	if config.BeaconProxy.DurConsistencyIdealHoursSeen < 1 {
+		config.BeaconProxy.DurConsistencyIdealHoursSeen = 1
+	}
+	if config.BeaconSNI.DurConsistencyIdealHoursSeen < 1 {
+		config.BeaconSNI.DurConsistencyIdealHoursSeen = 1
 	}
 
 	// expand env variables, config is a pointer

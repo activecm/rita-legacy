@@ -38,6 +38,11 @@ Beacon:
     DatasizeScoreWeight: 0.25
     DurationScoreWeight: 0.25
     HistogramScoreWeight: 0.25
+    DurationMinHoursSeen: 6
+    DurationConsistencyIdealHoursSeen: 12
+    HistogramBimodalBucketSize: 0.05
+    HistogramBimodalOutlierRemoval: 1
+    HistogramBimodalMinHoursSeen: 11
 BeaconSNI:
     Enabled: true
     DefaultConnectionThresh: 5
@@ -45,12 +50,22 @@ BeaconSNI:
     DatasizeScoreWeight: 0.25
     DurationScoreWeight: 0.25
     HistogramScoreWeight: 0.25
+    DurationMinHoursSeen: 6
+    DurationConsistencyIdealHoursSeen: 12
+    HistogramBimodalBucketSize: 0.05
+    HistogramBimodalOutlierRemoval: 1
+    HistogramBimodalMinHoursSeen: 11
 BeaconProxy:
     Enabled: true
     DefaultConnectionThresh: 5
     TimestampScoreWeight: 0.333
     DurationScoreWeight: 0.333
     HistogramScoreWeight: 0.333
+    DurationMinHoursSeen: 6
+    DurationConsistencyIdealHoursSeen: 12
+    HistogramBimodalBucketSize: 0.05
+    HistogramBimodalOutlierRemoval: 1
+    HistogramBimodalMinHoursSeen: 11
 Strobe:
     ConnectionLimit: 250000
 Filtering:
@@ -93,27 +108,42 @@ var testConfigFullExp = StaticCfg{
 		Enabled: true,
 	},
 	Beacon: BeaconStaticCfg{
-		Enabled:                 true,
-		DefaultConnectionThresh: minBeaconConnectionThreshLimit,
-		TsWeight:                0.25,
-		DsWeight:                0.25,
-		DurWeight:               0.25,
-		HistWeight:              0.25,
+		Enabled:                      true,
+		DefaultConnectionThresh:      minBeaconConnectionThreshLimit,
+		TsWeight:                     0.25,
+		DsWeight:                     0.25,
+		DurWeight:                    0.25,
+		HistWeight:                   0.25,
+		DurMinHoursSeen:              6,
+		DurConsistencyIdealHoursSeen: 12,
+		HistBimodalBucketSize:        0.05,
+		HistBimodalOutlierRemoval:    1,
+		HistBimodalMinHoursSeen:      11,
 	},
 	BeaconSNI: BeaconSNIStaticCfg{
-		Enabled:                 true,
-		DefaultConnectionThresh: minBeaconConnectionThreshLimit,
-		TsWeight:                0.25,
-		DsWeight:                0.25,
-		DurWeight:               0.25,
-		HistWeight:              0.25,
+		Enabled:                      true,
+		DefaultConnectionThresh:      minBeaconConnectionThreshLimit,
+		TsWeight:                     0.25,
+		DsWeight:                     0.25,
+		DurWeight:                    0.25,
+		HistWeight:                   0.25,
+		DurMinHoursSeen:              6,
+		DurConsistencyIdealHoursSeen: 12,
+		HistBimodalBucketSize:        0.05,
+		HistBimodalOutlierRemoval:    1,
+		HistBimodalMinHoursSeen:      11,
 	},
 	BeaconProxy: BeaconProxyStaticCfg{
-		Enabled:                 true,
-		DefaultConnectionThresh: minBeaconConnectionThreshLimit,
-		TsWeight:                0.333,
-		DurWeight:               0.333,
-		HistWeight:              0.333,
+		Enabled:                      true,
+		DefaultConnectionThresh:      minBeaconConnectionThreshLimit,
+		TsWeight:                     0.333,
+		DurWeight:                    0.333,
+		HistWeight:                   0.333,
+		DurMinHoursSeen:              6,
+		DurConsistencyIdealHoursSeen: 12,
+		HistBimodalBucketSize:        0.05,
+		HistBimodalOutlierRemoval:    1,
+		HistBimodalMinHoursSeen:      11,
 	},
 	Strobe: StrobeStaticCfg{
 		ConnectionLimit: maxStrobeConnectionLimit,
