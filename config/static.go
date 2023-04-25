@@ -221,6 +221,17 @@ func parseStaticConfig(cfgFile []byte, config *StaticCfg) error {
 		config.BeaconProxy.DefaultConnectionThresh = minBeaconConnectionThreshLimit
 	}
 
+	// make sure value is above zero to avoid division by zero
+	if config.Beacon.DurConsistencyIdealHoursSeen < 1 {
+		config.Beacon.DurConsistencyIdealHoursSeen = 1
+	}
+	if config.BeaconProxy.DurConsistencyIdealHoursSeen < 1 {
+		config.BeaconProxy.DurConsistencyIdealHoursSeen = 1
+	}
+	if config.BeaconSNI.DurConsistencyIdealHoursSeen < 1 {
+		config.BeaconSNI.DurConsistencyIdealHoursSeen = 1
+	}
+
 	// expand env variables, config is a pointer
 	// so we have to call elem on the reflect value
 	expandConfig(reflect.ValueOf(config).Elem())

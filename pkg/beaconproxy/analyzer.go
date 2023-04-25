@@ -310,7 +310,7 @@ func getTsHistogramScore(min int64, max int64, tsList []int64, bimodalBucketSize
 		// calculate the percentage of hour blocks that fit into the top two mode buckets.
 		// a small buffer for the score is provided by throwing out a yaml-set number of
 		// potential outlier buckets (default: 1)
-		bimodalFit = float64(largest+secondLargest) / float64(totalBars-bimodalOutlierRemoval)
+		bimodalFit = float64(largest+secondLargest) / float64(util.Max(totalBars-bimodalOutlierRemoval, 1))
 	}
 
 	bimodalFitScore := math.Ceil((float64(bimodalFit))*1000) / 1000
