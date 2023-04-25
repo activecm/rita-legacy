@@ -36,6 +36,11 @@ Beacon:
     DatasizeScoreWeight: 0.25
     DurationScoreWeight: 0.25
     HistogramScoreWeight: 0.25
+    DurationMinHoursSeen: 6
+    DurationConsistencyIdealHoursSeen: 12
+    HistogramBimodalBucketSize: 0.05
+    HistogramBimodalOutlierRemoval: 1
+    HistogramBimodalMinHoursSeen: 11
 BeaconSNI:
     Enabled: true
     DefaultConnectionThresh: 23
@@ -43,12 +48,22 @@ BeaconSNI:
     DatasizeScoreWeight: 0.25
     DurationScoreWeight: 0.25
     HistogramScoreWeight: 0.25
+    DurationMinHoursSeen: 6
+    DurationConsistencyIdealHoursSeen: 12
+    HistogramBimodalBucketSize: 0.05
+    HistogramBimodalOutlierRemoval: 1
+    HistogramBimodalMinHoursSeen: 11
 BeaconProxy:
     Enabled: true
     DefaultConnectionThresh: 23
     TimestampScoreWeight: 0.333
     DurationScoreWeight: 0.333
     HistogramScoreWeight: 0.333
+    DurationMinHoursSeen: 6
+    DurationConsistencyIdealHoursSeen: 12
+    HistogramBimodalBucketSize: 0.05
+    HistogramBimodalOutlierRemoval: 1
+    HistogramBimodalMinHoursSeen: 11
 Strobe:
     ConnectionLimit: 250000
 Filtering:
