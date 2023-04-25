@@ -154,10 +154,10 @@ func (a *analyzer) start() {
 			tsScore := math.Ceil(((tsSkewScore+tsMadmScore)/2.0)*1000) / 1000
 
 			// calculate histogram score
-			bucketDivs, freqList, freqCount, totalBars, longestRun, histScore := getTsHistogramScore(a.tsMin, a.tsMax, entry.TsList)
+			bucketDivs, freqList, freqCount, totalBars, longestRun, histScore := getTsHistogramScore(a.tsMin, a.tsMax, entry.TsList, a.conf.S.BeaconProxy.HistBimodalBucketSize, a.conf.S.BeaconProxy.HistBimodalOutlierRemoval, a.conf.S.BeaconProxy.HistBimodalMinHoursSeen)
 
 			// calculate duration score
-			durScore := getDurationScore(a.tsMin, a.tsMax, entry.TsList[0], entry.TsList[tsLength], totalBars, longestRun)
+			durScore := getDurationScore(a.tsMin, a.tsMax, entry.TsList[0], entry.TsList[tsLength], totalBars, longestRun, a.conf.S.BeaconProxy.DurMinHoursSeen, a.conf.S.BeaconProxy.DurConsistencyIdealHoursSeen)
 
 			// calculate overall beacon score
 			score := math.Ceil(((tsScore*a.conf.S.BeaconProxy.TsWeight)+
@@ -249,14 +249,14 @@ func countAndRemoveConsecutiveDuplicates(numberList []int64) ([]int64, map[int64
 
 // getTsHistogramScore calculates two potential scores based on the histogram of connections for the
 // host pair and takes the max of the two scores.
-func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, map[int]int, int, int, float64) {
+func getTsHistogramScore(min int64, max int64, tsList []int64, bimodalBucketSize float64, bimodalOutlierRemoval int, bimodalMinHoursSeen int) ([]int64, []int, map[int]int, int, int, float64) {
 
 	// get bucket list
 	// we currently look at a 24 hour period
 	bucketDivs := createBuckets(min, max, 24)
 
 	// use timestamps to get freqencies for buckets
-	freqList, freqCount, total, totalBars, longestRun := createHistogram(bucketDivs, tsList)
+	freqList, freqCount, total, totalBars, longestRun := createHistogram(bucketDivs, tsList, bimodalBucketSize)
 
 	// calculate first potential score
 	// coefficient of variation will help score histograms that have jitter in the number of
@@ -290,29 +290,27 @@ func getTsHistogramScore(min int64, max int64, tsList []int64) ([]int64, []int, 
 	// or a bimodal freqCount histogram.
 	// Example - a beacon that alternates between 1 and 5 connections per hour
 	// This score will only be calculated if the number of total bars on the histogram is at
-	// least 10, otherwise this could lead to a false positive and not fill the
-	// original intent of this scoring.
+	// least the amount set in the yaml file (default: 11)
 	bimodalFit := float64(0)
 
-	if totalBars > 10 {
+	if totalBars >= bimodalMinHoursSeen {
 		largest := 0
 		secondLargest := 0
 
 		// get top two frequency mode bars
-		for key, value := range freqCount {
-			if key > 0 {
-				if value > largest {
-					secondLargest = largest
-					largest = value
-				} else if value > secondLargest {
-					secondLargest = value
-				}
-
+		for _, value := range freqCount {
+			if value > largest {
+				secondLargest = largest
+				largest = value
+			} else if value > secondLargest {
+				secondLargest = value
 			}
 		}
 
-		// calculate the percentage of hour blocks that fit into the top two mode buckets
-		bimodalFit = float64(largest+secondLargest) / float64(totalBars-1)
+		// calculate the percentage of hour blocks that fit into the top two mode buckets.
+		// a small buffer for the score is provided by throwing out a yaml-set number of
+		// potential outlier buckets (default: 1)
+		bimodalFit = float64(largest+secondLargest) / float64(totalBars-bimodalOutlierRemoval)
 	}
 
 	bimodalFitScore := math.Ceil((float64(bimodalFit))*1000) / 1000
@@ -351,7 +349,7 @@ func createBuckets(min int64, max int64, size int64) []int64 {
 }
 
 // createHistogram
-func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, int, int, int) {
+func createHistogram(bucketDivs []int64, tsList []int64, bimodalBucketSize float64) ([]int, map[int]int, int, int, int) {
 	i := 0
 	bucket := bucketDivs[i+1]
 
@@ -384,13 +382,13 @@ func createHistogram(bucketDivs []int64, tsList []int64) ([]int, map[int]int, in
 	}
 
 	// get histogram frequency counts
-	freqCount, total, totalBars, longestRun := getFrequencyCounts(freqList)
+	freqCount, total, totalBars, longestRun := getFrequencyCounts(freqList, bimodalBucketSize)
 
 	return freqList, freqCount, total, totalBars, longestRun
 
 }
 
-func getFrequencyCounts(freqList []int) (map[int]int, int, int, int) {
+func getFrequencyCounts(freqList []int, bimodalBucketSize float64) (map[int]int, int, int, int) {
 
 	// count total non-zero histogram entries (total bars) and find the
 	// largest histogram entry
@@ -410,9 +408,10 @@ func getFrequencyCounts(freqList []int) (map[int]int, int, int, int) {
 	freqCount := make(map[int]int)
 	total := 0
 
-	// determine bucket size for frequency histogram. This will
-	// allow the bimodal histogram score to tolerate some jitter
-	bucketSize := math.Ceil(float64(largestConnCount) * 0.05)
+	// determine bucket size for frequency histogram. This is expressed as a percentage of the
+	// largest connection count and controls how forgiving the bimodal analysis is to variation.
+	// the percentage is set in the rita yaml file (default: 0.05)
+	bucketSize := math.Ceil(float64(largestConnCount) * bimodalBucketSize)
 
 	// make variables to track the longest consecutive run of hours seen in the connection
 	// frequency histogram, including wrap around from start to end of dataset
@@ -440,14 +439,18 @@ func getFrequencyCounts(freqList []int) (map[int]int, int, int, int) {
 		if i < freqListLen {
 			total += item
 
-			// figure out which bucket to parse the frequency bar into
-			bucket := int(math.Floor(float64(item)/bucketSize) * bucketSize)
+			// exclude zero-valued entries
+			if item > 0 {
 
-			// create or increment bucket
-			if _, ok := freqCount[bucket]; !ok {
-				freqCount[bucket] = 1
-			} else {
-				freqCount[bucket]++
+				// figure out which bucket to parse the frequency bar into
+				bucket := int(math.Floor(float64(item)/bucketSize) * bucketSize)
+
+				// create or increment bucket
+				if _, ok := freqCount[bucket]; !ok {
+					freqCount[bucket] = 1
+				} else {
+					freqCount[bucket]++
+				}
 			}
 		}
 
@@ -467,26 +470,28 @@ func getFrequencyCounts(freqList []int) (map[int]int, int, int, int) {
 }
 
 // getDurationScore
-func getDurationScore(min int64, max int64, tsListMin int64, tsListMax int64, totalBars int, longestRun int) float64 {
-	// Duration will only be calculated if more than 6 hours are represented in the connection frequency histogram
+func getDurationScore(min int64, max int64, tsListMin int64, tsListMax int64, totalBars int, longestRun int, minHoursSeen, consistencyIdealHoursSeen int) float64 {
+	// Duration will only be calculated if more than the yaml-defined  threshold (default: 6) hours are
+	// represented in the connection frequency histogram
 	// Duration Score will take the maximum of two potential subscores:
 	// Dataset Timespan Coverage
 	// [ timestamp of last connection - timestamp of first connection ] /
 	// [ last timestamp of dataset - first timestamp of dataset ]
 	// Consistency
-	// [longest run of consecutive hours seen] / [12 hours ]
-	// *note: consecutive includes wrap around from start to end of dataset
+	// [ longest run of consecutive hours seen] / [ 12 hours* ]
+	// note: consecutive includes wrap around from start to end of dataset
+	// *ideal number of consecutive hours can be adjusted in the rita yaml file (default: 12)
 
 	durScore := 0.0
 
-	if totalBars > 6 {
+	if totalBars > minHoursSeen {
 
 		coverageScore := math.Ceil((float64(tsListMax-tsListMin)/(float64(max)-float64(min)))*1000) / 1000
 		if coverageScore > 1.0 {
 			coverageScore = 1.0
 		}
 
-		consistencyScore := math.Ceil((float64(longestRun)/12.0)*1000) / 1000
+		consistencyScore := math.Ceil((float64(longestRun)/float64(consistencyIdealHoursSeen))*1000) / 1000
 		if consistencyScore > 1.0 {
 			consistencyScore = 1.0
 		}

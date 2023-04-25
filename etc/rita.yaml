@@ -149,6 +149,33 @@ Beacon:
   DurationScoreWeight: 0.25
   HistogramScoreWeight: 0.25
 
+  # The number of hours seen in a connection graph representation of a beacon must
+  # be greater than this threshold for an overall duration score to be calculated.
+  # Default value: 6
+  DurationMinHoursSeen: 6
+  # This is the minimum number of hours seen in a connection graph representation
+  # of a beacon for the consistency subscore of duration to score at 100%
+  # Default value: 12 (half the day)
+  DurationConsistencyIdealHoursSeen: 12
+
+  # The histogram score has a subscore that attempts to detect multiple 
+  # flat sections in a connection graph representation of a beacon. The 
+  # variable below controls the bucket size for grouping connections. This
+  # is expressed as a percentage of the largest connection count. For example, 
+  # if the max connection count is 400 and this variable is set to 0.05 (5%), 
+  # the bucket size will be 20 (400*0.05=20). As you make this variable 
+  # larger, the algorithm becomes more forgiving to variation. 
+  # Default value 0.05
+  HistogramBimodalBucketSize: 0.05
+  # This is the number of buckets that can be considered outliers and dropped
+  # from the calculation.
+  # Default value: 1
+  HistogramBimodalOutlierRemoval: 1
+  # This is the minimum number of hours seen in a connection graph representation
+  # of a beacon before the bimodal subscore score is used.
+  # Default value: 11 (sets the minimum coverage to just below half of the day)
+  HistogramBimodalMinHoursSeen: 11
+
 BeaconSNI:
   Enabled: true
   # The default minimum number of connections used for beacons SNI analysis.
@@ -170,6 +197,33 @@ BeaconSNI:
   DurationScoreWeight: 0.25
   HistogramScoreWeight: 0.25
 
+  # The number of hours seen in a connection graph representation of a beacon must
+  # be greater than this threshold for an overall duration score to be calculated.
+  # Default value: 6
+  DurationMinHoursSeen: 6
+  # This is the minimum number of hours seen in a connection graph representation
+  # of a beacon for the consistency subscore of duration to score at 100%
+  # Default value: 12 (half the day)
+  DurationConsistencyIdealHoursSeen: 12
+
+  # The histogram score has a subscore that attempts to detect multiple 
+  # flat sections in a connection graph representation of a beacon. The 
+  # variable below controls the bucket size for grouping connections. This
+  # is expressed as a percentage of the largest connection count. For example, 
+  # if the max connection count is 400 and this variable is set to 0.05 (5%), 
+  # the bucket size will be 20 (400*0.05=20). As you make this variable 
+  # larger, the algorithm becomes more forgiving to variation. 
+  # Default value 0.05
+  HistogramBimodalBucketSize: 0.05
+  # This is the number of buckets that can be considered outliers and dropped
+  # from the calculation.
+  # Default value: 1
+  HistogramBimodalOutlierRemoval: 1
+  # This is the minimum number of hours seen in a connection graph representation
+  # of a beacon before the subscore score is used.
+  # Default value: 11 (sets the minimum coverage to just below half of the day)
+  HistogramBimodalMinHoursSeen: 11
+
 BeaconProxy:
   Enabled: true
   # The default minimum number of connections used for beacons proxy analysis.
@@ -189,6 +243,33 @@ BeaconProxy:
   TimestampScoreWeight: 0.333
   DurationScoreWeight: 0.333
   HistogramScoreWeight: 0.333
+
+  # The number of hours seen in a connection graph representation of a beacon must
+  # be greater than this threshold for an overall duration score to be calculated.
+  # Default value: 6
+  DurationMinHoursSeen: 6
+  # This is the minimum number of hours seen in a connection graph representation
+  # of a beacon for the consistency subscore of duration to score at 100%
+  # Default value: 12 (half the day)
+  DurationConsistencyIdealHoursSeen: 12
+
+  # The histogram score has a subscore that attempts to detect multiple 
+  # flat sections in a connection graph representation of a beacon. The 
+  # variable below controls the bucket size for grouping connections. This
+  # is expressed as a percentage of the largest connection count. For example, 
+  # if the max connection count is 400 and this variable is set to 0.05 (5%), 
+  # the bucket size will be 20 (400*0.05=20). As you make this variable 
+  # larger, the algorithm becomes more forgiving to variation. 
+  # Default value 0.05
+  HistogramBimodalBucketSize: 0.05
+  # This is the number of buckets that can be considered outliers and dropped
+  # from the calculation.
+  # Default value: 1
+  HistogramBimodalOutlierRemoval: 1
+  # This is the minimum number of hours seen in a connection graph representation
+  # of a beacon before the subscore score is used.
+  # Default value: 11 (sets the minimum coverage to just below half of the day)
+  HistogramBimodalMinHoursSeen: 11
   
 DNS:
   Enabled: true
