@@ -104,7 +104,7 @@ func maxTotalDurationUpdate(datum data.UniqueIP, uconnColl, hostColl *mgo.Collec
 		MaxTotalDur float64       `bson:"tdur"`
 	}
 
-	mdipQuery := maxTotalDurationPipeline(datum, chunk)
+	mdipQuery := maxTotalDurationPipeline(datum)
 
 	err := uconnColl.Pipe(mdipQuery).One(&maxDurIP)
 	if err != nil {
@@ -114,7 +114,7 @@ func maxTotalDurationUpdate(datum data.UniqueIP, uconnColl, hostColl *mgo.Collec
 	hostSelector := datum.BSONKey()
 	hostWithDatEntrySelector := database.MergeBSONMaps(
 		hostSelector,
-		bson.M{"dat": bson.M{"$elemMatch": maxDurIP.Peer.PrefixedBSONKey("mdip")}},
+		bson.M{"dat": bson.M{"$elemMatch": bson.M{"mdip": bson.M{"$exists": true}}}},
 	)
 
 	nExistingEntries, err := hostColl.Find(hostWithDatEntrySelector).Count()
@@ -123,10 +123,9 @@ func maxTotalDurationUpdate(datum data.UniqueIP, uconnColl, hostColl *mgo.Collec
 	}
 
 	if nExistingEntries > 0 {
-		// just need to update the cid and score if there is an
-		// an existing record
 		updateQuery := bson.M{
 			"$set": bson.M{
+				"dat.$.mdip":         maxDurIP.Peer,
 				"dat.$.max_duration": maxDurIP.MaxTotalDur,
 				"dat.$.cid":          chunk,
 			},
@@ -152,7 +151,7 @@ func maxTotalDurationUpdate(datum data.UniqueIP, uconnColl, hostColl *mgo.Collec
 	return database.BulkChange{Selector: hostSelector, Update: insertQuery, Upsert: true}, nil
 }
 
-func maxTotalDurationPipeline(host data.UniqueIP, chunk int) []bson.M {
+func maxTotalDurationPipeline(host data.UniqueIP) []bson.M {
 	return []bson.M{
 		{"$match": bson.M{
 			// match the host IP/ network
@@ -168,8 +167,6 @@ func maxTotalDurationPipeline(host data.UniqueIP, chunk int) []bson.M {
 					}},
 				},
 			},
-			// match uconn records which have been updated this chunk
-			"dat.cid": chunk,
 		}},
 		// drop unnecessary data
 		{"$project": bson.M{
@@ -198,16 +195,6 @@ func maxTotalDurationPipeline(host data.UniqueIP, chunk int) []bson.M {
 			},
 			"dat.cid":  1,
 			"dat.tdur": 1,
-		}},
-		// drop dat records that are not from this chunk
-		{"$project": bson.M{
-			"peer": 1,
-			"dat": bson.M{"$filter": bson.M{
-				"input": "$dat",
-				"cond": bson.M{
-					"$eq": []interface{}{"$$this.cid", chunk},
-				},
-			}},
 		}},
 		// for each peer, combine the records that match the current chunk
 		{"$project": bson.M{

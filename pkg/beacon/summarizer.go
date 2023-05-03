@@ -95,7 +95,7 @@ func maxBeaconUpdate(datum data.UniqueIP, beaconColl, hostColl *mgo.Collection, 
 		Score float64       `bson:"score"`
 	}
 
-	mbdstQuery := maxBeaconPipeline(datum, chunk)
+	mbdstQuery := maxBeaconPipeline(datum)
 	err := beaconColl.Pipe(mbdstQuery).One(&maxBeaconIP)
 	if err != nil {
 		return nil, nil, err
@@ -104,7 +104,7 @@ func maxBeaconUpdate(datum data.UniqueIP, beaconColl, hostColl *mgo.Collection, 
 	hostSelector := datum.BSONKey()
 	hostWithDatEntrySelector := database.MergeBSONMaps(
 		hostSelector,
-		bson.M{"dat": bson.M{"$elemMatch": maxBeaconIP.Dst.PrefixedBSONKey("mbdst")}},
+		bson.M{"dat": bson.M{"$elemMatch": bson.M{"mbdst.ip": bson.M{"$exists": true}}}},
 	)
 
 	nExistingEntries, err := hostColl.Find(hostWithDatEntrySelector).Count()
@@ -113,10 +113,9 @@ func maxBeaconUpdate(datum data.UniqueIP, beaconColl, hostColl *mgo.Collection, 
 	}
 
 	if nExistingEntries > 0 {
-		// just need to update the cid and score if there is an
-		// an existing record
 		updateQuery := bson.M{
 			"$set": bson.M{
+				"dat.$.mbdst":            maxBeaconIP.Dst,
 				"dat.$.max_beacon_score": maxBeaconIP.Score,
 				"dat.$.cid":              chunk,
 			},
@@ -139,12 +138,11 @@ func maxBeaconUpdate(datum data.UniqueIP, beaconColl, hostColl *mgo.Collection, 
 	return hostSelector, insertQuery, nil
 }
 
-func maxBeaconPipeline(host data.UniqueIP, chunk int) []bson.M {
+func maxBeaconPipeline(host data.UniqueIP) []bson.M {
 	return []bson.M{
 		{"$match": bson.M{
 			"src":              host.IP,
 			"src_network_uuid": host.NetworkUUID,
-			"cid":              chunk,
 		}},
 		// drop unnecessary data
 		{"$project": bson.M{
