@@ -196,7 +196,7 @@ func maxTotalDurationPipeline(host data.UniqueIP) []bson.M {
 			"dat.cid":  1,
 			"dat.tdur": 1,
 		}},
-		// for each peer, combine the records that match the current chunk
+		// for each peer, combine the records
 		{"$project": bson.M{
 			"peer": 1,
 			"tdur": bson.M{"$sum": "$dat.tdur"},
