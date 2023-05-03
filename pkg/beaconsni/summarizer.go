@@ -106,7 +106,7 @@ func maxSNIBeaconUpdate(datum data.UniqueIP, beaconSNIColl, hostColl *mgo.Collec
 	hostSelector := datum.BSONKey()
 	hostWithDatEntrySelector := database.MergeBSONMaps(
 		hostSelector,
-		bson.M{"dat": bson.M{"$elemMatch": bson.M{"mbproxy": bson.M{"$exists": true}}}},
+		bson.M{"dat": bson.M{"$elemMatch": bson.M{"mbsni": bson.M{"$exists": true}}}},
 	)
 
 	nExistingEntries, err := hostColl.Find(hostWithDatEntrySelector).Count()
