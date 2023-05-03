@@ -193,7 +193,6 @@ func maxTotalDurationPipeline(host data.UniqueIP) []bson.M {
 					},
 				},
 			},
-			"dat.cid":  1,
 			"dat.tdur": 1,
 		}},
 		// for each peer, combine the records
