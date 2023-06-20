@@ -49,6 +49,7 @@ RITA requires a few directories to be created for it to function correctly.
 
 1. ```sudo mkdir /etc/rita && sudo chmod 755 /etc/rita```
 1. ```sudo mkdir -p /var/lib/rita/logs && sudo chmod -R 755 /var/lib/rita```
+1. ```sudo chmod 777 /var/lib/rita/logs```
 
 Copy the config file from your local RITA source code.
 * ```sudo cp etc/rita.yaml /etc/rita/config.yaml && sudo chmod 666 /etc/rita/config.yaml```
