@@ -2,9 +2,13 @@ package commands
 
 import (
 	"fmt"
+	"os"
 
+	// "github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/resources"
+	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
 
@@ -15,7 +19,7 @@ func init() {
 		ArgsUsage: "<database> <fqdn>",
 		Flags: []cli.Flag{
 			ConfigFlag,
-			// humanFlag,
+			humanFlag,
 			// delimFlag,
 			// netNamesFlag,
 		},
@@ -31,17 +35,43 @@ func showFqdnIps(c *cli.Context) error {
 		return cli.NewExitError("Specify a database", -1)
 	}
 	fqdn := c.Args().Get(1)
-
 	res := resources.InitResources(getConfigFilePath(c))
 	res.DB.SelectDB(db)
-	
+
 	ipResults, err := hostname.HostnameIPResults(res, fqdn)
+
 	if err != nil {
 		return cli.NewExitError(err, -1)
+	}
+
+	if c.Bool("human-readable") {
+		err := showFqdnIpsHuman(ipResults)
+		if err != nil {
+			return cli.NewExitError(err.Error(), -1)
+		}
+		return nil
 	}
 	// showBeaconsHuman showBeaconsDelim (look at show-beacons.go)
 	// AdjustNames (e.g. showFqdnIpsHuman, etc)
 	fmt.Println(ipResults)
-	
+
+	return nil
+}
+
+func showFqdnIpsHuman(data []data.UniqueIP) error {
+	table := tablewriter.NewWriter(os.Stdout)
+	headerFields := []string{
+		"Source IP", "Network UUID", "Network Name",
+	}
+
+	table.SetHeader(headerFields)
+
+	for _, d := range data {
+		row := []string{
+			d.IP, b(d.NetworkUUID), d.NetworkName,
+		}
+		table.Append(row)
+	}
+	table.Render()
 	return nil
 }
