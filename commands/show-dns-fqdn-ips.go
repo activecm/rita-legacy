@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	// "github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/resources"
@@ -22,7 +21,7 @@ func init() {
 			ConfigFlag,
 			humanFlag,
 			delimFlag,
-			// netNamesFlag,
+			netNamesFlag,
 		},
 		Action: showFqdnIps,
 	}
@@ -45,15 +44,17 @@ func showFqdnIps(c *cli.Context) error {
 		return cli.NewExitError(err, -1)
 	}
 
+	showNetNames := c.Bool("network-names")
+
 	if c.Bool("human-readable") {
-		err := showFqdnIpsHuman(ipResults)
+		err := showFqdnIpsHuman(ipResults, showNetNames)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
 		return nil
 	}
 
-	err = showFqdnIpsDelim(ipResults, c.String("delimiter"))
+	err = showFqdnIpsDelim(ipResults, c.String("delimiter"), showNetNames)
 	if err != nil {
 		return cli.NewExitError(err.Error(), -1)
 	}
@@ -61,17 +62,31 @@ func showFqdnIps(c *cli.Context) error {
 	return nil
 }
 
-func showFqdnIpsHuman(data []data.UniqueIP) error {
+func showFqdnIpsHuman(data []data.UniqueIP, showNetNames bool) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	headerFields := []string{
-		"Source IP", "Network UUID", "Network Name",
+	var headerFields []string
+	if showNetNames {
+		headerFields = []string{
+			"Source IP", "Network UUID", "Network",
+		}
+	} else {
+		headerFields = []string{
+			"Source IP", "Network UUID",
+		}
 	}
 
 	table.SetHeader(headerFields)
 
 	for _, d := range data {
-		row := []string{
-			d.IP, b(d.NetworkUUID), d.NetworkName,
+		var row []string
+		if showNetNames {
+			row = []string{
+				d.IP, b(d.NetworkUUID), d.NetworkName,
+			}
+		} else {
+			row = []string{
+				d.IP, b(d.NetworkUUID),
+			}
 		}
 		table.Append(row)
 	}
@@ -79,16 +94,30 @@ func showFqdnIpsHuman(data []data.UniqueIP) error {
 	return nil
 }
 
-func showFqdnIpsDelim(data []data.UniqueIP, delim string) error {
-	headerFields := []string{
-		"Source IP", "Network UUID", "Network Name",
+func showFqdnIpsDelim(data []data.UniqueIP, delim string, showNetNames bool) error {
+	var headerFields []string
+	if showNetNames {
+		headerFields = []string{
+			"Source IP", "Network UUID", "Network",
+		}
+	} else {
+		headerFields = []string{
+			"Source IP", "Network UUID",
+		}
 	}
 
 	// Print the headers and analytic values, separated by a delimiter
 	fmt.Println(strings.Join(headerFields, delim))
 	for _, d := range data {
-		row := []string{
-			d.IP, b(d.NetworkUUID), d.NetworkName,
+		var row []string
+		if showNetNames {
+			row = []string{
+				d.IP, b(d.NetworkUUID), d.NetworkName,
+			}
+		} else {
+			row = []string{
+				d.IP, b(d.NetworkUUID),
+			}
 		}
 
 		fmt.Println(strings.Join(row, delim))
