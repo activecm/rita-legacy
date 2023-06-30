@@ -33,6 +33,9 @@ func HostnameIPResults(res *resources.Resources, hostname string) ([]data.Unique
 			"network_uuid": "$_id.network_uuid",
 			"network_name": "$network_name",
 		}},
+		{"$sort": bson.M{
+			"ip": 1,
+		}},
 	}
 
 	var ipResults []data.UniqueIP

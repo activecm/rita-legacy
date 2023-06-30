@@ -67,11 +67,11 @@ func showFqdnIpsHuman(data []data.UniqueIP, showNetNames bool) error {
 	var headerFields []string
 	if showNetNames {
 		headerFields = []string{
-			"Source IP", "Network UUID", "Network",
+			"Resolved IP", "Network",
 		}
 	} else {
 		headerFields = []string{
-			"Source IP", "Network UUID",
+			"Resolved IP",
 		}
 	}
 
@@ -81,11 +81,11 @@ func showFqdnIpsHuman(data []data.UniqueIP, showNetNames bool) error {
 		var row []string
 		if showNetNames {
 			row = []string{
-				d.IP, b(d.NetworkUUID), d.NetworkName,
+				d.IP, d.NetworkName,
 			}
 		} else {
 			row = []string{
-				d.IP, b(d.NetworkUUID),
+				d.IP,
 			}
 		}
 		table.Append(row)
@@ -98,11 +98,11 @@ func showFqdnIpsDelim(data []data.UniqueIP, delim string, showNetNames bool) err
 	var headerFields []string
 	if showNetNames {
 		headerFields = []string{
-			"Source IP", "Network UUID", "Network",
+			"Resolved IP", "Network",
 		}
 	} else {
 		headerFields = []string{
-			"Source IP", "Network UUID",
+			"Resolved IP",
 		}
 	}
 
@@ -112,11 +112,11 @@ func showFqdnIpsDelim(data []data.UniqueIP, delim string, showNetNames bool) err
 		var row []string
 		if showNetNames {
 			row = []string{
-				d.IP, b(d.NetworkUUID), d.NetworkName,
+				d.IP, d.NetworkName,
 			}
 		} else {
 			row = []string{
-				d.IP, b(d.NetworkUUID),
+				d.IP,
 			}
 		}
 
