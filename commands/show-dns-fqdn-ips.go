@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	// "github.com/activecm/rita/pkg/data"
 	"github.com/activecm/rita/pkg/data"
@@ -20,7 +21,7 @@ func init() {
 		Flags: []cli.Flag{
 			ConfigFlag,
 			humanFlag,
-			// delimFlag,
+			delimFlag,
 			// netNamesFlag,
 		},
 		Action: showFqdnIps,
@@ -51,9 +52,11 @@ func showFqdnIps(c *cli.Context) error {
 		}
 		return nil
 	}
-	// showBeaconsHuman showBeaconsDelim (look at show-beacons.go)
-	// AdjustNames (e.g. showFqdnIpsHuman, etc)
-	fmt.Println(ipResults)
+
+	err = showFqdnIpsDelim(ipResults, c.String("delimiter"))
+	if err != nil {
+		return cli.NewExitError(err.Error(), -1)
+	}
 
 	return nil
 }
@@ -73,5 +76,22 @@ func showFqdnIpsHuman(data []data.UniqueIP) error {
 		table.Append(row)
 	}
 	table.Render()
+	return nil
+}
+
+func showFqdnIpsDelim(data []data.UniqueIP, delim string) error {
+	headerFields := []string{
+		"Source IP", "Network UUID", "Network Name",
+	}
+
+	// Print the headers and analytic values, separated by a delimiter
+	fmt.Println(strings.Join(headerFields, delim))
+	for _, d := range data {
+		row := []string{
+			d.IP, b(d.NetworkUUID), d.NetworkName,
+		}
+
+		fmt.Println(strings.Join(row, delim))
+	}
 	return nil
 }
