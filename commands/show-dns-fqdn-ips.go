@@ -34,6 +34,11 @@ func showFqdnIps(c *cli.Context) error {
 	if db == "" {
 		return cli.NewExitError("Specify a database", -1)
 	}
+
+	f := c.Args().Get(1)
+	if f == "" {
+		return cli.NewExitError("Specify an FQDN", -1)
+	}
 	fqdn := c.Args().Get(1)
 	res := resources.InitResources(getConfigFilePath(c))
 	res.DB.SelectDB(db)
@@ -41,7 +46,12 @@ func showFqdnIps(c *cli.Context) error {
 	ipResults, err := hostname.HostnameIPResults(res, fqdn)
 
 	if err != nil {
+		res.Log.Error(err)
 		return cli.NewExitError(err, -1)
+	}
+
+	if !(len(ipResults) > 0) {
+		return cli.NewExitError("No results were found for "+db, -1)
 	}
 
 	showNetNames := c.Bool("network-names")
