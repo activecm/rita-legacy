@@ -129,6 +129,7 @@ RITA cycles data into and out of rolling databases in "chunks". You can think of
       * `show-bl-hostnames`: Print blacklisted hostnames which received connections
       * `show-bl-source-ips`: Print blacklisted IPs which initiated connections
       * `show-bl-dest-ips`: Print blacklisted IPs which received connections
+      * `show-dns-fqdn-ips`: Print IPs associated with a specified FQDN
       * `show-exploded-dns`:  Print dns analysis. Exposes covert dns channels
       * `show-long-connections`: Print long connections and relevant information
       * `show-strobes`: Print connections which occurred with excessive frequency
