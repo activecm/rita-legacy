@@ -6,8 +6,8 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
-// HostnameIPResults returns the IP addresses the hostname was seen resolving to in the dataset
-func HostnameIPResults(res *resources.Resources, hostname string) ([]data.UniqueIP, error) {
+// IPResults returns the IP addresses the hostname was seen resolving to in the dataset
+func IPResults(res *resources.Resources, hostname string) ([]data.UniqueIP, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
 

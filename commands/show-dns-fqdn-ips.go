@@ -43,7 +43,7 @@ func showFqdnIps(c *cli.Context) error {
 	res := resources.InitResources(getConfigFilePath(c))
 	res.DB.SelectDB(db)
 
-	ipResults, err := hostname.HostnameIPResults(res, fqdn)
+	ipResults, err := hostname.IPResults(res, fqdn)
 
 	if err != nil {
 		res.Log.Error(err)
