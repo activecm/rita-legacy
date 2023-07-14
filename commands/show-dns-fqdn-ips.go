@@ -35,11 +35,10 @@ func showFqdnIps(c *cli.Context) error {
 		return cli.NewExitError("Specify a database", -1)
 	}
 
-	f := c.Args().Get(1)
-	if f == "" {
+	fqdn := c.Args().Get(1)
+	if fqdn == "" {
 		return cli.NewExitError("Specify an FQDN", -1)
 	}
-	fqdn := c.Args().Get(1)
 	res := resources.InitResources(getConfigFilePath(c))
 	res.DB.SelectDB(db)
 
