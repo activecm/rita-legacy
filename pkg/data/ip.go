@@ -11,7 +11,7 @@ import (
 )
 
 //UniqueIP binds an IP to an optional Network UUID and Network Name.
-//The UUID and Name serve to diffferentiate local IP addresses
+//The UUID and Name serve to differentiate local IP addresses
 //appearing on distinct physical networks. The Network Name should
 //not be considered when determining equality.
 type UniqueIP struct {
