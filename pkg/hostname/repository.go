@@ -19,7 +19,7 @@ type (
 	}
 
 	// FQDN Results for show-ip-dns-fqdns
-	FqdnResult struct {
+	FQDNResult struct {
 		Hostname string `bson:"_id"`
 	}
 )
