@@ -1,6 +1,9 @@
 package commands
 
 import (
+	"fmt"
+
+	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/resources"
 	"github.com/urfave/cli"
 )
@@ -34,6 +37,19 @@ func showIpFqdns(c *cli.Context) error {
 	}
 	res := resources.InitResources(getConfigFilePath(c))
 	res.DB.SelectDB(db)
+
+	fqdnResults, err := hostname.FQDNResults(res, ip)
+
+	if err != nil {
+		res.Log.Error(err)
+		return cli.NewExitError(err, -1)
+	}
+
+	if !(len(fqdnResults) > 0) {
+		return cli.NewExitError("No results were found for "+db, -1)
+	}
+
+	fmt.Println("Hello world!")
 
 	return nil
 }
