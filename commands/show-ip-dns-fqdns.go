@@ -65,7 +65,7 @@ func showIpFqdns(c *cli.Context) error {
 func showIpFqdnsHuman(data []*hostname.FQDNResult) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	headerFields := []string{
-		"Resolved FQDNs",
+		"Resolved FQDN",
 	}
 
 	table.SetHeader(headerFields)
@@ -81,7 +81,7 @@ func showIpFqdnsHuman(data []*hostname.FQDNResult) error {
 }
 
 func showIpFqdnsRaw(data []*hostname.FQDNResult) error {
-	fmt.Println("Resolved FQDNs")
+	fmt.Println("Resolved FQDN")
 	for _, d := range data {
 		fmt.Println(d.Hostname)
 	}
