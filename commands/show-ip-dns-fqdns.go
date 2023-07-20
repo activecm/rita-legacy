@@ -2,10 +2,11 @@ package commands
 
 import (
 	"fmt"
-	"strings"
+	"os"
 
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/resources"
+	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
 
@@ -45,7 +46,15 @@ func showIpFqdns(c *cli.Context) error {
 		return cli.NewExitError("No results were found for "+db, -1)
 	}
 
-	err = showIpFqdnsDelim(fqdnResults, c.String("delimiter"))
+	if c.Bool("human-readable") {
+		err := showIpFqdnsHuman(fqdnResults)
+		if err != nil {
+			return cli.NewExitError(err.Error(), -1)
+		}
+		return nil
+	}
+
+	err = showIpFqdnsRaw(fqdnResults)
 	if err != nil {
 		return cli.NewExitError(err.Error(), -1)
 	}
@@ -53,19 +62,28 @@ func showIpFqdns(c *cli.Context) error {
 	return nil
 }
 
-func showIpFqdnsDelim(data []*hostname.FQDNResult, delim string) error {
+func showIpFqdnsHuman(data []*hostname.FQDNResult) error {
+	table := tablewriter.NewWriter(os.Stdout)
 	headerFields := []string{
 		"Resolved FQDNs",
 	}
 
-	// Print the headers and analytic values, separated by a delimiter
-	fmt.Println(strings.Join(headerFields, delim))
+	table.SetHeader(headerFields)
+
 	for _, d := range data {
 		row := []string{
 			d.Hostname,
 		}
+		table.Append(row)
+	}
+	table.Render()
+	return nil
+}
 
-		fmt.Println(strings.Join(row, delim))
+func showIpFqdnsRaw(data []*hostname.FQDNResult) error {
+	fmt.Println("Resolved FQDNs")
+	for _, d := range data {
+		fmt.Println(d.Hostname)
 	}
 	return nil
 }
