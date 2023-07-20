@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/activecm/rita/pkg/hostname"
 	"github.com/activecm/rita/resources"
@@ -17,7 +18,6 @@ func init() {
 			ConfigFlag,
 			humanFlag,
 			delimFlag,
-			netNamesFlag,
 		},
 		Action: showIpFqdns,
 	}
@@ -49,7 +49,27 @@ func showIpFqdns(c *cli.Context) error {
 		return cli.NewExitError("No results were found for "+db, -1)
 	}
 
-	fmt.Println("Hello world!")
+	err = showIpFqdnsDelim(fqdnResults, c.String("delimiter"))
+	if err != nil {
+		return cli.NewExitError(err.Error(), -1)
+	}
 
+	return nil
+}
+
+func showIpFqdnsDelim(data []*hostname.FQDNResult, delim string) error {
+	headerFields := []string{
+		"Resolved FQDNs",
+	}
+
+	// Print the headers and analytic values, separated by a delimiter
+	fmt.Println(strings.Join(headerFields, delim))
+	for _, d := range data {
+		row := []string{
+			d.Hostname,
+		}
+
+		fmt.Println(strings.Join(row, delim))
+	}
 	return nil
 }
