@@ -20,13 +20,13 @@ func init() {
 			humanFlag,
 			delimFlag,
 		},
-		Action: showIpFqdns,
+		Action: showIPFqdns,
 	}
 
 	bootstrapCommands(command)
 }
 
-func showIpFqdns(c *cli.Context) error {
+func showIPFqdns(c *cli.Context) error {
 	db, ip := c.Args().Get(0), c.Args().Get(1)
 	if db == "" || ip == "" {
 		return cli.NewExitError("Specify a database and IP address", -1)
@@ -47,14 +47,14 @@ func showIpFqdns(c *cli.Context) error {
 	}
 
 	if c.Bool("human-readable") {
-		err := showIpFqdnsHuman(fqdnResults)
+		err := showIPFqdnsHuman(fqdnResults)
 		if err != nil {
 			return cli.NewExitError(err.Error(), -1)
 		}
 		return nil
 	}
 
-	err = showIpFqdnsRaw(fqdnResults)
+	err = showIPFqdnsRaw(fqdnResults)
 	if err != nil {
 		return cli.NewExitError(err.Error(), -1)
 	}
@@ -62,7 +62,7 @@ func showIpFqdns(c *cli.Context) error {
 	return nil
 }
 
-func showIpFqdnsHuman(data []*hostname.FQDNResult) error {
+func showIPFqdnsHuman(data []*hostname.FQDNResult) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	headerFields := []string{
 		"Resolved FQDN",
@@ -80,7 +80,7 @@ func showIpFqdnsHuman(data []*hostname.FQDNResult) error {
 	return nil
 }
 
-func showIpFqdnsRaw(data []*hostname.FQDNResult) error {
+func showIPFqdnsRaw(data []*hostname.FQDNResult) error {
 	fmt.Println("Resolved FQDN")
 	for _, d := range data {
 		fmt.Println(d.Hostname)
