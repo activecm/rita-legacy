@@ -26,15 +26,11 @@ func init() {
 }
 
 func showIpFqdns(c *cli.Context) error {
-	db := c.Args().Get(0)
-	if db == "" {
-		return cli.NewExitError("Specify a database", -1)
+	db, ip := c.Args().Get(0), c.Args().Get(1)
+	if db == "" || ip == "" {
+		return cli.NewExitError("Specify a database and IP address", -1)
 	}
 
-	ip := c.Args().Get(1)
-	if ip == "" {
-		return cli.NewExitError("Specify an IP address", -1)
-	}
 	res := resources.InitResources(getConfigFilePath(c))
 	res.DB.SelectDB(db)
 
