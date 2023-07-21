@@ -42,3 +42,23 @@ func IPResults(res *resources.Resources, hostname string) ([]data.UniqueIP, erro
 	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.HostnamesTable).Pipe(ipsForHostnameQuery).AllowDiskUse().All(&ipResults)
 	return ipResults, err
 }
+
+// FQDNResults returns the FQDNs the IP address was seen resolving to in the dataset
+func FQDNResults(res *resources.Resources, hostIP string) ([]*FQDNResult, error) {
+	ssn := res.DB.Session.Copy()
+	defer ssn.Close()
+
+	fqdnsForHostnameQuery := []bson.M{
+		{"$match": bson.M{
+			"dat.ips.ip": hostIP,
+		}},
+		{"$group": bson.M{
+			"_id": "$host",
+		}},
+		
+	}
+
+	var fqdnResults []*FQDNResult
+	err := ssn.DB(res.DB.GetSelectedDB()).C(res.Config.T.DNS.HostnamesTable).Pipe(fqdnsForHostnameQuery).AllowDiskUse().All(&fqdnResults)
+	return fqdnResults, err
+}
