@@ -13,7 +13,7 @@ import (
 func init() {
 	command := cli.Command{
 		Name:      "show-ip-dns-fqdns",
-		Usage:     "Print FQDNs associated with IP via DNS",
+		Usage:     "Print FQDNs associated with IP Address via DNS",
 		ArgsUsage: "<database> <ip address>",
 		Flags: []cli.Flag{
 			ConfigFlag,
