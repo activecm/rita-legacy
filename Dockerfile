@@ -24,7 +24,7 @@ RUN make CGO_ENABLED=$CGO_ENABLED GOARCH=$GOARCH GOOS=$GOOS
 FROM scratch
 
 WORKDIR /
-COPY --from=rita-builder /go/src/github.com/activecm/rita/etc/rita.yaml /etc/rita/config.yaml
+COPY --from=rita-builder /go/src/github.com/activecm/rita/etc/rita_docker.yaml /etc/rita/config.yaml
 COPY --from=rita-builder /go/src/github.com/activecm/rita/rita /rita
 
 ENTRYPOINT ["/rita"]
