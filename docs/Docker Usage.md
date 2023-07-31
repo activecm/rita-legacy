@@ -25,7 +25,7 @@ You will need a config file where you have [put in your `InternalSubnets`](../Re
 You will also need the path to your Zeek log files.
 
 ```
-export CONIFG=/path/to/your/rita/config.yaml
+export CONFIG=/path/to/your/rita/config.yaml
 export LOGS=/path/to/your/zeek/logs
 docker-compose run --rm rita import /logs your-dataset
 ```
