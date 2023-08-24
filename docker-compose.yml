@@ -9,9 +9,8 @@ services:
   rita:
     image: quay.io/activecm/rita:${VERSION:-latest}
     build: .
-    links:
-      # give db an alias of "localhost" so that RITA's default config works unchanged
-      - db:localhost
+    depends_on:
+      - db
     volumes:
       - ${CONFIG:?You must provide a path to your CONFIG}:/etc/rita/config.yaml:ro
       - ${LOGS:?You must provide a path to your LOGS}:/logs:ro
