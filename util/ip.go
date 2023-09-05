@@ -26,30 +26,43 @@ func init() {
 		})
 }
 
-//ParseSubnets parses the provided subnets into net.ipnet format
-func ParseSubnets(subnets []string) (parsedSubnets []*net.IPNet) {
+// ParseSubnets parses the provided subnets into net.IPNet format
+func ParseSubnets(subnets []string) []*net.IPNet {
+	var parsedSubnets []*net.IPNet
 
 	for _, entry := range subnets {
-		//try to parse out cidr range
+		// Try to parse out CIDR range
 		_, block, err := net.ParseCIDR(entry)
 
-		//if there was an error, check if entry was an IP not a range
+		// If there was an error, check if entry was an IP, not a range
 		if err != nil {
-			// try to parse out IP as range of single host
-			_, block, err = net.ParseCIDR(entry + "/32")
+			ipAddr := net.ParseIP(entry)
+			if ipAddr == nil {
+				fmt.Fprintf(os.Stdout, "Error parsing entry: %s\n", err.Error())
+				continue
+			}
 
-			// if error, report and return
+			// Check if it's an IPv4 or IPv6 address and append the appropriate subnet mask
+			var subnetMask string
+			if ipAddr.To4() != nil {
+				subnetMask = "/32" // IPv4
+			} else {
+				subnetMask = "/128" // IPv6
+			}
+
+			// Append the subnet mask and parse as a CIDR range
+			_, block, err = net.ParseCIDR(entry + subnetMask)
+
 			if err != nil {
 				fmt.Fprintf(os.Stdout, "Error parsing CIDR entry: %s\n", err.Error())
-				os.Exit(-1)
-				return
+				continue
 			}
 		}
 
-		// add cidr range to list
+		// Add CIDR range to the list
 		parsedSubnets = append(parsedSubnets, block)
 	}
-	return
+	return parsedSubnets
 }
 
 //IPIsPubliclyRoutable checks if an IP address is publicly routable. See privateIPBlocks.

@@ -184,7 +184,7 @@ func TestFilterDomain(t *testing.T) {
 
 func TestFilterSingleIP(t *testing.T) {
 
-	fsTest := &filter{
+	fsTest := filter{
 		// purposely omitting internal subnet definition
 		alwaysIncluded: util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
 		neverIncluded:  util.ParseSubnets([]string{"10.0.0.4/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
@@ -207,3 +207,8 @@ func TestFilterSingleIP(t *testing.T) {
 		assert.Equal(t, test.out, output, test.msg)
 	}
 }
+
+// In alwaysIncluded, just leave it as an empty slice, replace
+// util.ParseSubnets with []*net.IPNet
+// In neverIncluded, include the IPv6 address without CIDR.
+// Test case will be modeled after the "never" test case
