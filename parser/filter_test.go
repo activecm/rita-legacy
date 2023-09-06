@@ -208,7 +208,21 @@ func TestFilterSingleIP(t *testing.T) {
 	}
 }
 
-// In alwaysIncluded, just leave it as an empty slice, replace
-// util.ParseSubnets with []*net.IPNet
-// In neverIncluded, include the IPv6 address without CIDR.
-// Test case will be modeled after the "never" test case
+func TestFilterSingleIPv6(t *testing.T) {
+	fsTest := filter{
+		// purposely omitting internal subnet definition
+		alwaysIncluded: []*net.IPNet{},
+		neverIncluded: util.ParseSubnets([]string{"::1"}),
+	}
+
+	never:= "::1"
+
+	testCases := []testCaseSingleIP{
+		{never, true, "NeverInclude IP should be filtered"},
+	}
+
+	for _, test := range testCases {
+		output := fsTest.filterSingleIP(net.ParseIP(test.ip))
+		assert.Equal(t, test.out, output, test.msg)
+	}
+}

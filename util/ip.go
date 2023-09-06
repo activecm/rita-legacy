@@ -34,7 +34,7 @@ func ParseSubnets(subnets []string) []*net.IPNet {
 		// Try to parse out CIDR range
 		_, block, err := net.ParseCIDR(entry)
 
-		// If there was an error, check if entry was an IP, not a range
+		// If there was an error, check if entry was an IP
 		if err != nil {
 			ipAddr := net.ParseIP(entry)
 			if ipAddr == nil {
@@ -45,9 +45,9 @@ func ParseSubnets(subnets []string) []*net.IPNet {
 			// Check if it's an IPv4 or IPv6 address and append the appropriate subnet mask
 			var subnetMask string
 			if ipAddr.To4() != nil {
-				subnetMask = "/32" // IPv4
+				subnetMask = "/32"
 			} else {
-				subnetMask = "/128" // IPv6
+				subnetMask = "/128"
 			}
 
 			// Append the subnet mask and parse as a CIDR range
