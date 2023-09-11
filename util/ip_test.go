@@ -73,8 +73,12 @@ func TestParseSubnets(t *testing.T) {
     }
 
     for _, testCase := range testCases {
-        output, _ := ParseSubnets(testCase.nets)
-        assert.Equal(t, testCase.out, output, testCase.msg)
+        output, err := ParseSubnets(testCase.nets)
+		if testCase.wantErr {
+			assert.Error(t, err, testCase.msg)
+		} else {
+			assert.Equal(t, testCase.out, output, testCase.msg)
+		}
     }
 }
 
