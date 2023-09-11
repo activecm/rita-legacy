@@ -27,6 +27,8 @@ func init() {
 	
 	if err == nil {
 		privateIPBlocks = privateIPs
+	} else {
+		panic(fmt.Sprintf("Error defining private IPs: %v", err.Error()))
 	}
 }
 
