@@ -13,6 +13,13 @@ type ipBoolTestCase struct {
 	msg string
 }
 
+type parseSubnetsTestCase struct {
+	nets	[]string
+	out []*net.IPNet
+	wantErr bool
+	msg string
+}
+
 func TestIPIsPublicRoutable(t *testing.T) {
 
 	testCases := []ipBoolTestCase{
@@ -41,4 +48,44 @@ func TestIsIP(t *testing.T) {
 	notIP := "a.b.c.d"
 	assert.True(t, IsIP(testIP))
 	assert.False(t, IsIP(notIP))
+}
+
+// Ensures ParseSubnets returns expected net.IPNets and returns
+// error when invalid IP address/CIDR network is provided.
+func TestParseSubnets(t *testing.T) {
+    validNets := []string{"192.168.0.0/24", "2001:db8::/32", "192.168.0.1", "2001:db8::1"}
+	validNetsOutput := createIPNets([]string{"192.168.0.0/24", "2001:db8::/32", "192.168.0.1/32", "2001:db8::1/128"})
+    invalidNets := []string{"invalidIP", "300.0.0.0/24"}
+
+    testCases := []parseSubnetsTestCase{
+        {
+            nets:    validNets,
+            out:     validNetsOutput,
+            wantErr: false,
+            msg:     "Valid mixed subnets",
+        },
+        {
+            nets:    invalidNets,
+            out:     nil,
+            wantErr: true,
+            msg:     "Invalid subnets (Expecting Error)",
+        },
+    }
+
+    for _, testCase := range testCases {
+        output, _ := ParseSubnets(testCase.nets)
+        assert.Equal(t, testCase.out, output, testCase.msg)
+    }
+}
+
+
+func createIPNets(cidr []string) []*net.IPNet {
+    ipNets := make([]*net.IPNet, len(cidr))
+	
+    for i, ip := range cidr {
+        _, ipNet, _ := net.ParseCIDR(ip)
+        ipNets[i] = ipNet
+    }
+
+    return ipNets
 }
