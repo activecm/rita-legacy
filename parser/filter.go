@@ -20,15 +20,30 @@ type filter struct {
 	filterExternalToInternal bool
 }
 
-func newFilter(conf *config.Config) filter {
+func newFilter(conf *config.Config) (filter, error) {
+	internalNets, err := util.ParseSubnets(conf.S.Filtering.InternalSubnets)
+	if err != nil {
+		return filter{}, err
+	}
+	
+	alwaysInclude, err := util.ParseSubnets(conf.S.Filtering.AlwaysInclude)
+	if err != nil {
+		return filter{}, err
+	}
+
+	neverInclude, err := util.ParseSubnets(conf.S.Filtering.NeverInclude)
+	if err != nil {
+		return filter{}, err
+	}
+
 	return filter{
-		internal:                 util.ParseSubnets(conf.S.Filtering.InternalSubnets),
-		alwaysIncluded:           util.ParseSubnets(conf.S.Filtering.AlwaysInclude),
-		neverIncluded:            util.ParseSubnets(conf.S.Filtering.NeverInclude),
+		internal:                 internalNets,
+		alwaysIncluded:           alwaysInclude,
+		neverIncluded:            neverInclude,
 		alwaysIncludedDomain:     conf.S.Filtering.AlwaysIncludeDomain,
 		neverIncludedDomain:      conf.S.Filtering.NeverIncludeDomain,
 		filterExternalToInternal: conf.S.Filtering.FilterExternalToInternal,
-	}
+	}, nil
 }
 
 // filterConnPair returns true if a connection pair is filtered/excluded.

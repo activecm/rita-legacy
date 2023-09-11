@@ -13,7 +13,7 @@ import (
 var privateIPBlocks []*net.IPNet
 
 func init() {
-	privateIPBlocks = ParseSubnets(
+	privateIPs, err := ParseSubnets(
 		[]string{
 			//"127.0.0.0/8",    // IPv4 Loopback; handled by ip.IsLoopback
 			//"::1/128",        // IPv6 Loopback; handled by ip.IsLoopback
@@ -24,10 +24,14 @@ func init() {
 			"192.168.0.0/16", // RFC1918
 			"fc00::/7",       // IPv6 unique local addr
 		})
+	
+	if err == nil {
+		privateIPBlocks = privateIPs
+	}
 }
 
 // ParseSubnets parses the provided subnets into net.IPNet format
-func ParseSubnets(subnets []string) []*net.IPNet {
+func ParseSubnets(subnets []string) ([]*net.IPNet, error) {
 	var parsedSubnets []*net.IPNet
 
 	for _, entry := range subnets {
@@ -39,7 +43,7 @@ func ParseSubnets(subnets []string) []*net.IPNet {
 			ipAddr := net.ParseIP(entry)
 			if ipAddr == nil {
 				fmt.Fprintf(os.Stdout, "Error parsing entry: %s\n", err.Error())
-				continue
+				return parsedSubnets, err
 			}
 
 			// Check if it's an IPv4 or IPv6 address and append the appropriate subnet mask
@@ -55,14 +59,14 @@ func ParseSubnets(subnets []string) []*net.IPNet {
 
 			if err != nil {
 				fmt.Fprintf(os.Stdout, "Error parsing CIDR entry: %s\n", err.Error())
-				continue
+				return parsedSubnets, err
 			}
 		}
 
 		// Add CIDR range to the list
 		parsedSubnets = append(parsedSubnets, block)
 	}
-	return parsedSubnets
+	return parsedSubnets, nil
 }
 
 //IPIsPubliclyRoutable checks if an IP address is publicly routable. See privateIPBlocks.

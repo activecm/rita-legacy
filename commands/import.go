@@ -232,7 +232,10 @@ func (i *Importer) run() error {
 	}
 	i.res.Config.S.Rolling = rollingCfg
 
-	importer := parser.NewFSImporter(i.res)
+	importer, err := parser.NewFSImporter(i.res)
+	if err != nil {
+		return cli.NewExitError("Error creating new file system importer.", -1)
+	}
 	if len(importer.GetInternalSubnets()) == 0 {
 		return cli.NewExitError("Internal subnets are not defined. Please set the InternalSubnets section of the config file.", -1)
 	}
