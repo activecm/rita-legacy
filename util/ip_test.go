@@ -53,22 +53,46 @@ func TestIsIP(t *testing.T) {
 // Ensures ParseSubnets returns expected net.IPNets and returns
 // error when invalid IP address/CIDR network is provided.
 func TestParseSubnets(t *testing.T) {
-    validNets := []string{"192.168.0.0/24", "2001:db8::/32", "192.168.0.1", "2001:db8::1"}
-	validNetsOutput := createIPNets([]string{"192.168.0.0/24", "2001:db8::/32", "192.168.0.1/32", "2001:db8::1/128"})
+	validIPv4Nets := []string{"192.168.0.0/24", "10.0.0.0/16"}
+	validIPv4NetsOut := parseCIDRs([]string{"192.168.0.0/24", "10.0.0.0/16"})
+	validIPv4Hosts := []string{"192.168.0.1", "10.0.123.45"}
+	validIPv4HostsOut := parseCIDRs([]string{"192.168.0.1/32", "10.0.123.45/32"})
+	validIPv6Nets := []string{"2001:db8::/32", "2400:cb00:2048::/64"}
+	validIPv6NetsOut := parseCIDRs([]string{"2001:db8::/32", "2400:cb00:2048::/64"})
+	validIPv6Hosts := []string {"2001:db8::1", "2400:cb00:2048::1"}
+	validIPv6HostsOut := parseCIDRs([]string {"2001:db8::1/128", "2400:cb00:2048::1/128"})
     invalidNets := []string{"invalidIP", "300.0.0.0/24"}
 
     testCases := []parseSubnetsTestCase{
         {
-            nets:    validNets,
-            out:     validNetsOutput,
+            nets:    validIPv4Nets,
+            out:     validIPv4NetsOut,
             wantErr: false,
-            msg:     "Valid mixed subnets",
+            msg:     "Valid IPv4 subnetworks",
+        },
+		{
+            nets:    validIPv4Hosts,
+            out:     validIPv4HostsOut,
+            wantErr: false,
+            msg:     "Valid IPv4 host IPs",
+        },
+		{
+            nets:    validIPv6Nets,
+            out:     validIPv6NetsOut,
+            wantErr: false,
+            msg:     "Valid IPv6 subnetworks",
+        },
+		{
+            nets:    validIPv6Hosts,
+            out:     validIPv6HostsOut,
+            wantErr: false,
+            msg:     "Valid IPv6 host IPs",
         },
         {
             nets:    invalidNets,
             out:     nil,
             wantErr: true,
-            msg:     "Invalid subnets (Expecting Error)",
+            msg:     "Invalid IP and subnetwork (Expecting Error)",
         },
     }
 
@@ -83,7 +107,7 @@ func TestParseSubnets(t *testing.T) {
 }
 
 
-func createIPNets(cidr []string) []*net.IPNet {
+func parseCIDRs(cidr []string) []*net.IPNet {
     ipNets := make([]*net.IPNet, len(cidr))
 	
     for i, ip := range cidr {
