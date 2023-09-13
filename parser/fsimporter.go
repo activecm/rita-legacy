@@ -63,7 +63,7 @@ func NewFSImporter(res *resources.Resources) (*FSImporter, error) {
 	if err != nil {
 		return &FSImporter{}, err
 	}
-	
+
 	return &FSImporter{
 		filter:         newFilter,
 		log:            res.Log,

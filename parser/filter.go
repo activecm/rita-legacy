@@ -25,7 +25,7 @@ func newFilter(conf *config.Config) (filter, error) {
 	if err != nil {
 		return filter{}, err
 	}
-	
+
 	alwaysInclude, err := util.ParseSubnets(conf.S.Filtering.AlwaysInclude)
 	if err != nil {
 		return filter{}, err

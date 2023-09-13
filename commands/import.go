@@ -56,7 +56,7 @@ type (
 	}
 )
 
-//NewImporter ....
+// NewImporter ....
 func NewImporter(c *cli.Context) *Importer {
 	return &Importer{
 		configFile:      getConfigFilePath(c),
@@ -69,7 +69,7 @@ func NewImporter(c *cli.Context) *Importer {
 	}
 }
 
-//parseArgs handles parsing the positional import arguments
+// parseArgs handles parsing the positional import arguments
 func (i *Importer) parseArgs() error {
 	if len(i.args) < 2 {
 		return cli.NewExitError("\n\t[!] Both <files/directory to import> and <database name> are required.", -1)

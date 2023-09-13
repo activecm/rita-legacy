@@ -226,10 +226,10 @@ func TestFilterSingleIPv6(t *testing.T) {
 	fsTest := filter{
 		// purposely omitting internal subnet definition
 		alwaysIncluded: []*net.IPNet{},
-		neverIncluded: neverInclude,
+		neverIncluded:  neverInclude,
 	}
 
-	never:= "::1"
+	never := "::1"
 
 	testCases := []testCaseSingleIP{
 		{never, true, "NeverInclude IP should be filtered"},
