@@ -28,11 +28,14 @@ type testCaseSingleIP struct {
 }
 
 func TestFilterConnPairWithInternalSubnets(t *testing.T) {
+	internalNets, _ := util.ParseSubnets([]string{"10.0.0.0/8"})
+	alwaysInclude, _ := util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"})
+	neverInclude, _ := util.ParseSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"})
 
 	fsTest := &filter{
-		internal:                 util.ParseSubnets([]string{"10.0.0.0/8"}),
-		alwaysIncluded:           util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
-		neverIncluded:            util.ParseSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+		internal:                 internalNets,
+		alwaysIncluded:           alwaysInclude,
+		neverIncluded:            neverInclude,
 		filterExternalToInternal: false,
 	}
 
@@ -85,11 +88,13 @@ func TestFilterConnPairWithInternalSubnets(t *testing.T) {
 }
 
 func TestFilterConnPairWithoutInternalSubnets(t *testing.T) {
+	alwaysInclude, _ := util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"})
+	neverInclude, _ := util.ParseSubnets([]string{"10.0.0.4/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"})
 
 	fsTest := &filter{
 		// purposely omitting internal subnet definition
-		alwaysIncluded:           util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
-		neverIncluded:            util.ParseSubnets([]string{"10.0.0.4/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+		alwaysIncluded:           alwaysInclude,
+		neverIncluded:            neverInclude,
 		filterExternalToInternal: false,
 	}
 
@@ -116,10 +121,12 @@ func TestFilterConnPairWithoutInternalSubnets(t *testing.T) {
 }
 
 func TestFilterConnPairExternalToInternal(t *testing.T) {
+	internalNets, _ := util.ParseSubnets([]string{"10.0.0.0/8"})
+	alwaysInclude, _ := util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"})
 
 	fsTest := &filter{
-		internal:                 util.ParseSubnets([]string{"10.0.0.0/8"}),
-		alwaysIncluded:           util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
+		internal:                 internalNets,
+		alwaysIncluded:           alwaysInclude,
 		filterExternalToInternal: true,
 	}
 
@@ -152,11 +159,14 @@ func TestFilterConnPairExternalToInternal(t *testing.T) {
 }
 
 func TestFilterDomain(t *testing.T) {
+	internalNets, _ := util.ParseSubnets([]string{"10.0.0.0/8"})
+	alwaysInclude, _ := util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"})
+	neverInclude, _ := util.ParseSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"})
 
 	fsTest := &filter{
-		internal:             util.ParseSubnets([]string{"10.0.0.0/8"}),
-		alwaysIncluded:       util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
-		neverIncluded:        util.ParseSubnets([]string{"10.0.0.2/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+		internal:             internalNets,
+		alwaysIncluded:       alwaysInclude,
+		neverIncluded:        neverInclude,
 		alwaysIncludedDomain: []string{"bad.com", "google.com", "*.myotherdomain.com"},
 		neverIncludedDomain:  []string{"good.com", "google.com", "*.mydomain.com"},
 	}
@@ -183,11 +193,13 @@ func TestFilterDomain(t *testing.T) {
 }
 
 func TestFilterSingleIP(t *testing.T) {
+	alwaysInclude, _ := util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"})
+	neverInclude, _ := util.ParseSubnets([]string{"10.0.0.4/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"})
 
-	fsTest := &filter{
+	fsTest := filter{
 		// purposely omitting internal subnet definition
-		alwaysIncluded: util.ParseSubnets([]string{"10.0.0.1/32", "10.0.0.3/32", "1.1.1.1/32", "1.1.1.3/32"}),
-		neverIncluded:  util.ParseSubnets([]string{"10.0.0.4/32", "10.0.0.3/32", "1.1.1.2/32", "1.1.1.3/32"}),
+		alwaysIncluded: alwaysInclude,
+		neverIncluded:  neverInclude,
 	}
 
 	// all possibilities for filtering single IP
@@ -200,6 +212,27 @@ func TestFilterSingleIP(t *testing.T) {
 		// still apply the NeverInclude filter
 		{never, true, "NeverInclude IP should be filtered"},
 		{alwaysNever, false, "AlwaysInclude should take precedence over NeverInclude"},
+	}
+
+	for _, test := range testCases {
+		output := fsTest.filterSingleIP(net.ParseIP(test.ip))
+		assert.Equal(t, test.out, output, test.msg)
+	}
+}
+
+func TestFilterSingleIPv6(t *testing.T) {
+	neverInclude, _ := util.ParseSubnets([]string{"::1"})
+
+	fsTest := filter{
+		// purposely omitting internal subnet definition
+		alwaysIncluded: []*net.IPNet{},
+		neverIncluded:  neverInclude,
+	}
+
+	never := "::1"
+
+	testCases := []testCaseSingleIP{
+		{never, true, "NeverInclude IP should be filtered"},
 	}
 
 	for _, test := range testCases {

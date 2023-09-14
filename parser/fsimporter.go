@@ -55,17 +55,23 @@ type (
 )
 
 // NewFSImporter creates a new file system importer
-func NewFSImporter(res *resources.Resources) *FSImporter {
+func NewFSImporter(res *resources.Resources) (*FSImporter, error) {
 	// set batchSize to the max of 4GB or a half of system RAM to prevent running out of memory while importing
 	batchSize := int64(util.MaxUint64(4*(1<<30), (memory.TotalMemory() / 2)))
+	newFilter, err := newFilter(res.Config)
+
+	if err != nil {
+		return &FSImporter{}, err
+	}
+
 	return &FSImporter{
-		filter:         newFilter(res.Config),
+		filter:         newFilter,
 		log:            res.Log,
 		config:         res.Config,
 		database:       res.DB,
 		metaDB:         res.MetaDB,
 		batchSizeBytes: batchSize,
-	}
+	}, nil
 }
 
 var trustedAppReferenceList = [...]trustedAppTiplet{
