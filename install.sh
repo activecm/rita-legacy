@@ -322,13 +322,14 @@ __enable_ssl_certificate_logging() {
         echo '@load protocols/ssl/validate-certs' >>"$local_path/local.zeek"
     fi
 
-    if ! grep -q '^[^#]*@load  *policy/protocols/ssl/extract-certs-pem' "$local_path/local.zeek" ; then
-        echo '' >>"$local_path/local.zeek"
-        echo '#Log certificates' >>"$local_path/local.zeek"
-        echo '@load policy/protocols/ssl/extract-certs-pem' >>"$local_path/local.zeek"
-        echo 'redef SSL::extract_certs_pem = ALL_HOSTS;' >>"$local_path/local.zeek"
-        echo '' >>"$local_path/local.zeek"
-    fi
+    #Removed 202312 WLS because extract-certs-pem.zeek does not appear to be part of Zeek anymore.  If needed in the future, see if log-certs-base64.zeek is a suitable replacement.
+    #if ! grep -q '^[^#]*@load  *policy/protocols/ssl/extract-certs-pem' "$local_path/local.zeek" ; then
+    #    echo '' >>"$local_path/local.zeek"
+    #    echo '#Log certificates' >>"$local_path/local.zeek"
+    #    echo '@load policy/protocols/ssl/extract-certs-pem' >>"$local_path/local.zeek"
+    #    echo 'redef SSL::extract_certs_pem = ALL_HOSTS;' >>"$local_path/local.zeek"
+    #    echo '' >>"$local_path/local.zeek"
+    #fi
 }
 
 __configure_zeek() {
