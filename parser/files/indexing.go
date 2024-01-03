@@ -13,7 +13,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/parser/parsetypes"
 	pt "github.com/activecm/rita/parser/parsetypes"
 )
 
@@ -93,7 +92,7 @@ func newIndexedFile(filePath string, targetDB string, targetCID int,
 	}
 
 	//parse first line
-	var line parsetypes.BroData
+	var line pt.BroData
 	if toReturn.IsJSON() {
 		line = ParseJSONLine(scanner.Bytes(), broDataFactory, logger)
 	} else {
