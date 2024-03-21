@@ -21,7 +21,7 @@ sudo docker build -t quay.io/activecm/rita .
 
 ## Running RITA with Docker Compose
 
-You will need a config file where you have [put in your `InternalSubnets`](../Readme.md#configuration-file).
+You will need a [config file](rita/etc/rita_docker.yaml) (make sure to use rita_docker.yaml instead of rita.yaml) where you have [put in your `InternalSubnets`](../Readme.md#configuration-file).
 You will also need the path to your Zeek log files.
 
 ```
