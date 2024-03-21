@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  db:
+  mongo-db:
     image: mongo:4.2
     volumes:
       - db:/data/db/
@@ -10,7 +10,7 @@ services:
     image: quay.io/activecm/rita:${VERSION:-latest}
     build: .
     depends_on:
-      - db
+      - mongo-db
     volumes:
       - ${CONFIG:?You must provide a path to your CONFIG}:/etc/rita/config.yaml:ro
       - ${LOGS:?You must provide a path to your LOGS}:/logs:ro
