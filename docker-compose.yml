@@ -7,7 +7,7 @@ services:
       - db:/data/db/
 
   rita:
-    image: quay.io/activecm/rita:${VERSION:-latest}
+    image: quay.io/activecm/rita-legacy:${VERSION:-latest}
     build: .
     depends_on:
       - db
