@@ -1,4 +1,7 @@
-# RITA (Real Intelligence Threat Analytics)
+> :exclamation: **Important Notice** :exclamation:
+> This repository has been archived and is no longer maintained. The project has undergone a complete rewrite and significant improvements. The new version of this project can be found [here](https://github.com/activecm/rita).
+
+# RITA (Real Intelligence Threat Analytics) (Legacy)
 
 [![RITA Logo](rita-logo.png)](https://www.activecountermeasures.com/free-tools/rita/)
 
