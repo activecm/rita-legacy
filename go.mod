@@ -1,4 +1,4 @@
-module github.com/activecm/rita
+module github.com/activecm/rita-legacy
 
 go 1.17
 

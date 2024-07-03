@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/parser"
-	"github.com/activecm/rita/pkg/remover"
-	"github.com/activecm/rita/resources"
-	"github.com/activecm/rita/util"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/parser"
+	"github.com/activecm/rita-legacy/pkg/remover"
+	"github.com/activecm/rita-legacy/resources"
+	"github.com/activecm/rita-legacy/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

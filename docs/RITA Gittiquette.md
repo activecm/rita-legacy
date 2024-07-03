@@ -27,11 +27,11 @@
 
 ## Contributors
 ### Setting up a forked repo
-- If you do not have direct write permissions to the RITA project, you will need to [fork it](https://github.com/activecm/rita/fork).
+- If you do not have direct write permissions to the RITA project, you will need to [fork it](https://github.com/activecm/rita-legacy/fork).
 - Once you have a forked repo you will need to clone it to a very specific path which corresponds to _the original repo location_. This is due to the way packages are imported in Go programs.
   - `git clone [your forked repo git url]`
-- Add `https://github.com/activecm/rita` as a new remote so you can pull new changes.
-  - `git remote add upstream https://github.com/activecm/rita`
+- Add `https://github.com/activecm/rita-legacy` as a new remote so you can pull new changes.
+  - `git remote add upstream https://github.com/activecm/rita-legacy`
 
 ### Creating a feature<sup>[1]</sup>
 - Create an issue on the activecm/rita tracker
@@ -68,7 +68,7 @@
 - Leave a code review with comments, requested changes, or an approval on Github
 - Optionally, make changes yourself and push to the contributor's branch
 - Merge with the "Squash and merge" option, leaving a descriptive comment in the commit message
-- Copy the descriptive comment to the latest [release draft](https://github.com/activecm/rita/releases)
+- Copy the descriptive comment to the latest [release draft](https://github.com/activecm/rita-legacy/releases)
 
 ## Recommended Reading
 1. [A great introduction to git.](http://rogerdudler.github.io/git-guide/)

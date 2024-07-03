@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/database"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -24,7 +24,7 @@ type (
 	}
 )
 
-//newAnalyzer creates a new collector for parsing hostnames
+// newAnalyzer creates a new collector for parsing hostnames
 func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallback func(update), closedCallback func()) *analyzer {
 	return &analyzer{
 		chunk:            chunk,
@@ -37,19 +37,19 @@ func newAnalyzer(chunk int, db *database.DB, conf *config.Config, analyzedCallba
 	}
 }
 
-//collect sends a group of domains to be analyzed
+// collect sends a group of domains to be analyzed
 func (a *analyzer) collect(data string) {
 	a.analysisChannel <- data
 }
 
-//close waits for the collector to finish
+// close waits for the collector to finish
 func (a *analyzer) close() {
 	close(a.analysisChannel)
 	a.analysisWg.Wait()
 	a.closedCallback()
 }
 
-//start kicks off a new analysis thread
+// start kicks off a new analysis thread
 func (a *analyzer) start() {
 	a.analysisWg.Add(1)
 	go func() {

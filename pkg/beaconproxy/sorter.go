@@ -4,10 +4,10 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/pkg/uconnproxy"
-	"github.com/activecm/rita/util"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/database"
+	"github.com/activecm/rita-legacy/pkg/uconnproxy"
+	"github.com/activecm/rita-legacy/util"
 )
 
 type (
@@ -21,7 +21,7 @@ type (
 	}
 )
 
-//newsorter creates a new collector for gathering data
+// newsorter creates a new collector for gathering data
 func newSorter(db *database.DB, conf *config.Config, sortedCallback func(*uconnproxy.Input), closedCallback func()) *sorter {
 	return &sorter{
 		db:             db,
@@ -32,19 +32,19 @@ func newSorter(db *database.DB, conf *config.Config, sortedCallback func(*uconnp
 	}
 }
 
-//collect sends a chunk of data to be analyzed
+// collect sends a chunk of data to be analyzed
 func (s *sorter) collect(entry *uconnproxy.Input) {
 	s.sortChannel <- entry
 }
 
-//close waits for the collector to finish
+// close waits for the collector to finish
 func (s *sorter) close() {
 	close(s.sortChannel)
 	s.sortWg.Wait()
 	s.closedCallback()
 }
 
-//start kicks off a new analysis thread
+// start kicks off a new analysis thread
 func (s *sorter) start() {
 	s.sortWg.Add(1)
 	go func() {

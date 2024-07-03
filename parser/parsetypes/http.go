@@ -1,7 +1,7 @@
 package parsetypes
 
 import (
-	"github.com/activecm/rita/config"
+	"github.com/activecm/rita-legacy/config"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -76,12 +76,12 @@ type HTTP struct {
 	AgentUUID string `bson:"agent_uuid" bro:"agent_uuid" brotype:"string" json:"agent_uuid"`
 }
 
-//TargetCollection returns the mongo collection this entry should be inserted
+// TargetCollection returns the mongo collection this entry should be inserted
 func (line *HTTP) TargetCollection(config *config.StructureTableCfg) string {
 	return config.HTTPTable
 }
 
-//ConvertFromJSON performs any extra conversions necessary when reading from JSON
+// ConvertFromJSON performs any extra conversions necessary when reading from JSON
 func (line *HTTP) ConvertFromJSON() {
 	line.TimeStamp = convertTimestamp(line.TimeStampGeneric)
 }

@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/activecm/rita/util"
+	"github.com/activecm/rita-legacy/util"
 	"github.com/stretchr/testify/assert"
 )
 

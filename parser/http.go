@@ -4,11 +4,11 @@ import (
 	"net"
 	"strings"
 
-	"github.com/activecm/rita/parser/parsetypes"
-	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/sniconn"
-	"github.com/activecm/rita/pkg/uconnproxy"
-	"github.com/activecm/rita/pkg/useragent"
+	"github.com/activecm/rita-legacy/parser/parsetypes"
+	"github.com/activecm/rita-legacy/pkg/data"
+	"github.com/activecm/rita-legacy/pkg/sniconn"
+	"github.com/activecm/rita-legacy/pkg/uconnproxy"
+	"github.com/activecm/rita-legacy/pkg/useragent"
 
 	log "github.com/sirupsen/logrus"
 )

@@ -2,7 +2,7 @@ FROM golang:1.17-alpine as rita-builder
 
 RUN apk add --no-cache git make ca-certificates wget build-base
 
-WORKDIR /go/src/github.com/activecm/rita
+WORKDIR /go/src/github.com/activecm/rita-legacy
 
 # cache dependencies
 COPY go.mod go.sum ./
@@ -24,7 +24,7 @@ RUN make CGO_ENABLED=$CGO_ENABLED GOARCH=$GOARCH GOOS=$GOOS
 FROM scratch
 
 WORKDIR /
-COPY --from=rita-builder /go/src/github.com/activecm/rita/etc/rita_docker.yaml /etc/rita/config.yaml
-COPY --from=rita-builder /go/src/github.com/activecm/rita/rita /rita
+COPY --from=rita-builder /go/src/github.com/activecm/rita-legacy/etc/rita_docker.yaml /etc/rita/config.yaml
+COPY --from=rita-builder /go/src/github.com/activecm/rita-legacy/rita /rita
 
 ENTRYPOINT ["/rita"]

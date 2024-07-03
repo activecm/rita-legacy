@@ -23,7 +23,7 @@ Please see our recommended [System Requirements](docs/System%20Requirements.md) 
 
 RITA provides an install script that works on Ubuntu 20.04 LTS, Debian 11, Security Onion, and CentOS 7.
 
-Download the latest `install.sh` file [here](https://github.com/activecm/rita/releases/latest) and make it executable: `chmod +x ./install.sh`
+Download the latest `install.sh` file [here](https://github.com/activecm/rita-legacy/releases/latest) and make it executable: `chmod +x ./install.sh`
 
 Then choose one of the following install methods:
 

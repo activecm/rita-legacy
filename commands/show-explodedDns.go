@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/activecm/rita/pkg/explodeddns"
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/pkg/explodeddns"
+	"github.com/activecm/rita-legacy/resources"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )

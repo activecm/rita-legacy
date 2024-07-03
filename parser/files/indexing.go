@@ -12,12 +12,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/activecm/rita/config"
-	pt "github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita-legacy/config"
+	pt "github.com/activecm/rita-legacy/parser/parsetypes"
 )
 
-//newIndexedFile takes in a file path and the current resource bundle and opens up the
-//file path and parses out some metadata
+// newIndexedFile takes in a file path and the current resource bundle and opens up the
+// file path and parses out some metadata
 func newIndexedFile(filePath string, targetDB string, targetCID int,
 	logger *log.Logger, conf *config.Config) (*IndexedFile, error) {
 
@@ -114,7 +114,7 @@ func newIndexedFile(filePath string, targetDB string, targetCID int,
 	return toReturn, nil
 }
 
-//getFileHash md5's the first 15000 bytes of a file
+// getFileHash md5's the first 15000 bytes of a file
 func getFileHash(fileHandle *os.File, fInfo os.FileInfo) (string, error) {
 	hash := md5.New()
 
@@ -133,8 +133,8 @@ func getFileHash(fileHandle *os.File, fInfo os.FileInfo) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(byteset)), nil
 }
 
-//IndexFiles takes in a list of Zeek files, a number of threads, the target database, and target chunk ID and parses
-//some metadata out of the files
+// IndexFiles takes in a list of Zeek files, a number of threads, the target database, and target chunk ID and parses
+// some metadata out of the files
 func IndexFiles(files []string, indexingThreads int, targetDB string, targetCID int,
 	logger *log.Logger, conf *config.Config) []*IndexedFile {
 	n := len(files)

@@ -3,14 +3,14 @@ package parser
 import (
 	"net"
 
-	"github.com/activecm/rita/parser/parsetypes"
-	"github.com/activecm/rita/pkg/certificate"
-	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/host"
-	"github.com/activecm/rita/pkg/sniconn"
-	"github.com/activecm/rita/pkg/uconn"
-	"github.com/activecm/rita/pkg/useragent"
-	"github.com/activecm/rita/util"
+	"github.com/activecm/rita-legacy/parser/parsetypes"
+	"github.com/activecm/rita-legacy/pkg/certificate"
+	"github.com/activecm/rita-legacy/pkg/data"
+	"github.com/activecm/rita-legacy/pkg/host"
+	"github.com/activecm/rita-legacy/pkg/sniconn"
+	"github.com/activecm/rita-legacy/pkg/uconn"
+	"github.com/activecm/rita-legacy/pkg/useragent"
+	"github.com/activecm/rita-legacy/util"
 
 	log "github.com/sirupsen/logrus"
 )

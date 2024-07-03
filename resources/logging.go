@@ -9,11 +9,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/activecm/rita/config"
+	"github.com/activecm/rita-legacy/config"
 	"github.com/rifflock/lfshook"
 )
 
-//DayFormat stores a correctly formatted timestamp for the day
+// DayFormat stores a correctly formatted timestamp for the day
 const DayFormat string = "2006-01-02"
 
 // initLogger creates the logger for logging to stdout and file

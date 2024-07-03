@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package hostname
@@ -7,9 +8,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/resources"
-	"github.com/activecm/rita/util"
+	"github.com/activecm/rita-legacy/pkg/data"
+	"github.com/activecm/rita-legacy/resources"
+	"github.com/activecm/rita-legacy/util"
 	"github.com/globalsign/mgo/dbtest"
 )
 

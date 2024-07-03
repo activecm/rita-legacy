@@ -8,7 +8,7 @@ WORKDIR /go
 RUN wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
 	| sh -s v1.41.1
 
-WORKDIR /go/src/github.com/activecm/rita
+WORKDIR /go/src/github.com/activecm/rita-legacy
 
 # cache dependencies
 COPY go.mod go.sum ./

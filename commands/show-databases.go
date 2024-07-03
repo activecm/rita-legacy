@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/resources"
 	"github.com/urfave/cli"
 )
 

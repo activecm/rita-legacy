@@ -7,14 +7,14 @@ import (
 	"testing"
 
 	"github.com/activecm/mgorus"
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/database"
 )
 
-//InitIntegrationTestingResources creates a default testing
-//resource bundle for use with integration testing.
-//The MongoDB server is contacted via the URI provided
-//as by go test -args [MongoDB URI].
+// InitIntegrationTestingResources creates a default testing
+// resource bundle for use with integration testing.
+// The MongoDB server is contacted via the URI provided
+// as by go test -args [MongoDB URI].
 func InitIntegrationTestingResources(t *testing.T) *Resources {
 	if testing.Short() {
 		t.Skip()
@@ -62,8 +62,8 @@ func InitIntegrationTestingResources(t *testing.T) *Resources {
 	return r
 }
 
-//InitTestResources creates a default testing
-//resource bundle for use with integration testing.
+// InitTestResources creates a default testing
+// resource bundle for use with integration testing.
 func InitTestResources() *Resources {
 
 	conf, err := config.LoadTestingConfig("mongodb://localhost:27017")

@@ -3,8 +3,8 @@ package certificate
 import (
 	"sync"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/database"
 	"github.com/globalsign/mgo/bson"
 )
 

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/activecm/rita/pkg/blacklist"
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/pkg/blacklist"
+	"github.com/activecm/rita-legacy/resources"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )

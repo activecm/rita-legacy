@@ -5,7 +5,7 @@ This guide walks through installing several components.
 
 * [Zeek](https://www.zeek.org)
 * [MongoDB](https://www.mongodb.com)
-* [RITA](https://github.com/activecm/rita/)
+* [RITA](https://github.com/activecm/rita-legacy/)
 
 #### Zeek
 
@@ -26,7 +26,7 @@ RITA requires Mongo for storing and processing data. The current supported versi
 
 You have a few options for installing RITA.
 1. The main install script. You can disable Zeek and Mongo from being installed with the `--disable-zeek` and `--disable-mongo` flags.
-1. A prebuilt binary is available for download on [RITA's release page](https://github.com/activecm/rita/releases). In this case you will need to download the config file from the same release and create some directories manually, as described below in the "Configuring the system" section.
+1. A prebuilt binary is available for download on [RITA's release page](https://github.com/activecm/rita-legacy/releases). In this case you will need to download the config file from the same release and create some directories manually, as described below in the "Configuring the system" section.
 1. Compile RITA manually from source. See below.
 
 ##### Installing Golang
@@ -37,7 +37,7 @@ In order to compile RITA manually you will need to install [Golang](https://gola
 
 At this point you can build RITA from source code.
 
-1. ```git clone https://github.com/activecm/rita.git```
+1. ```git clone https://github.com/activecm/rita-legacy.git```
 1. ```cd rita```
 1. ```make``` (Note that you will need to have `make` installed. You can use your system's package manager to install it.)
 

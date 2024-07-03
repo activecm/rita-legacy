@@ -10,8 +10,8 @@ import (
 	ritaBLdb "github.com/activecm/rita-bl/database"
 	"github.com/activecm/rita-bl/list"
 	"github.com/activecm/rita-bl/sources/lists"
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/database"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -23,8 +23,8 @@ import (
 // 	return &Service{}
 // }
 
-//BuildBlacklistedCollections builds the blacklist master reference collection
-//and checks the uconn documents against that collection
+// BuildBlacklistedCollections builds the blacklist master reference collection
+// and checks the uconn documents against that collection
 func BuildBlacklistedCollections(db *database.DB, conf *config.Config, logger *log.Logger) {
 	// build the blacklist reference collection from provided blacklist sources
 	// this will be the master list ips and hostnames will be checked against
@@ -92,7 +92,7 @@ func buildBlacklistReferenceCollection(db *database.DB, conf *config.Config, log
 
 }
 
-//getSourceLists gathers the blacklists to check against
+// getSourceLists gathers the blacklists to check against
 func getSourceLists(conf *config.Config) []list.List {
 	//build up the lists
 	var blacklists []list.List
@@ -116,7 +116,7 @@ func getSourceLists(conf *config.Config) []list.List {
 	return blacklists
 }
 
-//buildCustomBlacklists gathers a custom blacklist from a url or file path
+// buildCustomBlacklists gathers a custom blacklist from a url or file path
 func buildCustomBlacklists(entryType list.BlacklistedEntryType, paths []string) []list.List {
 	var blacklists []list.List
 	for _, path := range paths {
@@ -131,7 +131,7 @@ func buildCustomBlacklists(entryType list.BlacklistedEntryType, paths []string) 
 	return blacklists
 }
 
-//provide a closure over path to read the file into a line separated blacklist
+// provide a closure over path to read the file into a line separated blacklist
 func tryOpenFileThenURL(path string) func() (io.ReadCloser, error) {
 	return func() (io.ReadCloser, error) {
 		_, err := os.Stat(path)
