@@ -3,9 +3,9 @@ package parser
 import (
 	"net"
 
-	"github.com/activecm/rita/parser/parsetypes"
-	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/hostname"
+	"github.com/activecm/rita-legacy/parser/parsetypes"
+	"github.com/activecm/rita-legacy/pkg/data"
+	"github.com/activecm/rita-legacy/pkg/hostname"
 
 	log "github.com/sirupsen/logrus"
 )

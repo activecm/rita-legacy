@@ -4,23 +4,23 @@ import (
 	"fmt"
 
 	"github.com/activecm/mgosec"
-	"github.com/activecm/rita/config"
+	"github.com/activecm/rita-legacy/config"
 	"github.com/blang/semver"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"
 )
 
-//MinMongoDBVersion is the lower, inclusive bound on the
-//versions of MongoDB compatible with RITA
+// MinMongoDBVersion is the lower, inclusive bound on the
+// versions of MongoDB compatible with RITA
 var MinMongoDBVersion = semver.Version{
 	Major: 4,
 	Minor: 2,
 	Patch: 0,
 }
 
-//MaxMongoDBVersion is the upper, exclusive bound on the
-//versions of MongoDB compatible with RITA
+// MaxMongoDBVersion is the upper, exclusive bound on the
+// versions of MongoDB compatible with RITA
 var MaxMongoDBVersion = semver.Version{
 	Major: 4,
 	Minor: 3,
@@ -34,7 +34,7 @@ type DB struct {
 	selected string
 }
 
-//NewDB constructs a new DB struct
+// NewDB constructs a new DB struct
 func NewDB(conf *config.Config, log *log.Logger) (*DB, error) {
 	// Jump into the requested database
 	session, err := connectToMongoDB(conf, log)
@@ -52,7 +52,7 @@ func NewDB(conf *config.Config, log *log.Logger) (*DB, error) {
 	}, nil
 }
 
-//connectToMongoDB connects to MongoDB possibly with authentication and TLS
+// connectToMongoDB connects to MongoDB possibly with authentication and TLS
 func connectToMongoDB(conf *config.Config, logger *log.Logger) (*mgo.Session, error) {
 	connString := conf.S.MongoDB.ConnectionString
 	authMechanism := conf.R.MongoDB.AuthMechanismParsed
@@ -95,18 +95,18 @@ func connectToMongoDB(conf *config.Config, logger *log.Logger) (*mgo.Session, er
 
 }
 
-//SelectDB selects a database for analysis
+// SelectDB selects a database for analysis
 func (d *DB) SelectDB(db string) {
 	d.selected = db
 }
 
-//GetSelectedDB retrieves the currently selected database for analysis
+// GetSelectedDB retrieves the currently selected database for analysis
 func (d *DB) GetSelectedDB() string {
 	return d.selected
 }
 
-//CollectionExists returns true if collection exists in the currently
-//selected database
+// CollectionExists returns true if collection exists in the currently
+// selected database
 func (d *DB) CollectionExists(table string) bool {
 	ssn := d.Session.Copy()
 	defer ssn.Close()
@@ -125,8 +125,8 @@ func (d *DB) CollectionExists(table string) bool {
 	return false
 }
 
-//CreateCollection creates a new collection in the currently selected
-//database with the required indexes
+// CreateCollection creates a new collection in the currently selected
+// database with the required indexes
 func (d *DB) CreateCollection(name string, indexes []mgo.Index) error {
 	// Make a copy of the current session
 	session := d.Session.Copy()
@@ -155,7 +155,7 @@ func (d *DB) CreateCollection(name string, indexes []mgo.Index) error {
 	return nil
 }
 
-//AggregateCollection builds a collection via a MongoDB pipeline
+// AggregateCollection builds a collection via a MongoDB pipeline
 func (d *DB) AggregateCollection(sourceCollection string,
 	session *mgo.Session, pipeline []bson.D) *mgo.Iter {
 

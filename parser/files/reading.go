@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	pt "github.com/activecm/rita/parser/parsetypes"
-	"github.com/activecm/rita/util"
+	pt "github.com/activecm/rita-legacy/parser/parsetypes"
+	"github.com/activecm/rita-legacy/util"
 
 	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
@@ -97,10 +97,10 @@ func GetFileScanner(fileHandle *os.File) (scanner *bufio.Scanner, closer func() 
 	return scanner, closer, nil
 }
 
-//newGzipReader returns an un-gzipped byte stream given a gzip compressed byte stream.
-//This method tries to use the system's pigz or gzip implementation before relying on
-//Golang's gzip package (as it is quite slow). Returns stream to read from, a function to
-//close the underlying stream, and any err that may occur when opening the stream.
+// newGzipReader returns an un-gzipped byte stream given a gzip compressed byte stream.
+// This method tries to use the system's pigz or gzip implementation before relying on
+// Golang's gzip package (as it is quite slow). Returns stream to read from, a function to
+// close the underlying stream, and any err that may occur when opening the stream.
 func newGzipReader(fileHandle io.ReadCloser) (reader io.Reader, closer func() error, err error) {
 	// by default just close out the underlying file handle
 	// works for built in gzip library and error cases
@@ -289,7 +289,7 @@ func mapZeekHeaderToParseType(header *BroHeader, broDataFactory func() pt.BroDat
 	return indexMap, nil
 }
 
-//ParseJSONLine creates a new BroData from a line of a Zeek JSON log.
+// ParseJSONLine creates a new BroData from a line of a Zeek JSON log.
 func ParseJSONLine(lineBuffer []byte, broDataFactory func() pt.BroData,
 	logger *log.Logger) pt.BroData {
 
@@ -408,9 +408,9 @@ func parseTSVField(fieldText string, fieldType string, targetField reflect.Value
 	}
 }
 
-//ParseTSVLine creates a new BroData from a line of a Zeek TSV log.
-//String matching is generally faster than byte matching in Golang for some reason, so we take use a string
-//rather than bytes here.
+// ParseTSVLine creates a new BroData from a line of a Zeek TSV log.
+// String matching is generally faster than byte matching in Golang for some reason, so we take use a string
+// rather than bytes here.
 func ParseTSVLine(lineString string, header *BroHeader,
 	fieldMap ZeekHeaderIndexMap, broDataFactory func() pt.BroData,
 	logger *log.Logger) pt.BroData {

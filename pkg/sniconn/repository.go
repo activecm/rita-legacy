@@ -1,8 +1,8 @@
 package sniconn
 
 import (
-	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/host"
+	"github.com/activecm/rita-legacy/pkg/data"
+	"github.com/activecm/rita-legacy/pkg/host"
 )
 
 // Repository for uconn collection

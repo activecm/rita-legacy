@@ -3,7 +3,7 @@ package commands
 import (
 	"runtime"
 
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/resources"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/activecm/rita/pkg/useragent"
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/pkg/useragent"
+	"github.com/activecm/rita-legacy/resources"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )

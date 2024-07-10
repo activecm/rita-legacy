@@ -1,8 +1,8 @@
 package hostname
 
 import (
-	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/pkg/data"
+	"github.com/activecm/rita-legacy/resources"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -55,7 +55,6 @@ func FQDNResults(res *resources.Resources, hostIP string) ([]*FQDNResult, error)
 		{"$group": bson.M{
 			"_id": "$host",
 		}},
-		
 	}
 
 	var fqdnResults []*FQDNResult

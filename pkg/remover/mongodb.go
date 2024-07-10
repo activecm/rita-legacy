@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/util"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/database"
+	"github.com/activecm/rita-legacy/util"
 	"github.com/globalsign/mgo/bson"
 
 	log "github.com/sirupsen/logrus"

@@ -1,7 +1,7 @@
 package certificate
 
 import (
-	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita-legacy/pkg/data"
 )
 
 // Repository for uconn collection

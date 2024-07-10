@@ -3,8 +3,8 @@ package parser
 import (
 	"net"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/util"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/util"
 )
 
 // filter provides methods for excluding IP addresses, domains, and determining proxy servers during the import step

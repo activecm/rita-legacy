@@ -10,13 +10,13 @@ You can run RITA using Docker! You have several options depending on your specif
 The easiest way is to pull down the pre-built image.
 
 ```
-sudo docker pull quay.io/activecm/rita
+sudo docker pull quay.io/activecm/rita-legacy
 ```
 
 You can also build the image from source.
 
 ```
-sudo docker build -t quay.io/activecm/rita .
+sudo docker build -t quay.io/activecm/rita-legacy .
 ```
 
 ## Running RITA with Docker Compose
@@ -45,7 +45,7 @@ If you don't need/want the convenience of Docker Compose running the Mongo serve
 sudo docker run -it --rm \
 	-v /path/to/your/zeek/logs:/logs:ro \
 	-v /path/to/your/rita/config.yaml:/etc/rita/config.yaml:ro \
-	quay.io/activecm/rita import /logs your-dataset
+	quay.io/activecm/rita-legacy import /logs your-dataset
 ```
 
 ## Using Docker to Build RITA
@@ -53,7 +53,7 @@ sudo docker run -it --rm \
 You can use Docker to build a statically linked RITA binary for you. This binary should be portable between Linux 64-bit systems. Once you've obtained the RITA docker image (see the "Obtaining the RITA Docker Image" section above) you can run the following commands to copy the binary to your host system.
 
 ```
-sudo docker create --name rita quay.io/activecm/rita
+sudo docker create --name rita quay.io/activecm/rita-legacy
 sudo docker cp rita:/rita ./rita
 sudo docker rm rita
 ```

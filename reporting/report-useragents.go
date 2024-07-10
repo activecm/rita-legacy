@@ -5,9 +5,9 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/pkg/useragent"
-	"github.com/activecm/rita/reporting/templates"
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/pkg/useragent"
+	"github.com/activecm/rita-legacy/reporting/templates"
+	"github.com/activecm/rita-legacy/resources"
 )
 
 func printUserAgents(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {

@@ -27,7 +27,7 @@ fi
 
 # Run the build-script
 make docker-build
-docker container create --name rita quay.io/activecm/rita:latest
+docker container create --name rita quay.io/activecm/rita-legacy:latest
 docker container cp rita:/rita ./rita
 
 # Prepare the headers

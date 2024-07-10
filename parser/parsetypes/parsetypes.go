@@ -4,18 +4,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/activecm/rita/config"
+	"github.com/activecm/rita-legacy/config"
 )
 
-//BroData holds a line of a bro log
+// BroData holds a line of a bro log
 type BroData interface {
 	TargetCollection(*config.StructureTableCfg) string
 	// ConvertFromJSON should be called after importing from JSON logs
 	ConvertFromJSON()
 }
 
-//NewBroDataFactory creates a new BroData based on the string
-//which appears in that log's objType field
+// NewBroDataFactory creates a new BroData based on the string
+// which appears in that log's objType field
 func NewBroDataFactory(fileType string) func() BroData {
 	//Note: we use HasPrefix rather than equality for the checks
 	//in order to support configurations which tag the log types.

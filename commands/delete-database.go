@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/activecm/rita/resources"
-	"github.com/activecm/rita/util"
+	"github.com/activecm/rita-legacy/resources"
+	"github.com/activecm/rita-legacy/util"
 	"github.com/urfave/cli"
 )
 

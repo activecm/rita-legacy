@@ -1,7 +1,7 @@
 package hostname
 
 import (
-	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita-legacy/pkg/data"
 )
 
 type (

@@ -2,7 +2,7 @@ VERSION := $(shell git describe --abbrev=0 --tags)
 EXACT_VERSION := $(shell git describe --always --long --dirty --tags)
 PREFIX ?= /usr/local
 
-LDFLAGS := -ldflags='-X github.com/activecm/rita/config.Version=${VERSION} -X github.com/activecm/rita/config.ExactVersion=${EXACT_VERSION}'
+LDFLAGS := -ldflags='-X github.com/activecm/rita-legacy/config.Version=${VERSION} -X github.com/activecm/rita-legacy/config.ExactVersion=${EXACT_VERSION}'
 TESTFLAGS := -p=1 -v
 # go source files
 SRC := $(shell find . -path ./vendor -prune -o -type f -name '*.go' -print)
@@ -18,7 +18,7 @@ cache = $(if $(cached-$1),,$(eval cached-$1 := 1)$(eval cache-$1 := $($1)))$(cac
 rita: $(SRC)
 	@# remove any existing vendor directory from dep
 	@rm -rf vendor
-	go build ${LDFLAGS}
+	go build -o rita ${LDFLAGS}
 
 .PHONY: install
 install: rita
@@ -62,25 +62,25 @@ unit-test:
 
 .PHONY: docker-build
 docker-build:
-	docker build -t quay.io/activecm/rita:latest -f Dockerfile .
+	docker build -t quay.io/activecm/rita-legacy:latest -f Dockerfile .
 
 .PHONY: docker-build-test
 docker-build-test:
-	docker build -t quay.io/activecm/rita:test -f test.Dockerfile .
+	docker build -t quay.io/activecm/rita-legacy:test -f test.Dockerfile .
 
 # Runs all tests inside docker container
 .PHONY: docker-test
 docker-test: docker-build-test
-	docker run --rm quay.io/activecm/rita:test make test
+	docker run --rm quay.io/activecm/rita-legacy:test make test
 
 .PHONY: docker-unit-test
 docker-unit-test: docker-build-test
-	docker run --rm quay.io/activecm/rita:test make unit-test
+	docker run --rm quay.io/activecm/rita-legacy:test make unit-test
 
 .PHONY: docker-static-test
 docker-static-test: docker-build-test
-	docker run --rm quay.io/activecm/rita:test make static-test
+	docker run --rm quay.io/activecm/rita-legacy:test make static-test
 
 # .PHONY: docker-integration-test
 # docker-integration-test: docker-build-test
-# 	docker run --rm quay.io/activecm/rita:test make integration-test
+# 	docker run --rm quay.io/activecm/rita-legacy:test make integration-test

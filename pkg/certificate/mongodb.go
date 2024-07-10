@@ -3,9 +3,9 @@ package certificate
 import (
 	"runtime"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/util"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/database"
+	"github.com/activecm/rita-legacy/util"
 	"github.com/globalsign/mgo"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
