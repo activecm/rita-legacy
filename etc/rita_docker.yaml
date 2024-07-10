@@ -1,7 +1,7 @@
 # This section configures the connection to the MongoDB server and the database name to use
 MongoDB:
   # See https://docs.mongodb.com/manual/reference/connection-string/
-  ConnectionString: mongodb://db:27017
+  ConnectionString: mongodb://mongo-db:27017
   # Example with authentication. Be sure to change the AuthenticationMechanism as well.
   # ConnectionString: mongodb://username:password@localhost:27017
 
