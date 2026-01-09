@@ -216,7 +216,7 @@ __install_installer_deps() {
 }
 
 __install_zeek_ubuntu() {
-    if [[ "$_OS_CODENAME" == "focal" || "$_OS_CODENAME" == "jammy" || "$_OS_CODENAME" == "noble" ]]; then
+    if [[ "$_OS_CODENAME" == "focal" || "$_OS_CODENAME" == "jammy" ]]; then
         __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/ /" \
         "security:zeek" \
         "https://download.opensuse.org/repositories/security:/zeek/xUbuntu_$(lsb_release -rs)/Release.key"
@@ -426,7 +426,7 @@ __update_feature_compatibility() {
 }
 
 __install_mongodb_ubuntu() {
-    if [[ "$_OS_CODENAME" == "bionic" || "$_OS_CODENAME" == "focal" || "$_OS_CODENAME" == "jammy" || "$_OS_CODENAME" == "noble" ]]; then
+    if [[ "$_OS_CODENAME" == "bionic" || "$_OS_CODENAME" == "focal" || "$_OS_CODENAME" == "jammy" ]]; then
         # MongoDB 4.2 is not available for Ubuntu 20, but the package from Ubuntu 18 works without conflicts
         __add_deb_repo "deb [ arch=$(dpkg --print-architecture) ] http://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/$1 multiverse" \
             "mongodb-org-$1" \
