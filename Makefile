@@ -1,5 +1,4 @@
-#VERSION := $(shell git describe --abbrev=0 --tags)
-VERSION := v4.9.1
+VERSION := $(shell git describe --abbrev=0 --tags)
 EXACT_VERSION := $(shell git describe --always --long --dirty --tags)
 PREFIX ?= /usr/local
 
