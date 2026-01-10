@@ -5,11 +5,11 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/activecm/rita/parser/parsetypes"
-	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/host"
-	"github.com/activecm/rita/pkg/uconn"
-	"github.com/activecm/rita/util"
+	"github.com/activecm/rita-legacy/parser/parsetypes"
+	"github.com/activecm/rita-legacy/pkg/data"
+	"github.com/activecm/rita-legacy/pkg/host"
+	"github.com/activecm/rita-legacy/pkg/uconn"
+	"github.com/activecm/rita-legacy/util"
 
 	log "github.com/sirupsen/logrus"
 )

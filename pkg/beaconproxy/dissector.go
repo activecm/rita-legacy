@@ -3,9 +3,9 @@ package beaconproxy
 import (
 	"sync"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/pkg/uconnproxy"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/database"
+	"github.com/activecm/rita-legacy/pkg/uconnproxy"
 	"github.com/globalsign/mgo/bson"
 )
 

@@ -1,9 +1,9 @@
 package beaconsni
 
 import (
-	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/host"
-	"github.com/activecm/rita/pkg/sniconn"
+	"github.com/activecm/rita-legacy/pkg/data"
+	"github.com/activecm/rita-legacy/pkg/host"
+	"github.com/activecm/rita-legacy/pkg/sniconn"
 )
 
 // Repository for beaconsni collection

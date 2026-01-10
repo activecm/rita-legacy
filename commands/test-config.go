@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/resources"
 
 	"github.com/urfave/cli"
 	yaml "gopkg.in/yaml.v2"

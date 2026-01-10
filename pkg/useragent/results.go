@@ -1,14 +1,14 @@
 package useragent
 
 import (
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/resources"
 	"github.com/globalsign/mgo/bson"
 )
 
-//Results returns useragents sorted by how many times each useragent was
-//seen in the dataset. sortDirection controls where the useragents are
-//sorted in descending (sortDirection=-1) or ascending order (sortDirection=1).
-//limit and noLimit control how many results are returned.
+// Results returns useragents sorted by how many times each useragent was
+// seen in the dataset. sortDirection controls where the useragents are
+// sorted in descending (sortDirection=-1) or ascending order (sortDirection=1).
+// limit and noLimit control how many results are returned.
 func Results(res *resources.Resources, sortDirection, limit int, noLimit bool) ([]Result, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()

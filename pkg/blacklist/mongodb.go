@@ -3,10 +3,10 @@ package blacklist
 import (
 	"runtime"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/util"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/database"
+	"github.com/activecm/rita-legacy/pkg/data"
+	"github.com/activecm/rita-legacy/util"
 	"github.com/vbauerster/mpb"
 	"github.com/vbauerster/mpb/decor"
 

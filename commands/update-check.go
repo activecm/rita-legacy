@@ -6,19 +6,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/resources"
 	"github.com/blang/semver"
 	"github.com/google/go-github/github"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
-//Strings used for informing the user of a new version.
-var informFmtStr = "\nTheres a new %s version of RITA %s available at:\nhttps://github.com/activecm/rita/releases\n"
+// Strings used for informing the user of a new version.
+var informFmtStr = "\nTheres a new %s version of RITA %s available at:\nhttps://github.com/activecm/rita-legacy/releases\n"
 var versions = []string{"Major", "Minor", "Patch"}
 
-//GetVersionPrinter prints the version info
+// GetVersionPrinter prints the version info
 func GetVersionPrinter() func(*cli.Context) {
 	return func(c *cli.Context) {
 		fmt.Printf("%s version %s\n", c.App.Name, c.App.Version)
@@ -27,7 +27,7 @@ func GetVersionPrinter() func(*cli.Context) {
 }
 
 // UpdateCheck Performs a check for the new version of RITA against the git repository and
-//returns a string indicating the new version if available
+// returns a string indicating the new version if available
 func updateCheck(configFile string) string {
 	res := resources.InitResources(configFile)
 	delta := res.Config.S.UserConfig.UpdateCheckFrequency
@@ -99,7 +99,7 @@ func getRemoteVersion() (semver.Version, error) {
 
 // Assembles a notice for the user informing them of an upgrade.
 // The return value is printed regardless so, "" is returned on errror.
-//func informUser( verStr string, index int ) string {
+// func informUser( verStr string, index int ) string {
 func informUser(local semver.Version, remote semver.Version) string {
 	return fmt.Sprintf(informFmtStr,
 		versions[versionDiffIndex(remote, local)],

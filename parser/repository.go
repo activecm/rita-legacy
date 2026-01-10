@@ -3,14 +3,14 @@ package parser
 import (
 	"sync"
 
-	"github.com/activecm/rita/pkg/certificate"
-	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/host"
-	"github.com/activecm/rita/pkg/hostname"
-	"github.com/activecm/rita/pkg/sniconn"
-	"github.com/activecm/rita/pkg/uconn"
-	"github.com/activecm/rita/pkg/uconnproxy"
-	"github.com/activecm/rita/pkg/useragent"
+	"github.com/activecm/rita-legacy/pkg/certificate"
+	"github.com/activecm/rita-legacy/pkg/data"
+	"github.com/activecm/rita-legacy/pkg/host"
+	"github.com/activecm/rita-legacy/pkg/hostname"
+	"github.com/activecm/rita-legacy/pkg/sniconn"
+	"github.com/activecm/rita-legacy/pkg/uconn"
+	"github.com/activecm/rita-legacy/pkg/uconnproxy"
+	"github.com/activecm/rita-legacy/pkg/useragent"
 )
 
 // ParseResults contains the data which the analysis packages

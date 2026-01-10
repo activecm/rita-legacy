@@ -4,9 +4,9 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/pkg/blacklist"
-	"github.com/activecm/rita/reporting/templates"
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/pkg/blacklist"
+	"github.com/activecm/rita-legacy/reporting/templates"
+	"github.com/activecm/rita-legacy/resources"
 )
 
 func printBLDestIPs(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {

@@ -10,8 +10,8 @@ import (
 	ritaBLdb "github.com/activecm/rita-bl/database"
 	"github.com/activecm/rita-bl/list"
 	"github.com/activecm/rita-bl/sources/lists"
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/database"
 	log "github.com/sirupsen/logrus"
 )
 

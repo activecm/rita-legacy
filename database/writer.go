@@ -3,7 +3,7 @@ package database
 import (
 	"sync"
 
-	"github.com/activecm/rita/config"
+	"github.com/activecm/rita-legacy/config"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	log "github.com/sirupsen/logrus"

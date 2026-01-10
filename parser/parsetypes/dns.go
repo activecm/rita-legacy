@@ -1,7 +1,7 @@
 package parsetypes
 
 import (
-	"github.com/activecm/rita/config"
+	"github.com/activecm/rita-legacy/config"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -66,12 +66,12 @@ type DNS struct {
 	AgentUUID string `bson:"agent_uuid" bro:"agent_uuid" brotype:"string" json:"agent_uuid"`
 }
 
-//TargetCollection returns the mongo collection this entry should be inserted
+// TargetCollection returns the mongo collection this entry should be inserted
 func (line *DNS) TargetCollection(config *config.StructureTableCfg) string {
 	return config.DNSTable
 }
 
-//ConvertFromJSON performs any extra conversions necessary when reading from JSON
+// ConvertFromJSON performs any extra conversions necessary when reading from JSON
 func (line *DNS) ConvertFromJSON() {
 	line.TimeStamp = convertTimestamp(line.TimeStampGeneric)
 }
