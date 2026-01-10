@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/database"
-	"github.com/activecm/rita/pkg/data"
-	"github.com/activecm/rita/pkg/host"
-	"github.com/activecm/rita/pkg/uconnproxy"
-	"github.com/activecm/rita/util"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/database"
+	"github.com/activecm/rita-legacy/pkg/data"
+	"github.com/activecm/rita-legacy/pkg/host"
+	"github.com/activecm/rita-legacy/pkg/uconnproxy"
+	"github.com/activecm/rita-legacy/util"
 
 	"github.com/globalsign/mgo"
 	"github.com/vbauerster/mpb"

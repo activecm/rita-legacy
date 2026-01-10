@@ -1,7 +1,7 @@
 package host
 
 import (
-	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita-legacy/pkg/data"
 )
 
 // Repository for host collection

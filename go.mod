@@ -1,17 +1,16 @@
-module github.com/activecm/rita
+module github.com/activecm/rita-legacy
 
-go 1.17
+go 1.22
 
 // If urfave/cli is updated from v1.20.0 the corresponding autocomplete file
 // should be updated in etc/bash_completion.d/rita
-// https://github.com/urfave/cli/blob/master/autocomplete/bash_autocomplete
+// https://github.com/urfave/cli/blob/main/autocomplete/bash_autocomplete
 
 require (
 	github.com/activecm/mgorus v0.1.1
 	github.com/activecm/mgosec v0.1.2-0.20191108195135-d918492993da
 	github.com/activecm/rita-bl v0.0.0-20220823191806-f014db21453d
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/briandowns/spinner v1.16.0
 	github.com/creasty/defaults v1.3.0
 	github.com/globalsign/mgo v0.0.0-20190517090918-73267e130ca1
 	github.com/google/go-github v17.0.0+incompatible
@@ -31,12 +30,10 @@ require (
 require (
 	github.com/VividCortex/ewma v1.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/fatih/color v1.7.0 // indirect
 	github.com/golang/protobuf v1.3.3 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/safebrowsing v0.0.0-20190214191829-0feabcc2960b // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.1 // indirect
-	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/mattn/go-isatty v0.0.8 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect

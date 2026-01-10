@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 services:
   db:
@@ -7,7 +7,7 @@ services:
       - db:/data/db/
 
   rita:
-    image: quay.io/activecm/rita:${VERSION:-latest}
+    image: quay.io/activecm/rita-legacy:${VERSION:-latest}
     build: .
     links:
       # give db an alias of "localhost" so that RITA's default config works unchanged

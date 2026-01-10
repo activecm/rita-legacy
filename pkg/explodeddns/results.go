@@ -1,12 +1,12 @@
 package explodeddns
 
 import (
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/resources"
 	"github.com/globalsign/mgo/bson"
 )
 
-//Results returns hostnames and their subdomain/ lookup statistics from the database.
-//limit and noLimit control how many results are returned.
+// Results returns hostnames and their subdomain/ lookup statistics from the database.
+// limit and noLimit control how many results are returned.
 func Results(res *resources.Resources, limit int, noLimit bool) ([]Result, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()

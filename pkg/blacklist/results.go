@@ -1,14 +1,14 @@
 package blacklist
 
 import (
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/resources"
 	"github.com/globalsign/mgo/bson"
 )
 
-//HostnameResults finds blacklisted hostnames in the database and the IPs of the
-//hosts which connected to the blacklisted hostnames. The results will be sorted in
-//descending order keyed on of {uconn_count, conn_count, total_bytes} depending on the value
-//of sort. limit and noLimit control how many results are returned.
+// HostnameResults finds blacklisted hostnames in the database and the IPs of the
+// hosts which connected to the blacklisted hostnames. The results will be sorted in
+// descending order keyed on of {uconn_count, conn_count, total_bytes} depending on the value
+// of sort. limit and noLimit control how many results are returned.
 func HostnameResults(res *resources.Resources, sort string, limit int, noLimit bool) ([]HostnameResult, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
@@ -108,25 +108,25 @@ func HostnameResults(res *resources.Resources, sort string, limit int, noLimit b
 	return blHosts, err
 }
 
-//SrcIPResults finds blacklisted source IPs in the database and the IPs of the
-//hosts which the blacklisted IP connected to. The results will be sorted in
-//descending order keyed on of {uconn_count, conn_count, total_bytes} depending on the value
-//of sort. limit and noLimit control how many results are returned.
+// SrcIPResults finds blacklisted source IPs in the database and the IPs of the
+// hosts which the blacklisted IP connected to. The results will be sorted in
+// descending order keyed on of {uconn_count, conn_count, total_bytes} depending on the value
+// of sort. limit and noLimit control how many results are returned.
 func SrcIPResults(res *resources.Resources, sort string, limit int, noLimit bool) ([]IPResult, error) {
 	return ipResults(res, sort, limit, noLimit, true)
 }
 
-//DstIPResults finds blacklisted destination IPs in the database and the IPs of the
-//hosts which connected to the blacklisted IP. The results will be sorted in
-//descending order keyed on of {uconn_count, conn_count, total_bytes} depending on the value
-//of sort. limit and noLimit control how many results are returned.
+// DstIPResults finds blacklisted destination IPs in the database and the IPs of the
+// hosts which connected to the blacklisted IP. The results will be sorted in
+// descending order keyed on of {uconn_count, conn_count, total_bytes} depending on the value
+// of sort. limit and noLimit control how many results are returned.
 func DstIPResults(res *resources.Resources, sort string, limit int, noLimit bool) ([]IPResult, error) {
 	return ipResults(res, sort, limit, false, noLimit)
 }
 
-//ipResults implements SrcIPResults and DstIPResults. Set sourceDestFlag to true
-//to find blacklisted source IPs. Set sourceDestFlag to false to find blacklisted
-//destination IPs.
+// ipResults implements SrcIPResults and DstIPResults. Set sourceDestFlag to true
+// to find blacklisted source IPs. Set sourceDestFlag to false to find blacklisted
+// destination IPs.
 func ipResults(res *resources.Resources, sort string, limit int, noLimit bool, sourceDestFlag bool) ([]IPResult, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
