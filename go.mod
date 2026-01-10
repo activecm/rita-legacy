@@ -3,7 +3,7 @@ module github.com/activecm/rita-legacy
 go 1.22
 
 // If urfave/cli is updated from v1.20.0 the corresponding autocomplete file
-// should be updated in etc/bash_completion.d/rita
+// should be updated in etc/bash_completion.d/rita-legacy
 // https://github.com/urfave/cli/blob/main/autocomplete/bash_autocomplete
 
 require (
