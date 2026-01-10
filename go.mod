@@ -4,7 +4,7 @@ go 1.17
 
 // If urfave/cli is updated from v1.20.0 the corresponding autocomplete file
 // should be updated in etc/bash_completion.d/rita
-// https://github.com/urfave/cli/blob/master/autocomplete/bash_autocomplete
+// https://github.com/urfave/cli/blob/main/autocomplete/bash_autocomplete
 
 require (
 	github.com/activecm/mgorus v0.1.1

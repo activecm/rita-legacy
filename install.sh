@@ -563,7 +563,7 @@ __install_rita() {
     chmod 755 "$_CONFIG_PATH"
 
     mkdir -p /etc/bash_completion.d/
-    curl -sSL "https://raw.githubusercontent.com/urfave/cli/master/autocomplete/bash_autocomplete" -o "/etc/bash_completion.d/rita"
+    curl -sSL "https://raw.githubusercontent.com/urfave/cli/main/autocomplete/bash_autocomplete" -o "/etc/bash_completion.d/rita"
 }
 
 # INFORMATION GATHERING
@@ -720,7 +720,7 @@ Usage:
 Options:
     -h|--help			Show this help message.
     -r|--reinstall			Force reinstalling RITA.
-    -v|--version <version>		Specify the version tag of RITA to install instead of master.
+    -v|--version <version>		Specify the version tag of RITA to install instead of main.
     --disable-zeek|--disable-bro	Disable automatic installation of Zeek IDS.
     --disable-mongo			Disable automatic installation of MongoDB.
 HEREDOC
