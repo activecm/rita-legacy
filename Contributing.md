@@ -19,7 +19,7 @@ Just be sure to do the following:
   - If an issue already exists, add the relevant info in a comment
   - If not, create an issue and include the relevant info
 - Give very specific descriptions of how to reproduce the bug
-- Include the output of `rita-legacy--version`
+- Include the output of `rita-legacy --version`
 - Include a description of your hardware (e.g. CPU, RAM, filesystems)
 - Tell us about the size of the test and the physical resources available
 
@@ -43,7 +43,7 @@ Before diving in, follow the [Manual Installation Instructions](docs/Manual%20In
 
 Automated tests are run against each pull request. Build results may be viewed [here](https://github.com/activecm/rita-legacy/actions).
 
-### Gittiquette Summary
+### Etiquette Summary
 
 - In order to contribute to RITA-Legacy, you must [fork it](https://github.com/activecm/rita-legacy/fork).
 - Once you have a forked repo you will need to clone it to a very specific path which corresponds to _the original repo location_. This is due to the way packages are imported in Go programs.
