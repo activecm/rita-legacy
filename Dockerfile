@@ -25,6 +25,6 @@ FROM scratch
 
 WORKDIR /
 COPY --from=rita-builder /go/src/github.com/activecm/rita-legacy/etc/rita.yaml /etc/rita/config.yaml
-COPY --from=rita-builder /go/src/github.com/activecm/rita-legacy/rita /rita
+COPY --from=rita-builder /go/src/github.com/activecm/rita-legacy/rita-legacy /rita
 
 ENTRYPOINT ["/rita"]
