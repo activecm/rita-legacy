@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
-	htmlTempl "github.com/activecm/rita/reporting/templates"
-	"github.com/activecm/rita/resources"
-	"github.com/activecm/rita/util"
+	htmlTempl "github.com/activecm/rita-legacy/reporting/templates"
+	"github.com/activecm/rita-legacy/resources"
+	"github.com/activecm/rita-legacy/util"
 	"github.com/skratchdot/open-golang/open"
 )
 

@@ -5,9 +5,9 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/activecm/rita/pkg/beaconsni"
-	"github.com/activecm/rita/reporting/templates"
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/pkg/beaconsni"
+	"github.com/activecm/rita-legacy/reporting/templates"
+	"github.com/activecm/rita-legacy/resources"
 )
 
 func printBeaconsSNI(db string, showNetNames bool, res *resources.Resources, logsGeneratedAt string) error {

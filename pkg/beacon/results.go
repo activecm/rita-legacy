@@ -1,11 +1,11 @@
 package beacon
 
 import (
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/resources"
 	"github.com/globalsign/mgo/bson"
 )
 
-//Results finds beacons in the database greater than a given cutoffScore
+// Results finds beacons in the database greater than a given cutoffScore
 func Results(res *resources.Resources, cutoffScore float64) ([]Result, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()
@@ -19,9 +19,9 @@ func Results(res *resources.Resources, cutoffScore float64) ([]Result, error) {
 	return beacons, err
 }
 
-//StrobeResults finds strobes (beacons with an immense number of connections) in the database.
-//The results will be sorted by connection count ordered by sortDir (-1 or 1).
-//limit and noLimit control how many results are returned.
+// StrobeResults finds strobes (beacons with an immense number of connections) in the database.
+// The results will be sorted by connection count ordered by sortDir (-1 or 1).
+// limit and noLimit control how many results are returned.
 func StrobeResults(res *resources.Resources, sortDir, limit int, noLimit bool) ([]StrobeResult, error) {
 	ssn := res.DB.Session.Copy()
 	defer ssn.Close()

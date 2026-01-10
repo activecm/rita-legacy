@@ -12,8 +12,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/activecm/rita/config"
-	pt "github.com/activecm/rita/parser/parsetypes"
+	"github.com/activecm/rita-legacy/config"
+	pt "github.com/activecm/rita-legacy/parser/parsetypes"
 )
 
 // newIndexedFile takes in a file path and the current resource bundle and opens up the

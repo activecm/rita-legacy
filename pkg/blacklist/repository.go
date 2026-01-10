@@ -1,7 +1,7 @@
 package blacklist
 
 import (
-	"github.com/activecm/rita/pkg/data"
+	"github.com/activecm/rita-legacy/pkg/data"
 )
 
 // Repository for blacklist results in host collection

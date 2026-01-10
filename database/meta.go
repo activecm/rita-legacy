@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/activecm/rita/config"
-	"github.com/activecm/rita/parser/files"
+	"github.com/activecm/rita-legacy/config"
+	"github.com/activecm/rita-legacy/parser/files"
 	"github.com/blang/semver"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
@@ -63,7 +63,7 @@ func NewMetaDB(config *config.Config, dbHandle *mgo.Session,
 	return metaDB
 }
 
-//GetRollingSettings gets the current rolling settings
+// GetRollingSettings gets the current rolling settings
 func (m *MetaDB) GetRollingSettings(db string) (exists bool, isRolling bool, currChunk int, totalChunks int, err error) {
 	// pull down dataset record from metadatabase
 	result, err := m.GetDBMetaInfo(db)
@@ -81,8 +81,8 @@ func (m *MetaDB) GetRollingSettings(db string) (exists bool, isRolling bool, cur
 	return
 }
 
-//SetRollingSettings ensures that a given db is marked as rolling,
-//ensures that total_chunks matches numchunks, and sets the current_chunk to chunk.
+// SetRollingSettings ensures that a given db is marked as rolling,
+// ensures that total_chunks matches numchunks, and sets the current_chunk to chunk.
 func (m *MetaDB) SetRollingSettings(db string, chunk int, numchunks int) error {
 	// pull down dataset record from metadatabase
 	result, err := m.GetDBMetaInfo(db)
@@ -129,7 +129,7 @@ func (m *MetaDB) SetRollingSettings(db string, chunk int, numchunks int) error {
 	return nil
 }
 
-//LastCheck returns most recent version check
+// LastCheck returns most recent version check
 func (m *MetaDB) LastCheck() (time.Time, semver.Version) {
 	ssn := m.dbHandle.Copy()
 	defer ssn.Close()
@@ -196,7 +196,7 @@ func (m *MetaDB) AddNewDB(name string, currentChunk, totalChunks int) error {
 	return nil
 }
 
-//DBExists returns whether or not a metadatabase record has been created for a database
+// DBExists returns whether or not a metadatabase record has been created for a database
 func (m *MetaDB) DBExists(name string) (bool, error) {
 	_, err := m.GetDBMetaInfo(name)
 	if err != nil && err != mgo.ErrNotFound {
@@ -477,8 +477,8 @@ func (m *MetaDB) GetDatabases() []string {
 
 }
 
-//CheckCompatibleAnalyze checks if a database was analyzed with a version of
-//RITA which is compatible with the running version
+// CheckCompatibleAnalyze checks if a database was analyzed with a version of
+// RITA which is compatible with the running version
 func (m *MetaDB) CheckCompatibleAnalyze(targetDatabase string) (bool, error) {
 	dbData, err := m.GetDBMetaInfo(targetDatabase)
 	if err != nil {
@@ -543,7 +543,7 @@ func (m *MetaDB) GetFiles(database string) ([]files.IndexedFile, error) {
 	return toReturn, nil
 }
 
-//AddNewFilesToIndex adds indexed files to the files the metaDB using the bulk API
+// AddNewFilesToIndex adds indexed files to the files the metaDB using the bulk API
 func (m *MetaDB) AddNewFilesToIndex(files []*files.IndexedFile) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -573,10 +573,10 @@ func (m *MetaDB) AddNewFilesToIndex(files []*files.IndexedFile) error {
 	return nil
 }
 
-//FilterOutPreviouslyIndexedFiles checks all indexedFiles passed in to ensure
-//that they have not previously been imported into the same database.
-//The files are compared based on their hashes (md5 of first 15000 bytes)
-//and the database they are slated to be imported into.
+// FilterOutPreviouslyIndexedFiles checks all indexedFiles passed in to ensure
+// that they have not previously been imported into the same database.
+// The files are compared based on their hashes (md5 of first 15000 bytes)
+// and the database they are slated to be imported into.
 func (m *MetaDB) FilterOutPreviouslyIndexedFiles(indexedFiles []*files.IndexedFile,
 	targetDatabase string) []*files.IndexedFile {
 
@@ -608,8 +608,8 @@ func (m *MetaDB) FilterOutPreviouslyIndexedFiles(indexedFiles []*files.IndexedFi
 	return toReturn
 }
 
-//RemoveFilesByChunk removes FilesTable entries for a given database chunk.
-//This helps provide the ability to re-import a given chunk.
+// RemoveFilesByChunk removes FilesTable entries for a given database chunk.
+// This helps provide the ability to re-import a given chunk.
 func (m *MetaDB) RemoveFilesByChunk(database string, cid int) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()

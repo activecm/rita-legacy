@@ -15,7 +15,7 @@ reports
 Just be sure to do the following:
 
 - Check if the bug is already accounted for on the
-  [Github issue tracker](https://github.com/activecm/rita/issues)
+  [Github issue tracker](https://github.com/activecm/rita-legacy/issues)
   - If an issue already exists, add the relevant info in a comment
   - If not, create an issue and include the relevant info
 - Give very specific descriptions of how to reproduce the bug
@@ -29,7 +29,7 @@ There are several ways to contribute code to the RITA project.
 Before diving in, follow the [Manual Installation Instructions](docs/Manual%20Installation.md)
 
 - Work on bug fixes:
-  - Find an issue you would like to work on in the Github tracker, especially [unassigned issues marked "good first issue"](https://github.com/activecm/rita/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22+no%3Aassignee)
+  - Find an issue you would like to work on in the Github tracker, especially [unassigned issues marked "good first issue"](https://github.com/activecm/rita-legacy/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22+no%3Aassignee)
   - Leave a comment letting us know you would like to work on it
 - Add new features:
   - If you would like to become involved in the development effort, open a new issue or continue a discussion on an existing issue

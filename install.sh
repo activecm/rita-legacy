@@ -530,8 +530,8 @@ __configure_mongodb() {
 }
 
 __install_rita() {
-    _RITA_RELEASE_URL="https://github.com/activecm/rita/releases/download/$_RITA_VERSION"
-    _RITA_REPO_URL="https://raw.githubusercontent.com/activecm/rita/$_RITA_VERSION"
+    _RITA_RELEASE_URL="https://github.com/activecm/rita-legacy/releases/download/$_RITA_VERSION"
+    _RITA_REPO_URL="https://raw.githubusercontent.com/activecm/rita-legacy/$_RITA_VERSION"
     _RITA_BINARY_URL="$_RITA_RELEASE_URL/rita"
     _RITA_CONFIG_URL="$_RITA_REPO_URL/etc/rita.yaml"
     _RITA_LICENSE_URL="$_RITA_REPO_URL/LICENSE"

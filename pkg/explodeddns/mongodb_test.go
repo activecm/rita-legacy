@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package explodeddns
@@ -7,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/activecm/rita/resources"
+	"github.com/activecm/rita-legacy/resources"
 	"github.com/globalsign/mgo/dbtest"
 )
 

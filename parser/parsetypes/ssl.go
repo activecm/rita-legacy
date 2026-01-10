@@ -1,7 +1,7 @@
 package parsetypes
 
 import (
-	"github.com/activecm/rita/config"
+	"github.com/activecm/rita-legacy/config"
 )
 
 // SSL provides a data structure for zeek's connection data
@@ -96,12 +96,12 @@ type SSL struct {
 	AgentUUID string `bson:"agent_uuid" bro:"agent_uuid" brotype:"string" json:"agent_uuid"`
 }
 
-//TargetCollection returns the mongo collection this entry should be inserted
+// TargetCollection returns the mongo collection this entry should be inserted
 func (line *SSL) TargetCollection(config *config.StructureTableCfg) string {
 	return config.SSLTable
 }
 
-//ConvertFromJSON performs any extra conversions necessary when reading from JSON
+// ConvertFromJSON performs any extra conversions necessary when reading from JSON
 func (line *SSL) ConvertFromJSON() {
 	line.TimeStamp = convertTimestamp(line.TimeStampGeneric)
 }

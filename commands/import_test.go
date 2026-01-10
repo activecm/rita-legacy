@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/activecm/rita/config"
+	"github.com/activecm/rita-legacy/config"
 )
 
 func TestParseFlags(t *testing.T) {
