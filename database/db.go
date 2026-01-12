@@ -23,7 +23,7 @@ var MinMongoDBVersion = semver.Version{
 // versions of MongoDB compatible with RITA
 var MaxMongoDBVersion = semver.Version{
 	Major: 4,
-	Minor: 3,
+	Minor: 5,
 	Patch: 0,
 }
 

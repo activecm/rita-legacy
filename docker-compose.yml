@@ -2,12 +2,12 @@ version: "3"
 
 services:
   db:
-    image: mongo:4.2
+    image: mongo:4.4.30
     volumes:
       - db:/data/db/
 
   rita:
-    image: quay.io/activecm/rita-legacy:${VERSION:-latest}
+    image: quay.io/activecm/rita:${VERSION:-latest}
     build: .
     links:
       # give db an alias of "localhost" so that RITA's default config works unchanged
