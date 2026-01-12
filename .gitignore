@@ -7,6 +7,6 @@
 *.swo
 *.exe
 /.vscode/
-/rita
+/rita-legacy
 /vendor/
 /rita-html-report/

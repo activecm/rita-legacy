@@ -1,14 +1,18 @@
 module github.com/activecm/rita-legacy
 
-go 1.22.0
+go 1.22
+
+// If urfave/cli is updated from v1.20.0 the corresponding autocomplete file
+// should be updated in etc/bash_completion.d/rita-legacy
+// https://github.com/urfave/cli/blob/main/autocomplete/bash_autocomplete
 
 require (
 	github.com/activecm/mgorus v0.1.1
 	github.com/activecm/mgosec v0.1.1
 	github.com/activecm/rita-bl v0.0.0-20220823191806-f014db21453d
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/creasty/defaults v1.7.0
-	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
+	github.com/creasty/defaults v1.3.0
+	github.com/globalsign/mgo v0.0.0-20190517090918-73267e130ca1
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/json-iterator/go v1.1.12
@@ -27,12 +31,12 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/golang/protobuf v1.1.0 // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/google/safebrowsing v0.0.0-20171128203709-fe6951d7ef01 // indirect
-	github.com/kr/text v0.2.0 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.9 // indirect
+	github.com/golang/protobuf v1.3.3 // indirect
+	github.com/google/go-querystring v1.0.0 // indirect
+	github.com/google/safebrowsing v0.0.0-20190214191829-0feabcc2960b // indirect
+	github.com/konsorten/go-windows-terminal-sequences v1.0.1 // indirect
+	github.com/mattn/go-isatty v0.0.8 // indirect
+	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

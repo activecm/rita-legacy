@@ -23,11 +23,11 @@ import (
 // 	return &Service{}
 // }
 
-// BuildBlacklistedCollections builds the blacklist master reference collection
+// BuildBlacklistedCollections builds the blacklist primary reference collection
 // and checks the uconn documents against that collection
 func BuildBlacklistedCollections(db *database.DB, conf *config.Config, logger *log.Logger) {
 	// build the blacklist reference collection from provided blacklist sources
-	// this will be the master list ips and hostnames will be checked against
+	// this will be the primary list ips and hostnames will be checked against
 	buildBlacklistReferenceCollection(db, conf, logger)
 
 	// // build src ip collection

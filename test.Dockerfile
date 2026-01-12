@@ -5,7 +5,7 @@ FROM golang:1.17
 RUN apt-get update && apt-get install -y git make ca-certificates wget build-essential
 WORKDIR /go
 # install testing dependencies
-RUN wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
+RUN wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/main/install.sh \
 	| sh -s v1.41.1
 
 WORKDIR /go/src/github.com/activecm/rita-legacy

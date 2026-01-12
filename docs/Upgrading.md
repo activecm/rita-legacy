@@ -17,11 +17,12 @@ You may not need to update your config file at all as RITA includes sane default
 
 ## Updating RITA's Config File
 
-In some cases you may also need to update your config file to a newer version. You can always find the latest config file in [`etc/rita.yml`](https://github.com/activecm/rita-legacy/blob/master/etc/rita.yaml). If you use the `install.sh` script, the correct version of the config file will be downloaded for you to `/etc/rita/config.yaml.new`.
+In some cases you may also need to update your config file to a newer version. You can always find the latest config file in [`etc/rita.yml`](https://github.com/activecm/rita-legacy/blob/main/etc/rita.yaml). If you use the `install.sh` script, the correct version of the config file will be downloaded for you to `/etc/rita/config.yaml.new`.
 
 To update the config file, transfer over any values you customized in your existing config to the equivalent section of the new config. Then save a backup of your existing `/etc/rita/config.yaml` before you replace it with the new version.
 
 Here are other useful tips for comparing differences between configs:
-* Check the release notes for each of the versions of RITA for details on config file changes.
-* Run `diff /etc/rita/config.yaml /etc/rita/config.yaml.new` to see a summary of both your customizations and any changes to the new config.
-* Use `rita test-config` to see the config values RITA is using while it runs. This includes any default values set when your config file doesn't specify them. You can also specify a custom config file to further compare the differences like this: `rita test-config --config /etc/rita/config.yaml.new`. 
+
+- Check the release notes for each of the versions of RITA for details on config file changes.
+- Run `diff /etc/rita/config.yaml /etc/rita/config.yaml.new` to see a summary of both your customizations and any changes to the new config.
+- Use `rita test-config` to see the config values RITA is using while it runs. This includes any default values set when your config file doesn't specify them. You can also specify a custom config file to further compare the differences like this: `rita test-config --config /etc/rita/config.yaml.new`.

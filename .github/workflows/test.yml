@@ -4,13 +4,13 @@ on:
   pull_request:
     # Run tests except if only markdown files are changed
     paths:
-      - '**'
-      - '!*.md'
+      - "**"
+      - "!*.md"
 
 jobs:
   test:
     name: static and unit tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v1
       - run: make docker-test
