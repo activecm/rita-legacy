@@ -13,7 +13,7 @@ import (
 var privateIPBlocks []*net.IPNet
 
 func init() {
-	privateIPBlocks = ParseSubnets(
+	privateIPs, err := ParseSubnets(
 		[]string{
 			//"127.0.0.0/8",    // IPv4 Loopback; handled by ip.IsLoopback
 			//"::1/128",        // IPv6 Loopback; handled by ip.IsLoopback
@@ -24,35 +24,54 @@ func init() {
 			"192.168.0.0/16", // RFC1918
 			"fc00::/7",       // IPv6 unique local addr
 		})
+
+	if err == nil {
+		privateIPBlocks = privateIPs
+	} else {
+		panic(fmt.Sprintf("Error defining private IPs: %v", err.Error()))
+	}
 }
 
-//ParseSubnets parses the provided subnets into net.ipnet format
-func ParseSubnets(subnets []string) (parsedSubnets []*net.IPNet) {
+// ParseSubnets parses the provided subnets into net.IPNet format
+func ParseSubnets(subnets []string) ([]*net.IPNet, error) {
+	var parsedSubnets []*net.IPNet
 
 	for _, entry := range subnets {
-		//try to parse out cidr range
+		// Try to parse out CIDR range
 		_, block, err := net.ParseCIDR(entry)
 
-		//if there was an error, check if entry was an IP not a range
+		// If there was an error, check if entry was an IP
 		if err != nil {
-			// try to parse out IP as range of single host
-			_, block, err = net.ParseCIDR(entry + "/32")
+			ipAddr := net.ParseIP(entry)
+			if ipAddr == nil {
+				fmt.Fprintf(os.Stdout, "Error parsing entry: %s\n", err.Error())
+				return parsedSubnets, err
+			}
 
-			// if error, report and return
+			// Check if it's an IPv4 or IPv6 address and append the appropriate subnet mask
+			var subnetMask string
+			if ipAddr.To4() != nil {
+				subnetMask = "/32"
+			} else {
+				subnetMask = "/128"
+			}
+
+			// Append the subnet mask and parse as a CIDR range
+			_, block, err = net.ParseCIDR(entry + subnetMask)
+
 			if err != nil {
 				fmt.Fprintf(os.Stdout, "Error parsing CIDR entry: %s\n", err.Error())
-				os.Exit(-1)
-				return
+				return parsedSubnets, err
 			}
 		}
 
-		// add cidr range to list
+		// Add CIDR range to the list
 		parsedSubnets = append(parsedSubnets, block)
 	}
-	return
+	return parsedSubnets, nil
 }
 
-//IPIsPubliclyRoutable checks if an IP address is publicly routable. See privateIPBlocks.
+// IPIsPubliclyRoutable checks if an IP address is publicly routable. See privateIPBlocks.
 func IPIsPubliclyRoutable(ip net.IP) bool {
 	// cache IPv4 conversion so it not performed every in every ip.IsXXX method
 	if ipv4 := ip.To4(); ipv4 != nil {
@@ -69,7 +88,7 @@ func IPIsPubliclyRoutable(ip net.IP) bool {
 	return true
 }
 
-//ContainsIP checks if a collection of subnets contains an IP
+// ContainsIP checks if a collection of subnets contains an IP
 func ContainsIP(subnets []*net.IPNet, ip net.IP) bool {
 	// cache IPv4 conversion so it not performed every in every Contains call
 	if ipv4 := ip.To4(); ipv4 != nil {
@@ -84,7 +103,7 @@ func ContainsIP(subnets []*net.IPNet, ip net.IP) bool {
 	return false
 }
 
-//ContainsDomain checks if a collection of domains contains an IP
+// ContainsDomain checks if a collection of domains contains an IP
 func ContainsDomain(domains []string, host string) bool {
 
 	for _, entry := range domains {
@@ -123,17 +142,17 @@ func IsIP(ip string) bool {
 	return net.ParseIP(ip) != nil
 }
 
-//IsIPv4 checks if an ip is ipv4
+// IsIPv4 checks if an ip is ipv4
 func IsIPv4(address string) bool {
 	return strings.Count(address, ":") < 2
 }
 
-//IPv4ToBinary generates binary representations of the IPv4 addresses
+// IPv4ToBinary generates binary representations of the IPv4 addresses
 func IPv4ToBinary(ipv4 net.IP) int64 {
 	return int64(binary.BigEndian.Uint32(ipv4[12:16]))
 }
 
-//PublicNetworkUUID is the UUID bound to publicly routable UniqueIP addresses
+// PublicNetworkUUID is the UUID bound to publicly routable UniqueIP addresses
 var PublicNetworkUUID bson.Binary = bson.Binary{
 	Kind: bson.BinaryUUID,
 	Data: []byte{
@@ -142,10 +161,10 @@ var PublicNetworkUUID bson.Binary = bson.Binary{
 	},
 }
 
-//PublicNetworkName is the name bound to publicly routable UniqueIP addresses
+// PublicNetworkName is the name bound to publicly routable UniqueIP addresses
 const PublicNetworkName string = "Public"
 
-//UnknownPrivateNetworkUUID ...
+// UnknownPrivateNetworkUUID ...
 var UnknownPrivateNetworkUUID bson.Binary = bson.Binary{
 	Kind: bson.BinaryUUID,
 	Data: []byte{
@@ -154,5 +173,5 @@ var UnknownPrivateNetworkUUID bson.Binary = bson.Binary{
 	},
 }
 
-//UnknownPrivateNetworkName ...
+// UnknownPrivateNetworkName ...
 const UnknownPrivateNetworkName string = "Unknown Private"

@@ -17,4 +17,9 @@ type (
 		ResolvedIPs data.UniqueIPSet //Set of resolved UniqueIPs associated with a given hostname
 		ClientIPs   data.UniqueIPSet //Set of DNS Client UniqueIPs which issued queries for a given hostname
 	}
+
+	// FQDN Results for show-ip-dns-fqdns
+	FQDNResult struct {
+		Hostname string `bson:"_id"`
+	}
 )

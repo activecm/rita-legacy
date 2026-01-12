@@ -31,7 +31,6 @@
 ## Contributors
 
 ### Setting up a forked repo
-
 - If you do not have direct write permissions to the RITA project, you will need to [fork it](https://github.com/activecm/rita-legacy/fork).
 - Once you have a forked repo you will need to clone it to a very specific path which corresponds to _the original repo location_. This is due to the way packages are imported in Go programs.
   - `git clone [your forked repo git url]`

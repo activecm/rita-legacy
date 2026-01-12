@@ -2,16 +2,15 @@ version: "3"
 
 services:
   db:
-    image: mongo:4.2
+    image: mongo:4.4.30
     volumes:
       - db:/data/db/
 
   rita:
     image: quay.io/activecm/rita-legacy:${VERSION:-latest}
     build: .
-    links:
-      # give db an alias of "localhost" so that RITA's default config works unchanged
-      - db:localhost
+    depends_on:
+      - db
     volumes:
       - ${CONFIG:?You must provide a path to your CONFIG}:/etc/rita/config.yaml:ro
       - ${LOGS:?You must provide a path to your LOGS}:/logs:ro

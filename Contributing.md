@@ -13,7 +13,6 @@ Run the software and tell us when it breaks. We are happy to receive bug
 reports
 
 Just be sure to do the following:
-
 - Check if the bug is already accounted for on the
   [Github issue tracker](https://github.com/activecm/rita-legacy/issues)
   - If an issue already exists, add the relevant info in a comment
