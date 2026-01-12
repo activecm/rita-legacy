@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine AS rita-builder
+FROM golang:1.22-alpine AS rita-builder
 
 RUN apk add --no-cache git make ca-certificates wget build-base
 
