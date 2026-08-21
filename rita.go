@@ -2,15 +2,28 @@ package main
 
 import (
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 
 	"github.com/activecm/rita-legacy/commands"
 	"github.com/activecm/rita-legacy/config"
 	"github.com/urfave/cli"
 )
 
+func preventSIGPIPETermination() {
+	sigPipe := make(chan os.Signal, 1)
+	signal.Notify(sigPipe, syscall.SIGPIPE)
+	go func() {
+		for range sigPipe {
+		}
+	}()
+}
+
 // Entry point of ac-hunt
 func main() {
+	preventSIGPIPETermination()
+
 	app := cli.NewApp()
 	app.Name = "rita"
 	app.Usage = "Look for evil needles in big haystacks."
