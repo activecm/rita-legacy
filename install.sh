@@ -7,10 +7,10 @@
 _RITA_VERSION="v4.8.2"
 _MONGO_VERSION="4.4"
 _MONGO_MIN_UPDATE_VERSION="4.0"
+_ZEEK_OPEN_CONNECTIONS_VERSION="v1.3.0"
 _NAME=$(basename "${0}")
 _FAILED="\e[91mFAILED\e[0m"
-_SUCCESS="\e[92mSUCCESS\e[0m"
-_ITEM="[-]"
+_SUCCESS="\e[92mSUCCESS\e[0m"_ITEM="[-]"
 _IMPORTANT="[!]"
 _QUESTION="[?]"
 _SUBITEM="\t$_ITEM"
@@ -141,9 +141,9 @@ __install() {
         #Unconditionally installed whether this is a new install or an upgrade
         #Install this before calling __configure_zeek so the modules are in place when "zeekctl deploy" restarts zeek
         __install_ja3
+        __install_open_connections
         __fix_inactivity_timeout
         __enable_ssl_certificate_logging
-
         if [ "$_ZEEK_INSTALLED" = "true" ]; then
             __configure_zeek
         fi
@@ -299,9 +299,25 @@ __install_ja3() {
     fi
 }
 
-__fix_inactivity_timeout() {
+__install_open_connections() {
     local_path="$_ZEEK_PATH/../share/zeek/site/"
 
+    mkdir -p "$local_path/zeek-open-connections/"
+
+    for one_file in __load__.zeek zeek_open_connections.zeek ; do
+        if [ ! -e "$local_path/zeek-open-connections/$one_file" ]; then
+            curl -sSL "https://raw.githubusercontent.com/activecm/zeek-open-connections/$_ZEEK_OPEN_CONNECTIONS_VERSION/scripts/$one_file" -o "$local_path/zeek-open-connections/$one_file"
+        fi
+    done
+
+    if ! grep -q '^[^#]*@load \./zeek-open-connections' "$local_path/local.zeek" ; then
+        echo '' >>"$local_path/local.zeek"
+        echo '@load ./zeek-open-connections' >>"$local_path/local.zeek"
+    fi
+}
+
+__fix_inactivity_timeout() {
+    local_path="$_ZEEK_PATH/../share/zeek/site/"
     mkdir -p "$local_path"
 
     if ! grep -q '^[^#]*redef tcp_inactivity_timeout = 60 min;' "$local_path/local.zeek" ; then
